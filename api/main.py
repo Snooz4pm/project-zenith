@@ -40,8 +40,8 @@ def health_check():
 @app.get("/api/v1/tokens/trending")
 def get_trending_tokens(
     limit: int = Query(default=100, le=500),
-    min_liquidity: float = Query(default=150000),
-    min_volume: float = Query(default=250000)
+    min_liquidity: float = Query(default=10000),
+    min_volume: float = Query(default=10000)
 ):
     """
     Fetches trending tokens from DexScreener.
