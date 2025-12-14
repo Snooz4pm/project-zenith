@@ -41,7 +41,7 @@ export function calculateTrendScore(token) {
  * Generate buy recommendation with confidence score
  */
 export function generateBuyRecommendation(token, securityData, trendData) {
-    let confidence = 50; // Start at neutral
+    let confidence = 60; // Start higher for DeFi market
     const reasons = [];
 
     // Security impact
@@ -54,63 +54,81 @@ export function generateBuyRecommendation(token, securityData, trendData) {
             };
         }
 
-        confidence += (securityData.score - 5) * 5; // -25 to +25
-        if (securityData.score >= 8) reasons.push('High security score');
-        if (securityData.score < 6) reasons.push('Security concerns');
+        confidence += (securityData.score - 4) * 4; // More lenient
+        if (securityData.score >= 7) reasons.push('Good security score');
+        if (securityData.score < 5) reasons.push('Security concerns');
     }
 
-    // Trend impact
-    if (trendData.score > 7.5) {
-        confidence += 20;
+    // Trend impact - more weight
+    if (trendData.score > 6) {
+        confidence += 25;
         reasons.push('Strong bullish trend');
-    } else if (trendData.score < 4) {
+    } else if (trendData.score > 4.5) {
+        confidence += 10;
+        reasons.push('Positive trend');
+    } else if (trendData.score < 3) {
         confidence -= 20;
         reasons.push('Weak trend');
     }
 
-    // Volume impact
-    if (token.volume24h > 1000000) {
-        confidence += 10;
+    // Volume impact - more generous
+    if (token.volume24h > 500000) {
+        confidence += 15;
         reasons.push('High trading volume');
+    } else if (token.volume24h > 100000) {
+        confidence += 5;
+        reasons.push('Decent volume');
     }
 
-    // Liquidity impact
-    if (token.liquidity > 500000) {
-        confidence += 10;
+    // Liquidity impact - adjusted
+    if (token.liquidity > 300000) {
+        confidence += 12;
         reasons.push('Good liquidity');
-    } else if (token.liquidity < 100000) {
+    } else if (token.liquidity < 75000) {
         confidence -= 15;
         reasons.push('Low liquidity risk');
     }
 
-    // New launch bonus/risk
+    // New launch bonus - opportunity focused
     if (token.isNewLaunch) {
-        if (trendData.score > 7) {
-            confidence += 15;
-            reasons.push('Early entry opportunity');
+        if (trendData.score > 5.5) {
+            confidence += 20;
+            reasons.push('🚀 Early entry opportunity');
+        } else if (trendData.score > 4) {
+            confidence += 5;
+            reasons.push('New token with potential');
         } else {
             confidence -= 10;
             reasons.push('Unproven new token');
         }
     }
 
-    // Price momentum
-    if (token.priceChange24h > 20) {
-        confidence += 10;
+    // Price momentum - more weight
+    if (token.priceChange24h > 15) {
+        confidence += 15;
         reasons.push('Strong price momentum');
-    } else if (token.priceChange24h < -20) {
+    } else if (token.priceChange24h > 5) {
+        confidence += 5;
+        reasons.push('Positive price action');
+    } else if (token.priceChange24h < -15) {
         confidence -= 15;
         reasons.push('Negative price action');
+    }
+
+    // Bonus for strong fundamentals
+    if (trendData.score > 6 && securityData?.score >= 7 && token.volume24h > 200000) {
+        confidence += 10;
+        reasons.push('💎 Strong fundamentals');
     }
 
     // Cap confidence at 0-100
     confidence = Math.max(0, Math.min(100, confidence));
 
-    // Determine recommendation
+    // Determine recommendation - lowered thresholds
     let recommendation;
-    if (confidence >= 80) recommendation = 'STRONG BUY';
-    else if (confidence >= 60) recommendation = 'BUY';
-    else if (confidence >= 40) recommendation = 'HOLD';
+    if (confidence >= 75) recommendation = 'STRONG BUY';
+    else if (confidence >= 55) recommendation = 'BUY';
+    else if (confidence >= 35) recommendation = 'HOLD';
     else recommendation = 'AVOID';
 
     return {
