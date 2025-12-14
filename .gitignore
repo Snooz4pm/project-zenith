@@ -1,0 +1,1 @@
+-e "# IDE and OS files\n.DS_Store\n*.log\nnpm-debug.log*\n\n# Environment Secrets - CRITICAL\n.env\n.env.local\n\n# Dependency folder\n/node_modules" 

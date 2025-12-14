@@ -1,0 +1,22 @@
+{
+  "name": "defi-oracle-worker",
+  "version": "1.0.0",
+  "description": "Protocol Zenith: A DeFi token scoring and ranking oracle.",
+  "main": "api/worker.js",
+  "type": "module",
+  "scripts": {
+    "start": "node api/worker.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@upstash/qstash": "^2.1.0",
+    "@upstash/redis": "^1.31.5",
+    "dotenv": "^16.4.5",
+    "luxon": "^3.4.4",
+    "node-fetch": "^3.3.2",
+    "p-limit": "^5.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
