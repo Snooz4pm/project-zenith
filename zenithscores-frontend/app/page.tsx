@@ -32,7 +32,9 @@ export default function Dashboard() {
         <Suspense fallback={<div className="h-16 bg-gray-900 rounded-lg animate-pulse mb-8" />}>
           <TokenSearch />
         </Suspense>
-        <ZenithLeaders />
+        <Suspense fallback={<div className="h-64 bg-gray-900 rounded-xl animate-pulse" />}>
+          <ZenithLeaders />
+        </Suspense>
       </main>
 
       {/* Footer */}
