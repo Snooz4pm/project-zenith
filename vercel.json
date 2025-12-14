@@ -11,9 +11,5 @@
             "src": "/(.*)",
             "dest": "api/main.py"
         }
-    ],
-    "env": {
-        "ALPHA_VANTAGE_API_KEY": "@alpha_vantage_api_key",
-        "NEON_DATABASE_URL": "@neon_database_url"
-    }
+    ]
 }

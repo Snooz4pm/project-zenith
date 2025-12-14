@@ -31,7 +31,7 @@ export default function ZenithLeaders() {
 
     const fetchTokens = async () => {
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
             const response = await fetch(`${apiUrl}/api/v1/tokens/trending?limit=100`);
 
             if (!response.ok) {
