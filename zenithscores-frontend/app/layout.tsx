@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import React from "react";
 
 export const metadata: Metadata = {
   title: "Zenith Scores | Market Intelligence Dashboard",
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.Node;
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="en">
