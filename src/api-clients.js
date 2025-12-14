@@ -267,3 +267,73 @@ async function getTrendingTokenCandidates() {
 export const RealTimeClient = {
     getTrendingTokenCandidates,
 };
+
+
+// =========================================================================
+// 4. News Sentiment Client (Gemini with Google Search)
+// =========================================================================
+
+import { GoogleGenAI } from '@google/genai';
+
+// Initialize the AI client using the Environment Variable
+const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+
+/**
+ * Fetches and scores news sentiment for a token using Gemini with Google Search.
+ * @param {string} tokenName - The name of the token to analyze.
+ * @returns {object} - { newsScore: number, newsSummary: string }
+ */
+export async function fetchAndScoreNews(tokenName) {
+    if (!env.GEMINI_API_KEY) {
+        console.warn("GEMINI_API_KEY is missing. Skipping news analysis.");
+        return { newsScore: 0, newsSummary: "News analysis disabled (API key missing)." };
+    }
+
+    // --- FINALIZED GEMINI PROMPT ---
+    const prompt = `
+        You are a financial sentiment analysis expert. 
+        1. **Search:** Use Google Search to find all recent, reliable news, events, and community sentiment (last 48 hours) concerning the crypto token "${tokenName}".
+        2. **Analyze:** Analyze all search results for overall positive or negative sentiment.
+        3. **Score:** Provide a single, objective sentiment score from -10 (Extremely Negative) to +10 (Extremely Positive).
+        4. **Summary:** Provide a concise, two-sentence summary of the key findings.
+        
+        The output MUST be only a single, valid JSON object following this schema:
+        {
+          "score": integer (-10 to 10),
+          "summary": string (2 sentences maximum)
+        }
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            config: {
+                tools: [{ googleSearch: {} }],
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "object",
+                    properties: {
+                        score: { type: "integer", description: "Sentiment score from -10 to +10." },
+                        summary: { type: "string", description: "A 2-sentence summary of the news." }
+                    },
+                    required: ["score", "summary"]
+                }
+            }
+        });
+
+        // Response should be clean JSON due to MimeType setting
+        const parsedResult = JSON.parse(response.text.trim());
+
+        logger.info('gemini_news_success', { tokenName, score: parsedResult.score });
+        return { newsScore: parsedResult.score, newsSummary: parsedResult.summary };
+
+    } catch (error) {
+        logger.error('gemini_news_fail', { tokenName, error: error.message });
+        return { newsScore: 0, newsSummary: "News analysis failed due to API error." };
+    }
+}
+
+export const NewsClient = {
+    fetchAndScoreNews
+};
