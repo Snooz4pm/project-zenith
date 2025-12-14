@@ -1,23 +1,23 @@
-// app/api/analyze/route.js - Unified token analysis endpoint
+// app/api/analyze/route.js - Enhanced market analysis endpoint
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 import { NextResponse } from 'next/server';
 import { redisClient, logger } from '../../../lib/utils.js';
-import { fetchTrendingTokens } from '../../../lib/api-clients.js';
-import { scoreAndRankTokens } from '../../../lib/scoring.js';
+import { fetchMarketTokens } from '../../../lib/api-clients.js';
+import { analyzeMarket } from '../../../lib/scoring.js';
 
-const CACHE_KEY = 'zenith:analyzed_tokens';
-const CACHE_TTL = 60; // 60 seconds cache
+const CACHE_KEY = 'zenith:market_analysis';
+const CACHE_TTL = 300; // 5 minutes cache (longer due to comprehensive analysis)
 
 /**
  * GET /api/analyze
- * Fetches, analyzes, and ranks tokens
+ * Comprehensive market analysis with buy recommendations
  */
 export async function GET(request) {
     try {
-        logger.info('analyze_start');
+        logger.info('market_analysis_start');
 
         // Check cache first
         const cached = await redisClient.get(CACHE_KEY);
@@ -31,34 +31,47 @@ export async function GET(request) {
             });
         }
 
-        // Fetch trending tokens
-        const trendingTokens = await fetchTrendingTokens();
+        // Fetch 500+ tokens from multiple chains
+        const marketTokens = await fetchMarketTokens(200); // 200 per chain = 600 total
 
-        if (trendingTokens.length === 0) {
+        if (marketTokens.length === 0) {
             return NextResponse.json({
                 success: false,
-                error: 'No trending tokens found',
+                error: 'No tokens found',
                 tokens: [],
             }, { status: 404 });
         }
 
-        // Score and rank tokens
-        const rankedTokens = await scoreAndRankTokens(trendingTokens);
+        // Analyze top 50 tokens (to avoid timeout)
+        const topTokens = marketTokens
+            .sort((a, b) => b.volume24h - a.volume24h)
+            .slice(0, 50);
+
+        const analyzed = await analyzeMarket(topTokens);
 
         // Cache results
-        await redisClient.setex(CACHE_KEY, CACHE_TTL, JSON.stringify(rankedTokens));
+        await redisClient.setex(CACHE_KEY, CACHE_TTL, JSON.stringify(analyzed));
 
-        logger.info('analyze_complete', { count: rankedTokens.length });
+        logger.info('market_analysis_complete', {
+            scanned: marketTokens.length,
+            analyzed: analyzed.length
+        });
 
         return NextResponse.json({
             success: true,
-            tokens: rankedTokens,
+            tokens: analyzed,
             cached: false,
+            stats: {
+                totalScanned: marketTokens.length,
+                analyzed: analyzed.length,
+                strongBuys: analyzed.filter(t => t.recommendation.recommendation === 'STRONG BUY').length,
+                buys: analyzed.filter(t => t.recommendation.recommendation === 'BUY').length,
+            },
             timestamp: new Date().toISOString(),
         });
 
     } catch (error) {
-        logger.error('analyze_error', { error: error.message });
+        logger.error('market_analysis_error', { error: error.message });
         return NextResponse.json({
             success: false,
             error: error.message,
