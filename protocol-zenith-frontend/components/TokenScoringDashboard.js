@@ -8,17 +8,23 @@ export default function TokenScoringDashboard() {
   const [tokenData, setTokenData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [debugInfo, setDebugInfo] = useState(null);
 
   // Fetch real data from the API
   useEffect(() => {
     const fetchScores = async () => {
       setLoading(true);
       try {
+        console.log('Fetching leaderboard...');
         const response = await fetch('/api/leaderboard');
         const data = await response.json();
 
+        console.log('API Response:', data);
+        setDebugInfo(data.debug);
+
         if (data.success && data.leaderboard) {
           setTokenData(data.leaderboard);
+          setError(null);
         } else {
           setError(data.error || "Failed to load leaderboard");
         }
@@ -47,18 +53,49 @@ export default function TokenScoringDashboard() {
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <div className="text-red-500 text-xl mb-4">{error}</div>
-        <p className="text-gray-400">Make sure the worker has run at least once and Redis is configured.</p>
+      <div className="container mx-auto px-4 md:px-8 py-12 max-w-4xl">
+        <div className="bg-red-900/20 border border-red-700 rounded-lg p-6">
+          <h2 className="text-red-500 text-xl mb-4">⚠️ Error Loading Leaderboard</h2>
+          <p className="text-gray-300 mb-4">{error}</p>
+          {debugInfo && (
+            <div className="bg-gray-800 p-4 rounded mt-4">
+              <p className="text-xs text-gray-400 font-mono">Debug Info:</p>
+              <pre className="text-xs text-gray-300 mt-2 overflow-auto">
+                {JSON.stringify(debugInfo, null, 2)}
+              </pre>
+            </div>
+          )}
+          <p className="text-gray-400 text-sm mt-4">
+            Make sure:
+            <br />• Redis environment variables are set in Vercel
+            <br />• The worker has run at least once
+            <br />• Check Vercel function logs for errors
+          </p>
+        </div>
       </div>
     );
   }
 
   if (tokenData.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="text-yellow-400 text-xl mb-4">No tokens ranked yet</div>
-        <p className="text-gray-400">The worker needs to run to populate the leaderboard.</p>
+      <div className="container mx-auto px-4 md:px-8 py-12 max-w-4xl">
+        <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-6">
+          <h2 className="text-yellow-400 text-xl mb-4">📊 No Tokens Ranked Yet</h2>
+          <p className="text-gray-300 mb-4">
+            The leaderboard is empty. The worker needs to run to populate data.
+          </p>
+          {debugInfo && (
+            <div className="bg-gray-800 p-4 rounded mt-4">
+              <p className="text-xs text-gray-400 font-mono">Debug Info:</p>
+              <pre className="text-xs text-gray-300 mt-2 overflow-auto">
+                {JSON.stringify(debugInfo, null, 2)}
+              </pre>
+            </div>
+          )}
+          <p className="text-gray-400 text-sm mt-4">
+            Try triggering the test worker: <code className="bg-gray-800 px-2 py-1 rounded">/api/test-worker</code>
+          </p>
+        </div>
       </div>
     );
   }
@@ -68,6 +105,13 @@ export default function TokenScoringDashboard() {
       <h1 className="text-5xl font-bold text-center mb-12 text-green-400">
         Protocol Zenith
       </h1>
+
+      {/* Debug Info */}
+      {debugInfo && (
+        <div className="max-w-5xl mx-auto mb-6 bg-gray-800 p-3 rounded text-xs">
+          <span className="text-gray-400">Loaded {debugInfo.rawCount / 2} tokens from Redis</span>
+        </div>
+      )}
 
       {/* Token Cards Container */}
       <div className="space-y-6 max-w-5xl mx-auto">
