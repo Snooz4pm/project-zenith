@@ -1,5 +1,7 @@
 // File: protocol-zenith-frontend/app/api/leaderboard/route.js
 
+export const dynamic = 'force-dynamic'; // Force dynamic rendering, no caching
+
 import { NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 
