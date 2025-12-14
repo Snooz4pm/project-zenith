@@ -35,6 +35,13 @@ const mockTokenData = [
 ];
 
 export default async function handler(req, res) {
+    // --- SECURITY CHECK: Verify Vercel Cron Secret ---
+    const authHeader = req.headers.authorization;
+    if (authHeader !== `Bearer ${env.CRON_SECRET}`) {
+        logger.warn('test_worker_unauthorized', { hasAuth: !!authHeader });
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     logger.info('test_worker_start');
 
     try {
