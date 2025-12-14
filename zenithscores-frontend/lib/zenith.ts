@@ -13,3 +13,19 @@ export const getMockTagline = (score: number, change: number): string => {
   if (score >= 40) return "Consolidating with mixed signals.";
   return "High volatility and sell pressure.";
 };
+
+export const generateInsight = (token: { symbol: string; zenith_score: number; price_change_24h: number; volume_24h: number }): string => {
+    const { symbol, zenith_score, price_change_24h, volume_24h } = token;
+    
+    if (zenith_score >= 80) {
+        if (volume_24h > 1000000) return \\ is rated Strong Buy because trading volume is surging alongside price momentum.\;
+        return \\ is breaking out with a dominant Zenith Score, indicating aggressive accumulation.\;
+    }
+    if (zenith_score >= 60) {
+        return \\ shows healthy organic growth, outperforming the sector average today.\;
+    }
+    if (zenith_score >= 40) {
+        return \\ is in a consolidation zone; waiting for a clearer directional signal.\;
+    }
+    return \\ is flagging risk signals due to declining momentum or sell pressure.\;
+};

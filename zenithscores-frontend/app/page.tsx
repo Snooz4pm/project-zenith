@@ -19,8 +19,12 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/50 rounded-lg font-bold">
-                🟢 LIVE
+              <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/50 rounded-lg font-bold">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+                LIVE
               </div>
             </div>
           </div>
@@ -38,16 +42,24 @@ export default function Dashboard() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800 mt-12">
-        <div className="container mx-auto px-6 py-6">
-          <div className="flex items-center justify-between text-sm text-gray-500">
+      <footer className="border-t border-gray-800 mt-12 bg-gray-900/50">
+        <div className="container mx-auto px-6 py-8">
+          <div className="flex flex-col md:flex-row items-center justify-between text-sm text-gray-500">
             <div>
-              <p>Powered by DexScreener API</p>
+              <p className="font-semibold text-gray-400">Powered by DexScreener API</p>
               <p className="text-xs mt-1">Real-time trending tokens</p>
             </div>
-            <div className="text-right">
-              <p>© 2025 Zenith Scores</p>
-              <p className="text-xs mt-1">Live market intelligence</p>
+
+            <div className="text-center md:text-right mt-4 md:mt-0">
+              <div className="flex items-center justify-center md:justify-end gap-2 mb-2 text-yellow-600/80">
+                <span className="text-lg">⚠️</span>
+                <span className="font-bold">Market Risk Notice</span>
+              </div>
+              <p className="max-w-md text-xs leading-relaxed opacity-70">
+                Zenith provides data-driven insights, not financial advice. Markets are volatile.
+                Always do your own research before trading.
+              </p>
+              <p className="mt-4 opacity-50">© 2025 Zenith Scores</p>
             </div>
           </div>
         </div>

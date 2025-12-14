@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import HeroCard from '@/components/HeroCard';
 import AssetGrid from '@/components/AssetGrid';
+import ZenithInsight from '@/components/ZenithInsight';
+import ZenithAccuracy from '@/components/ZenithAccuracy';
+import { getZenithSignal } from '@/lib/zenith';
 
 interface Token {
     symbol: string;
@@ -115,46 +118,99 @@ export default function ZenithLeaders() {
     const topPicks = tokens.slice(0, 5);
     const restOfMarket = tokens.slice(5);
 
+    // Filter for "Today's Focus" (Sidebar)
+    const focusTokens = tokens.filter(t => t.zenith_score >= 70).slice(0, 5);
+
     return (
-        <div className="space-y-12">
+        <div className="-mx-6 -mt-8"> {/* Negative margin to break container padding for full-width strip */}
 
-            {/* SECTION 1: Top Picks (Hero) */}
-            {!query && (
-                <section>
-                    <div className="flex items-center gap-3 mb-6">
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            🔥 Top Picks <span className="text-gray-500 text-sm font-normal">(Highest Zenith Score)</span>
-                        </h2>
+            {/* INSIGHT STRIP (Full Width) */}
+            {!query && <ZenithInsight tokens={topPicks} />}
+
+            <div className="px-6 pb-12">
+                <div className="flex flex-col lg:flex-row gap-8">
+
+                    {/* MAIN CONTENT COLUMN */}
+                    <div className="flex-1 min-w-0">
+                        {/* SECTION 1: Top Picks (Hero) */}
+                        {!query && (
+                            <section className="mb-12">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                        🔥 Top Picks <span className="text-gray-500 text-sm font-normal">(Highest Zenith Score)</span>
+                                    </h2>
+                                </div>
+
+                                {/* Horizontal Scroll Container */}
+                                <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-hide snap-x">
+                                    {topPicks.map((token) => (
+                                        <HeroCard key={token.address} token={token} />
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+
+                        {/* SECTION 2: Crypto Portal */}
+                        <section>
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-bold text-white">
+                                    {query ? `Search Results: ${query}` : '🚀 Crypto Portal'}
+                                </h2>
+                                <div className="flex gap-2">
+                                    {/* Filters Placeholder */}
+                                    <select className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1 text-sm text-gray-300 focus:outline-none">
+                                        <option>Sort: Zenith Score</option>
+                                        <option>Sort: Volume</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <AssetGrid tokens={query ? tokens : restOfMarket} />
+                        </section>
                     </div>
 
-                    {/* Horizontal Scroll Container */}
-                    <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-hide snap-x">
-                        {topPicks.map((token) => (
-                            <HeroCard key={token.address} token={token} />
-                        ))}
-                    </div>
-                </section>
-            )}
+                    {/* SIDEBAR COLUMN (Desktop Only mostly) */}
+                    {!query && (
+                        <div className="w-full lg:w-80 flex-shrink-0 space-y-8">
+                            {/* Accuracy Card */}
+                            <ZenithAccuracy />
 
-            {/* SECTION 2: Crypto Portal */}
-            <section>
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-white">
-                        {query ? `Search Results: ${query}` : '🚀 Crypto Portal'}
-                    </h2>
-                    <div className="flex gap-2">
-                        {/* Filters Placeholder */}
-                        <select className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1 text-sm text-gray-300 focus:outline-none">
-                            <option>Sort: Zenith Score</option>
-                            <option>Sort: Volume</option>
-                            <option>Sort: Price Change</option>
-                        </select>
-                    </div>
+                            {/* Today's Focus Widget */}
+                            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+                                <h3 className="text-lg font-bold text-white mb-4">🎯 Today's Focus</h3>
+                                <div className="space-y-4">
+                                    {focusTokens.map(token => {
+                                        const signal = getZenithSignal(token.zenith_score);
+                                        return (
+                                            <div key={token.symbol} className="flex justify-between items-center border-b border-gray-800 pb-3 last:border-0 last:pb-0">
+                                                <div>
+                                                    <div className="font-bold text-white">{token.symbol}</div>
+                                                    <div className={`text-xs ${signal.text}`}>{signal.label}</div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-sm font-bold text-gray-300">{token.zenith_score.toFixed(0)}</div>
+                                                    <div className="text-xs text-gray-500">Score</div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {focusTokens.length === 0 && (
+                                        <p className="text-gray-500 text-sm">No strong signals right now.</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* CTA / Trust Box */}
+                            <div className="bg-gradient-to-br from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-xl p-6">
+                                <h3 className="text-sm font-bold text-blue-300 mb-2">⚡ Pro Tip</h3>
+                                <p className="text-xs text-blue-100/70 leading-relaxed">
+                                    Zenith updates predictions continuously based on live on-chain volume. Check back daily for new entry signals.
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
-
-                <AssetGrid tokens={query ? tokens : restOfMarket} />
-            </section>
-
+            </div>
         </div>
     );
 }
