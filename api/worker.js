@@ -1,5 +1,8 @@
 // api/worker.js (Vercel Serverless Function Entry Point - FINAL VERSION)
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 second timeout for complex API calls
+
 import { env } from 'process';
 import { verifySignature } from '@upstash/qstash/nextjs';
 import { logger } from '../src/utils.js';

@@ -1,5 +1,8 @@
 // api/test-worker.js - Simplified worker for testing
 
+export const dynamic = 'force-dynamic'; // Prevents caching
+export const maxDuration = 30; // 30 second timeout
+
 import { env } from 'process';
 import { logger, redisClient } from '../src/utils.js';
 
