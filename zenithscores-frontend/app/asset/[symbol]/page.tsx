@@ -161,7 +161,7 @@ export default function AssetPage() {
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <TrendingUp className="text-gray-500 w-4 h-4" />
-                                    <span className="text-gray-300">Score upgraded from <span className="text-yellow-400">HOLD</span> -> <span className="text-green-400">BUY</span></span>
+                                    <span className="text-gray-300">Score upgraded from <span className="text-yellow-400">HOLD</span> to <span className="text-green-400">BUY</span></span>
                                 </div>
                             </div>
                         </div>

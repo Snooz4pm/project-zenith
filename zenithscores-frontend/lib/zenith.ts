@@ -1,4 +1,4 @@
-﻿export type SignalType = 'STRONG_BUY' | 'BUY' | 'HOLD' | 'AVOID';
+export type SignalType = 'STRONG_BUY' | 'BUY' | 'HOLD' | 'AVOID';
 
 export const getZenithSignal = (score: number): { label: string; type: SignalType; color: string; bg: string; text: string } => {
   if (score >= 80) return { label: 'STRONG BUY', type: 'STRONG_BUY', color: '#4CAF50', bg: 'bg-[#4CAF50]', text: 'text-[#4CAF50]' };
@@ -18,14 +18,14 @@ export const generateInsight = (token: { symbol: string; zenith_score: number; p
     const { symbol, zenith_score, price_change_24h, volume_24h } = token;
     
     if (zenith_score >= 80) {
-        if (volume_24h > 1000000) return \\ is rated Strong Buy because trading volume is surging alongside price momentum.\;
-        return \\ is breaking out with a dominant Zenith Score, indicating aggressive accumulation.\;
+        if (volume_24h > 1000000) return `${symbol} is rated Strong Buy because trading volume is surging alongside price momentum.`;
+        return `${symbol} is breaking out with a dominant Zenith Score, indicating aggressive accumulation.`;
     }
     if (zenith_score >= 60) {
-        return \\ shows healthy organic growth, outperforming the sector average today.\;
+        return `${symbol} shows healthy organic growth, outperforming the sector average today.`;
     }
     if (zenith_score >= 40) {
-        return \\ is in a consolidation zone; waiting for a clearer directional signal.\;
+        return `${symbol} is in a consolidation zone; waiting for a clearer directional signal.`;
     }
-    return \\ is flagging risk signals due to declining momentum or sell pressure.\;
+    return `${symbol} is flagging risk signals due to declining momentum or sell pressure.`;
 };
