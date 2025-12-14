@@ -39,7 +39,7 @@ interface Props {
 export default function MarketRegimeMonitor({ data }: Props) {
     if (!data) return null;
 
-    const isB ullish = data.regime === 'BULLISH';
+    const isBullish = data.regime === 'BULLISH';
     const isBearish = data.regime === 'BEARISH';
     const isConsolidation = data.regime === 'CONSOLIDATION';
 
@@ -118,10 +118,10 @@ export default function MarketRegimeMonitor({ data }: Props) {
                 </div>
 
                 <div className={`px-6 py-3 rounded-xl font-bold text-lg ${isBullish
-                        ? 'bg-green-500/20 text-green-400 border-2 border-green-500/50 shadow-lg shadow-green-500/20'
-                        : isBearish
-                            ? 'bg-red-500/20 text-red-400 border-2 border-red-500/50 shadow-lg shadow-red-500/20'
-                            : 'bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/50 shadow-lg shadow-yellow-500/20'
+                    ? 'bg-green-500/20 text-green-400 border-2 border-green-500/50 shadow-lg shadow-green-500/20'
+                    : isBearish
+                        ? 'bg-red-500/20 text-red-400 border-2 border-red-500/50 shadow-lg shadow-red-500/20'
+                        : 'bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/50 shadow-lg shadow-yellow-500/20'
                     }`}>
                     {data.regime}
                 </div>
