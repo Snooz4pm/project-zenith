@@ -6,26 +6,25 @@ import Footer from '../components/Footer';
 
 export default function Home() {
     return (
-        <div className="min-h-screen bg-gray-900 text-white">
+        <div className="min-h-screen bg-gray-950">
             <Header />
 
-            <main className="container mx-auto px-4 py-8">
-                <h1 className="text-4xl font-bold mb-8 text-center text-indigo-400">
-                    Protocol Zenith: DeFi Oracle Dashboard
-                </h1>
-
-                {/* --- Main Dashboard Component --- */}
+            <main className="py-8">
+                {/* Main Dashboard Component */}
                 <TokenScoringDashboard />
 
-                <div className="mt-12 p-6 bg-gray-800 rounded-lg shadow-xl">
-                    <h2 className="text-2xl font-semibold mb-4 text-orange-400">Worker Status</h2>
-                    <p className="text-gray-400">
-                        The scoring worker is running in the background, scheduled by QStash.
-                        It pulls data from Dexscreener, GoPlus, and Gemini for real-time analysis.
-                    </p>
-                    <button className="mt-4 px-4 py-2 bg-green-600 rounded hover:bg-green-500 transition duration-150">
-                        Trigger Worker (Optional Feature)
-                    </button>
+                {/* Worker Status Card */}
+                <div className="container mx-auto px-4 md:px-8 mt-12 max-w-5xl">
+                    <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 shadow-2xl">
+                        <h2 className="text-2xl font-bold mb-4 text-green-400">Worker Status</h2>
+                        <p className="text-gray-400 mb-4">
+                            The scoring worker runs in the background, scheduled by QStash.
+                            It pulls data from Dexscreener, GoPlus, Moralis, and Gemini for real-time analysis.
+                        </p>
+                        <button className="px-6 py-3 bg-green-500 hover:bg-green-400 text-white font-semibold rounded-lg transition duration-200 shadow-lg hover:shadow-green-400/50">
+                            Trigger Worker (Optional Feature)
+                        </button>
+                    </div>
                 </div>
             </main>
 
