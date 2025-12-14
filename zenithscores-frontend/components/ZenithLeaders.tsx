@@ -81,15 +81,20 @@ export default function ZenithLeaders() {
         return (
             <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-800 rounded-xl p-6 shadow-2xl">
                 <div className="flex items-center justify-center h-64">
-                    <div className="text-center">
+                    <div className="text-center max-w-lg">
                         <div className="text-red-500 text-4xl mb-4">⚠️</div>
                         <h3 className="text-xl font-bold text-red-400 mb-2">Error Loading Tokens</h3>
-                        <p className="text-gray-400 mb-4">{error}</p>
+                        <div className="bg-gray-900 p-4 rounded-lg text-left mb-4 overflow-x-auto border border-gray-700">
+                            <p className="text-red-300 font-mono text-xs break-all">{error}</p>
+                            <p className="text-gray-500 font-mono text-xs mt-2 pt-2 border-t border-gray-800">
+                                Attempted API: {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/tokens/trending
+                            </p>
+                        </div>
                         <button
                             onClick={fetchTokens}
                             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
                         >
-                            Retry
+                            Retry Request
                         </button>
                     </div>
                 </div>
