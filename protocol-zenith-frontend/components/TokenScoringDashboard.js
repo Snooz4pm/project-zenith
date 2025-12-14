@@ -1,100 +1,67 @@
 "use client";
 
-// File: protocol-zenith-frontend/components/TokenScoringDashboard.js
+// components/TokenScoringDashboard.js - Simplified live dashboard
 
 import React, { useState, useEffect } from 'react';
 
 export default function TokenScoringDashboard() {
-  const [tokenData, setTokenData] = useState([]);
+  const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [debugInfo, setDebugInfo] = useState(null);
+  const [lastUpdate, setLastUpdate] = useState(null);
 
-  // Fetch real data from the API
-  useEffect(() => {
-    const fetchScores = async () => {
+  const fetchTokens = async () => {
+    try {
       setLoading(true);
-      try {
-        console.log('Fetching leaderboard...');
-        const response = await fetch('/api/leaderboard');
-        const data = await response.json();
+      const response = await fetch('/api/analyze');
+      const data = await response.json();
 
-        console.log('API Response:', data);
-        setDebugInfo(data.debug);
-
-        if (data.success && data.leaderboard) {
-          setTokenData(data.leaderboard);
-          setError(null);
-        } else {
-          setError(data.error || "Failed to load leaderboard");
-        }
-      } catch (err) {
-        setError("Failed to fetch data from the scoring worker API.");
-        console.error('Fetch error:', err);
-      } finally {
-        setLoading(false);
+      if (data.success) {
+        setTokens(data.tokens);
+        setLastUpdate(new Date(data.timestamp));
+        setError(null);
+      } else {
+        setError(data.error || 'Failed to load tokens');
       }
-    };
+    } catch (err) {
+      setError('Network error - please try again');
+      console.error('Fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchScores();
+  useEffect(() => {
+    fetchTokens();
 
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchScores, 30000);
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchTokens, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  if (loading) {
+  if (loading && tokens.length === 0) {
     return (
-      <div className="text-center text-green-400 text-xl py-12">
-        <div className="animate-pulse">Loading current token scores...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 md:px-8 py-12 max-w-4xl">
-        <div className="bg-red-900/20 border border-red-700 rounded-lg p-6">
-          <h2 className="text-red-500 text-xl mb-4">⚠️ Error Loading Leaderboard</h2>
-          <p className="text-gray-300 mb-4">{error}</p>
-          {debugInfo && (
-            <div className="bg-gray-800 p-4 rounded mt-4">
-              <p className="text-xs text-gray-400 font-mono">Debug Info:</p>
-              <pre className="text-xs text-gray-300 mt-2 overflow-auto">
-                {JSON.stringify(debugInfo, null, 2)}
-              </pre>
-            </div>
-          )}
-          <p className="text-gray-400 text-sm mt-4">
-            Make sure:
-            <br />• Redis environment variables are set in Vercel
-            <br />• The worker has run at least once
-            <br />• Check Vercel function logs for errors
-          </p>
+      <div className="container mx-auto px-4 py-12 text-center">
+        <div className="animate-pulse">
+          <div className="text-green-400 text-2xl mb-4">🔍 Analyzing Trending Tokens...</div>
+          <p className="text-gray-400">Fetching data from Dexscreener and GoPlus</p>
         </div>
       </div>
     );
   }
 
-  if (tokenData.length === 0) {
+  if (error && tokens.length === 0) {
     return (
-      <div className="container mx-auto px-4 md:px-8 py-12 max-w-4xl">
-        <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-6">
-          <h2 className="text-yellow-400 text-xl mb-4">📊 No Tokens Ranked Yet</h2>
-          <p className="text-gray-300 mb-4">
-            The leaderboard is empty. The worker needs to run to populate data.
-          </p>
-          {debugInfo && (
-            <div className="bg-gray-800 p-4 rounded mt-4">
-              <p className="text-xs text-gray-400 font-mono">Debug Info:</p>
-              <pre className="text-xs text-gray-300 mt-2 overflow-auto">
-                {JSON.stringify(debugInfo, null, 2)}
-              </pre>
-            </div>
-          )}
-          <p className="text-gray-400 text-sm mt-4">
-            Try triggering the test worker: <code className="bg-gray-800 px-2 py-1 rounded">/api/test-worker</code>
-          </p>
+      <div className="container mx-auto px-4 py-12 max-w-2xl">
+        <div className="bg-red-900/20 border border-red-700 rounded-lg p-6">
+          <h2 className="text-red-400 text-xl mb-2">⚠️ Error</h2>
+          <p className="text-gray-300">{error}</p>
+          <button
+            onClick={fetchTokens}
+            className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded transition"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -102,79 +69,113 @@ export default function TokenScoringDashboard() {
 
   return (
     <div className="container mx-auto px-4 md:px-8 py-8">
-      <h1 className="text-5xl font-bold text-center mb-12 text-green-400">
-        Protocol Zenith
-      </h1>
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h1 className="text-5xl font-bold text-green-400 mb-2">
+          Protocol Zenith
+        </h1>
+        <p className="text-gray-400">
+          Live DeFi Token Analysis • Updates every 30s
+        </p>
+        {lastUpdate && (
+          <p className="text-gray-500 text-sm mt-2">
+            Last updated: {lastUpdate.toLocaleTimeString()}
+          </p>
+        )}
+      </div>
 
-      {/* Debug Info */}
-      {debugInfo && (
-        <div className="max-w-5xl mx-auto mb-6 bg-gray-800 p-3 rounded text-xs">
-          <span className="text-gray-400">Loaded {debugInfo.rawCount / 2} tokens from Redis</span>
-        </div>
-      )}
-
-      {/* Token Cards Container */}
+      {/* Token Cards */}
       <div className="space-y-6 max-w-5xl mx-auto">
-        {tokenData.map((token, index) => (
+        {tokens.map((token, index) => (
           <div
-            key={token.address || index}
-            className="bg-gray-900 p-6 rounded-xl border border-gray-800 shadow-2xl hover:border-gray-700 transition-all duration-300 hover:shadow-green-400/10"
+            key={token.address}
+            className="bg-gray-900 p-6 rounded-xl border border-gray-800 shadow-2xl hover:border-green-400/30 transition-all duration-300"
           >
-            {/* Token Header: Name and Score */}
+            {/* Header */}
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-white">
-                  {token.coingecko_id || 'Unknown Token'}
-                </h2>
-                <p className="text-gray-400 text-sm">
-                  {token.chain} • {token.address?.substring(0, 8)}...
+                <div className="flex items-center gap-3">
+                  <span className="text-gray-500 font-bold">#{index + 1}</span>
+                  <h2 className="text-2xl font-bold text-white">{token.symbol}</h2>
+                </div>
+                <p className="text-gray-400 text-sm mt-1">{token.name}</p>
+                <p className="text-gray-500 text-xs mt-1">
+                  {token.address.substring(0, 10)}...
                 </p>
               </div>
               <div className="text-right">
-                <p className={`text-4xl font-extrabold ${token.finalScore > 7 ? 'text-green-400' :
-                    token.finalScore > 4 ? 'text-yellow-400' :
-                      'text-orange-500'
-                  }`}>
-                  {token.finalScore?.toFixed(2) || 'N/A'}
+                <p
+                  className={`text-4xl font-extrabold ${token.finalScore > 7
+                      ? 'text-green-400'
+                      : token.finalScore > 5
+                        ? 'text-yellow-400'
+                        : 'text-orange-500'
+                    }`}
+                >
+                  {token.finalScore.toFixed(1)}
                 </p>
                 <p className="text-gray-500 text-xs">Zenith Score</p>
               </div>
             </div>
 
-            {/* Details Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-              {/* Sharpe Ratio */}
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Security */}
               <div className="bg-gray-800/50 p-4 rounded-lg">
-                <p className="text-gray-400 text-xs font-medium mb-1">Sharpe Ratio</p>
-                <p className={`text-lg font-semibold ${token.sharpeRatio > 1.5 ? 'text-green-400' :
-                    token.sharpeRatio > 0.5 ? 'text-yellow-400' :
-                      'text-red-400'
-                  }`}>
-                  {token.sharpeRatio?.toFixed(2) || 'N/A'}
+                <p className="text-gray-400 text-xs mb-1">Security</p>
+                <p
+                  className={`text-lg font-semibold ${token.securityScore >= 8
+                      ? 'text-green-400'
+                      : token.securityScore >= 6
+                        ? 'text-yellow-400'
+                        : 'text-red-400'
+                    }`}
+                >
+                  {token.securityScore.toFixed(1)}/10
                 </p>
               </div>
 
-              {/* Security Score */}
+              {/* Liquidity */}
               <div className="bg-gray-800/50 p-4 rounded-lg">
-                <p className="text-gray-400 text-xs font-medium mb-1">Security Score</p>
-                <p className={`text-lg font-semibold ${token.securityScore >= 9 ? 'text-green-400' :
-                    token.securityScore >= 7 ? 'text-yellow-400' :
-                      'text-red-400'
-                  }`}>
-                  {token.securityScore?.toFixed(1) || 'N/A'} / 10
+                <p className="text-gray-400 text-xs mb-1">Liquidity</p>
+                <p className="text-white text-lg font-semibold">
+                  ${(token.liquidity / 1000000).toFixed(2)}M
                 </p>
               </div>
 
-              {/* Rank */}
+              {/* Volume */}
               <div className="bg-gray-800/50 p-4 rounded-lg">
-                <p className="text-gray-400 text-xs font-medium mb-1">Rank</p>
-                <p className="text-lg font-semibold text-white">
-                  #{token.rank || index + 1}
+                <p className="text-gray-400 text-xs mb-1">24h Volume</p>
+                <p className="text-white text-lg font-semibold">
+                  ${(token.volume24h / 1000000).toFixed(2)}M
+                </p>
+              </div>
+
+              {/* Price Change */}
+              <div className="bg-gray-800/50 p-4 rounded-lg">
+                <p className="text-gray-400 text-xs mb-1">24h Change</p>
+                <p
+                  className={`text-lg font-semibold ${token.priceChange24h > 0 ? 'text-green-400' : 'text-red-400'
+                    }`}
+                >
+                  {token.priceChange24h > 0 ? '+' : ''}
+                  {token.priceChange24h.toFixed(2)}%
                 </p>
               </div>
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Refresh Button */}
+      <div className="text-center mt-8">
+        <button
+          onClick={fetchTokens}
+          disabled={loading}
+          className="px-6 py-3 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 text-white font-semibold rounded-lg transition shadow-lg"
+        >
+          {loading ? 'Refreshing...' : 'Refresh Now'}
+        </button>
       </div>
     </div>
   );
