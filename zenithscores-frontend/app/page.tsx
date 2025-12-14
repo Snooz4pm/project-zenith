@@ -1,5 +1,7 @@
 'use client';
 
+import { Suspense } from 'react';
+import TokenSearch from '@/components/TokenSearch';
 import ZenithLeaders from '@/components/ZenithLeaders';
 
 export default function Dashboard() {
@@ -27,6 +29,9 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="container mx-auto px-6 py-8">
+        <Suspense fallback={<div className="h-16 bg-gray-900 rounded-lg animate-pulse mb-8" />}>
+          <TokenSearch />
+        </Suspense>
         <ZenithLeaders />
       </main>
 
