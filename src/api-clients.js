@@ -270,6 +270,70 @@ export const RealTimeClient = {
 
 
 // =========================================================================
+// 3B. Moralis Data Client (Token Liquidity & Pair Stats)
+// =========================================================================
+
+/**
+ * Fetches token liquidity and pair statistics from Moralis API.
+ * @param {string} tokenAddress - The token contract address.
+ * @param {string} chain - The blockchain network (default: 'eth').
+ * @returns {object | null} - { liquidity: number, activePairs: number } or null on error.
+ */
+async function fetchMoralisData(tokenAddress, chain = 'eth') {
+    if (!env.MORALIS_API_KEY) {
+        logger.warn('moralis_key_missing', { tokenAddress });
+        return null;
+    }
+
+    const url = `https://deep-index.moralis.io/api/v2.2/erc20/${tokenAddress}/pairs/stats?chain=${chain}`;
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-API-Key': env.MORALIS_API_KEY,
+            },
+        });
+
+        if (!response.ok) {
+            logger.warn('moralis_api_error', {
+                tokenAddress,
+                status: response.status,
+                statusText: response.statusText
+            });
+            return null;
+        }
+
+        const data = await response.json();
+
+        // Extract required data for scoring
+        const totalLiquidityUsd = data.total_liquidity_usd || 0;
+        const totalActivePairs = data.total_active_pairs || 0;
+
+        logger.info('moralis_fetch_success', {
+            tokenAddress,
+            liquidity: totalLiquidityUsd,
+            pairs: totalActivePairs
+        });
+
+        return {
+            liquidity: totalLiquidityUsd,
+            activePairs: totalActivePairs
+        };
+
+    } catch (error) {
+        logger.error('moralis_fetch_fail', { tokenAddress, error: error.message });
+        return null;
+    }
+}
+
+export const MoralisClient = {
+    fetchMoralisData
+};
+
+
+// =========================================================================
 // 4. News Sentiment Client (Gemini with Google Search)
 // =========================================================================
 
