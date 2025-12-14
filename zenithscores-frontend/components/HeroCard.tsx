@@ -25,9 +25,7 @@ export default function HeroCard({ token }: HeroCardProps) {
 
     return (
         <motion.a
-            href={token.url}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={`/asset/${token.symbol}`}
             className="block relative min-w-[300px] bg-gray-900/50 backdrop-blur-md border border-gray-800 rounded-2xl p-6 overflow-hidden group cursor-pointer"
             whileHover={{ y: -5, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.5)" }}
             initial={{ opacity: 0, y: 20 }}

@@ -88,9 +88,7 @@ export default function AssetGrid({ tokens }: AssetGridProps) {
 
                         {/* Hover Action */}
                         <a
-                            href={token.url}
-                            target="_blank"
-                            rel="noreferrer"
+                            href={`/asset/${token.symbol}`}
                             className="absolute inset-0 z-10"
                         />
                     </motion.div>
