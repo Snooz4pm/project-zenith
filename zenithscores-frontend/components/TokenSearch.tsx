@@ -19,7 +19,7 @@ export default function TokenSearch() {
                 } else {
                     params.delete('query');
                 }
-                router.push(`/?${params.toString()}`);
+                router.push(`${window.location.pathname}?${params.toString()}`);
             }
         }, 300); // 300ms delay
 
