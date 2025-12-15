@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUp, ArrowDown } from 'lucide-react';
+import Link from 'next/link';
 
 interface Stock {
     symbol: string;
@@ -42,31 +43,31 @@ export default function StockMarket() {
             {/* Focus Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {stocks.slice(0, 3).map((stock, i) => (
-                    <motion.div
-                        key={stock.symbol}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.1 }}
-                        className="bg-gray-900 border border-gray-800 p-6 rounded-xl hover:border-blue-500/50 transition-colors cursor-pointer"
-                    // Link would go here
-                    >
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 className="text-xl font-bold text-white">{stock.symbol}</h3>
-                                <p className="text-xs text-gray-400 truncate max-w-[150px]">{stock.name}</p>
+                    <Link href={`/stocks/${stock.symbol}`} key={stock.symbol} className="block group">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.1 }}
+                            className="bg-gray-900 border border-gray-800 p-6 rounded-xl hover:border-blue-500/50 transition-colors cursor-pointer h-full"
+                        >
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">{stock.symbol}</h3>
+                                    <p className="text-xs text-gray-400 truncate max-w-[150px]">{stock.name}</p>
+                                </div>
+                                <div className="px-2 py-1 bg-blue-900/30 text-blue-300 text-xs font-bold rounded">
+                                    Score: {stock.zenith_score.toFixed(0)}
+                                </div>
                             </div>
-                            <div className="px-2 py-1 bg-blue-900/30 text-blue-300 text-xs font-bold rounded">
-                                Score: {stock.zenith_score.toFixed(0)}
+                            <div className="flex items-end justify-between">
+                                <div className="text-2xl font-mono text-white">${stock.price_usd.toFixed(2)}</div>
+                                <div className={`flex items-center text-sm font-bold ${stock.price_change_24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {stock.price_change_24h >= 0 ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
+                                    {Math.abs(stock.price_change_24h).toFixed(2)}%
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex items-end justify-between">
-                            <div className="text-2xl font-mono text-white">${stock.price_usd.toFixed(2)}</div>
-                            <div className={`flex items-center text-sm font-bold ${stock.price_change_24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                {stock.price_change_24h >= 0 ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
-                                {Math.abs(stock.price_change_24h).toFixed(2)}%
-                            </div>
-                        </div>
-                    </motion.div>
+                        </motion.div>
+                    </Link>
                 ))}
             </div>
 
