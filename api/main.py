@@ -1,10 +1,46 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
 import requests
+from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, Boolean
+from sqlalchemy.orm import sessionmaker, declarative_base, Session
+from datetime import datetime
 
 load_dotenv()
+
+# --- DATABASE SETUP FOR NEON ---
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Only setup DB if URL exists
+engine = None
+SessionLocal = None
+Base = declarative_base()
+
+if DATABASE_URL:
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+class ProductOutcome(Base):
+    __tablename__ = "product_outcomes"
+    id = Column(Integer, primary_key=True, index=True)
+    keyword = Column(String, index=True)
+    avg_price = Column(Float)
+    supplier_count = Column(Integer)
+    listing_count = Column(Integer)
+    predicted_opportunity = Column(Float)
+    confidence = Column(String)
+    is_red_ocean = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+def get_db():
+    if SessionLocal is None:
+        return None
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 app = FastAPI(title="Zenith Scores API", version="2.0.0")
 
@@ -25,7 +61,8 @@ def root():
         "status": "operational",
         "endpoints": [
             "/api/v1/tokens/trending",
-            "/api/v1/health"
+            "/api/v1/health",
+            "/catalog/top10"
         ]
     }
 
@@ -36,6 +73,60 @@ def health_check():
         "status": "healthy",
         "service": "Zenith Scores API"
     }
+
+# --- OPPORTUNITY ENGINE ENDPOINT ---
+@app.get("/catalog/top10")
+def get_top_opportunities():
+    """
+    Returns top 10 ecommerce opportunities from Neon database.
+    """
+    if SessionLocal is None:
+        # Fallback demo data if DB not configured
+        return {
+            "top_opportunities": [
+                {"keyword": "yoga mat", "opportunity_score": 72.5, "avg_price": 12.50, "supplier_count": 45, "listing_count": 60, "confidence": "HIGH", "is_red_ocean": False},
+                {"keyword": "portable blender", "opportunity_score": 68.3, "avg_price": 8.75, "supplier_count": 38, "listing_count": 50, "confidence": "HIGH", "is_red_ocean": True},
+                {"keyword": "gaming mouse", "opportunity_score": 55.2, "avg_price": 15.20, "supplier_count": 52, "listing_count": 55, "confidence": "HIGH", "is_red_ocean": True},
+                {"keyword": "bamboo toothbrush", "opportunity_score": 81.4, "avg_price": 2.30, "supplier_count": 18, "listing_count": 48, "confidence": "HIGH", "is_red_ocean": False},
+                {"keyword": "resistance bands", "opportunity_score": 63.7, "avg_price": 4.50, "supplier_count": 42, "listing_count": 52, "confidence": "HIGH", "is_red_ocean": True},
+            ]
+        }
+    
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(ProductOutcome)
+            .order_by(ProductOutcome.predicted_opportunity.desc())
+            .limit(10)
+            .all()
+        )
+        
+        if not rows:
+            # Return demo data if DB is empty
+            return {
+                "top_opportunities": [
+                    {"keyword": "yoga mat", "opportunity_score": 72.5, "avg_price": 12.50, "supplier_count": 45, "listing_count": 60, "confidence": "HIGH", "is_red_ocean": False},
+                    {"keyword": "portable blender", "opportunity_score": 68.3, "avg_price": 8.75, "supplier_count": 38, "listing_count": 50, "confidence": "HIGH", "is_red_ocean": True},
+                ]
+            }
+        
+        return {
+            "top_opportunities": [
+                {
+                    "keyword": r.keyword,
+                    "opportunity_score": r.predicted_opportunity,
+                    "avg_price": round(r.avg_price, 2) if r.avg_price else 0,
+                    "supplier_count": r.supplier_count,
+                    "listing_count": r.listing_count,
+                    "confidence": r.confidence,
+                    "is_red_ocean": r.is_red_ocean,
+                    "created_at": r.created_at.isoformat() if r.created_at else None
+                }
+                for r in rows
+            ]
+        }
+    finally:
+        db.close()
 
 @app.get("/api/v1/tokens/trending")
 def get_trending_tokens(
