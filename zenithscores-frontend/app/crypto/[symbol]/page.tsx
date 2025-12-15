@@ -44,6 +44,7 @@ export default function AssetPage() {
     const [token, setToken] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [history, setHistory] = useState<any[]>([]);
+    const [showMethodology, setShowMethodology] = useState(false);
 
     useEffect(() => {
         if (!symbol) return;
@@ -266,10 +267,56 @@ export default function AssetPage() {
                         A score of <span className="text-white font-bold">{token.zenith_score?.toFixed(0)}</span> indicates that {token.symbol} is currently showing
                         stronger buy pressure than <span className="text-white font-bold">{(token.zenith_score || 0) > 50 ? '80%' : '20%'}</span> of the market.
                     </p>
-                    <button className="px-6 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm font-semibold transition-colors">
+                    <button onClick={() => setShowMethodology(true)} className="px-6 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm font-semibold transition-colors">
                         View Full Methodology
                     </button>
                 </div>
+                {/* Method Modal */}
+                {showMethodology && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowMethodology(false)} />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="bg-gray-900 border border-gray-800 rounded-2xl p-8 max-w-2xl w-full relative z-10 shadow-2xl"
+                        >
+                            <div className="flex justify-between items-start mb-6">
+                                <h2 className="text-2xl font-bold text-white">Zenith Base Methodology</h2>
+                                <button onClick={() => setShowMethodology(false)} className="text-gray-500 hover:text-white">✕</button>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="p-4 bg-blue-900/20 border border-blue-500/20 rounded-xl">
+                                    <h3 className="font-bold text-blue-400 mb-1">1. Momentum Scoring (50%)</h3>
+                                    <p className="text-sm text-gray-300">
+                                        We analyze price changes over 1h, 6h, and 24h intervals. Sustained growth across all three timeframes triggers a 'Strong Buy' baseline.
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-purple-900/20 border border-purple-500/20 rounded-xl">
+                                    <h3 className="font-bold text-purple-400 mb-1">2. Volume Efficiency (30%)</h3>
+                                    <p className="text-sm text-gray-300">
+                                        Volume is compared to Liquidity Depth. High volume with low slippage indicates institutional accumulation rather than retail FOMO.
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-green-900/20 border border-green-500/20 rounded-xl">
+                                    <h3 className="font-bold text-green-400 mb-1">3. Social & On-Chain (20%)</h3>
+                                    <p className="text-sm text-gray-300">
+                                        We factor in holder count growth and social sentiment velocity to confirm the trend is real and organic.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="mt-8 text-center">
+                                <button
+                                    onClick={() => setShowMethodology(false)}
+                                    className="px-6 py-2 bg-white text-black font-bold rounded-lg hover:bg-gray-200"
+                                >
+                                    Understood
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
             </main>
         </div>
     );
