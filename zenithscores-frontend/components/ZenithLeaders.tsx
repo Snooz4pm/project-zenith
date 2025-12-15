@@ -28,6 +28,8 @@ export default function ZenithLeaders() {
     const searchParams = useSearchParams();
     const query = searchParams.get('query');
 
+    const [sortBy, setSortBy] = useState<'score' | 'volume'>('score');
+
     const [tokens, setTokens] = useState<Token[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -114,11 +116,19 @@ export default function ZenithLeaders() {
         );
     }
 
-    // Split tokens for layout
-    const topPicks = tokens.slice(0, 5);
-    const restOfMarket = tokens.slice(5);
+    // Derived State for UI
+    const topPicks = [...tokens].sort((a, b) => b.zenith_score - a.zenith_score).slice(0, 5);
 
-    // Filter for "Today's Focus" (Sidebar)
+    // Grid tokens: either search results OR the rest of the market (excluding top picks)
+    const baseGridTokens = query ? tokens : tokens.filter(t => !topPicks.includes(t));
+
+    const gridTokens = [...baseGridTokens].sort((a, b) => {
+        if (sortBy === 'volume') {
+            return (b.volume_24h || 0) - (a.volume_24h || 0);
+        }
+        return (b.zenith_score || 0) - (a.zenith_score || 0);
+    });
+
     const focusTokens = tokens.filter(t => t.zenith_score >= 70).slice(0, 5);
 
     return (
@@ -157,15 +167,19 @@ export default function ZenithLeaders() {
                                     {query ? `Search Results: ${query}` : '🚀 Crypto Portal'}
                                 </h2>
                                 <div className="flex gap-2">
-                                    {/* Filters Placeholder */}
-                                    <select className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1 text-sm text-gray-300 focus:outline-none">
-                                        <option>Sort: Zenith Score</option>
-                                        <option>Sort: Volume</option>
+                                    {/* Sort Filter */}
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value as 'score' | 'volume')}
+                                        className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1 text-sm text-gray-300 focus:outline-none cursor-pointer hover:border-blue-500 transition-colors"
+                                    >
+                                        <option value="score">Sort: Zenith Score</option>
+                                        <option value="volume">Sort: Volume</option>
                                     </select>
                                 </div>
                             </div>
 
-                            <AssetGrid tokens={query ? tokens : restOfMarket} />
+                            <AssetGrid tokens={gridTokens} />
                         </section>
                     </div>
 
