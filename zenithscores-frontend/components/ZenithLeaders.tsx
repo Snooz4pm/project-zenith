@@ -151,11 +151,25 @@ export default function ZenithLeaders() {
                                     </h2>
                                 </div>
 
-                                {/* Horizontal Scroll Container */}
-                                <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-hide snap-x">
-                                    {topPicks.map((token) => (
-                                        <HeroCard key={token.address} token={token} />
-                                    ))}
+                                {/* Horizontal Infinite Scroll Container */}
+                                <div className="w-full overflow-hidden relative">
+                                    <div className="flex animate-marquee hover:[animation-play-state:paused] gap-6 w-max">
+                                        {/* Original Set */}
+                                        {topPicks.map((token) => (
+                                            <div key={`orig-${token.address}`} className="w-[300px] flex-shrink-0">
+                                                <HeroCard token={token} />
+                                            </div>
+                                        ))}
+                                        {/* Duplicate Set for Loop */}
+                                        {topPicks.map((token) => (
+                                            <div key={`dup-${token.address}`} className="w-[300px] flex-shrink-0">
+                                                <HeroCard token={token} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* Gradient Masks for Fade Effect */}
+                                    <div className="absolute top-0 left-0 h-full w-8 bg-gradient-to-r from-black to-transparent pointer-events-none" />
+                                    <div className="absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-black to-transparent pointer-events-none" />
                                 </div>
                             </section>
                         )}

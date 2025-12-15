@@ -5,6 +5,7 @@ import { ArrowRight, Activity, Building2, Cpu, ShieldCheck, History } from 'luci
 import { motion } from 'framer-motion';
 import HeroNetworkBackground from '@/components/HeroNetworkBackground';
 import PredictiveSearch from '@/components/PredictiveSearch';
+import MarketPulse from '@/components/MarketPulse';
 
 export default function LandingPage() {
   return (
@@ -124,6 +125,9 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
+
+      {/* SECTION 1.5: MARKET PULSE & FORECAST */}
+      <MarketPulse />
 
       {/* SECTION 2: HOW ZENITH THINKS */}
       <div className="container mx-auto px-6 py-24 relative z-10">
