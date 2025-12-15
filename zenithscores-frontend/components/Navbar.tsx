@@ -12,10 +12,15 @@ export default function Navbar() {
     return (
         <nav className="border-b border-gray-800 bg-gray-900/80 backdrop-blur sticky top-0 z-[100]">
             <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-                {/* Brand */}
-                <Link href="/" className="flex items-center gap-2">
-                    <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                        ZenithScores
+                {/* Brand - Premium Minimalist */}
+                <Link href="/" className="flex items-center gap-2 group">
+                    <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-500">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                        </svg>
+                    </div>
+                    <span className="text-lg font-bold text-white tracking-tight">
+                        ZENITH<span className="text-gray-500 font-medium">SCORES</span>
                     </span>
                 </Link>
 
@@ -23,22 +28,16 @@ export default function Navbar() {
                 <div className="flex items-center gap-8">
                     <Link
                         href="/crypto"
-                        className={`text-sm font-bold transition-colors ${isActive('/crypto') ? 'text-blue-400' : 'text-gray-400 hover:text-white'}`}
+                        className={`text-xs font-bold tracking-widest transition-colors uppercase ${isActive('/crypto') ? 'text-blue-400' : 'text-gray-500 hover:text-white'}`}
                     >
-                        🪙 CRYPTO
+                        Crypto
                     </Link>
                     <Link
                         href="/stocks"
-                        className={`text-sm font-bold transition-colors ${isActive('/stocks') ? 'text-blue-400' : 'text-gray-400 hover:text-white'}`}
+                        className={`text-xs font-bold tracking-widest transition-colors uppercase ${isActive('/stocks') ? 'text-blue-400' : 'text-gray-500 hover:text-white'}`}
                     >
-                        🏢 STOCKS
+                        Stocks
                     </Link>
-                </div>
-
-                {/* Global Search Trigger (Visual only for now, functionality in page content) */}
-                <div className="hidden md:flex items-center gap-2 text-gray-500 bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-700/50">
-                    <Search size={14} />
-                    <span className="text-xs">Search...</span>
                 </div>
             </div>
         </nav>
