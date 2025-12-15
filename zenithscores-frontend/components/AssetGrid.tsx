@@ -30,59 +30,59 @@ export default function AssetGrid({ tokens }: AssetGridProps) {
                 return (
                     <motion.div
                         key={token.symbol + index}
-                        initial={{ opacity: 0, scale: 0.9 }}
+                        initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: index * 0.05 }}
-                        className="group relative bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-colors"
+                        className="group relative bg-[#1E1E24] border border-[#2A2A35] rounded-2xl p-6 hover:border-gray-600 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 block"
                     >
-                        {/* Top Row */}
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="flex items-center gap-3">
-                                {/* Fallback Icon */}
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center text-xs font-bold border border-gray-700">
-                                    {token.symbol.substring(0, 2)}
-                                </div>
-                                <div>
-                                    <h4 className="font-bold text-white leading-tight">{token.symbol}</h4>
-                                    <p className="text-xs text-gray-500 truncate max-w-[100px]">{token.name}</p>
-                                </div>
+                        {/* 1. Header: Score & Decision Dominance */}
+                        <div className="flex justify-between items-start mb-6">
+                            <div className="flex flex-col">
+                                <span className={`text-4xl font-extrabold tracking-tighter ${signal.text} drop-shadow-sm`}>
+                                    {token.zenith_score?.toFixed(0)}
+                                </span>
+                                <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${signal.text} bg-current bg-opacity-10 w-fit`}>
+                                    {signal.label}
+                                </span>
                             </div>
 
                             <div className="text-right">
-                                <div className="font-mono font-medium text-white">${token.price_usd < 1 ? token.price_usd.toFixed(6) : token.price_usd.toFixed(2)}</div>
-                                <div className={`text-xs font-bold font-mono flex items-center justify-end ${isPositive ? 'text-price-up' : 'text-price-down'}`}>
-                                    {isPositive ? '+' : ''}{token.price_change_24h?.toFixed(2)}%
-                                </div>
+                                <div className="text-[#F0F0F0] font-bold text-lg leading-none mb-1">{token.symbol}</div>
+                                <div className="text-gray-500 text-xs font-medium truncate max-w-[80px]">{token.name}</div>
                             </div>
                         </div>
 
-                        {/* Middle Stats */}
-                        <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-gray-800">
+                        {/* 2. Primary Metric: Price */}
+                        <div className="flex justify-between items-end mb-6 pb-4 border-b border-[#2A2A35]">
+                            <div className="flex flex-col">
+                                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-0.5">Price</span>
+                                <span className="text-[#F0F0F0] font-mono font-medium text-lg">
+                                    ${token.price_usd < 1 ? token.price_usd.toFixed(6) : token.price_usd.toFixed(2)}
+                                </span>
+                            </div>
+                            <div className={`text-sm font-bold font-mono px-2 py-1 rounded-md flex items-center gap-1 ${isPositive ? 'bg-green-500/10 text-price-up' : 'bg-red-500/10 text-price-down'}`}>
+                                {isPositive ? <ArrowUp size={12} strokeWidth={3} /> : <ArrowDown size={12} strokeWidth={3} />}
+                                {Math.abs(token.price_change_24h || 0).toFixed(2)}%
+                            </div>
+                        </div>
+
+                        {/* 3. Secondary Metrics: Visual Density */}
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <div className="text-[10px] text-gray-500 uppercase font-semibold">Volume</div>
-                                <div className="text-sm font-mono text-gray-300">${formatNumber(token.volume_24h)}</div>
+                                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Volume (24h)</div>
+                                <div className="text-gray-300 font-mono text-sm font-medium">${formatNumber(token.volume_24h)}</div>
                             </div>
-                            <div className="text-right">
-                                <div className="text-[10px] text-gray-500 uppercase font-semibold">Liquidity</div>
-                                <div className="text-sm font-mono text-gray-300">${formatNumber(token.liquidity_usd)}</div>
-                            </div>
-                        </div>
-
-                        {/* Bottom Row / Score */}
-                        <div className="flex items-center justify-between">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border border-current bg-opacity-10 ${signal.text} border-opacity-30`}>
-                                {signal.label}
-                            </span>
-
-                            <div className="flex items-center gap-2">
-                                <span className={`text-lg font-bold font-mono ${signal.text}`}>{token.zenith_score?.toFixed(0)}</span>
+                            <div>
+                                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Liquidity</div>
+                                <div className="text-gray-300 font-mono text-sm font-medium">${formatNumber(token.liquidity_usd)}</div>
                             </div>
                         </div>
 
-                        {/* Hover Action */}
+                        {/* Hover Action / Link */}
                         <a
                             href={`/crypto/${token.symbol}`}
                             className="absolute inset-0 z-10"
+                            aria-label={`View details for ${token.symbol}`}
                         />
                     </motion.div>
                 );
