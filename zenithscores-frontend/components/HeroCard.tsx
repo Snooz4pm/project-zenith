@@ -62,19 +62,12 @@ export default function HeroCard({ token }: HeroCardProps) {
             {/* Tagline / Secondary Metrics Switcher */}
             <div className="h-12 relative mb-2">
                 {/* Default Tagline - Fades out on hover */}
-                <motion.p
-                    className="text-sm text-gray-400 italic absolute top-0 left-0 w-full"
-                    initial={{ opacity: 1 }}
-                    whileHover={{ opacity: 0 }} // This accesses parent hover state if variants are propagated
-                    transition={{ duration: 0.2 }}
-                >
+                <p className="text-sm text-gray-400 italic absolute top-0 left-0 w-full transition-opacity duration-300 opacity-100 group-hover:opacity-0">
                     "{getMockTagline(token.zenith_score || 0, token.price_change_24h || 0)}"
-                </motion.p>
+                </p>
 
                 {/* Secondary Metrics - Fades in on hover */}
-                <motion.div
-                    className="flex gap-4 absolute top-0 left-0 w-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                >
+                <div className="flex gap-4 absolute top-0 left-0 w-full transition-opacity duration-300 opacity-0 group-hover:opacity-100">
                     <div className="text-xs">
                         <div className="text-gray-500 font-bold uppercase">Volume</div>
                         <div className="text-white">Active</div>
@@ -87,7 +80,7 @@ export default function HeroCard({ token }: HeroCardProps) {
                         <div className="text-gray-500 font-bold uppercase">Volat</div>
                         <div className="text-white">Low</div>
                     </div>
-                </motion.div>
+                </div>
             </div>
 
             {/* Zenith Score Bar */}
