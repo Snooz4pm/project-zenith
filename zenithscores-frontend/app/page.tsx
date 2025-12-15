@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Activity, Building2, Cpu, ShieldCheck, History } from 'lucide-react';
+import { ArrowRight, Activity, Building2, Cpu, ShieldCheck, History, Zap, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import HeroNetworkBackground from '@/components/HeroNetworkBackground';
 import PredictiveSearch from '@/components/PredictiveSearch';
@@ -33,32 +33,85 @@ export default function LandingPage() {
               Real-time algorithmically-driven scores. No sign-up required.
             </p>
 
-            {/* Live Search Bar */}
-            {/* Live Search Bar */}
-            <div className="mb-8">
-              <Suspense fallback={<div className="w-full max-w-md h-12 bg-gray-900/50 rounded-lg animate-pulse" />}>
+            {/* Live Search Bar - ULTRA PROMINENT */}
+            <div className="mb-10 relative z-20">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg blur opacity-25 animate-pulse"></div>
+              <Suspense fallback={<div className="w-full max-w-lg h-14 bg-gray-900 rounded-lg" />}>
                 <PredictiveSearch
                   mode="all"
                   behavior="navigate"
-                  placeholder="Search Ticker (e.g., AAPL, BTC, Nvidia)..."
-                  className="w-full max-w-md"
+                  placeholder="Analyze any asset (e.g. NVDA, BTC, SOXS)..."
+                  className="w-full max-w-lg shadow-2xl"
                 />
               </Suspense>
             </div>
 
-            {/* Live Ticker */}
-            <div className="mb-10 overflow-hidden relative w-full max-w-lg">
-              <div className="flex animate-marquee whitespace-nowrap gap-8 text-sm font-mono-premium text-gray-400">
-                <span className="flex items-center gap-2">AAPL <span className="text-zenith-green font-bold text-lg">82</span></span>
-                <span className="flex items-center gap-2">BTC <span className="text-zenith-yellow font-bold text-lg">76</span></span>
-                <span className="flex items-center gap-2">TSLA <span className="text-zenith-red font-bold text-lg">64</span></span>
-                <span className="flex items-center gap-2">NVDA <span className="text-zenith-green font-bold text-lg">88</span></span>
-                <span className="flex items-center gap-2">ETH <span className="text-zenith-yellow font-bold text-lg">71</span></span>
-                {/* Duplicate for seamless loop */}
-                <span className="flex items-center gap-2">AAPL <span className="text-zenith-green font-bold text-lg">82</span></span>
-                <span className="flex items-center gap-2">BTC <span className="text-zenith-yellow font-bold text-lg">76</span></span>
+            {/* TOP MOVERS LEADERBOARD (Replaces Marquee) */}
+            <div className="mb-12 w-full max-w-lg bg-gray-900/40 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/5">
+              <div className="flex items-center justify-between px-4 py-3 bg-white/5 border-b border-white/5">
+                <h3 className="text-xs font-bold text-gray-300 uppercase tracking-widest flex items-center gap-2">
+                  <Activity size={14} className="text-zenith-green" /> Top Opportunities
+                </h3>
+                <span className="text-[10px] text-gray-500 font-mono flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> LIVE RANKING
+                </span>
               </div>
-              <div className="absolute top-0 right-0 w-16 h-full bg-gradient-to-l from-black to-transparent pointer-events-none" />
+              <div className="divide-y divide-white/5">
+                {/* Row 1: NVDA */}
+                <Link href="/stocks/NVDA" className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-600 font-mono text-xs">01</span>
+                    <div>
+                      <div className="font-bold text-sm text-white group-hover:text-blue-400 transition-colors">NVDA</div>
+                      <div className="text-[10px] text-gray-500">Technology / AI</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs font-mono text-zenith-green">+4.2%</span>
+                    <div className="w-10 h-8 rounded bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400 font-bold text-sm">
+                      92
+                    </div>
+                  </div>
+                </Link>
+
+                {/* Row 2: BTC */}
+                <Link href="/crypto/BTC" className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-600 font-mono text-xs">02</span>
+                    <div>
+                      <div className="font-bold text-sm text-white group-hover:text-orange-400 transition-colors">BTC</div>
+                      <div className="text-[10px] text-gray-500">Bitcoin Network</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs font-mono text-zenith-green">+1.8%</span>
+                    <div className="w-10 h-8 rounded bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400 font-bold text-sm">
+                      88
+                    </div>
+                  </div>
+                </Link>
+
+                {/* Row 3: SOXS (Bearish Example) */}
+                <Link href="/stocks/SOXS" className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-600 font-mono text-xs">03</span>
+                    <div>
+                      <div className="font-bold text-sm text-white group-hover:text-red-400 transition-colors">SOXS</div>
+                      <div className="text-[10px] text-gray-500">Bear 3x Semi</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs font-mono text-zenith-red">-2.4%</span>
+                    <div className="w-10 h-8 rounded bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 font-bold text-sm">
+                      34
+                    </div>
+                  </div>
+                </Link>
+
+                <Link href="/stocks" className="block bg-white/5 py-2 text-center text-[10px] font-bold text-gray-400 hover:text-white hover:bg-white/10 transition-colors uppercase tracking-wider">
+                  View Full Leaderboard →
+                </Link>
+              </div>
             </div>
 
             <div className="flex gap-4">
@@ -123,6 +176,79 @@ export default function LandingPage() {
               </div>
               <div className="text-[10px] text-zenith-blue font-mono tracking-[0.2em] uppercase">
                 24,392 Assets Analyzed Real-Time
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION 1.2: FEATURED DEEP DIVE */}
+      <div className="container mx-auto px-6 mb-24 relative z-10">
+        <div className="glass-panel p-[1px] rounded-2xl bg-gradient-to-br from-white/10 to-transparent">
+          <div className="bg-black/60 backdrop-blur-xl rounded-2xl p-8 lg:p-12 flex flex-col lg:flex-row items-center gap-12 relative overflow-hidden">
+
+            {/* Background Glow */}
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none" />
+
+            {/* Left: Ticker & Score */}
+            <div className="flex-1 text-center lg:text-left relative z-10">
+              <div className="flex items-center justify-center lg:justify-start gap-3 mb-6">
+                <span className="px-3 py-1 rounded-full bg-zenith-green/10 text-zenith-green text-xs font-bold border border-zenith-green/20 uppercase tracking-widest shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                  <Zap size={12} className="inline mr-1 mb-0.5 " /> Algo Spotlight
+                </span>
+                <span className="text-gray-500 text-[10px] font-mono border-l border-white/10 pl-3">DETECTED 4M AGO</span>
+              </div>
+
+              <h2 className="text-6xl md:text-7xl font-bold text-white mb-2 tracking-tight">NVDA</h2>
+              <p className="text-xl md:text-2xl text-gray-400 mb-8 font-light">Nvidia Corporation <span className="text-gray-600 mx-2">•</span> AI Hardware</p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 max-w-sm mx-auto lg:mx-0">
+                <div className="bg-white/5 rounded-xl p-4 border border-white/5 backdrop-blur-sm">
+                  <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Momentum</div>
+                  <div className="text-white font-bold text-lg">Extremely High</div>
+                </div>
+                <div className="bg-white/5 rounded-xl p-4 border border-white/5 backdrop-blur-sm">
+                  <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Volume Inflow</div>
+                  <div className="text-zenith-green font-bold text-lg">+240% <span className="text-xs font-normal text-gray-500">vs Avg</span></div>
+                </div>
+              </div>
+
+              <Link href="/stocks/NVDA" className="group inline-flex items-center gap-3 px-8 py-4 bg-white text-black font-bold text-lg rounded-xl hover:bg-blue-50 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(255,255,255,0.5)] transform hover:-translate-y-1">
+                Unlock Full Analysis
+                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform text-blue-600" />
+              </Link>
+            </div>
+
+            {/* Right: Visual Score/Chart Tease */}
+            <div className="flex-1 w-full max-w-md relative z-10">
+              <div className="relative glass-panel rounded-2xl p-8 border border-white/10 flex flex-col items-center bg-black/40 shadow-2xl">
+                <div className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-white/5 pb-4 w-full text-center">Live Zenith Score</div>
+
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-zenith-green/20 blur-3xl rounded-full animate-pulse" />
+                  <div className="text-9xl font-black text-white tracking-tighter drop-shadow-2xl relative z-10">
+                    92
+                  </div>
+                </div>
+
+                <div className="text-zenith-green font-bold text-xl mb-8 flex items-center gap-2 bg-green-900/20 px-4 py-2 rounded-lg border border-green-500/20">
+                  <TrendingUp size={24} /> Strong Accumulation
+                </div>
+
+                <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden shadow-inner">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    whileInView={{ width: '92%' }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className="h-full bg-gradient-to-r from-green-600 to-zenith-green shadow-[0_0_20px_#10B981]"
+                  />
+                </div>
+                <div className="flex justify-between w-full text-[10px] text-gray-500 font-mono mt-2 uppercase">
+                  <span>Bearish</span>
+                  <span>Neutral</span>
+                  <span className="text-white font-bold">Bullish</span>
+                </div>
               </div>
             </div>
           </div>
