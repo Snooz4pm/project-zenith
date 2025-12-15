@@ -13,18 +13,34 @@ interface Opportunity {
     is_red_ocean: boolean;
 }
 
+// Demo data for production (when backend isn't deployed)
+const DEMO_OPPORTUNITIES: Opportunity[] = [
+    { keyword: "yoga mat", opportunity_score: 72.5, avg_price: 12.50, supplier_count: 45, listing_count: 60, confidence: "HIGH", is_red_ocean: false },
+    { keyword: "portable blender", opportunity_score: 68.3, avg_price: 8.75, supplier_count: 38, listing_count: 50, confidence: "HIGH", is_red_ocean: true },
+    { keyword: "gaming mouse", opportunity_score: 55.2, avg_price: 15.20, supplier_count: 52, listing_count: 55, confidence: "HIGH", is_red_ocean: true },
+    { keyword: "bamboo toothbrush", opportunity_score: 81.4, avg_price: 2.30, supplier_count: 18, listing_count: 48, confidence: "HIGH", is_red_ocean: false },
+    { keyword: "resistance bands", opportunity_score: 63.7, avg_price: 4.50, supplier_count: 42, listing_count: 52, confidence: "HIGH", is_red_ocean: true },
+];
+
+// Use environment variable or fallback to localhost for development
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+
 export default function OpportunityDashboard() {
     const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isDemo, setIsDemo] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://127.0.0.1:8000/catalog/top10');
+                const response = await fetch(`${API_BASE_URL}/catalog/top10`);
+                if (!response.ok) throw new Error('API not available');
                 const data = await response.json();
                 setOpportunities(data.top_opportunities);
             } catch (error) {
-                console.error('Error fetching data:', error);
+                console.warn('Using demo data - Backend API not reachable:', error);
+                setOpportunities(DEMO_OPPORTUNITIES);
+                setIsDemo(true);
             } finally {
                 setLoading(false);
             }
@@ -47,6 +63,11 @@ export default function OpportunityDashboard() {
                     <p className="text-gray-400 text-lg">
                         Daily supply-side analysis of emerging product niches.
                     </p>
+                    {isDemo && (
+                        <div className="mt-4 px-4 py-2 bg-yellow-900/30 border border-yellow-500/30 rounded-lg text-yellow-400 text-sm inline-block">
+                            ⚠️ Showing demo data - Connect backend API for live results
+                        </div>
+                    )}
                 </header>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
@@ -103,8 +124,8 @@ export default function OpportunityDashboard() {
                                     </td>
                                     <td className="p-4">
                                         <span className={`px-2 py-1 rounded text-xs font-bold ${opp.confidence === 'HIGH' ? 'bg-blue-900 text-blue-300' :
-                                                opp.confidence === 'MEDIUM' ? 'bg-gray-700 text-gray-300' :
-                                                    'bg-red-900 text-red-300'
+                                            opp.confidence === 'MEDIUM' ? 'bg-gray-700 text-gray-300' :
+                                                'bg-red-900 text-red-300'
                                             }`}>
                                             {opp.confidence}
                                         </span>
