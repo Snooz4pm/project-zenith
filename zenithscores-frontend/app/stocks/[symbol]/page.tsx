@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowUp, ArrowDown, Info, Clock, Database, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
+import StockChart from '@/components/StockChart';
 
 // Mock Prediction Generator for the "Trust Engine" Table
 const generatePredictions = (currentPrice: number, score: number) => {
@@ -82,6 +83,12 @@ export default function StockDetailPage() {
 
                     {/* LEFT COLUMN: Insights & Score */}
                     <div className="lg:col-span-2 space-y-12">
+
+                        {/* CHART SECTION */}
+                        <section>
+                            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Price vs. Zenith Score Performance</h2>
+                            <StockChart symbol={stock.symbol} currentPrice={stock.price_usd} currentScore={stock.zenith_score} />
+                        </section>
 
                         {/* SECTION 2: WHY THIS SCORE EXISTS */}
                         <section>

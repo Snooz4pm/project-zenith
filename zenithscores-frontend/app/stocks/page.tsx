@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import PredictiveSearch from '@/components/PredictiveSearch';
-import StockMarket from '@/components/StockMarket';
+import StockScreener from '@/components/StockScreener';
 
 export default function StockPortal() {
     return (
@@ -14,7 +14,7 @@ export default function StockPortal() {
                         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
                             🏢 Stock Market
                         </h1>
-                        <p className="text-sm text-gray-400">Institutional-grade market signals</p>
+                        <p className="text-sm text-gray-400">Screen, analyze, and track stocks using live algorithm-driven scores.</p>
                     </div>
                 </div>
             </div>
@@ -25,7 +25,7 @@ export default function StockPortal() {
                         <PredictiveSearch mode="stock" behavior="filter" className="w-full max-w-md mx-auto" />
                     </Suspense>
                 </div>
-                <StockMarket />
+                <StockScreener />
             </main>
 
             {/* Short Footer */}
