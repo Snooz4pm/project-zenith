@@ -1,0 +1,30 @@
+# 🔐 ENVIRONMENT VARIABLES TEMPLATE
+# Copy this to your .env file and fill in your credentials
+
+# ═══════════════════════════════════════════
+# NEON DATABASE CONFIGURATION
+# ═══════════════════════════════════════════
+# Get these from: https://console.neon.tech/
+
+NEON_HOST=your-project.neon.tech
+NEON_DATABASE=news_signal
+NEON_USER=your_username
+NEON_PASSWORD=your_password
+NEON_PORT=5432
+
+# Example (don't use these values):
+# NEON_HOST=ep-cool-darkness-123456.us-east-2.aws.neon.tech
+# NEON_DATABASE=news_signal
+# NEON_USER=alex
+# NEON_PASSWORD=AbCdEfGhIjKlMnOp123456
+# NEON_PORT=5432
+
+# ═══════════════════════════════════════════
+# OTHER SERVICES (if needed)
+# ═══════════════════════════════════════════
+
+# Google Gemini API (if using AI features)
+# GEMINI_API_KEY=your_gemini_api_key_here
+
+# NewsAPI (if using news API)
+# NEWS_API_KEY=your_newsapi_key_here

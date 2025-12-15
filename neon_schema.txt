@@ -1,0 +1,139 @@
+-- 📰 NEWS SIGNAL DATABASE SCHEMA FOR NEON
+-- PostgreSQL compatible schema for storing scraped news articles
+
+-- Drop existing table if recreating
+DROP TABLE IF EXISTS articles CASCADE;
+
+-- Main articles table
+CREATE TABLE articles (
+    -- Primary identifiers
+    id SERIAL PRIMARY KEY,
+    hash VARCHAR(64) UNIQUE NOT NULL,  -- SHA-256 hash for deduplication
+    
+    -- Article content
+    title TEXT NOT NULL,
+    article TEXT NOT NULL,
+    url TEXT NOT NULL,
+    
+    -- Source & classification
+    source VARCHAR(255) NOT NULL,
+    category VARCHAR(50) NOT NULL DEFAULT 'General',
+    category_confidence DECIMAL(3, 2) DEFAULT 0.0,
+    
+    -- Keywords (JSON array)
+    matched_keywords JSONB DEFAULT '[]',
+    
+    -- Metadata
+    fetched_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    published_at TIMESTAMP,  -- Optional: if we extract publish date
+    
+    -- Analytics & scoring
+    word_count INTEGER,
+    sentiment_score DECIMAL(3, 2),  -- Future: sentiment analysis (-1 to +1)
+    importance_score DECIMAL(3, 2),  -- Future: AI-based importance
+    
+    -- Tracking
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for performance
+CREATE INDEX idx_articles_category ON articles(category);
+CREATE INDEX idx_articles_source ON articles(source);
+CREATE INDEX idx_articles_fetched_at ON articles(fetched_at DESC);
+CREATE INDEX idx_articles_category_fetched ON articles(category, fetched_at DESC);
+CREATE INDEX idx_articles_hash ON articles(hash);
+CREATE INDEX idx_articles_keywords ON articles USING GIN(matched_keywords);
+
+-- Full-text search index
+CREATE INDEX idx_articles_title_fts ON articles USING GIN(to_tsvector('english', title));
+CREATE INDEX idx_articles_article_fts ON articles USING GIN(to_tsvector('english', article));
+
+-- Category lookup table (optional, for validation)
+CREATE TABLE IF NOT EXISTS categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    description TEXT,
+    keyword_count INTEGER DEFAULT 0,
+    article_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert default categories
+INSERT INTO categories (name, description) VALUES
+    ('Technology', 'Tech, AI, Software, Hardware, Startups'),
+    ('Business', 'Finance, Markets, Corporate, Economy'),
+    ('Politics', 'Government, Elections, Policy, Legislation'),
+    ('Entertainment', 'Movies, Music, TV, Celebrity'),
+    ('Sports', 'Athletics, Games, Tournaments'),
+    ('Health', 'Medical, Wellness, Healthcare'),
+    ('Science', 'Research, Discovery, Environment'),
+    ('World', 'International, Global Affairs'),
+    ('General', 'Uncategorized or Mixed Topics')
+ON CONFLICT (name) DO NOTHING;
+
+-- Source statistics table
+CREATE TABLE IF NOT EXISTS source_stats (
+    id SERIAL PRIMARY KEY,
+    source VARCHAR(255) UNIQUE NOT NULL,
+    total_articles INTEGER DEFAULT 0,
+    last_scraped TIMESTAMP,
+    success_rate DECIMAL(5, 2) DEFAULT 100.0,
+    avg_confidence DECIMAL(3, 2) DEFAULT 0.0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to auto-update updated_at
+CREATE TRIGGER update_articles_updated_at
+    BEFORE UPDATE ON articles
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- View: Recent articles by category
+CREATE OR REPLACE VIEW recent_articles_by_category AS
+SELECT 
+    category,
+    COUNT(*) as article_count,
+    AVG(category_confidence) as avg_confidence,
+    MAX(fetched_at) as last_fetched
+FROM articles
+WHERE fetched_at > CURRENT_TIMESTAMP - INTERVAL '7 days'
+GROUP BY category
+ORDER BY article_count DESC;
+
+-- View: Top sources
+CREATE OR REPLACE VIEW top_sources AS
+SELECT 
+    source,
+    COUNT(*) as article_count,
+    AVG(category_confidence) as avg_confidence,
+    MAX(fetched_at) as last_article
+FROM articles
+GROUP BY source
+ORDER BY article_count DESC
+LIMIT 50;
+
+-- View: Daily article counts
+CREATE OR REPLACE VIEW daily_article_stats AS
+SELECT 
+    DATE(fetched_at) as date,
+    category,
+    COUNT(*) as count,
+    AVG(category_confidence) as avg_confidence
+FROM articles
+GROUP BY DATE(fetched_at), category
+ORDER BY date DESC, count DESC;
+
+COMMENT ON TABLE articles IS 'Main table storing scraped news articles with classification and metadata';
+COMMENT ON COLUMN articles.hash IS 'SHA-256 hash of article content for deduplication';
+COMMENT ON COLUMN articles.category_confidence IS 'Confidence score for category classification (0.0-1.0)';
+COMMENT ON COLUMN articles.matched_keywords IS 'JSON array of keywords that triggered category classification';

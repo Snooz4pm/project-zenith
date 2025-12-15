@@ -1,0 +1,29 @@
+{
+  "total": 11,
+  "success": 11,
+  "failed": 0,
+  "failures": [],
+  "category_matches": {
+    "Technology": 3,
+    "Business": 2,
+    "Politics": 1,
+    "Entertainment": 1,
+    "Sports": 2,
+    "Health": 1,
+    "World": 1
+  },
+  "low_confidence": [
+    {
+      "url": "https://www.bbc.com/news/technology",
+      "category": "Technology",
+      "confidence": 0.49,
+      "expected": "Technology"
+    },
+    {
+      "url": "https://www.bbc.com/news/business",
+      "category": "Business",
+      "confidence": 0.42,
+      "expected": "Business"
+    }
+  ]
+}
