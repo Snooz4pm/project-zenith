@@ -5,12 +5,16 @@
   --background-dark: #0E0E12;
   --background-card: rgba(30, 30, 35, 0.6);
   --foreground: #ededed;
-  
+
   /* Zenith Brand Colors */
-  --zenith-green: #00E676; /* Vibrant Green */
-  --zenith-yellow: #FFEA00; /* Electric Yellow */
-  --zenith-red: #FF3D00;    /* Neon Red */
-  --zenith-blue: #2979FF;   /* Bright Blue */
+  --zenith-green: #00E676;
+  /* Vibrant Green */
+  --zenith-yellow: #FFEA00;
+  /* Electric Yellow */
+  --zenith-red: #FF3D00;
+  /* Neon Red */
+  --zenith-blue: #2979FF;
+  /* Bright Blue */
 }
 
 @theme inline {
@@ -20,7 +24,7 @@
   --color-zenith-yellow: var(--zenith-yellow);
   --color-zenith-red: var(--zenith-red);
   --color-zenith-blue: var(--zenith-blue);
-  
+
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
 }
@@ -31,13 +35,29 @@
   .glass-panel {
     @apply bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl;
   }
-  
+
   .glass-panel-hover {
     @apply hover:bg-black/50 hover:border-white/20 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300;
   }
-  
+
   .text-glow {
     text-shadow: 0 0 20px currentColor;
+  }
+
+  /* Typography System */
+  .font-heading {
+    @apply font-sans font-semibold tracking-tight;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .font-mono-premium {
+    @apply font-mono tracking-normal;
+  }
+
+  .label-premium {
+    @apply font-sans font-medium uppercase tracking-wider text-xs;
+    letter-spacing: 0.05em;
   }
 }
 
@@ -52,13 +72,16 @@ body {
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #0E0E12; 
+  background: #0E0E12;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #333; 
+  background: #333;
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #555; 
+  background: #555;
 }

@@ -23,12 +23,41 @@ export default function LandingPage() {
               <span className="w-1.5 h-1.5 rounded-full bg-zenith-blue animate-pulse"></span>
               SYSTEM STATUS: LIVE
             </div>
-            <h1 className="text-5xl lg:text-7xl font-bold tracking-tight mb-8 text-white drop-shadow-xl">
-              Live market intelligence powered by a continuously running algorithm.
+            <h1 className="text-5xl lg:text-7xl font-heading mb-8 text-white drop-shadow-xl">
+              Live Market Scores for Stocks & Crypto. <span className="text-zenith-green">Free Forever.</span>
             </h1>
-            <p className="text-xl text-gray-400 max-w-lg leading-relaxed mb-12">
-              ZenithScores evaluates stocks and crypto assets using multi-factor signals, historical outcomes, and real-time market data.
+            <p className="text-xl text-gray-400 max-w-lg leading-relaxed mb-12 font-sans">
+              Real-time algorithmically-driven scores. No sign-up required.
             </p>
+
+            {/* Live Search Bar */}
+            <div className="relative max-w-md w-full mb-8">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                className="block w-full pl-10 pr-3 py-4 border border-transparent rounded-lg leading-5 bg-white/10 text-white placeholder-gray-400 focus:outline-none focus:bg-white/20 focus:border-blue-500 transition-colors sm:text-sm backdrop-blur-md"
+                placeholder="Search by Ticker (e.g., AAPL, BTC)..."
+              />
+            </div>
+
+            {/* Live Ticker */}
+            <div className="mb-10 overflow-hidden relative w-full max-w-lg">
+              <div className="flex animate-marquee whitespace-nowrap gap-8 text-sm font-mono-premium text-gray-400">
+                <span className="flex items-center gap-2">AAPL <span className="text-zenith-green font-bold text-lg">82</span></span>
+                <span className="flex items-center gap-2">BTC <span className="text-zenith-yellow font-bold text-lg">76</span></span>
+                <span className="flex items-center gap-2">TSLA <span className="text-zenith-red font-bold text-lg">64</span></span>
+                <span className="flex items-center gap-2">NVDA <span className="text-zenith-green font-bold text-lg">88</span></span>
+                <span className="flex items-center gap-2">ETH <span className="text-zenith-yellow font-bold text-lg">71</span></span>
+                {/* Duplicate for seamless loop */}
+                <span className="flex items-center gap-2">AAPL <span className="text-zenith-green font-bold text-lg">82</span></span>
+                <span className="flex items-center gap-2">BTC <span className="text-zenith-yellow font-bold text-lg">76</span></span>
+              </div>
+              <div className="absolute top-0 right-0 w-16 h-full bg-gradient-to-l from-black to-transparent pointer-events-none" />
+            </div>
 
             <div className="flex gap-4">
               <Link

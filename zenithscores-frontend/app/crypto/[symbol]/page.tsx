@@ -122,20 +122,20 @@ export default function AssetPage() {
                             </div>
                         </div>
                         <div>
-                            <h1 className="text-5xl font-bold tracking-tight mb-2">{token.name}</h1>
+                            <h1 className="text-5xl font-heading mb-2 text-white">{token.name}</h1>
                             <div className="flex items-center gap-3 text-sm">
                                 <span className="bg-gray-800 text-gray-300 px-3 py-1 rounded-full border border-gray-700 font-medium">{meta.network}</span>
-                                <span className="text-gray-500 font-mono">{token.symbol}</span>
+                                <span className="text-gray-500 font-mono-premium">{token.symbol}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Price Block */}
                     <div className="text-right">
-                        <div className="text-6xl font-mono font-bold tracking-tighter mb-1">
+                        <div className="text-6xl font-mono-premium font-bold tracking-tighter mb-1 text-white">
                             ${token.price_usd < 1 ? token.price_usd.toFixed(6) : token.price_usd.toFixed(2)}
                         </div>
-                        <div className={`text-lg font-medium flex items-center justify-end gap-2 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                        <div className={`text-lg font-medium flex items-center justify-end gap-2 ${isPositive ? 'text-zenith-green' : 'text-zenith-red'}`}>
                             {isPositive ? <ArrowUp size={20} /> : <ArrowDown size={20} />}
                             {Math.abs(token.price_change_24h || 0).toFixed(2)}% (24h)
                         </div>
@@ -151,10 +151,10 @@ export default function AssetPage() {
                         {/* 1. CHART CARD */}
                         <div className="glass-panel rounded-2xl p-6">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-bold text-gray-400 flex items-center gap-2">
-                                    <Activity size={18} /> PRICE ACTION vs SIGNAL
+                                <h3 className="label-premium text-gray-400 flex items-center gap-2">
+                                    <Activity size={16} /> PRICE ACTION vs SIGNAL
                                 </h3>
-                                <div className="flex gap-4 text-xs font-mono">
+                                <div className="flex gap-4 text-xs font-mono-premium">
                                     <span className="flex items-center gap-2"><div className="w-2 h-2 bg-blue-500 rounded-full" /> PRICE</span>
                                     <span className="flex items-center gap-2"><div className="w-2 h-2 bg-green-500 rounded-full" /> BUY SIGNAL</span>
                                 </div>
@@ -170,7 +170,7 @@ export default function AssetPage() {
                                         </defs>
                                         <Tooltip
                                             contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '8px' }}
-                                            itemStyle={{ color: '#fff' }}
+                                            itemStyle={{ color: '#fff', fontFamily: 'monospace' }}
                                         />
                                         <Line
                                             type="monotone"
@@ -192,19 +192,19 @@ export default function AssetPage() {
 
                         {/* 2. BLOCKCHAIN INTELLIGENCE */}
                         <div className="glass-panel rounded-2xl p-8">
-                            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                                <Zap className="text-yellow-500" /> Blockchain Architecture
+                            <h2 className="text-2xl font-heading mb-6 flex items-center gap-2">
+                                <Zap className="text-zenith-yellow" /> Blockchain Architecture
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="bg-black/30 p-4 rounded-xl border border-gray-800">
-                                    <div className="text-sm text-gray-500 mb-1">Network</div>
+                                    <div className="label-premium text-gray-500 mb-1">Network</div>
                                     <div className="font-medium text-lg text-white flex items-center gap-2">
                                         {meta.network}
-                                        <CheckCircle size={14} className="text-green-500" />
+                                        <CheckCircle size={14} className="text-zenith-green" />
                                     </div>
                                 </div>
                                 <div className="bg-black/30 p-4 rounded-xl border border-gray-800 group hover:border-gray-600 transition-colors">
-                                    <div className="text-sm text-gray-500 mb-1">Explorer</div>
+                                    <div className="label-premium text-gray-500 mb-1">Explorer</div>
                                     <a
                                         href={
                                             (token.address && token.address.length > 10) ? `${meta.explorerUrl}${token.address}` :
@@ -221,14 +221,14 @@ export default function AssetPage() {
 
                                 {(token.address || meta.contractAddress) && (token.address !== 'null' && meta.contractAddress !== 'null') && (
                                     <div className="col-span-1 md:col-span-2 bg-black/30 p-4 rounded-xl border border-gray-800 relative group">
-                                        <div className="text-sm text-gray-500 mb-2">Token Contract Address</div>
-                                        <div className="font-mono text-gray-300 bg-black/50 p-3 rounded-lg flex justify-between items-center">
+                                        <div className="label-premium text-gray-500 mb-2">Token Contract Address</div>
+                                        <div className="font-mono-premium text-gray-300 bg-black/50 p-3 rounded-lg flex justify-between items-center">
                                             <span className="truncate">{token.address || meta.contractAddress}</span>
                                             <button
                                                 onClick={() => handleCopy(token.address || meta.contractAddress!)}
                                                 className="p-2 hover:bg-gray-700 rounded-md transition-colors"
                                             >
-                                                {copied ? <CheckCircle size={18} className="text-green-500" /> : <Copy size={18} />}
+                                                {copied ? <CheckCircle size={18} className="text-zenith-green" /> : <Copy size={18} />}
                                             </button>
                                         </div>
                                     </div>
