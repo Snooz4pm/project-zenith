@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import PredictiveSearch from '@/components/PredictiveSearch';
 import StockMarket from '@/components/StockMarket';
 
@@ -20,7 +21,9 @@ export default function StockPortal() {
 
             <main className="container mx-auto px-6 py-8">
                 <div className="mb-8">
-                    <PredictiveSearch mode="stock" behavior="filter" className="w-full max-w-md mx-auto" />
+                    <Suspense fallback={<div className="w-full max-w-md mx-auto h-12 bg-white/5 rounded-lg animate-pulse" />}>
+                        <PredictiveSearch mode="stock" behavior="filter" className="w-full max-w-md mx-auto" />
+                    </Suspense>
                 </div>
                 <StockMarket />
             </main>

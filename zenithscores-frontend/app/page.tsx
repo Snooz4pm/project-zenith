@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Activity, Building2, Cpu, ShieldCheck, History } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -35,12 +36,14 @@ export default function LandingPage() {
             {/* Live Search Bar */}
             {/* Live Search Bar */}
             <div className="mb-8">
-              <PredictiveSearch
-                mode="all"
-                behavior="navigate"
-                placeholder="Search Ticker (e.g., AAPL, BTC, Nvidia)..."
-                className="w-full max-w-md"
-              />
+              <Suspense fallback={<div className="w-full max-w-md h-12 bg-gray-900/50 rounded-lg animate-pulse" />}>
+                <PredictiveSearch
+                  mode="all"
+                  behavior="navigate"
+                  placeholder="Search Ticker (e.g., AAPL, BTC, Nvidia)..."
+                  className="w-full max-w-md"
+                />
+              </Suspense>
             </div>
 
             {/* Live Ticker */}
