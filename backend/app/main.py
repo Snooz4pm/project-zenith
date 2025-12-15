@@ -5,10 +5,12 @@ from app.api import router
 
 app = FastAPI()
 
-# Configure CORS
+# Configure CORS - Allow production domain
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://zenithscores.com",
+    "https://www.zenithscores.com",
 ]
 
 app.add_middleware(
