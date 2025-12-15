@@ -113,54 +113,88 @@ def get_trending_tokens(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
+# --- SCORING LOGIC ---
+
 def calculate_zenith_score(pair: dict) -> float:
     """
-    Calculates the Zenith Score (0-100) based on momentum and volume.
+    Calculates the Zenith Score (0-100) for crypto tokens based on momentum and volume.
     Formula: (0.5 * Price Change Factor) + (0.3 * Vol/Liq Factor) + (0.2 * Social Factor)
     """
+    # Existing Crypto Logic
     try:
-        score = 0.0
-        
-        # 1. Price Momentum Factor (0-100 scale)
-        # We look at 1h and 6h changes to determine immediate momentum
         price_change = pair.get('priceChange', {})
         h1 = float(price_change.get('h1', 0))
         h6 = float(price_change.get('h6', 0))
         h24 = float(price_change.get('h24', 0))
         
+        # 1. Momentum Score (50%)
         momentum_score = 0
-        if h1 > 0: momentum_score += 20
+        if h1 > 0: momentum_score += 10
         if h1 > 5: momentum_score += 10
-        if h6 > 0: momentum_score += 20
-        if h6 > 10: momentum_score += 10
+        if h6 > 0: momentum_score += 15
+        if h6 > 10: momentum_score += 15
         if h24 > 0: momentum_score += 20
+        if h24 > 15: momentum_score += 30
+        momentum_score = min(momentum_score, 100)
         
-        # Cap momentum score at 100
-        momentum_score = min(momentum_score + (h1 * 2), 100)
-        momentum_score = max(momentum_score, 0)
-        
-        # 2. Volume/Liquidity Factor (0-100 scale)
-        # High volume relative to liquidity indicates high turnover/interest
-        liquidity = float(pair.get('liquidity', {}).get('usd', 1))
+        # 2. Volume/Liquidity Score (30%)
+        liquidity = float(pair.get('liquidity', {}).get('usd', 0))
         volume = float(pair.get('volume', {}).get('h24', 0))
         
+        vol_score = 0
         if liquidity > 0:
-            vol_liq_ratio = volume / liquidity
-            # A ratio of 1.0 (100% turnover) gets 50 points. Ratio of 2.0 gets 100 points.
-            vol_score = min(vol_liq_ratio * 50, 100)
-        else:
-            vol_score = 0
-            
-        # 3. Social Factor (Placeholder)
-        social_score = 50 # Neutral default for now
+            vol_ratio = volume / liquidity
+            if vol_ratio > 0.1: vol_score += 20
+            if vol_ratio > 0.5: vol_score += 30
+            if vol_ratio > 1.0: vol_score += 50
         
-        # Weighted Average
+        if liquidity > 50000: vol_score += 20
+        if volume > 100000: vol_score += 30
+        vol_score = min(vol_score, 100)
+        
+        # 3. Social/Viral Score (20%) - Placeholder
+        social_score = 50 
+
         final_score = (0.5 * momentum_score) + (0.3 * vol_score) + (0.2 * social_score)
-        
         return round(min(final_score, 100), 2)
-        
     except Exception:
         return 0.0
+
+def calculate_stock_score(stock: dict) -> float:
+    """
+    Zenith Score logic for Stocks.
+    Focuses on Trend Strength (Moving Averages) and Volume.
+    """
+    try:
+        price = stock.get('price', 0)
+        change = stock.get('changesPercentage', 0)
+        volume = stock.get('volume', 0)
+        avg_volume = stock.get('avgVolume', 1)
+        
+        # 1. Trend Score (Price Change) - 50%
+        trend_score = 50 # Start neutral
+        if change > 0: trend_score += 10
+        if change > 2: trend_score += 20
+        if change > 5: trend_score += 20
+        if change < 0: trend_score -= 10
+        if change < -2: trend_score -= 20
+        trend_score = max(0, min(100, trend_score))
+
+        # 2. Volume Score (Rel to Avg) - 30%
+        vol_score = 50
+        if volume > avg_volume: vol_score += 20
+        if volume > avg_volume * 1.5: vol_score += 30
+        vol_score = min(100, vol_score)
+
+        # 3. 'Stability' Score - 20% (Placeholder for now, assumes large cap is stable)
+        stability_score = 80 
+
+        final_score = (0.5 * trend_score) + (0.3 * vol_score) + (0.2 * stability_score)
+        return round(final_score, 0)
+    except Exception:
+        return 50.0
+
+# --- ENDPOINTS ---
 
 import time
 
@@ -296,6 +330,76 @@ def search_tokens(query: str = Query(min_length=1)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+# --- STOCK ENDPOINTS ---
+
+@app.get("/api/v1/stocks/trending")
+def get_trending_stocks(limit: int = 20):
+    """
+    Fetches trending stocks (actives/gainers) from FMP and calculates Zenith Score.
+    """
+    try:
+        # FMP: Most Active
+        url = f"https://financialmodelingprep.com/api/v3/stock_market/actives?apikey={FMP_API_KEY}"
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        
+        if not isinstance(data, list):
+             return {"status": "error", "data": []}
+
+        stocks = []
+        for item in data[:limit]:
+            score = calculate_stock_score(item)
+            stocks.append({
+                "symbol": item.get('symbol'),
+                "name": item.get('name'),
+                "price_usd": item.get('price'),
+                "price_change_24h": item.get('changesPercentage'),
+                "volume_24h": item.get('volume'),
+                "zenith_score": score,
+                "type": "stock" # Flag for frontend
+            })
+            
+        # Sort by Score
+        stocks.sort(key=lambda x: x['zenith_score'], reverse=True)
+            
+        return {"status": "success", "count": len(stocks), "data": stocks}
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/stocks/quote/{symbol}")
+def get_stock_quote(symbol: str):
+    """
+    Get detailed quote for a single stock.
+    """
+    try:
+        url = f"https://financialmodelingprep.com/api/v3/quote/{symbol}?apikey={FMP_API_KEY}"
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        
+        if not data or not isinstance(data, list):
+            raise HTTPException(status_code=404, detail="Stock not found")
+            
+        item = data[0]
+        score = calculate_stock_score(item)
+        
+        return {
+            "status": "success",
+            "data": {
+                "symbol": item.get('symbol'),
+                "name": item.get('name'),
+                "price_usd": item.get('price'),
+                "price_change_24h": item.get('changesPercentage'),
+                "volume_24h": item.get('volume'),
+                "day_low": item.get('dayLow'),
+                "day_high": item.get('dayHigh'),
+                "market_cap": item.get('marketCap'),
+                "zenith_score": score,
+                "type": "stock"
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

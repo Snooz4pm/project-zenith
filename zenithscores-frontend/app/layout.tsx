@@ -8,6 +8,10 @@ export const metadata: Metadata = {
   keywords: ["market analysis", "trading signals", "VIX", "SMA", "market regime", "zenith scores"],
 };
 
+import Navbar from "@/components/Navbar";
+
+// ... existing metadata ...
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -16,6 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased bg-black text-white">
+        <Navbar />
         {children}
       </body>
     </html>

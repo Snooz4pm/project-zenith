@@ -25,7 +25,7 @@ export default function HeroCard({ token }: HeroCardProps) {
 
     return (
         <motion.a
-            href={`/asset/${token.symbol}`}
+            href={`/crypto/${token.symbol}`}
             className="block relative min-w-[300px] bg-gray-900/50 backdrop-blur-md border border-gray-800 rounded-2xl p-6 overflow-hidden group cursor-pointer"
             whileHover={{ y: -5, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.5)" }}
             initial={{ opacity: 0, y: 20 }}
@@ -59,10 +59,36 @@ export default function HeroCard({ token }: HeroCardProps) {
                 </div>
             </div>
 
-            {/* Tagline */}
-            <p className="text-sm text-gray-400 mb-6 italic">
-                "{getMockTagline(token.zenith_score || 0, token.price_change_24h || 0)}"
-            </p>
+            {/* Tagline / Secondary Metrics Switcher */}
+            <div className="h-12 relative mb-2">
+                {/* Default Tagline - Fades out on hover */}
+                <motion.p
+                    className="text-sm text-gray-400 italic absolute top-0 left-0 w-full"
+                    initial={{ opacity: 1 }}
+                    whileHover={{ opacity: 0 }} // This accesses parent hover state if variants are propagated
+                    transition={{ duration: 0.2 }}
+                >
+                    "{getMockTagline(token.zenith_score || 0, token.price_change_24h || 0)}"
+                </motion.p>
+
+                {/* Secondary Metrics - Fades in on hover */}
+                <motion.div
+                    className="flex gap-4 absolute top-0 left-0 w-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                >
+                    <div className="text-xs">
+                        <div className="text-gray-500 font-bold uppercase">Volume</div>
+                        <div className="text-white">Active</div>
+                    </div>
+                    <div className="text-xs">
+                        <div className="text-gray-500 font-bold uppercase">Trend</div>
+                        <div className="text-green-400">Strong Up</div>
+                    </div>
+                    <div className="text-xs">
+                        <div className="text-gray-500 font-bold uppercase">Volat</div>
+                        <div className="text-white">Low</div>
+                    </div>
+                </motion.div>
+            </div>
 
             {/* Zenith Score Bar */}
             <div>
