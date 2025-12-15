@@ -149,7 +149,7 @@ export default function AssetPage() {
                     <div className="lg:col-span-8 space-y-8">
 
                         {/* 1. CHART CARD */}
-                        <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-6 backdrop-blur-sm">
+                        <div className="glass-panel rounded-2xl p-6">
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="font-bold text-gray-400 flex items-center gap-2">
                                     <Activity size={18} /> PRICE ACTION vs SIGNAL
@@ -191,7 +191,7 @@ export default function AssetPage() {
                         </div>
 
                         {/* 2. BLOCKCHAIN INTELLIGENCE */}
-                        <div className="bg-gradient-to-r from-gray-900 to-gray-900/50 border border-gray-800 rounded-2xl p-8">
+                        <div className="glass-panel rounded-2xl p-8">
                             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
                                 <Zap className="text-yellow-500" /> Blockchain Architecture
                             </h2>
@@ -294,7 +294,7 @@ export default function AssetPage() {
                     <div className="lg:col-span-4 space-y-6">
 
                         {/* ZENITH SCORE CARD */}
-                        <div className="bg-gray-900 rounded-3xl p-8 relative overflow-hidden ring-1 ring-white/10 shadow-2xl">
+                        <div className="glass-panel rounded-3xl p-8 relative overflow-hidden ring-1 ring-white/10 shadow-2xl">
                             <div className={`absolute top-0 right-0 w-64 h-64 bg-opacity-20 blur-[80px] rounded-full pointer-events-none ${signal.bg.replace('bg-', 'bg-')}`} />
 
                             <div className="relative z-10">
