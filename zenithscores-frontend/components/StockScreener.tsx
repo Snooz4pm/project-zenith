@@ -125,43 +125,43 @@ export default function StockScreener() {
     }, [stocks, searchQuery, selectedSectors, minScore, selectedCap, sortBy, view, watchlist]);
 
     if (loading) {
-        return <div className="h-96 w-full bg-gray-900/50 animate-pulse rounded-xl border border-gray-800" />;
+        return <div className="h-96 w-full bg-gray-100 animate-pulse rounded-xl border border-gray-200" />;
     }
 
     return (
         <div className="flex flex-col lg:flex-row gap-8">
             {/* LEFT SIDEBAR - FILTERS */}
             <div className={`lg:w-72 flex-shrink-0 ${mobileFiltersOpen ? 'block' : 'hidden lg:block'}`}>
-                <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 sticky top-24 space-y-8">
+                <div className="bg-[var(--background-card)] border border-[var(--border-color)] rounded-xl p-6 sticky top-24 space-y-8 shadow-sm">
 
-                    {/* VIEW TOGGLE - NEW */}
-                    <div className="bg-gray-800 p-1 rounded-lg flex mb-6">
+                    {/* VIEW TOGGLE */}
+                    <div className="bg-gray-100 p-1 rounded-lg flex mb-6">
                         <button
                             onClick={() => setView('market')}
-                            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${view === 'market' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${view === 'market' ? 'bg-white text-blue-700 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-900'}`}
                         >
                             All Stocks
                         </button>
                         <button
                             onClick={() => setView('watchlist')}
-                            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2 ${view === 'watchlist' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2 ${view === 'watchlist' ? 'bg-white text-blue-700 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-900'}`}
                         >
                             <Star size={14} fill={view === 'watchlist' ? "currentColor" : "none"} /> Watchlist
                         </button>
                     </div>
 
                     <div className="flex items-center justify-between lg:hidden mb-4">
-                        <h3 className="font-bold text-white">Filters</h3>
-                        <button onClick={() => setMobileFiltersOpen(false)} className="text-gray-400">Close</button>
+                        <h3 className="font-bold text-gray-900">Filters</h3>
+                        <button onClick={() => setMobileFiltersOpen(false)} className="text-gray-500">Close</button>
                     </div>
 
                     {/* Sector Filter */}
                     <div>
-                        <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Sector</h4>
+                        <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Sector</h4>
                         <div className="space-y-2">
                             {SECTORS.map(sector => (
                                 <label key={sector} className="flex items-center gap-2 cursor-pointer group">
-                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedSectors.has(sector) ? 'bg-blue-600 border-blue-600' : 'border-gray-600 group-hover:border-gray-500'}`}>
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedSectors.has(sector) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 group-hover:border-gray-400'}`}>
                                         {selectedSectors.has(sector) && <div className="w-2 h-2 bg-white rounded-sm" />}
                                     </div>
                                     <input
@@ -175,7 +175,7 @@ export default function StockScreener() {
                                             setSelectedSectors(newSet);
                                         }}
                                     />
-                                    <span className={`text-sm ${selectedSectors.has(sector) ? 'text-white' : 'text-gray-400 group-hover:text-gray-300'}`}>{sector}</span>
+                                    <span className={`text-sm ${selectedSectors.has(sector) ? 'text-gray-900 font-medium' : 'text-gray-500 group-hover:text-gray-700'}`}>{sector}</span>
                                 </label>
                             ))}
                         </div>
@@ -183,13 +183,13 @@ export default function StockScreener() {
 
                     {/* Market Cap Filter */}
                     <div>
-                        <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Market Cap</h4>
+                        <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Market Cap</h4>
                         <div className="space-y-2">
                             {MARKET_CAPS.map(cap => (
                                 <button
                                     key={cap.value}
                                     onClick={() => setSelectedCap(selectedCap === cap.value ? null : cap.value)}
-                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedCap === cap.value ? 'bg-blue-900/30 text-blue-300 border border-blue-500/50' : 'text-gray-400 hover:bg-gray-800'}`}
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedCap === cap.value ? 'bg-blue-50 text-blue-700 border border-blue-200 font-medium' : 'text-gray-500 hover:bg-gray-50'}`}
                                 >
                                     {cap.label}
                                 </button>
@@ -200,8 +200,8 @@ export default function StockScreener() {
                     {/* Score Slider */}
                     <div>
                         <div className="flex justify-between items-center mb-3">
-                            <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Min Zenith Score</h4>
-                            <span className="text-sm font-bold text-blue-400">{minScore}</span>
+                            <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Min Zenith Score</h4>
+                            <span className="text-sm font-bold text-blue-600">{minScore}</span>
                         </div>
                         <input
                             type="range"
@@ -210,7 +210,7 @@ export default function StockScreener() {
                             step="5"
                             value={minScore}
                             onChange={(e) => setMinScore(Number(e.target.value))}
-                            className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                         />
                     </div>
                 </div>
@@ -219,22 +219,22 @@ export default function StockScreener() {
             {/* MAIN CONTENT Area */}
             <div className="flex-1 min-w-0">
                 {/* Control Bar */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6 bg-gray-900/50 p-4 rounded-xl border border-gray-800">
+                <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                     <button
                         onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
-                        className="lg:hidden w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 rounded-lg text-white font-medium"
+                        className="lg:hidden w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 rounded-lg text-gray-700 font-medium"
                     >
                         <SlidersHorizontal size={16} /> Filters
                     </button>
 
                     <div className="flex items-center gap-2 w-full sm:w-auto">
-                        <span className="text-sm text-gray-400 whitespace-nowrap hidden sm:inline">Sort by:</span>
-                        <div className="flex bg-gray-800 p-1 rounded-lg">
+                        <span className="text-sm text-gray-500 whitespace-nowrap hidden sm:inline">Sort by:</span>
+                        <div className="flex bg-gray-100 p-1 rounded-lg">
                             {(['score', 'change', 'volume'] as const).map(type => (
                                 <button
                                     key={type}
                                     onClick={() => setSortBy(type)}
-                                    className={`px-3 py-1.5 text-xs font-bold rounded-md capitalize transition-all ${sortBy === type ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                    className={`px-3 py-1.5 text-xs font-bold rounded-md capitalize transition-all ${sortBy === type ? 'bg-white text-blue-700 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-900'}`}
                                 >
                                     {type}
                                 </button>
@@ -243,7 +243,6 @@ export default function StockScreener() {
                     </div>
 
                     <div className="flex gap-2 w-full sm:w-auto justify-end">
-                        {/* View Toggle could go here */}
                         <div className="text-xs text-gray-500 font-mono self-center">
                             {filteredStocks.length} Results
                         </div>
@@ -261,14 +260,14 @@ export default function StockScreener() {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 transition={{ duration: 0.2, delay: i * 0.05 }}
-                                className="bg-gray-900 border border-gray-800 rounded-xl p-4 hover:border-blue-500/30 transition-all group"
+                                className="bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-400 hover:shadow-md transition-all group"
                             >
                                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                     {/* Left: Info */}
                                     <div className="flex items-center gap-4 flex-1">
                                         <button
                                             onClick={(e) => { e.preventDefault(); toggleWatchlist(stock.symbol); }}
-                                            className={`p-2 rounded-lg transition-colors ${watchlist.has(stock.symbol) ? 'text-yellow-400 bg-yellow-400/10' : 'text-gray-600 hover:bg-gray-800 hover:text-gray-300'}`}
+                                            className={`p-2 rounded-lg transition-colors ${watchlist.has(stock.symbol) ? 'text-yellow-500 bg-yellow-50' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'}`}
                                         >
                                             <Star size={18} fill={watchlist.has(stock.symbol) ? "currentColor" : "none"} />
                                         </button>
@@ -276,11 +275,11 @@ export default function StockScreener() {
                                         <Link href={`/stocks/${stock.symbol}`} className="flex-1">
                                             <div className="flex items-center gap-3">
                                                 <div>
-                                                    <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">{stock.symbol}</h3>
-                                                    <p className="text-xs text-gray-400">{stock.name}</p>
+                                                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{stock.symbol}</h3>
+                                                    <p className="text-xs text-gray-500">{stock.name}</p>
                                                 </div>
                                                 {stock.sector && (
-                                                    <span className="hidden sm:inline-block px-2 py-0.5 bg-gray-800 text-gray-500 text-[10px] uppercase tracking-wider rounded">
+                                                    <span className="hidden sm:inline-block px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] uppercase tracking-wider rounded font-medium">
                                                         {stock.sector}
                                                     </span>
                                                 )}
@@ -291,8 +290,8 @@ export default function StockScreener() {
                                     {/* Right: Metrics */}
                                     <div className="flex items-center gap-6 sm:gap-12 w-full sm:w-auto justify-between sm:justify-end">
                                         <div className="text-right">
-                                            <div className="text-sm font-mono text-white">${stock.price_usd.toFixed(2)}</div>
-                                            <div className={`flex items-center justify-end text-xs font-bold ${stock.price_change_24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                            <div className="text-sm font-mono text-gray-900 font-medium">${stock.price_usd.toFixed(2)}</div>
+                                            <div className={`flex items-center justify-end text-xs font-bold ${stock.price_change_24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                 {stock.price_change_24h >= 0 ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
                                                 {Math.abs(stock.price_change_24h).toFixed(2)}%
                                             </div>
@@ -300,12 +299,12 @@ export default function StockScreener() {
 
                                         <div className="w-32">
                                             <div className="flex justify-between text-xs mb-1">
-                                                <span className="text-gray-500">Zenith Score</span>
-                                                <span className="text-white font-bold">{stock.zenith_score.toFixed(0)}</span>
+                                                <span className="text-gray-500 font-medium">Zenith Score</span>
+                                                <span className="text-gray-900 font-bold">{stock.zenith_score.toFixed(0)}</span>
                                             </div>
-                                            <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                                                 <div
-                                                    className={`h-full rounded-full ${stock.zenith_score >= 75 ? 'bg-gradient-to-r from-green-500 to-emerald-400' : stock.zenith_score >= 50 ? 'bg-blue-500' : 'bg-red-500'}`}
+                                                    className={`h-full rounded-full ${stock.zenith_score >= 75 ? 'bg-gradient-to-r from-green-600 to-emerald-500' : stock.zenith_score >= 50 ? 'bg-blue-500' : 'bg-red-500'}`}
                                                     style={{ width: `${stock.zenith_score}%` }}
                                                 />
                                             </div>
@@ -317,7 +316,7 @@ export default function StockScreener() {
                     </AnimatePresence>
 
                     {filteredStocks.length === 0 && (
-                        <div className="text-center py-20 text-gray-500">
+                        <div className="text-center py-20 text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                             No stocks match your filters.
                         </div>
                     )}

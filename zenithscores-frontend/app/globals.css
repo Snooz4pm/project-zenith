@@ -2,28 +2,83 @@
 
 :root {
   /* Core Colors */
-  --background-dark: #0E0E12;
-  --background-card: rgba(30, 30, 35, 0.6);
+  --background-dark: #0f1116;
+  /* Deep Neutral Base */
+  --background-card: #151921;
+  /* Slightly lighter for cards */
   --foreground: #ededed;
 
-  /* Zenith Brand Colors */
-  --zenith-green: #00E676;
-  /* Vibrant Green */
-  --zenith-yellow: #FFEA00;
-  /* Electric Yellow */
-  --zenith-red: #FF3D00;
-  /* Neon Red */
-  --zenith-blue: #2979FF;
-  /* Bright Blue */
+  /* Electric Accents */
+  --accent-cyan: #00F7FF;
+  /* Cyber Cyan - Primary Action/High Tech */
+  --accent-purple: #8A2BE2;
+  /* Vibrant Purple - Premium/Secondary */
+  --accent-neon: #39FF14;
+  /* Neon Green - Raw Energy */
+
+  /* Data Visualization Colors */
+  /* Score Gradients */
+  --score-bull-strong: #00F7FF;
+  --score-bull-mild: #0ECB81;
+  --score-neutral: #848E9C;
+  --score-bear-mild: #F6465D;
+  /* Soft Orange/Pink shift */
+  --score-bear-strong: #FF0033;
+  /* Bright Red */
+
+  /* Price Actions */
+  --price-up: #0ECB81;
+  --price-down: #F6465D;
+}
+
+/* STOCK PORTAL THEME OVERRIDES */
+.theme-stock {
+  /* Professional / Analyst Foundation */
+  --background-dark: #F8F9FA;
+  /* Light Analyst Grey Base */
+  --background-card: #FFFFFF;
+  /* Pure White Cards */
+  --foreground: #1A1D26;
+  /* Dark Charcoal Text */
+
+  /* Trust Accents */
+  --accent-cyan: #2A5BDA;
+  /* Deep Sapphire Blue */
+  --accent-purple: #5E6AD2;
+  /* Soft Indigo */
+
+  /* Refined Ratings (Single-Hue/Luminosity Based) */
+  --score-bull-strong: #0A7B0A;
+  /* Forest Green */
+  --score-bull-mild: #5CAF5C;
+  /* Medium Green */
+  --score-neutral: #768396;
+  /* Slate Grey */
+  --score-bear-mild: #ED9C40;
+  /* Muted Orange warning */
+  --score-bear-strong: #D93B3B;
+  /* Pro Red */
+
+  /* Borders */
+  --border-color: #E2E8F0;
 }
 
 @theme inline {
   --color-zenith-bg: var(--background-dark);
   --color-zenith-card: var(--background-card);
-  --color-zenith-green: var(--zenith-green);
-  --color-zenith-yellow: var(--zenith-yellow);
-  --color-zenith-red: var(--zenith-red);
-  --color-zenith-blue: var(--zenith-blue);
+
+  --color-accent-cyan: var(--accent-cyan);
+  --color-accent-purple: var(--accent-purple);
+  --color-accent-neon: var(--accent-neon);
+
+  --color-score-bull-strong: var(--score-bull-strong);
+  --color-score-bull-mild: var(--score-bull-mild);
+  --color-score-neutral: var(--score-neutral);
+  --color-score-bear-mild: var(--score-bear-mild);
+  --color-score-bear-strong: var(--score-bear-strong);
+
+  --color-price-up: var(--price-up);
+  --color-price-down: var(--price-down);
 
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);

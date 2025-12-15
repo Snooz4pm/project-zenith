@@ -50,7 +50,7 @@ export default function AssetGrid({ tokens }: AssetGridProps) {
 
                             <div className="text-right">
                                 <div className="font-mono font-medium text-white">${token.price_usd < 1 ? token.price_usd.toFixed(6) : token.price_usd.toFixed(2)}</div>
-                                <div className={`text-xs font-bold flex items-center justify-end ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                                <div className={`text-xs font-bold font-mono flex items-center justify-end ${isPositive ? 'text-price-up' : 'text-price-down'}`}>
                                     {isPositive ? '+' : ''}{token.price_change_24h?.toFixed(2)}%
                                 </div>
                             </div>
@@ -70,19 +70,12 @@ export default function AssetGrid({ tokens }: AssetGridProps) {
 
                         {/* Bottom Row / Score */}
                         <div className="flex items-center justify-between">
-                            <span className={`text-xs font-bold px-2 py-1 rounded bg-opacity-10 ${signal.bg} ${signal.text}`}>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border border-current bg-opacity-10 ${signal.text} border-opacity-30`}>
                                 {signal.label}
                             </span>
 
                             <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-600 font-bold">SCORE: {token.zenith_score?.toFixed(0)}</span>
-                                {/* Mini Bar */}
-                                <div className="w-16 h-1 bg-gray-800 rounded-full overflow-hidden">
-                                    <div
-                                        className={`h-full ${signal.bg}`}
-                                        style={{ width: `${token.zenith_score}%` }}
-                                    />
-                                </div>
+                                <span className={`text-lg font-bold font-mono ${signal.text}`}>{token.zenith_score?.toFixed(0)}</span>
                             </div>
                         </div>
 

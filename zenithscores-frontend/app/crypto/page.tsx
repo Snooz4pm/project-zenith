@@ -1,42 +1,35 @@
-'use client';
-
 import { Suspense } from 'react';
 import PredictiveSearch from '@/components/PredictiveSearch';
-import ZenithLeaders from '@/components/ZenithLeaders';
+import CryptoDashboard from '@/components/CryptoDashboard';
+import CryptoTicker from '@/components/CryptoTicker';
 
 export default function CryptoPortal() {
     return (
         <div className="min-h-screen bg-black text-white">
+            {/* Top Bar Ticker */}
+            <CryptoTicker />
+
             {/* Sub-Header / Portal Theme */}
             <div className="border-b border-gray-800 bg-black/50 backdrop-blur-sm">
-                <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-                    <div>
-                        <h1 className="text-2xl font-bold text-white">
-                            🪙 Crypto Intelligence
-                        </h1>
-                        <p className="text-sm text-gray-400">Momentum-driven opportunities</p>
-                    </div>
-                    <div className="flex items-center gap-2 px-3 py-1 bg-green-900/30 text-green-400 border border-green-500/30 rounded-full text-xs font-bold">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                        </span>
-                        LIVE FEED
-                    </div>
+                <div className="container mx-auto px-6 py-8">
+                    <h1 className="text-3xl font-bold text-white mb-2">
+                        Live Crypto Intelligence
+                    </h1>
+                    <p className="text-gray-400">Scores, Signals, and Momentum.</p>
                 </div>
             </div>
 
             <main className="container mx-auto px-6 py-8">
-                <Suspense fallback={<div className="h-16 bg-gray-900 rounded-lg animate-pulse mb-8" />}>
-                    <PredictiveSearch mode="crypto" behavior="filter" className="w-full max-w-md mx-auto mb-8" />
-                </Suspense>
-                <Suspense fallback={<div className="h-64 bg-gray-900 rounded-xl animate-pulse" />}>
-                    <ZenithLeaders />
-                </Suspense>
+                <div className="mb-8">
+                    <Suspense fallback={<div className="h-16 bg-gray-900 rounded-lg animate-pulse mb-8" />}>
+                        <PredictiveSearch mode="crypto" behavior="filter" className="w-full max-w-xl mx-auto" />
+                    </Suspense>
+                </div>
+                <CryptoDashboard />
             </main>
 
             {/* Short Footer */}
-            <div className="py-8 text-center text-gray-600 text-xs">
+            <div className="py-8 text-center text-gray-600 text-xs border-t border-gray-900 mt-12 bg-black">
                 Note: Crypto markets are highly volatile. Zenith Scores are for informational purposes only.
             </div>
         </div>
