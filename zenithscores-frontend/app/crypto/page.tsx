@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense } from 'react';
-import TokenSearch from '@/components/TokenSearch';
+import PredictiveSearch from '@/components/PredictiveSearch';
 import ZenithLeaders from '@/components/ZenithLeaders';
 
 export default function CryptoPortal() {
@@ -28,7 +28,7 @@ export default function CryptoPortal() {
 
             <main className="container mx-auto px-6 py-8">
                 <Suspense fallback={<div className="h-16 bg-gray-900 rounded-lg animate-pulse mb-8" />}>
-                    <TokenSearch />
+                    <PredictiveSearch mode="crypto" behavior="filter" className="w-full max-w-md mx-auto mb-8" />
                 </Suspense>
                 <Suspense fallback={<div className="h-64 bg-gray-900 rounded-xl animate-pulse" />}>
                     <ZenithLeaders />

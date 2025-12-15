@@ -1,5 +1,6 @@
 'use client';
 
+import PredictiveSearch from '@/components/PredictiveSearch';
 import StockMarket from '@/components/StockMarket';
 
 export default function StockPortal() {
@@ -18,6 +19,9 @@ export default function StockPortal() {
             </div>
 
             <main className="container mx-auto px-6 py-8">
+                <div className="mb-8">
+                    <PredictiveSearch mode="stock" behavior="filter" className="w-full max-w-md mx-auto" />
+                </div>
                 <StockMarket />
             </main>
 

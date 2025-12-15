@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowRight, Activity, Building2, Cpu, ShieldCheck, History } from 'lucide-react';
 import { motion } from 'framer-motion';
 import HeroNetworkBackground from '@/components/HeroNetworkBackground';
+import PredictiveSearch from '@/components/PredictiveSearch';
 
 export default function LandingPage() {
   return (
@@ -31,28 +32,15 @@ export default function LandingPage() {
             </p>
 
             {/* Live Search Bar */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const query = (e.currentTarget.elements.namedItem('search') as HTMLInputElement).value;
-                if (query) {
-                  window.location.href = `/crypto/${query.toUpperCase()}`;
-                }
-              }}
-              className="relative max-w-md w-full mb-8"
-            >
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input
-                name="search"
-                type="text"
-                className="block w-full pl-10 pr-3 py-4 border border-transparent rounded-lg leading-5 bg-white/10 text-white placeholder-gray-400 focus:outline-none focus:bg-white/20 focus:border-blue-500 transition-colors sm:text-sm backdrop-blur-md"
-                placeholder="Search by Ticker (e.g., AAPL, BTC)..."
+            {/* Live Search Bar */}
+            <div className="mb-8">
+              <PredictiveSearch
+                mode="all"
+                behavior="navigate"
+                placeholder="Search Ticker (e.g., AAPL, BTC, Nvidia)..."
+                className="w-full max-w-md"
               />
-            </form>
+            </div>
 
             {/* Live Ticker */}
             <div className="mb-10 overflow-hidden relative w-full max-w-lg">
