@@ -206,7 +206,11 @@ export default function AssetPage() {
                                 <div className="bg-black/30 p-4 rounded-xl border border-gray-800 group hover:border-gray-600 transition-colors">
                                     <div className="text-sm text-gray-500 mb-1">Explorer</div>
                                     <a
-                                        href={`${meta.explorerUrl}${meta.contractAddress || ''}`} // Simplified for demo
+                                        href={
+                                            (token.address && token.address.length > 10) ? `${meta.explorerUrl}${token.address}` :
+                                                (meta.contractAddress && meta.contractAddress.length > 10) ? `${meta.explorerUrl}${meta.contractAddress}` :
+                                                    meta.explorerUrl
+                                        }
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="font-medium text-lg text-blue-400 hover:text-blue-300 flex items-center gap-2"
@@ -215,13 +219,13 @@ export default function AssetPage() {
                                     </a>
                                 </div>
 
-                                {meta.contractAddress && (
+                                {(token.address || meta.contractAddress) && (token.address !== 'null' && meta.contractAddress !== 'null') && (
                                     <div className="col-span-1 md:col-span-2 bg-black/30 p-4 rounded-xl border border-gray-800 relative group">
                                         <div className="text-sm text-gray-500 mb-2">Token Contract Address</div>
                                         <div className="font-mono text-gray-300 bg-black/50 p-3 rounded-lg flex justify-between items-center">
-                                            <span className="truncate">{meta.contractAddress}</span>
+                                            <span className="truncate">{token.address || meta.contractAddress}</span>
                                             <button
-                                                onClick={() => handleCopy(meta.contractAddress!)}
+                                                onClick={() => handleCopy(token.address || meta.contractAddress!)}
                                                 className="p-2 hover:bg-gray-700 rounded-md transition-colors"
                                             >
                                                 {copied ? <CheckCircle size={18} className="text-green-500" /> : <Copy size={18} />}

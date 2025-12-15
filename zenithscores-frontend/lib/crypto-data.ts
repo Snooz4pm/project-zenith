@@ -66,7 +66,7 @@ export const CRYPTO_DB: Record<string, CryptoMetadata> = {
     default: {
         symbol: "TOKEN",
         network: "Ethereum (ERC-20)",
-        contractAddress: "0x...",
+        contractAddress: null,
         explorerUrl: "https://etherscan.io/",
         recommendedWallets: ["MetaMask", "Rabby"],
         acquisitionSteps: [
