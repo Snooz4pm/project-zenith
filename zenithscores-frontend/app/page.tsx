@@ -44,16 +44,53 @@ export default function LandingPage() {
           </div>
 
           {/* Right: Abstract Visualization (CSS Animation) */}
-          <div className="relative h-[400px] w-full bg-gray-900/30 rounded-3xl border border-gray-800 backdrop-blur flex items-center justify-center overflow-hidden">
-            {/* Simulation of "Processing" */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-30">
-              <div className="w-[300px] h-[300px] border border-blue-500/50 rounded-full animate-[spin_10s_linear_infinite]" />
-              <div className="w-[200px] h-[200px] border border-purple-500/50 rounded-full absolute animate-[spin_15s_linear_infinite_reverse]" />
-              <div className="w-[100px] h-[100px] border border-white/20 rounded-full absolute animate-pulse" />
+          {/* Right: Abstract Visualization (Radar Scanner) */}
+          <div className="relative h-[400px] w-full bg-[#050510] rounded-3xl border border-gray-800 flex items-center justify-center overflow-hidden shadow-2xl">
+
+            {/* Radar Conic Gradient (The Sweep) */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-[800px] h-[800px] bg-[conic-gradient(from_0deg,transparent_0_340deg,rgba(59,130,246,0.3)_360deg)] animate-[spin_3s_linear_infinite] rounded-full opacity-50" />
             </div>
-            <div className="z-10 text-center space-y-2">
-              <div className="text-4xl font-mono font-bold">Scanning...</div>
-              <div className="text-xs text-gray-500 font-mono">24,392 ASSETS ANALYZED IN REAL-TIME</div>
+
+            {/* Static Rings */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-[150px] h-[150px] border border-blue-500/10 rounded-full" />
+              <div className="w-[280px] h-[280px] border border-blue-500/10 rounded-full absolute" />
+              <div className="w-[410px] h-[410px] border border-blue-500/10 rounded-full absolute" />
+              <div className="w-[540px] h-[540px] border border-blue-500/10 rounded-full absolute" />
+              {/* Crosshairs */}
+              <div className="absolute w-full h-[1px] bg-blue-500/10" />
+              <div className="absolute h-full w-[1px] bg-blue-500/10" />
+            </div>
+
+            {/* Active TARGET Blips */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: [0, 1, 0] }}
+              transition={{ duration: 2, repeat: Infinity, delay: 0.8 }}
+              className="absolute top-1/4 left-1/3 w-3 h-3 bg-red-500 rounded-full shadow-[0_0_15px_#ef4444]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: [0, 1, 0] }}
+              transition={{ duration: 3, repeat: Infinity, delay: 1.5 }}
+              className="absolute bottom-1/3 right-1/4 w-2 h-2 bg-green-500 rounded-full shadow-[0_0_15px_#22c55e]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: [0, 1, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity, delay: 0.2 }}
+              className="absolute top-1/2 right-1/3 w-2 h-2 bg-blue-400 rounded-full shadow-[0_0_15px_#3b82f6]"
+            />
+
+            {/* Center Text */}
+            <div className="z-10 text-center space-y-2 bg-black/20 backdrop-blur-sm p-6 rounded-2xl border border-white/5 shadow-2xl">
+              <div className="text-4xl font-mono font-bold tracking-tighter text-white drop-shadow-lg flex items-center justify-center gap-1">
+                Scanning<span className="animate-pulse">...</span>
+              </div>
+              <div className="text-[10px] text-blue-300/80 font-mono tracking-[0.2em] uppercase">
+                24,392 Assets Analyzed Real-Time
+              </div>
             </div>
           </div>
         </div>
