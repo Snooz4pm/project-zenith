@@ -85,6 +85,7 @@ class PortfolioResponse(BaseModel):
 PRICE_CACHE = {}
 CACHE_TTL = 10  # seconds
 
+
 def get_asset_price(symbol: str, asset_type: str = "crypto") -> float:
     """Get current price for an asset with caching"""
     cache_key = f"{symbol}_{asset_type}"
@@ -96,50 +97,55 @@ def get_asset_price(symbol: str, asset_type: str = "crypto") -> float:
         if now - timestamp < CACHE_TTL:
             return price
     
-    # Fetch fresh price
+    price = None
     try:
         if asset_type == "crypto":
-            # Use CoinGecko or fallback to mock
-            url = f"https://api.coingecko.com/api/v3/simple/price?ids={get_coingecko_id(symbol)}&vs_currencies=usd"
-            response = requests.get(url, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                cg_id = get_coingecko_id(symbol)
-                if cg_id in data:
-                    price = float(data[cg_id]['usd'])
-                    PRICE_CACHE[cache_key] = (price, now)
-                    return price
-        
-        # Fallback to our database price
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT current_price FROM trading_assets WHERE symbol = %s", (symbol,))
-        row = cur.fetchone()
-        conn.close()
-        
-        if row:
-            return float(row['current_price'])
-        
+            price = get_dexscreener_price(symbol)
+        else:
+            price = get_alpha_vantage_price(symbol)
+            
+        if price:
+            PRICE_CACHE[cache_key] = (price, now)
+            return price
+            
     except Exception as e:
-        print(f"Price fetch error: {e}")
+        print(f"Price fetch error for {symbol}: {e}")
     
-    # Emergency fallback
+    # Fallback to DB or Hardcoded
     return get_fallback_price(symbol)
 
 
-def get_coingecko_id(symbol: str) -> str:
-    """Map symbol to CoinGecko ID"""
-    mapping = {
-        'BTC': 'bitcoin',
-        'ETH': 'ethereum',
-        'SOL': 'solana',
-        'AVAX': 'avalanche-2',
-        'LINK': 'chainlink',
-        'XRP': 'ripple',
-        'DOGE': 'dogecoin',
-        'ADA': 'cardano',
-    }
-    return mapping.get(symbol.upper(), symbol.lower())
+def get_dexscreener_price(symbol: str) -> Optional[float]:
+    """Fetch price from DexScreener"""
+    try:
+        # Search for the token
+        url = f"https://api.dexscreener.com/latest/dex/search?q={symbol}"
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            pairs = data.get('pairs', [])
+            if pairs:
+                # Get priceUsd from the most liquid pair
+                return float(pairs[0].get('priceUsd', 0))
+    except Exception as e:
+        print(f"DexScreener error: {e}")
+    return None
+
+
+def get_alpha_vantage_price(symbol: str) -> Optional[float]:
+    """Fetch price from Alpha Vantage"""
+    api_key = os.getenv("ALPHA_VANTAGE_KEY", "27PTDI7FTSYLQI4F")
+    try:
+        url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={api_key}"
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            quote = data.get('Global Quote', {})
+            if quote:
+                return float(quote.get('05. price', 0))
+    except Exception as e:
+        print(f"Alpha Vantage error: {e}")
+    return None
 
 
 def get_fallback_price(symbol: str) -> float:
@@ -147,7 +153,7 @@ def get_fallback_price(symbol: str) -> float:
     prices = {
         'BTC': 95000.0, 'ETH': 3400.0, 'SOL': 220.0, 'AVAX': 45.0,
         'LINK': 25.0, 'XRP': 2.40, 'DOGE': 0.40, 'ADA': 1.10,
-        'AAPL': 195.0, 'NVDA': 140.0, 'TSLA': 420.0, 'MSFT': 430.0,
+        'AAPL': 225.0, 'NVDA': 140.0, 'TSLA': 420.0, 'MSFT': 430.0,
         'GOOGL': 175.0, 'AMZN': 220.0, 'META': 580.0
     }
     return prices.get(symbol.upper(), 100.0)
