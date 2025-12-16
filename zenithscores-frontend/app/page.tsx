@@ -309,11 +309,6 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t border-white/5 py-12 text-center text-gray-600 text-sm relative z-10 glass-panel">
-        <p className="font-mono">&copy; 2025 Zenith Scores. Institutional-Grade Intelligence.</p>
-      </footer>
-
     </div>
   );
 }

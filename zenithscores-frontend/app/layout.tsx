@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import React from "react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -32,6 +33,7 @@ export default function RootLayout({
       <body className="antialiased bg-[#0E0E12] text-white font-sans selection:bg-blue-500/30">
         <Navbar />
         {children}
+        <Footer />
       </body>
     </html>
   );
