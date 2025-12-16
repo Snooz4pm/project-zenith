@@ -199,7 +199,7 @@ CACHE_DATA = None
 CACHE_TIMESTAMP = 0
 CACHE_DURATION = 300  # 5 minutes
 
-ALPHA_VANTAGE_KEY = "27PTDI7FTSYLQI4F"
+ALPHA_VANTAGE_KEY = os.getenv("ALPHA_VANTAGE_KEY") or "27PTDI7FTSYLQI4F"
 
 # ═══════════════════════════════════════════════════════
 # ENDPOINTS
