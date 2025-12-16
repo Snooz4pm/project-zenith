@@ -4,8 +4,8 @@
  */
 
 import Link from 'next/link';
-import type { Article } from '@/lib/types';
-import { formatRelativeTime, getConfidenceColor } from '@/lib/api';
+import type { Article } from '@/lib/news-types';
+import { formatRelativeTime, getConfidenceColor } from '@/lib/news-api';
 
 interface ArticleCardProps {
     article: Article;

@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import ArticleCard from '@/components/ArticleCard';
-import { newsAPI } from '@/lib/api';
+import { newsAPI } from '@/lib/news-api';
 
 export const revalidate = 300; // Revalidate every 5 minutes
 
