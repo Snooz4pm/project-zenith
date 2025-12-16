@@ -23,19 +23,29 @@ class NewsDatabase:
     def connect(self):
         """Connect to Neon database"""
         try:
-            self.conn = psycopg2.connect(
-                host=os.getenv("NEON_HOST"),
-                database=os.getenv("NEON_DATABASE"),
-                user=os.getenv("NEON_USER"),
-                password=os.getenv("NEON_PASSWORD"),
-                port=os.getenv("NEON_PORT", 5432),
-                sslmode='require'  # Neon requires SSL
-            )
+            # Try DATABASE_URL first (full connection string)
+            database_url = os.getenv("DATABASE_URL")
+            
+            if database_url:
+                self.conn = psycopg2.connect(database_url)
+            else:
+                # Construct from individual NEON_* variables
+                host = os.getenv("NEON_HOST")
+                database = os.getenv("NEON_DATABASE")
+                user = os.getenv("NEON_USER")
+                password = os.getenv("NEON_PASSWORD")
+                port = os.getenv("NEON_PORT", "5432")
+                
+                # Build connection string
+                conn_string = f"postgresql://{user}:{password}@{host}/{database}?sslmode=require"
+                self.conn = psycopg2.connect(conn_string)
+            
             self.cur = self.conn.cursor()
             print("✅ Connected to Neon database")
         except Exception as e:
             print(f"❌ Database connection error: {e}")
             raise
+
     
     def close(self):
         """Close database connection"""

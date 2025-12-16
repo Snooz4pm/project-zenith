@@ -14,10 +14,10 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       
@@ -27,6 +27,7 @@ jobs:
       
       - name: Run news collection pipeline
         env:
+          DATABASE_URL: postgresql://${{ secrets.NEON_USER }}:${{ secrets.NEON_PASSWORD }}@${{ secrets.NEON_HOST }}/${{ secrets.NEON_DATABASE }}?sslmode=require
           NEON_HOST: ${{ secrets.NEON_HOST }}
           NEON_DATABASE: ${{ secrets.NEON_DATABASE }}
           NEON_USER: ${{ secrets.NEON_USER }}
@@ -34,8 +35,13 @@ jobs:
           NEON_PORT: ${{ secrets.NEON_PORT }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          python run_pipeline.py full
+          echo "🚀 Starting news collection..."
+          python collect_news.py
+          echo "✅ News collection completed!"
       
-      - name: Report completion
+      - name: Verify article count
+        env:
+          DATABASE_URL: postgresql://${{ secrets.NEON_USER }}:${{ secrets.NEON_PASSWORD }}@${{ secrets.NEON_HOST }}/${{ secrets.NEON_DATABASE }}?sslmode=require
         run: |
-          echo "News collection completed successfully!"
+          python -c "from news_database import NewsDB; db=NewsDB().__enter__(); print(f'📰 Total articles: {db.get_total_articles()}')"
+
