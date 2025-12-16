@@ -149,7 +149,7 @@ export function AnalyticsDashboard({ sessionId }: { sessionId: string }) {
             <div className="p-4 bg-blue-900/10 border border-blue-500/20 rounded-lg">
                 <h4 className="text-sm font-medium text-blue-400 mb-1">📢 Zenith Insight</h4>
                 <p className="text-sm text-gray-400">
-                    High win rate (>60%) with low drawdown indicates strong risk management.
+                    High win rate ({'>'}60%) with low drawdown indicates strong risk management.
                     Monitor exposure to ensure you aren't over-allocated to volatile assets.
                 </p>
             </div>
