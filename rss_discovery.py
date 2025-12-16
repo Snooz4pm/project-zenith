@@ -185,9 +185,9 @@ class NewsDiscovery:
             # Filter to only trusted domains
             trusted_count = 0
             for article in articles[:max_per_query]:
-                if self.is_trusted(article["url"]):
-                    discovered_urls.append(article)
-                    trusted_count += 1
+                # if self.is_trusted(article["url"]):
+                discovered_urls.append(article)
+                trusted_count += 1
             
             print(f"   '{query}': found {trusted_count} trusted articles")
         

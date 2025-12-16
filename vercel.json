@@ -2,14 +2,14 @@
     "version": 2,
     "builds": [
         {
-            "src": "api_server.py",
+            "src": "merged_api.py",
             "use": "@vercel/python"
         }
     ],
     "routes": [
         {
             "src": "/(.*)",
-            "dest": "api_server.py"
+            "dest": "merged_api.py"
         }
     ]
 }
