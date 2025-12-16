@@ -228,7 +228,7 @@ async def root():
         "total_articles": total_news,
         "database": "neon",
         "timestamp": datetime.now().isoformat(),
-        "services": ["news", "crypto", "stocks", "opportunities"]
+        "services": ["news", "crypto", "stocks", "opportunities", "trading"]
     }
 
 @app.get("/api/v1/health")
