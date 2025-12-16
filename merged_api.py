@@ -834,14 +834,28 @@ async def websocket_prices(websocket: WebSocket):
     
     try:
         # Send initial prices
-        if TRADING_ENABLED:
-            with TradingEngine() as engine:
-                assets = engine.get_all_assets()
-                await websocket.send_json({
-                    "type": "initial_prices",
-                    "data": {a['symbol']: float(a['current_price']) for a in assets},
-                    "timestamp": datetime.now().isoformat()
-                })
+        if TRADING_ENGINE_AVAILABLE:
+            try:
+                with TradingEngine() as engine:
+                    assets = engine.get_all_assets()
+                    await websocket.send_json({
+                        "type": "initial_prices",
+                        "data": {a['symbol']: float(a['current_price']) for a in assets},
+                        "timestamp": datetime.now().isoformat()
+                    })
+            except Exception as e:
+                print(f"WS Initial Prices Error: {e}")
+        else:
+             # Fallback: Fetch Live Prices directly
+             try:
+                 live = fetch_live_crypto_prices()
+                 await websocket.send_json({
+                        "type": "initial_prices",
+                        "data": {k: v['price'] for k, v in live.items()},
+                        "timestamp": datetime.now().isoformat()
+                    })
+             except:
+                 pass
         
         # Keep connection alive and send price updates
         while True:
@@ -851,7 +865,10 @@ async def websocket_prices(websocket: WebSocket):
                 
                 if data == "ping":
                     await websocket.send_text("pong")
-                    
+                
+                # If engine unavailable, we can manually fetch/push prices here periodically?
+                # For now, just keep alive.
+                
             except asyncio.TimeoutError:
                 # Send keep-alive
                 await websocket.send_text("ping")
@@ -878,14 +895,29 @@ async def websocket_trading(websocket: WebSocket, session_id: str):
     
     try:
         # Send initial portfolio
-        if TRADING_ENABLED:
-            with TradingEngine() as engine:
-                portfolio = engine.get_portfolio(session_id)
-                await websocket.send_json({
-                    "type": "portfolio_update",
-                    "data": portfolio,
-                    "timestamp": datetime.now().isoformat()
-                })
+        if TRADING_ENGINE_AVAILABLE:
+            try:
+                with TradingEngine() as engine:
+                    portfolio = engine.get_portfolio(session_id)
+                    await websocket.send_json({
+                        "type": "portfolio_update",
+                        "data": portfolio,
+                        "timestamp": datetime.now().isoformat()
+                    })
+            except Exception as e:
+                print(f"WS Portfolio Init Error: {e}")
+        else:
+            # Fallback Mock Portfolio
+            await websocket.send_json({
+                "type": "portfolio_update",
+                "data": {
+                    "session_id": session_id,
+                    "wallet_balance": 10000.0,
+                    "portfolio_value": 10000.0,
+                    "holdings": []
+                },
+                "timestamp": datetime.now().isoformat()
+            })
         
         # Listen for messages
         while True:
@@ -896,7 +928,7 @@ async def websocket_trading(websocket: WebSocket, session_id: str):
                     await websocket.send_text("pong")
                 elif data == "refresh":
                     # Send fresh portfolio
-                    if TRADING_ENABLED:
+                    if TRADING_ENGINE_AVAILABLE:
                         with TradingEngine() as engine:
                             portfolio = engine.get_portfolio(session_id)
                             await websocket.send_json({
@@ -904,6 +936,18 @@ async def websocket_trading(websocket: WebSocket, session_id: str):
                                 "data": portfolio,
                                 "timestamp": datetime.now().isoformat()
                             })
+                    else:
+                         # Fallback Refresh
+                         await websocket.send_json({
+                            "type": "portfolio_update",
+                            "data": {
+                                "session_id": session_id,
+                                "wallet_balance": 10000.0,
+                                "portfolio_value": 10000.0,
+                                "holdings": []
+                            },
+                            "timestamp": datetime.now().isoformat()
+                        })
                             
             except asyncio.TimeoutError:
                 await websocket.send_text("ping")
