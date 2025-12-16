@@ -646,6 +646,13 @@ def get_portfolio(session_id: str):
             "session_id": session_id,
             "wallet_balance": 10000.0,
             "portfolio_value": 10000.0,
+            "available_margin": 10000.0,
+            "margin_used": 0.0,
+            "total_pnl": 0.0,
+            "unrealized_pnl": 0.0,
+            "realized_pnl": 0.0,
+            "total_trades": 0,
+            "win_rate": 0.0,
             "holdings": []
         }}
     except Exception as e:
@@ -654,6 +661,13 @@ def get_portfolio(session_id: str):
             "session_id": session_id,
             "wallet_balance": 10000.0,
             "portfolio_value": 10000.0,
+            "available_margin": 10000.0,
+            "margin_used": 0.0,
+            "total_pnl": 0.0,
+            "unrealized_pnl": 0.0,
+            "realized_pnl": 0.0,
+            "total_trades": 0,
+            "win_rate": 0.0,
             "holdings": []
         }}
 
@@ -703,11 +717,27 @@ def execute_trade(payload: TradePayload):
             # Fallback for trade execution (simulate success)
              return {
                 "status": "success",
-                "trade": {"success": True, "message": "Simulated Trade Executed", "price": 100.0},
+                "trade": {
+                    "success": True, 
+                    "message": "Simulated Trade Executed", 
+                    "price": 100.0,
+                    "trade_id": 12345,
+                    "executed_price": 100.0,
+                    "total_value": payload.quantity * 100.0,
+                    "margin_used": (payload.quantity * 100.0) / payload.leverage if payload.trade_type == 'buy' else 0.0,
+                    "new_balance": 9900.0
+                },
                 "portfolio": {
                     "session_id": payload.session_id, 
                     "wallet_balance": 9900.0, 
                     "portfolio_value": 10000.0,
+                    "available_margin": 9900.0,
+                    "margin_used": 100.0,
+                    "total_pnl": 0.0,
+                    "unrealized_pnl": 0.0,
+                    "realized_pnl": 0.0,
+                    "total_trades": 1,
+                    "win_rate": 100.0,
                     "holdings": [{"symbol": payload.symbol, "quantity": payload.quantity, "average_price": 100.0}]
                 }
             }
@@ -914,6 +944,13 @@ async def websocket_trading(websocket: WebSocket, session_id: str):
                     "session_id": session_id,
                     "wallet_balance": 10000.0,
                     "portfolio_value": 10000.0,
+                    "available_margin": 10000.0,
+                    "margin_used": 0.0,
+                    "total_pnl": 0.0,
+                    "unrealized_pnl": 0.0,
+                    "realized_pnl": 0.0,
+                    "total_trades": 0,
+                    "win_rate": 0.0,
                     "holdings": []
                 },
                 "timestamp": datetime.now().isoformat()
@@ -944,6 +981,13 @@ async def websocket_trading(websocket: WebSocket, session_id: str):
                                 "session_id": session_id,
                                 "wallet_balance": 10000.0,
                                 "portfolio_value": 10000.0,
+                                "available_margin": 10000.0,
+                                "margin_used": 0.0,
+                                "total_pnl": 0.0,
+                                "unrealized_pnl": 0.0,
+                                "realized_pnl": 0.0,
+                                "total_trades": 0,
+                                "win_rate": 0.0,
                                 "holdings": []
                             },
                             "timestamp": datetime.now().isoformat()
