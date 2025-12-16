@@ -482,7 +482,6 @@ class TradingEngine:
              leverage, price_at_execution, total_value, margin_cost,
              stop_loss_price, take_profit_price, realized_pnl, status)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'executed')
-             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'executed')
             RETURNING id
         """, (
             user_id, asset_id, symbol, trade_type, order_type,

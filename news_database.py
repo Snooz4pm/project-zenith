@@ -34,40 +34,45 @@ class NewsDatabase:
                 database = os.getenv("NEON_DATABASE")
                 user = os.getenv("NEON_USER")
                 password = os.getenv("NEON_PASSWORD")
-                port = os.getenv("NEON_PORT", "5432")
                 
-                # Build connection string
-                conn_string = f"postgresql://{user}:{password}@{host}/{database}?sslmode=require"
-                self.conn = psycopg2.connect(conn_string)
+                if host and database and user and password:
+                    # Build connection string
+                    conn_string = f"postgresql://{user}:{password}@{host}/{database}?sslmode=require"
+                    self.conn = psycopg2.connect(conn_string)
+                else:
+                    print("⚠️ Missing Database Credentials. Running in Degradation Mode.")
+                    return
             
             self.cur = self.conn.cursor()
             print("✅ Connected to Neon database")
         except Exception as e:
             print(f"❌ Database connection error: {e}")
-            raise
+            self.conn = None
+            self.cur = None
 
     
     def close(self):
         """Close database connection"""
         if self.cur:
-            self.cur.close()
+            try:
+                self.cur.close()
+            except: pass
         if self.conn:
-            self.conn.close()
-            print("✅ Database connection closed")
+            try:
+                self.conn.close()
+                print("✅ Database connection closed")
+            except: pass
     
     def create_hash(self, text):
         """Create SHA-256 hash for deduplication"""
         return hashlib.sha256(text.encode('utf-8')).hexdigest()
     
     def store_article(self, data):
-        """
-        Store a single article in database
-        Returns: (article_id, is_new)
-        """
+        """Store a single article in database"""
+        if not self.cur: return None, False
+
         # Create hash for deduplication
         article_hash = self.create_hash(data['article'])
-        
-        # Calculate word count
         word_count = len(data['article'].split())
         
         try:
@@ -105,15 +110,14 @@ class NewsDatabase:
                 return None, False
                 
         except Exception as e:
-            self.conn.rollback()
+            if self.conn: self.conn.rollback()
             print(f"❌ Error storing article: {e}")
             return None, False
     
     def store_articles_batch(self, articles):
-        """
-        Store multiple articles in batch
-        Returns: (stored_count, duplicate_count)
-        """
+        """Store multiple articles in batch"""
+        if not self.cur: return 0, 0
+
         stored = 0
         duplicates = 0
         
@@ -129,6 +133,8 @@ class NewsDatabase:
     
     def get_recent_articles(self, category=None, limit=10):
         """Get recent articles, optionally filtered by category"""
+        if not self.cur: return []
+        
         try:
             if category:
                 self.cur.execute("""
@@ -153,6 +159,8 @@ class NewsDatabase:
     
     def get_category_stats(self):
         """Get statistics by category"""
+        if not self.cur: return []
+        
         try:
             self.cur.execute("""
                 SELECT 
@@ -171,6 +179,8 @@ class NewsDatabase:
     
     def get_source_stats(self):
         """Get statistics by source"""
+        if not self.cur: return []
+        
         try:
             self.cur.execute("""
                 SELECT 
@@ -189,6 +199,8 @@ class NewsDatabase:
     
     def search_articles(self, query, limit=10):
         """Full-text search in title and article"""
+        if not self.cur: return []
+        
         try:
             self.cur.execute("""
                 SELECT id, title, source, category, fetched_at
@@ -204,6 +216,8 @@ class NewsDatabase:
     
     def get_total_articles(self):
         """Get total article count"""
+        if not self.cur: return 0
+        
         try:
             self.cur.execute("SELECT COUNT(*) FROM articles")
             return self.cur.fetchone()[0]
@@ -213,6 +227,8 @@ class NewsDatabase:
     
     def print_stats(self):
         """Print database statistics"""
+        if not self.cur: print("⚠️ Database not connected"); return
+
         total = self.get_total_articles()
         print(f"\n{'='*60}")
         print(f"📊 DATABASE STATISTICS")
@@ -240,7 +256,8 @@ class NewsDB:
         return self.db
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.db.close()
+        if self.db:
+            self.db.close()
 
 
 # Example usage
@@ -248,12 +265,4 @@ if __name__ == "__main__":
     # Test connection
     with NewsDB() as db:
         print(f"Total articles in database: {db.get_total_articles()}")
-        
-        # Get recent articles
-        print("\n📰 Recent Articles:")
-        for article in db.get_recent_articles(limit=5):
-            aid, title, source, category, conf, fetched = article
-            print(f"   [{category}] {title[:60]}... ({source})")
-        
-        # Show stats
-        db.print_stats()
+
