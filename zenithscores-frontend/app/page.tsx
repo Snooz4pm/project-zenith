@@ -135,6 +135,14 @@ export default function LandingPage() {
                 Ecommerce Opps
                 <ArrowRight size={16} />
               </Link>
+              <Link
+                href="/news"
+                className="px-8 py-4 bg-gradient-to-r from-emerald-900/50 to-teal-900/50 border border-emerald-500/30 text-white font-bold rounded-lg hover:bg-white/10 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] transform hover:-translate-y-1 duration-300 group"
+              >
+                <Newspaper size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+                News Portal
+                <ArrowRight size={16} />
+              </Link>
             </div>
           </div>
 
