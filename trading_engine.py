@@ -190,8 +190,9 @@ class TradingEngine:
             ON CONFLICT (session_id) DO UPDATE SET last_active = CURRENT_TIMESTAMP
             RETURNING *
         """, (session_id,))
+        user = dict(self.cur.fetchone())
         self.conn.commit()
-        return dict(self.cur.fetchone())
+        return user
     
     def get_user_with_lock(self, session_id: str) -> dict:
         """Get user with row lock for safe transactions"""
@@ -481,6 +482,7 @@ class TradingEngine:
              leverage, price_at_execution, total_value, margin_cost,
              stop_loss_price, take_profit_price, realized_pnl, status)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'executed')
+             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'executed')
             RETURNING id
         """, (
             user_id, asset_id, symbol, trade_type, order_type,
@@ -488,12 +490,14 @@ class TradingEngine:
             float(margin), stop_loss, take_profit, float(realized_pnl)
         ))
         
+        trade_id = self.cur.fetchone()['id']
+        
         # Update trade count
         self.cur.execute("""
             UPDATE trading_users SET total_trades = total_trades + 1 WHERE id = %s
         """, (user_id,))
         
-        return self.cur.fetchone()['id']
+        return trade_id
     
     def _update_user_margin(self, user_id: int, amount: Decimal, add: bool = True):
         """Update user margin"""
