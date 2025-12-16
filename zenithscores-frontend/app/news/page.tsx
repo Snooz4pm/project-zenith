@@ -161,21 +161,21 @@ export default function NewsPage() {
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10">
-        <div className="container mx-auto px-6 py-4">
+        <div className="container mx-auto px-4 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between">
             {/* Left: Back + Title */}
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3 md:gap-6">
               <Link
                 href="/"
                 className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
               >
                 <ArrowLeft size={20} />
               </Link>
-              <div className="flex items-center gap-3">
-                <Newspaper className="w-8 h-8 text-emerald-400" />
+              <div className="flex items-center gap-2 md:gap-3">
+                <Newspaper className="w-6 h-6 md:w-8 md:h-8 text-emerald-400" />
                 <div>
-                  <h1 className="text-xl font-bold text-white">News Signal</h1>
-                  <p className="text-xs text-gray-500">
+                  <h1 className="text-base md:text-xl font-bold text-white">News Signal</h1>
+                  <p className="text-xs text-gray-500 hidden sm:block">
                     {stats?.total_articles.toLocaleString() || '...'} articles indexed
                   </p>
                 </div>
@@ -183,13 +183,13 @@ export default function NewsPage() {
             </div>
 
             {/* Right: Controls */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               {/* Bookmarks toggle */}
               <button
                 onClick={() => setShowBookmarks(!showBookmarks)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${showBookmarks
-                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                    : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                  : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
                   }`}
               >
                 <Bookmark size={16} />
@@ -215,7 +215,7 @@ export default function NewsPage() {
                 >
                   <RefreshCw size={16} />
                 </button>
-                <span className="text-xs text-gray-500 ml-1">
+                <span className="text-xs text-gray-500 ml-1 hidden sm:inline">
                   {timeSinceRefresh()}
                 </span>
               </div>
@@ -224,19 +224,19 @@ export default function NewsPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-8">
+      <div className="container mx-auto px-4 md:px-6 py-6 md:py-8">
         {/* Category Filters */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-4">
             <Filter size={16} className="text-gray-500" />
             <span className="text-sm font-medium text-gray-400">Filter by category</span>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex overflow-x-auto pb-2 gap-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap md:overflow-visible">
             <button
               onClick={() => setSelectedCategory(null)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${!selectedCategory
-                  ? 'bg-white text-black'
-                  : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                ? 'bg-white text-black'
+                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
                 }`}
             >
               All
@@ -245,9 +245,9 @@ export default function NewsPage() {
               <button
                 key={cat.slug}
                 onClick={() => setSelectedCategory(cat.slug)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${selectedCategory === cat.slug
-                    ? `bg-gradient-to-r ${cat.color} text-white`
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                className={`px-3 md:px-4 py-2 rounded-full text-xs md:text-sm font-medium transition-all flex items-center gap-1.5 md:gap-2 whitespace-nowrap flex-shrink-0 ${selectedCategory === cat.slug
+                  ? `bg-gradient-to-r ${cat.color} text-white`
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
                   }`}
               >
                 <span>{cat.icon}</span>
