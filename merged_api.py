@@ -60,18 +60,7 @@ def get_db():
     finally:
         db.close()
 
-# 2. SQLAlchemy Models
-class ProductOutcome(Base):
-    __tablename__ = "product_outcomes"
-    id = Column(Integer, primary_key=True, index=True)
-    keyword = Column(String, index=True)
-    avg_price = Column(Float)
-    supplier_count = Column(Integer)
-    listing_count = Column(Integer)
-    predicted_opportunity = Column(Float)
-    confidence = Column(String)
-    is_red_ocean = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+
 
 # ═══════════════════════════════════════════════════════
 # FASTAPI APP SETUP
@@ -439,29 +428,7 @@ def get_trending_stocks(limit: int = 20):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# --- OPPORTUNITY ENDPOINTS ---
 
-@app.get("/catalog/top10")
-def get_top_opportunities():
-    if SessionLocal is None:
-        return {"top_opportunities": [{"keyword": "yoga mat", "opportunity_score": 72.5}]}
-    
-    db = SessionLocal()
-    try:
-        rows = db.query(ProductOutcome).order_by(ProductOutcome.predicted_opportunity.desc()).limit(10).all()
-        if not rows: return {"top_opportunities": [{"keyword": "yoga mat", "opportunity_score": 72.5}]}
-        
-        return {
-            "top_opportunities": [{
-                "keyword": r.keyword,
-                "opportunity_score": r.predicted_opportunity,
-                "avg_price": r.avg_price,
-                "confidence": r.confidence,
-                "is_red_ocean": r.is_red_ocean
-            } for r in rows]
-        }
-    finally:
-        db.close()
 
 if __name__ == "__main__":
     import uvicorn
