@@ -5,21 +5,40 @@ FastAPI backend serving:
 2. Zenith Scores (Crypto/Stocks from DexScreener/AlphaVantage + Neon DB)
 """
 
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import FastAPI, HTTPException, Query, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from typing import Optional, List
+from typing import Optional, List, Set, Dict
 from datetime import datetime, timedelta
 import os
 import time
+import json
+import asyncio
 import requests
 from dotenv import load_dotenv
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # Database Imports
 from news_database import NewsDB  # For News
 from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, Boolean
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
+
+# Trading Engine Import
+try:
+    from trading_engine import TradingEngine, TradeRequest, TradeResponse, get_asset_price
+    TRADING_ENABLED = True
+except ImportError:
+    TRADING_ENABLED = False
+    print("⚠️ Trading engine not available")
+
+# Trading Services Import (WebSocket, Background Jobs)
+try:
+    from trading_services import broadcaster, fetch_crypto_prices, check_triggers
+    TRADING_SERVICES_ENABLED = True
+except ImportError:
+    TRADING_SERVICES_ENABLED = False
+    broadcaster = None
+    print("⚠️ Trading services not available")
 
 load_dotenv()
 
@@ -428,6 +447,332 @@ def get_trending_stocks(limit: int = 20):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ═══════════════════════════════════════════════════════
+# PAPER TRADING ENDPOINTS
+# ═══════════════════════════════════════════════════════
+
+@app.get("/api/v1/trading/health")
+def trading_health():
+    """Check if trading is enabled"""
+    return {"enabled": TRADING_ENABLED, "status": "healthy" if TRADING_ENABLED else "disabled"}
+
+
+if TRADING_ENABLED:
+    
+    @app.get("/api/v1/trading/assets")
+    def get_trading_assets():
+        """Get all tradeable assets with current prices"""
+        try:
+            with TradingEngine() as engine:
+                assets = engine.get_all_assets()
+                
+                # Update with live prices
+                for asset in assets:
+                    try:
+                        live_price = get_asset_price(asset['symbol'], asset['asset_type'])
+                        if live_price:
+                            asset['current_price'] = live_price
+                    except:
+                        pass
+                
+                return {"status": "success", "count": len(assets), "data": assets}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    
+    @app.post("/api/v1/trading/register")
+    def register_trading_session(session_id: str = Query(None)):
+        """Create or resume a trading session"""
+        try:
+            # Generate session ID if not provided
+            if not session_id:
+                import uuid
+                session_id = str(uuid.uuid4())[:8]
+            
+            with TradingEngine() as engine:
+                user = engine.get_or_create_user(session_id)
+                portfolio = engine.get_portfolio(session_id)
+                
+                return {
+                    "status": "success",
+                    "session_id": session_id,
+                    "portfolio": portfolio
+                }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    
+    @app.get("/api/v1/trading/portfolio/{session_id}")
+    def get_portfolio(session_id: str):
+        """Get portfolio for a trading session"""
+        try:
+            with TradingEngine() as engine:
+                portfolio = engine.get_portfolio(session_id)
+                return {"status": "success", "data": portfolio}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    
+    class TradePayload(BaseModel):
+        session_id: str
+        symbol: str
+        trade_type: str = Field(..., pattern="^(buy|sell)$")
+        order_type: str = Field(default="market", pattern="^(market|limit)$")
+        quantity: float = Field(..., gt=0)
+        leverage: int = Field(default=1, ge=1, le=5)
+        limit_price: Optional[float] = None
+        stop_loss: Optional[float] = None
+        take_profit: Optional[float] = None
+    
+    
+    @app.post("/api/v1/trading/trade")
+    def execute_trade(payload: TradePayload):
+        """Execute a buy or sell trade"""
+        try:
+            request = TradeRequest(
+                session_id=payload.session_id,
+                symbol=payload.symbol,
+                trade_type=payload.trade_type,
+                order_type=payload.order_type,
+                quantity=payload.quantity,
+                leverage=payload.leverage,
+                limit_price=payload.limit_price,
+                stop_loss=payload.stop_loss,
+                take_profit=payload.take_profit
+            )
+            
+            with TradingEngine() as engine:
+                result = engine.execute_trade(request)
+                
+                if result.success:
+                    # Get updated portfolio
+                    portfolio = engine.get_portfolio(payload.session_id)
+                    return {
+                        "status": "success",
+                        "trade": result.dict(),
+                        "portfolio": portfolio
+                    }
+                else:
+                    raise HTTPException(status_code=400, detail=result.message)
+                    
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    
+    @app.get("/api/v1/trading/history/{session_id}")
+    def get_trade_history(session_id: str, limit: int = Query(default=50, le=100)):
+        """Get trade history for a session"""
+        try:
+            with TradingEngine() as engine:
+                history = engine.get_trade_history(session_id, limit)
+                return {"status": "success", "count": len(history), "data": history}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    
+    @app.get("/api/v1/trading/leaderboard")
+    def get_leaderboard(limit: int = Query(default=10, le=50)):
+        """Get top traders leaderboard"""
+        try:
+            with TradingEngine() as engine:
+                leaderboard = engine.get_leaderboard(limit)
+                return {"status": "success", "count": len(leaderboard), "data": leaderboard}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    
+    @app.get("/api/v1/trading/price/{symbol}")
+    def get_live_price(symbol: str):
+        """Get live price for an asset"""
+        try:
+            with TradingEngine() as engine:
+                asset = engine.get_asset(symbol)
+                live_price = get_asset_price(symbol, asset['asset_type'])
+                
+                return {
+                    "status": "success",
+                    "symbol": symbol,
+                    "price": live_price,
+                    "asset_type": asset['asset_type'],
+                    "timestamp": datetime.now().isoformat()
+                }
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    
+    @app.get("/api/v1/trading/portfolio-history/{session_id}")
+    def get_portfolio_history(session_id: str, hours: int = Query(default=24, le=168)):
+        """Get portfolio value history for charting"""
+        try:
+            with TradingEngine() as engine:
+                user = engine.get_or_create_user(session_id)
+                
+                engine.cur.execute("""
+                    SELECT portfolio_value, wallet_balance, total_pnl, recorded_at
+                    FROM trading_portfolio_history
+                    WHERE user_id = %s AND recorded_at > NOW() - INTERVAL '%s hours'
+                    ORDER BY recorded_at ASC
+                """, (user['id'], hours))
+                
+                history = []
+                for row in engine.cur.fetchall():
+                    history.append({
+                        'portfolio_value': float(row['portfolio_value']),
+                        'wallet_balance': float(row['wallet_balance']),
+                        'total_pnl': float(row['total_pnl']),
+                        'timestamp': row['recorded_at'].isoformat()
+                    })
+                
+                return {"status": "success", "count": len(history), "data": history}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════
+# WEBSOCKET ENDPOINTS
+# ═══════════════════════════════════════════════════════
+
+# Store active WebSocket connections
+active_connections: Dict[str, Set[WebSocket]] = {}
+price_subscribers: Set[WebSocket] = set()
+
+
+@app.websocket("/ws/prices")
+async def websocket_prices(websocket: WebSocket):
+    """WebSocket endpoint for real-time price updates"""
+    await websocket.accept()
+    price_subscribers.add(websocket)
+    print(f"📡 Price subscriber connected. Total: {len(price_subscribers)}")
+    
+    try:
+        # Send initial prices
+        if TRADING_ENABLED:
+            with TradingEngine() as engine:
+                assets = engine.get_all_assets()
+                await websocket.send_json({
+                    "type": "initial_prices",
+                    "data": {a['symbol']: float(a['current_price']) for a in assets},
+                    "timestamp": datetime.now().isoformat()
+                })
+        
+        # Keep connection alive and send price updates
+        while True:
+            try:
+                # Wait for ping or receive data
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30)
+                
+                if data == "ping":
+                    await websocket.send_text("pong")
+                    
+            except asyncio.TimeoutError:
+                # Send keep-alive
+                await websocket.send_text("ping")
+                
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+    finally:
+        price_subscribers.discard(websocket)
+        print(f"📡 Price subscriber disconnected. Total: {len(price_subscribers)}")
+
+
+@app.websocket("/ws/trading/{session_id}")
+async def websocket_trading(websocket: WebSocket, session_id: str):
+    """WebSocket endpoint for user-specific trading updates"""
+    await websocket.accept()
+    
+    if session_id not in active_connections:
+        active_connections[session_id] = set()
+    active_connections[session_id].add(websocket)
+    
+    print(f"📡 Trading session {session_id} connected")
+    
+    try:
+        # Send initial portfolio
+        if TRADING_ENABLED:
+            with TradingEngine() as engine:
+                portfolio = engine.get_portfolio(session_id)
+                await websocket.send_json({
+                    "type": "portfolio_update",
+                    "data": portfolio,
+                    "timestamp": datetime.now().isoformat()
+                })
+        
+        # Listen for messages
+        while True:
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=60)
+                
+                if data == "ping":
+                    await websocket.send_text("pong")
+                elif data == "refresh":
+                    # Send fresh portfolio
+                    if TRADING_ENABLED:
+                        with TradingEngine() as engine:
+                            portfolio = engine.get_portfolio(session_id)
+                            await websocket.send_json({
+                                "type": "portfolio_update",
+                                "data": portfolio,
+                                "timestamp": datetime.now().isoformat()
+                            })
+                            
+            except asyncio.TimeoutError:
+                await websocket.send_text("ping")
+                
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+    finally:
+        if session_id in active_connections:
+            active_connections[session_id].discard(websocket)
+        print(f"📡 Trading session {session_id} disconnected")
+
+
+async def broadcast_price_update(prices: Dict):
+    """Broadcast price updates to all connected clients"""
+    if not price_subscribers:
+        return
+    
+    message = json.dumps({
+        "type": "price_update",
+        "data": prices,
+        "timestamp": datetime.now().isoformat()
+    })
+    
+    dead = set()
+    for ws in price_subscribers:
+        try:
+            await ws.send_text(message)
+        except:
+            dead.add(ws)
+    
+    for ws in dead:
+        price_subscribers.discard(ws)
+
+
+async def broadcast_to_session(session_id: str, data: Dict):
+    """Broadcast to a specific session"""
+    if session_id not in active_connections:
+        return
+    
+    message = json.dumps(data)
+    dead = set()
+    
+    for ws in active_connections[session_id]:
+        try:
+            await ws.send_text(message)
+        except:
+            dead.add(ws)
+    
+    for ws in dead:
+        active_connections[session_id].discard(ws)
 
 
 if __name__ == "__main__":

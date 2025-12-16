@@ -28,6 +28,18 @@ interface StatsData {
   top_sources: Array<{ source: string; count: number; avg_confidence: number }>;
 }
 
+// Format date for display
+function formatArticleDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+}
+
+const ARTICLES_PER_PAGE = 12;
+
 export default function NewsPage() {
   // State
   const [articles, setArticles] = useState<Article[]>([]);
@@ -39,6 +51,12 @@ export default function NewsPage() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Expandable top story
+  const [expandedTopStory, setExpandedTopStory] = useState(false);
 
   // Fetch articles
   const fetchArticles = useCallback(async () => {
@@ -113,8 +131,20 @@ export default function NewsPage() {
   // Filter articles (excluding top story)
   const filteredArticles = articles.filter(a => a.id !== topStory?.id);
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredArticles.length / ARTICLES_PER_PAGE);
+  const paginatedArticles = filteredArticles.slice(
+    (currentPage - 1) * ARTICLES_PER_PAGE,
+    currentPage * ARTICLES_PER_PAGE
+  );
+
   // Get bookmarked articles
   const bookmarkedArticles = articles.filter(a => bookmarkedIds.includes(a.id));
+
+  // Reset page when category changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory]);
 
   // Manual refresh
   const handleRefresh = () => {
@@ -296,14 +326,84 @@ export default function NewsPage() {
           </div>
         )}
 
-        {/* Top Story Section */}
+        {/* Top Story Section with Expandable Summary */}
         {!showBookmarks && topStory && !selectedCategory && (
           <div className="mb-12">
-            <div className="flex items-center gap-3 mb-6">
-              <TrendingUp className="text-yellow-400" size={24} />
-              <h2 className="text-2xl font-bold text-white">Top Story</h2>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="text-yellow-400" size={24} />
+                <h2 className="text-2xl font-bold text-white">Top Story</h2>
+                <span className="text-xs text-gray-500">{formatArticleDate(topStory.fetched_at)}</span>
+              </div>
+              <button
+                onClick={() => setExpandedTopStory(!expandedTopStory)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium text-white transition-colors"
+              >
+                {expandedTopStory ? 'Collapse' : 'Read Full Summary'}
+              </button>
             </div>
-            <ArticleCard article={topStory} isTopStory={true} />
+
+            {/* Expandable Summary View */}
+            {expandedTopStory ? (
+              <div className="glass-panel rounded-2xl p-8 mb-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-blue-500 to-cyan-500 text-white`}>
+                    {topStory.category}
+                  </span>
+                  <span className="text-gray-400 text-sm">{topStory.source}</span>
+                  <span className="text-gray-600">•</span>
+                  <span className="text-gray-400 text-sm">{formatArticleDate(topStory.fetched_at)}</span>
+                </div>
+
+                <h3 className="text-3xl font-bold text-white mb-6 leading-tight">
+                  {topStory.title}
+                </h3>
+
+                <div className="prose prose-invert max-w-none mb-6">
+                  <p className="text-gray-300 text-lg leading-relaxed whitespace-pre-wrap">
+                    {topStory.article}
+                  </p>
+                </div>
+
+                {topStory.why_it_matters && (
+                  <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-6 mb-6">
+                    <h4 className="text-purple-400 font-bold mb-2 flex items-center gap-2">
+                      🤖 AI Analysis: Why It Matters
+                    </h4>
+                    <p className="text-gray-300 leading-relaxed">{topStory.why_it_matters}</p>
+                  </div>
+                )}
+
+                {topStory.matched_keywords && topStory.matched_keywords.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {topStory.matched_keywords.map((keyword, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 text-sm bg-white/5 text-gray-400 rounded-full"
+                      >
+                        #{keyword}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-6 border-t border-white/10">
+                  <span className="text-sm text-gray-500">
+                    Confidence: {Math.round(topStory.category_confidence * 100)}%
+                  </span>
+                  <a
+                    href={topStory.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-6 py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Read Original Source →
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <ArticleCard article={topStory} isTopStory={true} />
+            )}
           </div>
         )}
 
@@ -325,7 +425,7 @@ export default function NewsPage() {
           </div>
         )}
 
-        {/* Articles Grid */}
+        {/* Articles Grid with Pagination */}
         {!showBookmarks && (
           <>
             <div className="flex items-center justify-between mb-6">
@@ -335,17 +435,81 @@ export default function NewsPage() {
                   : 'Latest Articles'
                 }
               </h2>
-              <span className="text-sm text-gray-500">
-                {filteredArticles.length} articles
-              </span>
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-500">
+                  {filteredArticles.length} articles
+                </span>
+                {totalPages > 1 && (
+                  <span className="text-sm text-gray-400">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                )}
+              </div>
             </div>
 
-            {filteredArticles.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredArticles.map((article) => (
-                  <ArticleCard key={article.id} article={article} />
-                ))}
-              </div>
+            {paginatedArticles.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {paginatedArticles.map((article) => (
+                    <div key={article.id} className="relative">
+                      {/* Date badge */}
+                      <div className="absolute top-3 right-3 z-20 px-2 py-1 bg-black/60 backdrop-blur-sm rounded text-xs text-gray-300">
+                        {formatArticleDate(article.fetched_at)}
+                      </div>
+                      <ArticleCard article={article} />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-8">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors"
+                    >
+                      Previous
+                    </button>
+
+                    <div className="flex gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`w-10 h-10 rounded-lg font-bold transition-colors ${currentPage === pageNum
+                                ? 'bg-white text-black'
+                                : 'bg-white/10 text-white hover:bg-white/20'
+                              }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="glass-panel rounded-xl p-12 text-center">
                 <Newspaper className="mx-auto mb-4 text-gray-600" size={48} />

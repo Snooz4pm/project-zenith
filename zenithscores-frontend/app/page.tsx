@@ -136,6 +136,14 @@ export default function LandingPage() {
                 News Portal
                 <ArrowRight size={16} />
               </Link>
+
+              <Link
+                href="/trading"
+                className="px-8 py-4 bg-gradient-to-r from-yellow-900/50 to-orange-900/50 border border-yellow-500/30 text-white font-bold rounded-lg hover:bg-white/10 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(234,179,8,0.3)] transform hover:-translate-y-1 duration-300 group"
+              >
+                📈 Paper Trading
+                <span className="text-xs px-1.5 py-0.5 bg-yellow-500/30 rounded text-yellow-300">NEW</span>
+              </Link>
             </div>
           </div>
 

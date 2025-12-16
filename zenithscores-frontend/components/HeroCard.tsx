@@ -53,7 +53,7 @@ export default function HeroCard({ token }: HeroCardProps) {
                 {/* Price */}
                 <div className="text-right">
                     <div className="text-lg font-bold text-white font-mono">
-                        ${token.price_usd < 1 ? token.price_usd.toFixed(6) : token.price_usd.toFixed(2)}
+                        ${token.price_usd < 1 ? token.price_usd.toFixed(4) : token.price_usd.toFixed(2)}
                     </div>
                     <div className={`flex items-center justify-end text-sm font-medium ${isPositive ? 'text-zenith-green' : 'text-zenith-red'}`}>
                         {isPositive ? <ArrowUp size={14} /> : <ArrowDown size={14} />}

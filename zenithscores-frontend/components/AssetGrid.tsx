@@ -57,7 +57,7 @@ export default function AssetGrid({ tokens }: AssetGridProps) {
                             <div className="flex flex-col">
                                 <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-0.5">Price</span>
                                 <span className="text-[#F0F0F0] font-mono font-medium text-lg">
-                                    ${token.price_usd < 1 ? token.price_usd.toFixed(6) : token.price_usd.toFixed(2)}
+                                    ${token.price_usd < 1 ? token.price_usd.toFixed(4) : token.price_usd.toFixed(2)}
                                 </span>
                             </div>
                             <div className={`text-sm font-bold font-mono px-2 py-1 rounded-md flex items-center gap-1 ${isPositive ? 'bg-green-500/10 text-price-up' : 'bg-red-500/10 text-price-down'}`}>

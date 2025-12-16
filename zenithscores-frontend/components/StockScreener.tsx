@@ -16,6 +16,10 @@ interface Stock {
     market_cap?: number;
 }
 
+interface StockScreenerProps {
+    initialSector?: string | null;
+}
+
 const SECTORS = ['Technology', 'Finance', 'Healthcare', 'Consumer', 'Energy', 'Industrial'];
 const MARKET_CAPS = [
     { label: 'Mega Cap (> $200B)', value: 'mega', min: 200_000_000_000 },
@@ -24,7 +28,7 @@ const MARKET_CAPS = [
     { label: 'Small Cap (< $2B)', value: 'small', max: 2_000_000_000 },
 ];
 
-export default function StockScreener() {
+export default function StockScreener({ initialSector }: StockScreenerProps) {
     // Data State
     const [stocks, setStocks] = useState<Stock[]>([]);
     const [loading, setLoading] = useState(true);
@@ -41,6 +45,15 @@ export default function StockScreener() {
     const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
     const [view, setView] = useState<'market' | 'watchlist'>('market');
+
+    // Sync initialSector prop with selectedSectors state
+    useEffect(() => {
+        if (initialSector) {
+            setSelectedSectors(new Set([initialSector]));
+        } else {
+            setSelectedSectors(new Set());
+        }
+    }, [initialSector]);
 
     // Load initial data
     useEffect(() => {

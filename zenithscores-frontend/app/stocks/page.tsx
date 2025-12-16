@@ -1,9 +1,18 @@
-import { Suspense } from 'react';
+'use client';
+
+import { Suspense, useState } from 'react';
 import PredictiveSearch from '@/components/PredictiveSearch';
 import StockScreener from '@/components/StockScreener';
 import SectorMatrix from '@/components/SectorMatrix';
 
 export default function StockPortal() {
+    const [selectedSector, setSelectedSector] = useState<string | null>(null);
+
+    const handleSectorSelect = (sector: string) => {
+        // Toggle sector selection
+        setSelectedSector(prev => prev === sector ? null : sector);
+    };
+
     return (
         <div className="theme-stock min-h-screen bg-[var(--background-dark)] text-[var(--foreground)]">
             {/* Sub-Header / Portal Theme */}
@@ -26,11 +35,27 @@ export default function StockPortal() {
                     </Suspense>
                 </div>
 
-                {/* Macro View */}
-                <SectorMatrix />
+                {/* Macro View - Sector Matrix */}
+                <SectorMatrix onSelectSector={handleSectorSelect} />
+
+                {/* Selected Sector Indicator */}
+                {selectedSector && (
+                    <div className="mb-4 flex items-center gap-2">
+                        <span className="text-sm text-gray-600">Filtering by sector:</span>
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium flex items-center gap-2">
+                            {selectedSector}
+                            <button
+                                onClick={() => setSelectedSector(null)}
+                                className="ml-1 hover:text-blue-900"
+                            >
+                                ×
+                            </button>
+                        </span>
+                    </div>
+                )}
 
                 {/* Main Screener */}
-                <StockScreener />
+                <StockScreener initialSector={selectedSector} />
             </main>
 
             {/* Short Footer */}
