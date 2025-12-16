@@ -1,109 +1,135 @@
 /**
- * News Signal Portal - Integrated into Zenith Scores
+ * Enhanced News Signal Portal
+ * Features: Top Story, Category Filters, Refresh Controls, Bookmarks View
  */
 
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import {
+  ArrowLeft,
+  RefreshCw,
+  Pause,
+  Play,
+  Bookmark,
+  Filter,
+  Clock,
+  TrendingUp,
+  Newspaper
+} from 'lucide-react';
 import ArticleCard from '@/components/ArticleCard';
-import { newsAPI } from '@/lib/news-api';
+import { newsAPI, CATEGORIES } from '@/lib/news-api';
+import type { Article } from '@/lib/news-types';
 
-export const revalidate = 300; // Revalidate every 5 minutes
+interface StatsData {
+  total_articles: number;
+  categories: Array<{ name: string; count: number; avg_confidence: number }>;
+  top_sources: Array<{ source: string; count: number; avg_confidence: number }>;
+}
 
-export default async function NewsPage() {
-  try {
-    // Fetch top articles
-    const data = await newsAPI.getTopArticles({
-      limit: 20,
-      hours: 24,
-      minConfidence: 0.5,
-    });
+export default function NewsPage() {
+  // State
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [stats, setStats] = useState<StatsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [showBookmarks, setShowBookmarks] = useState(false);
+  const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
 
-    // Fetch stats
-    const stats = await newsAPI.getStats();
+  // Fetch articles
+  const fetchArticles = useCallback(async () => {
+    try {
+      setLoading(true);
 
-    return (
-      <div className="min-h-screen bg-black text-white p-8">
-        {/* Back Button */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8"
-        >
-          <ArrowLeft size={20} />
-          Back to Zenith Scores
-        </Link>
+      let data;
+      if (selectedCategory) {
+        data = await newsAPI.getArticlesByCategory(selectedCategory, {
+          limit: 30,
+          minConfidence: 0.4,
+        });
+      } else {
+        data = await newsAPI.getTopArticles({
+          limit: 30,
+          hours: 48,
+          minConfidence: 0.4,
+        });
+      }
 
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="text-5xl">📰</div>
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2">
-                News Signal
-              </h1>
-              <p className="text-gray-400">
-                {data.count} high-confidence articles from the last {data.hours} hours
-              </p>
-            </div>
-          </div>
-        </div>
+      const statsData = await newsAPI.getStats();
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="glass-panel rounded-lg p-6 border-l-4 border-emerald-500">
-            <div className="text-3xl font-bold text-white">
-              {stats.total_articles.toLocaleString()}
-            </div>
-            <div className="text-gray-400 mt-1">Total Articles</div>
-          </div>
+      setArticles(data.articles);
+      setStats(statsData);
+      setLastRefresh(new Date());
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch news');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCategory]);
 
-          <div className="glass-panel rounded-lg p-6 border-l-4 border-purple-500">
-            <div className="text-3xl font-bold text-white">
-              {stats.categories.length}
-            </div>
-            <div className="text-gray-400 mt-1">Active Categories</div>
-          </div>
+  // Load bookmarks from localStorage
+  useEffect(() => {
+    const bookmarks = JSON.parse(localStorage.getItem('newsBookmarks') || '[]');
+    setBookmarkedIds(bookmarks);
 
-          <div className="glass-panel rounded-lg p-6 border-l-4 border-blue-500">
-            <div className="text-3xl font-bold text-white">
-              {stats.top_sources.length}
-            </div>
-            <div className="text-gray-400 mt-1">News Sources</div>
-          </div>
-        </div>
+    // Listen for bookmark changes
+    const handleStorage = () => {
+      const updated = JSON.parse(localStorage.getItem('newsBookmarks') || '[]');
+      setBookmarkedIds(updated);
+    };
 
-        {/* Articles Grid */}
-        {data.articles.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {data.articles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
-            ))}
-          </div>
-        ) : (
-          <div className="glass-panel rounded-lg p-12 text-center">
-            <div className="text-6xl mb-4">📰</div>
-            <h3 className="text-xl font-semibold text-white mb-2">
-              No articles found
-            </h3>
-            <p className="text-gray-400 mb-4">
-              Run the news pipeline to start collecting articles
-            </p>
-            <code className="inline-block bg-gray-900 px-4 py-2 rounded text-sm text-emerald-400">
-              python run_pipeline.py full
-            </code>
-          </div>
-        )}
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
-        {/* Auto-refresh indicator */}
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <div className="inline-flex items-center gap-2 glass-panel px-4 py-2 rounded-full">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-            Page auto-refreshes every 5 minutes
-          </div>
-        </div>
-      </div>
-    );
-  } catch (error) {
-    // If API fails, show error message instead of crashing
+  // Initial fetch
+  useEffect(() => {
+    fetchArticles();
+  }, [fetchArticles]);
+
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const interval = setInterval(() => {
+      fetchArticles();
+    }, 300000); // 5 minutes
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, fetchArticles]);
+
+  // Get top story (highest confidence in recent articles)
+  const topStory = articles.length > 0
+    ? articles.reduce((best, current) =>
+      current.category_confidence > best.category_confidence ? current : best
+    )
+    : null;
+
+  // Filter articles (excluding top story)
+  const filteredArticles = articles.filter(a => a.id !== topStory?.id);
+
+  // Get bookmarked articles
+  const bookmarkedArticles = articles.filter(a => bookmarkedIds.includes(a.id));
+
+  // Manual refresh
+  const handleRefresh = () => {
+    fetchArticles();
+  };
+
+  // Time since last refresh
+  const timeSinceRefresh = () => {
+    const diff = Math.floor((new Date().getTime() - lastRefresh.getTime()) / 1000);
+    if (diff < 60) return `${diff}s ago`;
+    return `${Math.floor(diff / 60)}m ago`;
+  };
+
+  // Error state
+  if (error && !articles.length) {
     return (
       <div className="min-h-screen bg-black text-white p-8">
         <Link
@@ -119,27 +145,237 @@ export default async function NewsPage() {
           <h3 className="text-2xl font-semibold text-white mb-4">
             News Signal API Unavailable
           </h3>
-          <p className="text-gray-400 mb-6">
-            The News Signal backend is currently unavailable. Please check the API configuration.
-          </p>
-
-          <div className="text-left bg-gray-900/50 rounded-lg p-6 text-sm space-y-3">
-            <div>
-              <div className="text-emerald-400 font-mono mb-2">Check backend URL:</div>
-              <code className="text-gray-300">https://defioracleworkerapi.vercel.app/</code>
-            </div>
-
-            <div>
-              <div className="text-emerald-400 font-mono mb-2">Verify environment variable:</div>
-              <code className="text-gray-300">NEXT_PUBLIC_API_URL</code>
-            </div>
-          </div>
-
-          <p className="text-gray-500 text-xs mt-6">
-            Error: {error instanceof Error ? error.message : 'Unknown error'}
-          </p>
+          <p className="text-gray-400 mb-6">{error}</p>
+          <button
+            onClick={handleRefresh}
+            className="px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
   }
+
+  return (
+    <div className="min-h-screen bg-black text-white">
+      {/* Header */}
+      <div className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Left: Back + Title */}
+            <div className="flex items-center gap-6">
+              <Link
+                href="/"
+                className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+              >
+                <ArrowLeft size={20} />
+              </Link>
+              <div className="flex items-center gap-3">
+                <Newspaper className="w-8 h-8 text-emerald-400" />
+                <div>
+                  <h1 className="text-xl font-bold text-white">News Signal</h1>
+                  <p className="text-xs text-gray-500">
+                    {stats?.total_articles.toLocaleString() || '...'} articles indexed
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Controls */}
+            <div className="flex items-center gap-3">
+              {/* Bookmarks toggle */}
+              <button
+                onClick={() => setShowBookmarks(!showBookmarks)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${showBookmarks
+                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                    : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                  }`}
+              >
+                <Bookmark size={16} />
+                <span className="text-sm font-medium">{bookmarkedIds.length}</span>
+              </button>
+
+              {/* Refresh controls */}
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5">
+                <button
+                  onClick={() => setAutoRefresh(!autoRefresh)}
+                  className={`p-1.5 rounded transition-colors ${autoRefresh ? 'text-emerald-400' : 'text-gray-500'
+                    }`}
+                  title={autoRefresh ? 'Pause auto-refresh' : 'Resume auto-refresh'}
+                >
+                  {autoRefresh ? <Pause size={16} /> : <Play size={16} />}
+                </button>
+                <button
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  className={`p-1.5 rounded transition-colors ${loading ? 'text-gray-600 animate-spin' : 'text-gray-400 hover:text-white'
+                    }`}
+                  title="Refresh now"
+                >
+                  <RefreshCw size={16} />
+                </button>
+                <span className="text-xs text-gray-500 ml-1">
+                  {timeSinceRefresh()}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-6 py-8">
+        {/* Category Filters */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Filter size={16} className="text-gray-500" />
+            <span className="text-sm font-medium text-gray-400">Filter by category</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedCategory(null)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${!selectedCategory
+                  ? 'bg-white text-black'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                }`}
+            >
+              All
+            </button>
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.slug}
+                onClick={() => setSelectedCategory(cat.slug)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${selectedCategory === cat.slug
+                    ? `bg-gradient-to-r ${cat.color} text-white`
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                  }`}
+              >
+                <span>{cat.icon}</span>
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Loading state */}
+        {loading && articles.length === 0 && (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <RefreshCw size={40} className="mx-auto mb-4 text-emerald-400 animate-spin" />
+              <p className="text-gray-400">Loading news...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Bookmarks View */}
+        {showBookmarks && (
+          <div className="mb-12">
+            <div className="flex items-center gap-3 mb-6">
+              <Bookmark className="text-blue-400" size={24} />
+              <h2 className="text-2xl font-bold text-white">Saved Articles</h2>
+              <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-sm rounded-full">
+                {bookmarkedArticles.length}
+              </span>
+            </div>
+
+            {bookmarkedArticles.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                {bookmarkedArticles.map((article) => (
+                  <ArticleCard key={article.id} article={article} />
+                ))}
+              </div>
+            ) : (
+              <div className="glass-panel rounded-xl p-8 text-center">
+                <Bookmark className="mx-auto mb-4 text-gray-600" size={40} />
+                <p className="text-gray-400">No saved articles yet</p>
+                <p className="text-gray-600 text-sm mt-1">Click the bookmark icon on any article to save it</p>
+              </div>
+            )}
+
+            <div className="border-t border-white/10 my-12" />
+          </div>
+        )}
+
+        {/* Top Story Section */}
+        {!showBookmarks && topStory && !selectedCategory && (
+          <div className="mb-12">
+            <div className="flex items-center gap-3 mb-6">
+              <TrendingUp className="text-yellow-400" size={24} />
+              <h2 className="text-2xl font-bold text-white">Top Story</h2>
+            </div>
+            <ArticleCard article={topStory} isTopStory={true} />
+          </div>
+        )}
+
+        {/* Stats Overview (only when not filtering) */}
+        {!selectedCategory && !showBookmarks && stats && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="glass-panel rounded-xl p-5 border-l-4 border-emerald-500">
+              <div className="text-2xl font-bold text-white">{articles.length}</div>
+              <div className="text-gray-400 text-sm mt-1">Articles shown</div>
+            </div>
+            <div className="glass-panel rounded-xl p-5 border-l-4 border-purple-500">
+              <div className="text-2xl font-bold text-white">{stats.categories.length}</div>
+              <div className="text-gray-400 text-sm mt-1">Categories</div>
+            </div>
+            <div className="glass-panel rounded-xl p-5 border-l-4 border-blue-500">
+              <div className="text-2xl font-bold text-white">{stats.top_sources.length}</div>
+              <div className="text-gray-400 text-sm mt-1">Sources</div>
+            </div>
+          </div>
+        )}
+
+        {/* Articles Grid */}
+        {!showBookmarks && (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white">
+                {selectedCategory
+                  ? `${CATEGORIES.find(c => c.slug === selectedCategory)?.icon || ''} ${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} News`
+                  : 'Latest Articles'
+                }
+              </h2>
+              <span className="text-sm text-gray-500">
+                {filteredArticles.length} articles
+              </span>
+            </div>
+
+            {filteredArticles.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredArticles.map((article) => (
+                  <ArticleCard key={article.id} article={article} />
+                ))}
+              </div>
+            ) : (
+              <div className="glass-panel rounded-xl p-12 text-center">
+                <Newspaper className="mx-auto mb-4 text-gray-600" size={48} />
+                <h3 className="text-xl font-semibold text-white mb-2">No articles found</h3>
+                <p className="text-gray-400">
+                  {selectedCategory
+                    ? `No articles in ${selectedCategory} category yet`
+                    : 'Waiting for news pipeline to collect articles'
+                  }
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Auto-refresh indicator */}
+        <div className="mt-12 text-center">
+          <div className="inline-flex items-center gap-3 glass-panel px-5 py-3 rounded-full">
+            <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-emerald-500 animate-pulse' : 'bg-gray-600'}`} />
+            <span className="text-sm text-gray-400">
+              {autoRefresh ? 'Auto-refresh every 5 minutes' : 'Auto-refresh paused'}
+            </span>
+            <span className="text-xs text-gray-600">•</span>
+            <span className="text-xs text-gray-500 flex items-center gap-1">
+              <Clock size={12} />
+              Last updated: {timeSinceRefresh()}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

@@ -9,7 +9,8 @@ import type {
     StatsResponse,
     SearchResponse,
     CategorySlug,
-} from './types';
+} from './news-types';
+
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -207,11 +208,12 @@ export function formatRelativeTime(dateString: string): string {
 }
 
 /**
- * Get confidence color class
+ * Get confidence color class (dark theme compatible)
  */
 export function getConfidenceColor(confidence: number): string {
-    if (confidence >= 0.8) return 'text-green-600 bg-green-50';
-    if (confidence >= 0.6) return 'text-blue-600 bg-blue-50';
-    if (confidence >= 0.4) return 'text-yellow-600 bg-yellow-50';
-    return 'text-gray-600 bg-gray-50';
+    if (confidence >= 0.8) return 'text-emerald-400 bg-emerald-500/20';
+    if (confidence >= 0.6) return 'text-blue-400 bg-blue-500/20';
+    if (confidence >= 0.4) return 'text-yellow-400 bg-yellow-500/20';
+    return 'text-gray-400 bg-gray-500/20';
 }
+
