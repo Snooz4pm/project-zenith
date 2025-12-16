@@ -18,7 +18,7 @@ interface PortfolioChartProps {
     totalPnl: number;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -136,8 +136,8 @@ export default function PortfolioChart({ sessionId, currentValue, totalPnl }: Po
                             key={option.value}
                             onClick={() => setTimeRange(option.value as any)}
                             className={`px-3 py-1 rounded text-xs font-medium transition-colors ${timeRange === option.value
-                                    ? 'bg-white text-black'
-                                    : 'text-gray-500 hover:text-white'
+                                ? 'bg-white text-black'
+                                : 'text-gray-500 hover:text-white'
                                 }`}
                         >
                             {option.label}

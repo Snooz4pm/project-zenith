@@ -83,7 +83,7 @@ const formatPercent = (value: number) => {
     return `${sign}${value.toFixed(2)}%`;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
 
 export default function TradingPage() {
     // Session
