@@ -9,6 +9,8 @@ import {
     DollarSign, Percent, Target, Shield, Activity, Bell
 } from 'lucide-react';
 import PortfolioChart from '@/components/PortfolioChart';
+import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
+import { OnboardingTour } from '@/components/OnboardingTour';
 
 // Types
 interface Asset {
@@ -113,7 +115,7 @@ export default function TradingPage() {
     const [executing, setExecuting] = useState(false);
 
     // View
-    const [activeTab, setActiveTab] = useState<'portfolio' | 'trade' | 'history' | 'leaderboard'>('portfolio');
+    const [activeTab, setActiveTab] = useState<'portfolio' | 'trade' | 'history' | 'leaderboard' | 'analytics'>('portfolio');
 
     // WebSocket connections
     const wsRef = useRef<WebSocket | null>(null);
@@ -522,6 +524,7 @@ export default function TradingPage() {
                         { id: 'trade', label: 'Trade', icon: BarChart3 },
                         { id: 'history', label: 'History', icon: History },
                         { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
+                        { id: 'analytics', label: 'Analytics', icon: Activity },
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -770,6 +773,11 @@ export default function TradingPage() {
                             </div>
                         )}
                     </div>
+                )}
+
+                {/* Analytics Tab */}
+                {activeTab === 'analytics' && (
+                    <AnalyticsDashboard sessionId={sessionId || ''} />
                 )}
             </div>
 
@@ -1035,6 +1043,8 @@ export default function TradingPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            <OnboardingTour />
         </div>
     );
 }

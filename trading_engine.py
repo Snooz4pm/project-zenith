@@ -623,6 +623,82 @@ class TradingEngine:
         """, (user['id'], limit))
         return [dict(row) for row in self.cur.fetchall()]
 
+    def get_analytics(self, session_id: str) -> dict:
+        """Get advanced analytics for a user"""
+        user = self.get_or_create_user(session_id)
+        user_id = user['id']
+        
+        # 1. Exposure Analysis
+        self.cur.execute("""
+            SELECT a.asset_type, SUM(h.quantity * a.current_price) as total_value
+            FROM trading_holdings h
+            JOIN trading_assets a ON h.asset_id = a.id
+            WHERE h.user_id = %s AND h.quantity > 0
+            GROUP BY a.asset_type
+        """, (user_id,))
+        exposure_rows = self.cur.fetchall()
+        
+        total_holdings_value = sum(float(row['total_value']) for row in exposure_rows) or 1.0
+        exposure = {
+            row['asset_type']: (float(row['total_value']) / total_holdings_value) * 100 
+            for row in exposure_rows
+        }
+        
+        # 2. Streak Analysis & Max Drawdown
+        self.cur.execute("""
+            SELECT realized_pnl, total_value 
+            FROM trading_trades 
+            WHERE user_id = %s AND status = 'executed'
+            ORDER BY executed_at ASC
+        """, (user_id,))
+        trades = self.cur.fetchall()
+        
+        current_streak = 0
+        longest_win_streak = 0
+        longest_loss_streak = 0
+        
+        # Simplified Peak-to-Valley Drawdown on Portfolio Value
+        peak_pnl = 0.0
+        current_pnl = 0.0
+        max_drawdown = 0.0
+        
+        for trade in trades:
+            pnl = float(trade['realized_pnl'])
+            
+            # Streak Logic
+            if pnl > 0:
+                if current_streak >= 0:
+                    current_streak += 1
+                else:
+                    current_streak = 1
+                longest_win_streak = max(longest_win_streak, current_streak)
+            elif pnl < 0:
+                if current_streak <= 0:
+                    current_streak -= 1
+                else:
+                    current_streak = -1
+                longest_loss_streak = max(longest_loss_streak, abs(current_streak))
+            
+            # Drawdown Logic
+            current_pnl += pnl
+            peak_pnl = max(peak_pnl, current_pnl)
+            # This is drawdown on PnL, reasonable proxy for portfolio value drop relative to peak
+            dd = peak_pnl - current_pnl
+            max_drawdown = max(max_drawdown, dd)
+
+        return {
+            "session_id": session_id,
+            "exposure": exposure,
+            "metrics": {
+                "longest_win_streak": longest_win_streak,
+                "longest_loss_streak": longest_loss_streak,
+                "current_streak": current_streak,
+                "max_drawdown": max_drawdown,
+                "total_trades": len(trades),
+                "win_rate": float(user['win_rate'])
+            }
+        }
+
 
 # ═══════════════════════════════════════════════════════
 # STOP-LOSS / TAKE-PROFIT ENGINE

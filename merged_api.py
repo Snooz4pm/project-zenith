@@ -846,6 +846,35 @@ def get_portfolio_history(session_id: str, hours: int = Query(default=24, le=168
 
 
 
+@app.get("/api/v1/trading/analytics/{session_id}")
+def get_analytics(session_id: str):
+    """Get advanced analytics for the dashboard"""
+    try:
+        if TRADING_ENGINE_AVAILABLE:
+            with TradingEngine() as engine:
+                return {"status": "success", "data": engine.get_analytics(session_id)}
+        else:
+            # Mock data
+            return {
+                "status": "success", 
+                "data": {
+                    "exposure": {"crypto": 70, "stocks": 30},
+                    "metrics": {
+                        "longest_win_streak": 5,
+                        "longest_loss_streak": 2,
+                        "current_streak": 3,
+                        "max_drawdown": 1500.0,
+                        "total_trades": 42,
+                        "win_rate": 65.5
+                    }
+                }
+            }
+                
+    except Exception as e:
+        print(f"Analytics Error: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 # ═══════════════════════════════════════════════════════
 # WEBSOCKET ENDPOINTS
 # ═══════════════════════════════════════════════════════
