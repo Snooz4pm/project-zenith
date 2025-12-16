@@ -256,7 +256,7 @@ class TradingEngine:
             FROM trading_holdings h
             JOIN trading_assets a ON h.asset_id = a.id
             WHERE h.user_id = %s AND h.quantity > 0
-            ORDER BY current_value DESC
+            ORDER BY (h.quantity * a.current_price) DESC
         """, (user_id,))
         return [dict(row) for row in self.cur.fetchall()]
     
