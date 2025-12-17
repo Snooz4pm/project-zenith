@@ -77,6 +77,7 @@ export default function NotificationCenter() {
             case 'coach': return <GraduationCap size={14} className="text-green-400" />;
             case 'streak': return <Flame size={14} className="text-orange-400" />;
             case 'achievement': return <Award size={14} className="text-pink-400" />;
+            case 'signal': return <Zap size={14} className="text-emerald-400" />;
         }
     };
 
@@ -88,14 +89,46 @@ export default function NotificationCenter() {
         return `${Math.floor(hours / 24)}d ago`;
     };
 
+    // Free users see a limited notification center (unlocked but with upsell)
     if (!premium) {
         return (
-            <button
-                className="relative p-2 rounded-lg bg-white/5 border border-white/10 text-gray-500"
-                title="Premium feature"
-            >
-                <BellOff size={18} />
-            </button>
+            <div className="relative">
+                <button
+                    onClick={() => setOpen(!open)}
+                    className="relative p-2 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-cyan-500/30 transition-colors"
+                >
+                    <Bell size={18} />
+                </button>
+
+                <AnimatePresence>
+                    {open && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            className="absolute right-0 top-12 w-72 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl z-50 p-4"
+                        >
+                            <div className="text-center">
+                                <Bell size={32} className="mx-auto text-gray-600 mb-3" />
+                                <h4 className="font-bold text-white mb-2">Enable Notifications</h4>
+                                <p className="text-xs text-gray-500 mb-4">
+                                    Get alerts when high-score signals are detected, new pulses drop, and more.
+                                </p>
+                                <button
+                                    onClick={async () => {
+                                        const granted = await requestPushPermission();
+                                        setPushEnabled(granted);
+                                        if (granted) setOpen(false);
+                                    }}
+                                    className="w-full py-2 bg-cyan-500/20 text-cyan-400 rounded-lg text-sm font-medium hover:bg-cyan-500/30 transition-colors"
+                                >
+                                    Enable Notifications
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
         );
     }
 

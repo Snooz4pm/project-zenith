@@ -28,8 +28,9 @@ export default function Navbar() {
         { href: '/stocks', label: 'Stocks' },
         { href: '/forex', label: 'Forex' },
         { href: '/commodities', label: 'Commodities' },
+        { href: '/signals', label: 'Signals' },
         { href: '/news', label: 'News' },
-        { href: '/trading', label: 'Signals' },
+        { href: '/trading', label: 'Trading' },
     ];
 
     return (

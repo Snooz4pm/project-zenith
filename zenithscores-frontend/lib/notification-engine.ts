@@ -14,7 +14,7 @@ export interface NotificationConfig {
 
 export interface PushNotification {
     id: string;
-    type: 'pulse' | 'arena' | 'prediction' | 'coach' | 'streak' | 'achievement';
+    type: 'pulse' | 'arena' | 'prediction' | 'coach' | 'streak' | 'achievement' | 'signal';
     title: string;
     body: string;
     icon?: string;
@@ -136,6 +136,13 @@ export const NotificationFactory = {
         `You reached Level ${level}! New rewards unlocked.`,
         '/dashboard'
     ),
+
+    highScoreSignal: (symbol: string, score: number) => createNotification(
+        'signal',
+        `🚀 High Score Alert: ${symbol}`,
+        `${symbol} just hit a Zenith Score of ${score}! This is a strong signal.`,
+        '/signals'
+    ),
 };
 
 // Browser Push Notification (requires permission)
@@ -156,6 +163,42 @@ export function showBrowserNotification(title: string, body: string, icon?: stri
         body,
         icon: icon || '/icon-192.png',
     });
+}
+
+/**
+ * Send a high-score signal alert
+ * Called when an asset crosses the 80-score threshold
+ */
+export function sendHighScoreAlert(symbol: string, score: number): void {
+    const config = loadNotificationConfig();
+    if (!config.enabled) return;
+
+    // Add to notification list
+    const notifications = loadNotifications();
+    notifications.unshift(NotificationFactory.highScoreSignal(symbol, score));
+    saveNotifications(notifications);
+
+    // Show browser notification if permitted
+    showBrowserNotification(
+        `🚀 ${symbol} Signal Detected`,
+        `Zenith Score: ${score} — Strong trading opportunity!`
+    );
+}
+
+/**
+ * Check if push notifications are supported and enabled
+ */
+export function isPushSupported(): boolean {
+    if (typeof window === 'undefined') return false;
+    return 'Notification' in window;
+}
+
+/**
+ * Get current notification permission status
+ */
+export function getPushPermissionStatus(): 'granted' | 'denied' | 'default' | 'unsupported' {
+    if (!isPushSupported()) return 'unsupported';
+    return Notification.permission;
 }
 
 // 3-Hour Pulse Scheduler

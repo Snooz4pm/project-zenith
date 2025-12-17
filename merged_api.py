@@ -420,6 +420,87 @@ def trigger_news_pipeline():
         print(f"❌ CRON Failed: {e}")
         return {"status": "error", "message": str(e)}
 
+
+@app.get("/api/cron/scores")
+def update_zenith_scores():
+    """
+    CRON JOB: Updates Zenith Scores for all assets every 15 minutes.
+    Triggered by Vercel Cron at */15 * * * *
+    """
+    try:
+        # Fetch live prices
+        live_crypto = fetch_live_crypto_prices()
+        
+        scored_assets = []
+        for asset in DEFAULT_ASSETS:
+            symbol = asset["symbol"]
+            asset_type = asset["asset_type"]
+            
+            # Get live price changes
+            if asset_type == "crypto" and symbol in live_crypto:
+                change = live_crypto[symbol]["change_24h"]
+            else:
+                change = 0.0
+            
+            # Calculate Zenith Score
+            score = calculate_zenith_score({"changePercent": change, "volume": 1000000, "avgVolume": 900000})
+            
+            scored_assets.append({
+                "symbol": symbol,
+                "score": score,
+                "change_24h": change,
+                "timestamp": datetime.now().isoformat()
+            })
+        
+        # Store in database if available
+        conn = get_trading_db()
+        if conn:
+            try:
+                cur = conn.cursor()
+                for asset in scored_assets:
+                    cur.execute("""
+                        INSERT INTO zenith_scores (symbol, score, change_24h, updated_at)
+                        VALUES (%s, %s, %s, NOW())
+                        ON CONFLICT (symbol) DO UPDATE 
+                        SET score = EXCLUDED.score, 
+                            change_24h = EXCLUDED.change_24h,
+                            updated_at = NOW()
+                    """, (asset["symbol"], asset["score"], asset["change_24h"]))
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print(f"Score DB update failed: {e}")
+        
+        return {
+            "status": "success", 
+            "message": f"Updated {len(scored_assets)} scores",
+            "timestamp": datetime.now().isoformat(),
+            "scores": scored_assets
+        }
+    except Exception as e:
+        print(f"❌ Score CRON Failed: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/api/v1/market/gainers-losers")
+def get_gainers_losers():
+    """Get top gainers and losers from Alpha Vantage"""
+    try:
+        url = f"https://www.alphavantage.co/query?function=TOP_GAINERS_LOSERS&apikey={ALPHA_VANTAGE_KEY}"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "status": "success",
+                "gainers": data.get("top_gainers", [])[:10],
+                "losers": data.get("top_losers", [])[:10],
+                "most_active": data.get("most_actively_traded", [])[:10],
+                "timestamp": datetime.now().isoformat()
+            }
+        return {"status": "error", "message": "Failed to fetch data"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 # ═══════════════════════════════════════════════════════
 # ENDPOINTS
 # ═══════════════════════════════════════════════════════
