@@ -66,12 +66,12 @@ export default function NewsPage() {
       let data;
       if (selectedCategory) {
         data = await newsAPI.getArticlesByCategory(selectedCategory, {
-          limit: 30,
+          limit: 100,
           minConfidence: 0.4,
         });
       } else {
         data = await newsAPI.getTopArticles({
-          limit: 30,
+          limit: 100,
           hours: 48,
           minConfidence: 0.4,
         });
