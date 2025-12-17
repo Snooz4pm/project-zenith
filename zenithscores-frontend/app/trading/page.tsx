@@ -7,7 +7,8 @@ import Link from 'next/link';
 import {
     ArrowLeft, TrendingUp, TrendingDown, Wallet, BarChart3,
     Trophy, History, AlertTriangle, CheckCircle, X, RefreshCw,
-    DollarSign, Percent, Target, Shield, Activity, Bell, LogIn, User, GraduationCap
+    DollarSign, Percent, Target, Shield, Activity, Bell, LogIn, User, GraduationCap,
+    Users, MessageSquare, CreditCard
 } from 'lucide-react';
 import PortfolioChart from '@/components/PortfolioChart';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
@@ -123,7 +124,7 @@ export default function TradingPage() {
     const [executing, setExecuting] = useState(false);
 
     // View
-    const [activeTab, setActiveTab] = useState<'portfolio' | 'trade' | 'history' | 'leaderboard' | 'analytics'>('portfolio');
+    const [activeTab, setActiveTab] = useState<'portfolio' | 'trade' | 'history' | 'leaderboard' | 'analytics' | 'community'>('portfolio');
 
     // WebSocket connections
     const wsRef = useRef<WebSocket | null>(null);
@@ -645,6 +646,7 @@ export default function TradingPage() {
                             { id: 'history', label: 'History', icon: History },
                             { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
                             { id: 'analytics', label: 'Analytics', icon: Activity },
+                            { id: 'community', label: 'Community', icon: Users },
                         ].map(tab => (
                             <button
                                 key={tab.id}
@@ -769,8 +771,13 @@ export default function TradingPage() {
                                             <div className="font-bold text-lg">{asset.symbol}</div>
                                             <div className="text-xs text-gray-500">{asset.name}</div>
                                         </div>
-                                        <span className={`text-xs px-2 py-0.5 rounded ${asset.asset_type === 'crypto' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
+                                        <span className={`text-xs px-2 py-0.5 rounded flex items-center gap-1 ${asset.asset_type === 'crypto' ? 'bg-purple-500/20 text-purple-400' :
+                                            asset.asset_type === 'stock' ? 'bg-blue-500/20 text-blue-400' :
+                                                asset.asset_type === 'commodity' ? 'bg-amber-500/20 text-amber-400' :
+                                                    'bg-emerald-500/20 text-emerald-400'
                                             }`}>
+                                            {asset.asset_type === 'commodity' && <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                                            {asset.asset_type === 'forex' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
                                             {asset.asset_type}
                                         </span>
                                     </div>
@@ -913,6 +920,142 @@ export default function TradingPage() {
                     {/* Analytics Tab */}
                     {activeTab === 'analytics' && (
                         <AnalyticsDashboard sessionId={sessionId || ''} />
+                    )}
+
+                    {/* Community Tab */}
+                    {activeTab === 'community' && (
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Community Explanation */}
+                                <div className="glass-panel rounded-xl p-6 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                            <Users size={24} />
+                                        </div>
+                                        <h2 className="text-xl font-bold text-white">The Zenith Circle</h2>
+                                    </div>
+                                    <p className="text-gray-400 mb-6 leading-relaxed">
+                                        You're not just trading against a screen; you're part of a global collective of data-driven traders. The Zenith Circle is where alpha is shared, strategies are tested, and legends are born.
+                                    </p>
+                                    <div className="space-y-4">
+                                        <div className="flex items-start gap-3">
+                                            <div className="mt-1 bg-blue-500/20 p-1.5 rounded">
+                                                <TrendingUp size={14} className="text-blue-400" />
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-sm">Alpha Sharing</div>
+                                                <div className="text-xs text-gray-500">Post your winning signals and rationale to the community feed.</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-3">
+                                            <div className="mt-1 bg-purple-500/20 p-1.5 rounded">
+                                                <Activity size={14} className="text-purple-400" />
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-sm">Clone Trading</div>
+                                                <div className="text-xs text-gray-500">Enable "Shadow Mode" to automatically follow top-performing traders.</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-3">
+                                            <div className="mt-1 bg-yellow-500/20 p-1.5 rounded">
+                                                <Trophy size={14} className="text-yellow-400" />
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-sm">Arena Duels</div>
+                                                <div className="text-xs text-gray-500">Challenge other traders to 24-hour P&L showdowns for XP and badges.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button className="w-full mt-8 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors">
+                                        Enter the Feed (Coming Soon)
+                                    </button>
+                                </div>
+
+                                {/* Premium Glimpse (PayPal Paywall) */}
+                                <div className="glass-panel rounded-xl p-6 bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20 relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                        <CreditCard size={120} className="-rotate-12" />
+                                    </div>
+
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400">
+                                            <CreditCard size={24} />
+                                        </div>
+                                        <h2 className="text-xl font-bold text-white">Zenith Pro</h2>
+                                    </div>
+
+                                    <div className="space-y-3 mb-6">
+                                        <div className="text-sm text-purple-300 font-bold uppercase tracking-wider">Unleash the full potential</div>
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle size={16} className="text-purple-400" />
+                                            <span className="text-sm text-gray-300">Unlimited Brutal AI Coach Roasts</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle size={16} className="text-purple-400" />
+                                            <span className="text-sm text-gray-300">Real-time Commodity & Forex Signals</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle size={16} className="text-purple-400" />
+                                            <span className="text-sm text-gray-300">Priority Leaderboard Placement</span>
+                                        </div>
+                                    </div>
+
+                                    {/* PayPal Glimpse UI */}
+                                    <div className="bg-white/5 rounded-xl block p-4 border border-white/10 mb-6">
+                                        <div className="flex items-center justify-between mb-3 text-xs text-gray-500">
+                                            <span>Subscription Plan</span>
+                                            <span className="text-white font-bold">$19.99/mo</span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 h-10 bg-[#0070ba] rounded flex items-center justify-center">
+                                                <svg className="h-4" viewBox="0 0 100 32" fill="white">
+                                                    <path d="M11 25.5l1.6-9.8c.1-.4.4-.7.8-.7h4.8c4.3 0 6.6-2.1 6.1-5.6-.4-2.8-2.6-4.4-5.8-4.4h-6.8c-.8 0-1.4.6-1.5 1.3l-2.6 17.6c-.1.5.3.9.8.9h2.1c.4-.3.5-.8.5-1.3zM25.7 10.4c.4 2.8-1.5 4.7-4.6 4.7h-3l.8-4.7h3c1.7 0 3.1.6 3.8 0z" />
+                                                    <path d="M41 25.5l1.6-9.8c.1-.4.4-.7.8-.7h4.8c4.3 0 6.6-2.1 6.1-5.6-.4-2.8-2.6-4.4-5.8-4.4h-6.8c-.8 0-1.4.6-1.5 1.3l-2.6 17.6c-.1.5.3.9.8.9h2.1c.4-.3.5-.8.5-1.3z" />
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1 h-10 bg-black border border-white/20 rounded flex items-center justify-center text-[10px] font-bold">
+                                                DEBIT/CREDIT
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <Link
+                                        href="/premium"
+                                        className="block w-full text-center py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg shadow-purple-500/20"
+                                    >
+                                        Upgrade to Pro
+                                    </Link>
+                                </div>
+                            </div>
+
+                            {/* Community Activity Glimpse */}
+                            <div className="glass-panel rounded-xl p-4 border-white/5">
+                                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Active Arena Battles</h3>
+                                <div className="space-y-4">
+                                    {[
+                                        { p1: 'WhaleHunter', p2: 'MoonBoy99', asset: 'BTC', time: '12h left', stakes: '500 XP' },
+                                        { p1: 'ZenithAlpha', p2: 'GridBot_X', asset: 'GOLD', time: '4h left', stakes: '1200 XP' },
+                                    ].map((battle, i) => (
+                                        <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex -space-x-2">
+                                                    <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-[10px] font-bold border-2 border-black">{battle.p1[0]}</div>
+                                                    <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-[10px] font-bold border-2 border-black">{battle.p2[0]}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm font-bold">{battle.p1} vs {battle.p2}</div>
+                                                    <div className="text-xs text-gray-500">{battle.asset} P&L Duel</div>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-xs font-mono text-emerald-400">{battle.stakes}</div>
+                                                <div className="text-[10px] text-gray-600">{battle.time}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>{/* End tab content wrapper */}
             </div>{/* End tabs container */}

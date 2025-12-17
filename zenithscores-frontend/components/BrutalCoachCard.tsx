@@ -41,24 +41,61 @@ export default function BrutalCoachCard({ trade, recentTrades = [] }: BrutalCoac
     useEffect(() => {
         setPremium(isPremiumUser());
 
-        // Generate demo response if no trade provided
-        if (!trade) {
-            const demoTrade: TradeAnalysis = {
-                tradeId: 'demo_1',
-                symbol: 'BTC',
-                direction: 'long',
-                entryPrice: 94500,
-                exitPrice: 95200,
-                pnlPercent: 0.74,
-                holdDuration: 45,
-                leverage: 2,
-                wasStop: false,
-                wasTP: true,
-            };
-            setResponse(generateCoachResponse(demoTrade, []));
-        } else {
-            setResponse(generateCoachResponse(trade, recentTrades));
+        async function fetchRoast() {
+            if (!trade) {
+                // Default demo response
+                const demoTrade: TradeAnalysis = {
+                    tradeId: 'demo_1',
+                    symbol: 'BTC',
+                    direction: 'long',
+                    entryPrice: 94500,
+                    exitPrice: 95200,
+                    pnlPercent: 0.74,
+                    holdDuration: 45,
+                    leverage: 2,
+                    wasStop: false,
+                    wasTP: true,
+                };
+                setResponse(generateCoachResponse(demoTrade, []));
+                return;
+            }
+
+            try {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                const sessionId = localStorage.getItem('zenith_session_id') || 'demo-user';
+
+                const res = await fetch(`${apiUrl}/api/v1/trading/roast`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...trade,
+                        session_id: sessionId
+                    })
+                });
+
+                const data = await res.json();
+                if (data.status === 'success') {
+                    setResponse(data.data);
+                } else if (data.status === 'locked') {
+                    // Premium gating on backend
+                    setResponse({
+                        verdict: 'loss',
+                        grade: 'F',
+                        roast: data.soft_roast,
+                        lesson: data.message,
+                        xpEarned: 0
+                    });
+                } else {
+                    // Fallback to local logic
+                    setResponse(generateCoachResponse(trade, recentTrades));
+                }
+            } catch (e) {
+                console.error("Coach API error:", e);
+                setResponse(generateCoachResponse(trade, recentTrades));
+            }
         }
+
+        fetchRoast();
 
         // Calculate discipline score
         const mockMistakes = [
@@ -67,7 +104,7 @@ export default function BrutalCoachCard({ trade, recentTrades = [] }: BrutalCoac
             { mistake: 'paper_hands' as MistakeType, timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
         ];
         setDiscipline(calculateDisciplineScore(mockMistakes));
-    }, [trade, recentTrades]);
+    }, [trade, recentTrades, isPremiumUser()]);
 
     if (!premium) {
         return (
@@ -201,7 +238,7 @@ export default function BrutalCoachCard({ trade, recentTrades = [] }: BrutalCoac
                                     <div className="flex items-center justify-between mb-3">
                                         <span className="text-sm text-gray-400">Discipline Score</span>
                                         <span className={`text-xl font-bold ${discipline.score >= 80 ? 'text-green-400' :
-                                                discipline.score >= 60 ? 'text-yellow-400' : 'text-red-400'
+                                            discipline.score >= 60 ? 'text-yellow-400' : 'text-red-400'
                                             }`}>{discipline.score}%</span>
                                     </div>
 

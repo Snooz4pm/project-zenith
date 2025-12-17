@@ -15,8 +15,11 @@ import time
 import json
 import asyncio
 import requests
+import collections
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse
+from fastapi import Request
 
 # Database Imports
 from news_database import NewsDB  # For News
@@ -35,7 +38,30 @@ except ImportError:
     TRADING_ENGINE_AVAILABLE = False
     print("⚠️ Trading engine module not available, using internal logic")
 
+import google.generativeai as genai
+import backend_security
+
 TRADING_ENABLED = True  # Always enable trading endpoints
+
+# ═══════════════════════════════════════════════════════
+# AI COACH PERSONA
+# ═══════════════════════════════════════════════════════
+BRUTAL_COACH_PERSONA = """
+You are the Zenith Trading Coach — a brutally honest mentor who has seen thousands of traders blow up their accounts.
+
+PERSONALITY:
+- You're direct, sometimes harsh, but always constructive
+- You use trading slang: "paper hands", "diamond hands", "FOMO", "rekt", "bagholder"
+- You roast bad decisions but ALWAYS give actionable lessons
+- You celebrate wins but remind them it could be luck
+- You never sugarcoat — the market doesn't care about feelings
+
+RULES:
+1. Always identify the MISTAKE TYPE first
+2. Roast the behavior, not the person
+3. End every roast with a concrete lesson
+4. Praise discipline more than profits
+"""
 
 # Default assets for trading (fallback)
 DEFAULT_ASSETS = [
@@ -49,6 +75,10 @@ DEFAULT_ASSETS = [
     {"symbol": "NVDA", "name": "NVIDIA", "asset_type": "stock", "price": 140.0, "max_leverage": 3},
     {"symbol": "TSLA", "name": "Tesla", "asset_type": "stock", "price": 420.0, "max_leverage": 3},
     {"symbol": "MSFT", "name": "Microsoft", "asset_type": "stock", "price": 430.0, "max_leverage": 3},
+    {"symbol": "GOLD", "name": "Gold", "asset_type": "commodity", "price": 2650.0, "max_leverage": 10},
+    {"symbol": "OIL", "name": "Crude Oil", "asset_type": "commodity", "price": 72.0, "max_leverage": 10},
+    {"symbol": "EURUSD", "name": "EUR/USD", "asset_type": "forex", "price": 1.08, "max_leverage": 20},
+    {"symbol": "GBPUSD", "name": "GBP/USD", "asset_type": "forex", "price": 1.26, "max_leverage": 20},
 ]
 
 # CoinGecko ID mapping for crypto prices
@@ -123,6 +153,39 @@ app.add_middleware(
 )
 
 # ═══════════════════════════════════════════════════════
+# SECURITY MIDDLEWARE (Rate Limiting)
+# ═══════════════════════════════════════════════════════
+
+# Simple in-memory rate limiter
+RATE_LIMIT_DURATION = 60  # seconds
+RATE_LIMIT_REQUESTS = 100 # requests per minute per IP
+
+user_requests = collections.defaultdict(list)
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    # Only limit API endpoints, skip static docs/health
+    if not request.url.path.startswith("/api/v1/"):
+        return await call_next(request)
+        
+    client_ip = request.client.host
+    now = time.time()
+    
+    # Filter out old requests
+    user_requests[client_ip] = [req_time for req_time in user_requests[client_ip] 
+                                if req_time > now - RATE_LIMIT_DURATION]
+    
+    if len(user_requests[client_ip]) >= RATE_LIMIT_REQUESTS:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Too many requests. Please slow down and respect the market pulse."}
+        )
+    
+    user_requests[client_ip].append(now)
+    response = await call_next(request)
+    return response
+
+# ═══════════════════════════════════════════════════════
 # DATA MODELS (Pydantic)
 # ═══════════════════════════════════════════════════════
 
@@ -176,6 +239,36 @@ def fetch_live_stock_price(symbol: str):
         pass
     return None
 
+def fetch_live_forex_price(from_c: str, to_c: str = "USD"):
+    """Fetch live forex price from Alpha Vantage"""
+    try:
+        url = f"https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency={from_c}&to_currency={to_c}&apikey={ALPHA_VANTAGE_KEY}"
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            rate_data = data.get("Realtime Currency Exchange Rate", {})
+            if rate_data:
+                price = float(rate_data.get("5. Exchange Rate", 0))
+                return {"price": price, "change_24h": 0.0} # AV doesn't give 24h change in this endpoint easily
+    except: pass
+    return None
+
+def fetch_live_commodity_price(symbol: str):
+    """Fetch live commodity price from Alpha Vantage snippets"""
+    # AV has specific functions for BRENT, WTI, GOLD, etc.
+    try:
+        fn = "WTI" if symbol == "OIL" else symbol
+        url = f"https://www.alphavantage.co/query?function={fn}&interval=daily&apikey={ALPHA_VANTAGE_KEY}"
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            # Commodities return a "data" list
+            if "data" in data and len(data["data"]) > 0:
+                price = float(data["data"][0].get("value", 0))
+                return {"price": price, "change_24h": 0.0}
+    except: pass
+    return None
+
 def get_trading_db():
     """Get psycopg2 connection for trading"""
     try:
@@ -185,6 +278,39 @@ def get_trading_db():
     except:
         pass
     return None
+
+def is_user_premium(session_id: str) -> bool:
+    """Verify premium status against Database"""
+    if not session_id or session_id == "demo-user":
+        return False
+        
+    conn = get_trading_db()
+    if not conn:
+        return False
+        
+    try:
+        cur = conn.cursor()
+        # Note: We use the columns we just added in the migration
+        cur.execute("SELECT is_premium, premium_expires_at FROM trading_users WHERE session_id = %s", (session_id,))
+        row = cur.fetchone()
+        
+        if row:
+            is_premium = row.get('is_premium', False)
+            expires_at = row.get('premium_expires_at')
+            
+            if is_premium:
+                if expires_at and expires_at < datetime.now():
+                    # Autorevoke expired directly in DB
+                    cur.execute("UPDATE trading_users SET is_premium = FALSE WHERE session_id = %s", (session_id,))
+                    conn.commit()
+                    return False
+                return True
+        return False
+    except Exception as e:
+        print(f"Premium check error: {e}")
+        return False
+    finally:
+        conn.close()
 
 class HealthResponse(BaseModel):
     status: str
@@ -440,13 +566,26 @@ async def get_stats():
 def get_scored_tokens(
     limit: int = Query(default=100, le=500),
     min_liquidity: float = Query(default=10000),
-    min_volume: float = Query(default=10000)
+    min_volume: float = Query(default=10000),
+    session_id: Optional[str] = Query(None)
 ):
     global CACHE_DATA, CACHE_TIMESTAMP
     current_time = time.time()
     
+    # Check premium
+    premium = is_user_premium(session_id)
+    effective_limit = limit
+    if not premium:
+        effective_limit = min(limit, 10)
+    
     if CACHE_DATA and (current_time - CACHE_TIMESTAMP < CACHE_DURATION):
-        return {"status": "success", "count": len(CACHE_DATA[:limit]), "data": CACHE_DATA[:limit], "cached": True}
+        return {
+            "status": "success", 
+            "count": len(CACHE_DATA[:effective_limit]), 
+            "data": CACHE_DATA[:effective_limit], 
+            "cached": True,
+            "premium": premium
+        }
 
     try:
         url = "https://api.dexscreener.com/latest/dex/search?q=uniswap%20eth%20v2"
@@ -482,7 +621,13 @@ def get_scored_tokens(
         CACHE_DATA = tokens
         CACHE_TIMESTAMP = current_time
         
-        return {"status": "success", "count": len(tokens[:limit]), "data": tokens[:limit], "cached": False}
+        return {
+            "status": "success", 
+            "count": len(tokens[:effective_limit]), 
+            "data": tokens[:effective_limit], 
+            "cached": False,
+            "premium": premium
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -706,6 +851,25 @@ def get_trading_assets():
                 if stock_data:
                     price = stock_data["price"]
                     change = stock_data["change_24h"]
+                else:
+                    price = a["price"]
+                    change = 0.0
+            elif asset_type == "forex":
+                # Assume symbols like EURUSD
+                from_c = symbol[:3]
+                to_c = symbol[3:] if len(symbol) > 3 else "USD"
+                fx_data = fetch_live_forex_price(from_c, to_c)
+                if fx_data:
+                    price = fx_data["price"]
+                    change = fx_data["change_24h"]
+                else:
+                    price = a["price"]
+                    change = 0.0
+            elif asset_type == "commodity":
+                comm_data = fetch_live_commodity_price(symbol)
+                if comm_data:
+                    price = comm_data["price"]
+                    change = comm_data["change_24h"]
                 else:
                     price = a["price"]
                     change = 0.0
@@ -1036,6 +1200,117 @@ def get_analytics(session_id: str):
     except Exception as e:
         print(f"Analytics Error: {e}")
         return {"status": "error", "message": str(e)}
+
+
+# ═══════════════════════════════════════════════════════
+# AI COACH ROAST & SECURITY ENDPOINTS
+# ═══════════════════════════════════════════════════════
+
+class KeyPayload(BaseModel):
+    session_id: str
+    gemini_key: str
+
+@app.post("/api/v1/user/keys")
+def store_user_keys(payload: KeyPayload):
+    """Securely store an encrypted Gemini API key for a user"""
+    if not payload.session_id or not payload.gemini_key:
+        raise HTTPException(status_code=400, detail="Missing data")
+    
+    encrypted_key = backend_security.encrypt(payload.gemini_key)
+    
+    conn = get_trading_db()
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute("UPDATE trading_users SET encrypted_gemini_key = %s WHERE session_id = %s", (encrypted_key, payload.session_id))
+            conn.commit()
+            return {"status": "success", "message": "API key secured with AES-256-CBC"}
+        except Exception as e:
+            print(f"Key storage error: {e}")
+            raise HTTPException(status_code=500, detail="Failed to secure key")
+        finally:
+            conn.close()
+    return {"status": "error", "message": "Database unavailable"}
+
+@app.post("/api/v1/trading/roast")
+async def get_brutal_roast(payload: TradePayload):
+    """Get a personalized roast from the Brutal AI Coach"""
+    # 1. Check Premium Status
+    is_premium = is_user_premium(payload.session_id)
+    
+    if not is_premium:
+        return {
+            "status": "locked",
+            "message": "Upgrade to Premium for personalized AI roasts and trade diagnostics.",
+            "soft_roast": f"You trade {payload.symbol} like a tourist. Upgrade to see how much money you're actually leaving on the table."
+        }
+    
+    # 2. Try getting user's GEMINI key if available, else use system key
+    user_key = None
+    conn = get_trading_db()
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT encrypted_gemini_key FROM trading_users WHERE session_id = %s", (payload.session_id,))
+            row = cur.fetchone()
+            if row and row['encrypted_gemini_key']:
+                user_key = backend_security.decrypt(row['encrypted_gemini_key'])
+        except: pass
+        finally: conn.close()
+    
+    api_key = user_key or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return {"status": "error", "message": "No AI Engine available"}
+
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = f"""
+        {BRUTAL_COACH_PERSONA}
+        
+        Analyze this trade and be BRUTAL:
+        Symbol: {payload.symbol}
+        Type: {payload.trade_type}
+        Quantity: {payload.quantity}
+        Leverage: {payload.leverage}x
+        
+        Return as a clean JSON object with these keys: roast, lesson, grade (S, A, B, C, D, or F).
+        """
+        
+        response = model.generate_content(prompt)
+        content = response.text
+        
+        # Simple extraction for robustness
+        import json
+        try:
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0].strip()
+            
+            data = json.loads(content)
+            return {"status": "success", "data": data}
+        except:
+            return {
+                "status": "success",
+                "data": {
+                    "roast": content[:500],
+                    "lesson": "Read the roast above and learn.",
+                    "grade": "C"
+                }
+            }
+            
+    except Exception as e:
+        print(f"Roast Error: {e}")
+        return {
+            "status": "success",
+            "data": {
+                "roast": "The AI is too busy laughing at your trade to generate a response. Try again later.",
+                "lesson": "Don't let technical glitches distract you from your bad entries.",
+                "grade": "F"
+            }
+        }
 
 
 # ═══════════════════════════════════════════════════════
