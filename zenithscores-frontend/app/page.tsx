@@ -14,7 +14,6 @@ import MagneticButton from '@/components/MagneticButton';
 import GlowingBorder from '@/components/GlowingBorder';
 import LiveIndicator from '@/components/LiveIndicator';
 import AnimatedProgress from '@/components/AnimatedProgress';
-import ScanningExplainer from '@/components/ScanningExplainer';
 
 // Animation variants
 const staggerContainer = {
@@ -315,41 +314,85 @@ export default function LandingPage() {
                 className="absolute bottom-1/4 left-1/4 w-2.5 h-2.5 bg-purple-400 rounded-full shadow-[0_0_15px_#a855f7,0_0_30px_#a855f7]"
               />
 
-              {/* Center Display - Hoverable */}
-              <button
+              {/* Center Display - Hoverable/Expandable */}
+              <div
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
-                onClick={() => setShowScanningExplainer(true)} // Keep click as backup
-                className="z-10 text-center bg-black/60 backdrop-blur-xl p-8 rounded-2xl border border-white/10 shadow-2xl cursor-pointer hover:border-cyan-500/30 hover:shadow-[0_0_30px_rgba(0,240,255,0.2)] transition-all duration-300 group"
+                className="relative z-10 flex flex-col items-center"
               >
-                <div className="text-5xl font-mono font-bold tracking-tighter text-white mb-2 flex items-center justify-center gap-1 group-hover:text-cyan-300 transition-colors">
-                  <span>Scanning</span>
-                  <motion.span
-                    animate={{ opacity: [1, 0] }}
-                    transition={{ duration: 0.8, repeat: Infinity, repeatType: 'reverse' }}
-                  >
-                    ...
-                  </motion.span>
-                </div>
-                <div className="text-[10px] text-cyan-400 font-mono tracking-[0.2em] uppercase mb-4">
-                  <AnimatedCounter value={24392} suffix=" Assets" className="text-cyan-400" /> Analyzed Real-Time
-                </div>
-                <AnimatedProgress
-                  value={78}
-                  max={100}
-                  height={6}
-                  gradientFrom="#00f0ff"
-                  gradientTo="#a855f7"
-                  showGlow={true}
-                />
-                {/* Click hint */}
-                <div className="mt-4 text-[10px] text-gray-500 group-hover:text-cyan-400 transition-colors flex items-center justify-center gap-1">
-                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">Hover to learn how it works</span>
-                  <svg className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </button>
+                <button
+                  onClick={() => setShowScanningExplainer(!showScanningExplainer)}
+                  className="w-full text-center bg-black/60 backdrop-blur-xl p-8 rounded-2xl border border-white/10 shadow-2xl cursor-pointer hover:border-cyan-500/30 hover:shadow-[0_0_30px_rgba(0,240,255,0.2)] transition-all duration-300 group z-20 relative"
+                >
+                  <div className="text-5xl font-mono font-bold tracking-tighter text-white mb-2 flex items-center justify-center gap-1 group-hover:text-cyan-300 transition-colors">
+                    <span>Scanning</span>
+                    <motion.span
+                      animate={{ opacity: [1, 0] }}
+                      transition={{ duration: 0.8, repeat: Infinity, repeatType: 'reverse' }}
+                    >
+                      ...
+                    </motion.span>
+                  </div>
+                  <div className="text-[10px] text-cyan-400 font-mono tracking-[0.2em] uppercase mb-4">
+                    <AnimatedCounter value={24392} suffix=" Assets" className="text-cyan-400" /> Analyzed Real-Time
+                  </div>
+                  <AnimatedProgress
+                    value={78}
+                    max={100}
+                    height={6}
+                    gradientFrom="#00f0ff"
+                    gradientTo="#a855f7"
+                    showGlow={true}
+                  />
+                  {/* Click hint */}
+                  <div className="mt-4 text-[10px] text-gray-500 group-hover:text-cyan-400 transition-colors flex items-center justify-center gap-1">
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">Hover to reveal methodology</span>
+                    <ChevronDown className={`w-3 h-3 opacity-0 group-hover:opacity-100 transition-all duration-300 ${showScanningExplainer ? 'rotate-180' : ''}`} />
+                  </div>
+                </button>
+
+                {/* Inline Scanning Explainer - "Tab Underneath" Style */}
+                <motion.div
+                  initial={{ height: 0, opacity: 0, y: -20 }}
+                  animate={showScanningExplainer ? { height: 'auto', opacity: 1, y: 0 } : { height: 0, opacity: 0, y: -20 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  className="overflow-hidden w-full max-w-2xl"
+                >
+                  <div className="pt-4 pb-2 px-2">
+                    <div className="bg-[#0a0a12]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+                      {/* Decorations */}
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent blur-sm" />
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[
+                          { title: 'Data Collection', desc: '50+ Exchanges', color: '#00f0ff', icon: Activity },
+                          { title: 'AI Analysis', desc: 'Momentum & Volatility', color: '#a855f7', icon: Cpu },
+                          { title: 'Trend Detection', desc: 'Breakout Signals', color: '#10b981', icon: TrendingUp },
+                          { title: 'Risk Assessment', desc: 'Downside Protection', color: '#f59e0b', icon: ShieldCheck },
+                          { title: 'Score Generation', desc: '0-100 Zenith Score', color: '#f72585', icon: Zap },
+                          { title: 'Real-Time Updates', desc: 'Every 15 Seconds', color: '#06b6d4', icon: History }, // Changed clock to history icon available in imports
+                        ].map((step, i) => (
+                          <motion.div
+                            key={step.title}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={showScanningExplainer ? { opacity: 1, x: 0 } : { opacity: 0, x: -10 }}
+                            transition={{ delay: i * 0.05 + 0.1 }}
+                            className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors"
+                          >
+                            <div className="p-2 rounded-lg bg-white/5" style={{ color: step.color }}>
+                              <step.icon size={16} />
+                            </div>
+                            <div className="text-left">
+                              <div className="text-xs font-bold text-white">{step.title}</div>
+                              <div className="text-[10px] text-gray-400">{step.desc}</div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
             </InteractiveCard>
           </motion.div>
         </div>
@@ -509,14 +552,6 @@ export default function LandingPage() {
           </motion.div>
         </motion.div>
       </div>
-
-      {/* Scanning Explainer Modal */}
-      <ScanningExplainer
-        isOpen={showScanningExplainer}
-        onClose={() => setShowScanningExplainer(false)}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      />
 
     </div>
   );
