@@ -31,7 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="antialiased bg-[#0E0E12] text-white font-sans selection:bg-blue-500/30">
+      <body className="antialiased font-sans">
         <AuthProvider>
           <Navbar />
           {children}

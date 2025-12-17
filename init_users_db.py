@@ -6,25 +6,45 @@ Run this once to set up user authentication
 
 import os
 import psycopg2
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from the same directory as this script
+env_path = Path(__file__).parent / '.env'
+load_dotenv(dotenv_path=env_path)
+
+# Debug: Print what we loaded
+print(f"📂 Loading .env from: {env_path}")
 
 def get_connection():
     """Get database connection"""
-    database_url = os.getenv("DATABASE_URL")
+    # IMPORTANT: Check NEON_DATABASE_URL first (from .env file)
+    # before DATABASE_URL (which might be a system env var)
+    database_url = os.getenv("NEON_DATABASE_URL")
     
     if database_url:
+        print(f"📊 Using NEON_DATABASE_URL: {database_url[:50]}...")
         return psycopg2.connect(database_url)
-    else:
-        host = os.getenv("NEON_HOST")
-        database = os.getenv("NEON_DATABASE")
-        user = os.getenv("NEON_USER")
-        password = os.getenv("NEON_PASSWORD")
-        port = os.getenv("NEON_PORT", "5432")
-        
+    
+    # Fall back to DATABASE_URL
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        print(f"📊 Using DATABASE_URL connection")
+        return psycopg2.connect(database_url)
+    
+    # Fall back to individual variables
+    host = os.getenv("NEON_HOST")
+    database = os.getenv("NEON_DATABASE")
+    user = os.getenv("NEON_USER")
+    password = os.getenv("NEON_PASSWORD")
+    port = os.getenv("NEON_PORT", "5432")
+    
+    if host:
+        print(f"📊 Using NEON_HOST: {host[:30]}...")
         conn_string = f"postgresql://{user}:{password}@{host}/{database}?sslmode=require"
         return psycopg2.connect(conn_string)
+    
+    raise ValueError("No database connection configured! Set NEON_DATABASE_URL or NEON_HOST in .env")
 
 USERS_SCHEMA = """
 -- ═══════════════════════════════════════════════════════
