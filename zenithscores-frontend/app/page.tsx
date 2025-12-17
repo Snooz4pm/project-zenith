@@ -3,7 +3,7 @@
 import { Suspense, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Activity, Cpu, ShieldCheck, History, Zap, TrendingUp, Newspaper, ChevronDown } from 'lucide-react';
-import { motion, useInView } from 'framer-motion';
+import { motion, useInView, AnimatePresence } from 'framer-motion';
 import FuturisticBackground from '@/components/FuturisticBackground';
 import PredictiveSearch from '@/components/PredictiveSearch';
 import MarketPulse from '@/components/MarketPulse';
@@ -55,6 +55,7 @@ export default function LandingPage() {
   const methodologyRef = useRef<HTMLDivElement>(null);
   const isMethodologyInView = useInView(methodologyRef, { once: true, margin: '-100px' });
   const [showScanningExplainer, setShowScanningExplainer] = useState(false);
+  const [activeScanningStep, setActiveScanningStep] = useState<string | null>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleMouseEnter = () => {
@@ -361,34 +362,150 @@ export default function LandingPage() {
                   <div className="pt-4 pb-2 px-2">
                     <div className="bg-[#0a0a12]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
                       {/* Decorations */}
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent blur-sm" />
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-[1px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent blur-[1px]" />
+                      <div className="absolute bottom-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Interactive Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
                         {[
-                          { title: 'Data Collection', desc: '50+ Exchanges', color: '#00f0ff', icon: Activity },
-                          { title: 'AI Analysis', desc: 'Momentum & Volatility', color: '#a855f7', icon: Cpu },
-                          { title: 'Trend Detection', desc: 'Breakout Signals', color: '#10b981', icon: TrendingUp },
-                          { title: 'Risk Assessment', desc: 'Downside Protection', color: '#f59e0b', icon: ShieldCheck },
-                          { title: 'Score Generation', desc: '0-100 Zenith Score', color: '#f72585', icon: Zap },
-                          { title: 'Real-Time Updates', desc: 'Every 15 Seconds', color: '#06b6d4', icon: History }, // Changed clock to history icon available in imports
+                          {
+                            id: 'data',
+                            title: 'Data Collection',
+                            desc: '50+ Exchanges',
+                            color: '#00f0ff',
+                            icon: Activity,
+                            details: 'We ingest raw tick data from 50+ centralized and decentralized exchanges, normalizing order books and trade history in milliseconds to ensure zero latency in signal generation.'
+                          },
+                          {
+                            id: 'ai',
+                            title: 'AI Analysis',
+                            desc: 'Momentum & Volatility',
+                            color: '#a855f7',
+                            icon: Cpu,
+                            details: 'Our proprietary transformer models process price action to detect institutional accumulation, identifying anomalies that standard technical indicators miss.'
+                          },
+                          {
+                            id: 'trend',
+                            title: 'Trend Detection',
+                            desc: 'Breakout Signals',
+                            color: '#10b981',
+                            icon: TrendingUp,
+                            details: 'Multi-timeframe analysis confirms trend strength. We filter out false positives by cross-referencing volume profiles with historical breakout patterns.'
+                          },
+                          {
+                            id: 'risk',
+                            title: 'Risk Assessment',
+                            desc: 'Downside Protection',
+                            color: '#f59e0b',
+                            icon: ShieldCheck,
+                            details: 'Every potential signal is stress-tested against volatility spikes. We calculate dynamic stop-loss levels and liquidity depth to ensure safe entry and exit.'
+                          },
+                          {
+                            id: 'score',
+                            title: 'Score Generation',
+                            desc: '0-100 Zenith Score',
+                            color: '#f72585',
+                            icon: Zap,
+                            details: 'All metrics synthesize into a single, actionable Zenith Score. >80 indicates strong bullish momentum, while <20 signals oversold capitulation.'
+                          },
+                          {
+                            id: 'update',
+                            title: 'Real-Time Updates',
+                            desc: 'Every 15 Seconds',
+                            color: '#06b6d4',
+                            icon: History,
+                            details: 'Markets never sleep. Our engine re-evaluates every asset every 15 seconds, instantly updating scores as new tick data arrives.'
+                          },
                         ].map((step, i) => (
-                          <motion.div
-                            key={step.title}
+                          <motion.button
+                            key={step.id}
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent closing the expander
+                              setActiveScanningStep(activeScanningStep === step.id ? null : step.id);
+                            }}
                             initial={{ opacity: 0, x: -10 }}
-                            animate={showScanningExplainer ? { opacity: 1, x: 0 } : { opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: i * 0.05 + 0.1 }}
-                            className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors"
+                            className={`relative flex items-center gap-3 p-3 rounded-xl border transition-all duration-300 text-left w-full group overflow-hidden ${activeScanningStep === step.id
+                              ? 'bg-white/10 border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.05)]'
+                              : 'bg-white/5 border-white/5 hover:border-white/10 hover:bg-white/[0.07]'
+                              }`}
                           >
-                            <div className="p-2 rounded-lg bg-white/5" style={{ color: step.color }}>
-                              <step.icon size={16} />
+                            {/* Active Glow Background */}
+                            {activeScanningStep === step.id && (
+                              <div
+                                className="absolute inset-0 opacity-20"
+                                style={{ background: `linear-gradient(90deg, ${step.color}00, ${step.color}40)` }}
+                              />
+                            )}
+
+                            <div
+                              className={`p-2 rounded-lg transition-colors duration-300 ${activeScanningStep === step.id ? 'bg-white/10' : 'bg-white/5'
+                                }`}
+                              style={{ color: step.color }}
+                            >
+                              <step.icon size={18} className={activeScanningStep === step.id ? 'drop-shadow-[0_0_8px_currentColor]' : ''} />
                             </div>
-                            <div className="text-left">
-                              <div className="text-xs font-bold text-white">{step.title}</div>
-                              <div className="text-[10px] text-gray-400">{step.desc}</div>
+                            <div className="relative z-10">
+                              <div className={`text-xs font-bold transition-colors ${activeScanningStep === step.id ? 'text-white' : 'text-gray-200'}`}>
+                                {step.title}
+                              </div>
+                              <div className="text-[10px] text-gray-400 group-hover:text-gray-300 transition-colors">
+                                {step.desc}
+                              </div>
                             </div>
-                          </motion.div>
+
+                            {/* Active Indicator Arrow */}
+                            <motion.div
+                              animate={{
+                                opacity: activeScanningStep === step.id ? 1 : 0,
+                                x: activeScanningStep === step.id ? 0 : -10
+                              }}
+                              className="ml-auto text-white"
+                            >
+                              <ChevronDown size={14} className="rotate-270" />
+                            </motion.div>
+                          </motion.button>
                         ))}
                       </div>
+
+                      {/* Detail View Container */}
+                      <AnimatePresence mode="wait">
+                        {activeScanningStep && (() => {
+                          const step = [
+                            { id: 'data', details: 'We ingest raw tick data from 50+ centralized and decentralized exchanges, normalizing order books and trade history in milliseconds to ensure zero latency in signal generation.', color: '#00f0ff' },
+                            { id: 'ai', details: 'Our proprietary transformer models process price action to detect institutional accumulation, identifying anomalies that standard technical indicators miss.', color: '#a855f7' },
+                            { id: 'trend', details: 'Multi-timeframe analysis confirms trend strength. We filter out false positives by cross-referencing volume profiles with historical breakout patterns.', color: '#10b981' },
+                            { id: 'risk', details: 'Every potential signal is stress-tested against volatility spikes. We calculate dynamic stop-loss levels and liquidity depth to ensure safe entry and exit.', color: '#f59e0b' },
+                            { id: 'score', details: 'All metrics synthesize into a single, actionable Zenith Score. >80 indicates strong bullish momentum, while <20 signals oversold capitulation.', color: '#f72585' },
+                            { id: 'update', details: 'Markets never sleep. Our engine re-evaluates every asset every 15 seconds, instantly updating scores as new tick data arrives.', color: '#06b6d4' },
+                          ].find(s => s.id === activeScanningStep);
+
+                          if (!step) return null;
+
+                          return (
+                            <motion.div
+                              key="detail"
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div
+                                className="p-4 rounded-xl bg-gradient-to-br from-white/5 to-transparent border border-white/5"
+                                style={{ borderLeft: `3px solid ${step.color}` }}
+                              >
+                                <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                                  <span style={{ color: step.color }}>///</span> SYSTEM LOGIC
+                                </h4>
+                                <p className="text-xs md:text-sm text-gray-300 leading-relaxed font-mono">
+                                  {step.details}
+                                </p>
+                              </div>
+                            </motion.div>
+                          );
+                        })()}
+                      </AnimatePresence>
                     </div>
                   </div>
                 </motion.div>
