@@ -71,8 +71,8 @@ export default function LandingPage() {
       />
 
       {/* HERO SECTION */}
-      <div className="relative pt-24 border-b border-white/5">
-        <div className="container mx-auto px-6 py-24 lg:py-32 relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div className="relative pt-16 md:pt-24 border-b border-white/5">
+        <div className="container mx-auto px-4 md:px-6 py-12 md:py-24 lg:py-32 relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-center">
 
           {/* Left: Product Statement */}
           <motion.div
@@ -95,7 +95,7 @@ export default function LandingPage() {
             {/* Main Headline with Shimmer */}
             <motion.h1
               variants={fadeUpItem}
-              className="text-5xl lg:text-7xl font-heading mb-8 leading-[1.1]"
+              className="text-3xl md:text-5xl lg:text-7xl font-heading mb-6 md:mb-8 leading-[1.1]"
             >
               <span className="text-white">Live Market Scores for </span>
               <br />
@@ -213,7 +213,7 @@ export default function LandingPage() {
             {/* CTA Buttons */}
             <motion.div
               variants={fadeUpItem}
-              className="flex flex-wrap gap-4"
+              className="flex flex-col md:flex-row flex-wrap gap-3 md:gap-4"
             >
               <MagneticButton
                 variant="primary"
@@ -249,9 +249,9 @@ export default function LandingPage() {
             </motion.div>
           </motion.div>
 
-          {/* Right: Enhanced Radar Visualization */}
+          {/* Right: Enhanced Radar Visualization - Hidden on small mobile */}
           <motion.div
-            className="relative h-[450px] w-full"
+            className="relative h-[300px] md:h-[450px] w-full hidden sm:block"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}

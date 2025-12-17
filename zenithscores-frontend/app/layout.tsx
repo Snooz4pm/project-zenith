@@ -5,6 +5,7 @@ import React from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AuthProvider from "@/components/AuthProvider";
+import MobileBottomNav from "@/components/MobileBottomNav";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -34,10 +35,16 @@ export default function RootLayout({
       <body className="antialiased font-sans">
         <AuthProvider>
           <Navbar />
-          {children}
+          {/* Main content with bottom padding for mobile nav */}
+          <main className="pb-20 md:pb-0">
+            {children}
+          </main>
           <Footer />
+          {/* Mobile bottom navigation - only visible on mobile */}
+          <MobileBottomNav />
         </AuthProvider>
       </body>
     </html>
   );
 }
+
