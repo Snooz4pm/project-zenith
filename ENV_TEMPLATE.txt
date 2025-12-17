@@ -20,6 +20,18 @@ NEON_PORT=5432
 # NEON_PORT=5432
 
 # ═══════════════════════════════════════════
+# GOOGLE OAUTH CONFIGURATION (NextAuth.js)
+# ═══════════════════════════════════════════
+# Get these from: https://console.cloud.google.com/apis/credentials
+
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# NextAuth Configuration
+NEXTAUTH_URL=https://www.zenithscores.com
+NEXTAUTH_SECRET=your_random_secret_at_least_32_characters
+
+# ═══════════════════════════════════════════
 # OTHER SERVICES (if needed)
 # ═══════════════════════════════════════════
 
@@ -28,3 +40,6 @@ NEON_PORT=5432
 
 # NewsAPI (if using news API)
 # NEWS_API_KEY=your_newsapi_key_here
+
+# Backend API URL
+NEXT_PUBLIC_API_URL=https://defioracleworkerapi.vercel.app

@@ -876,6 +876,263 @@ def get_analytics(session_id: str):
 
 
 # ═══════════════════════════════════════════════════════
+# AUTHENTICATION ENDPOINTS (Google OAuth)
+# ═══════════════════════════════════════════════════════
+
+class GoogleAuthPayload(BaseModel):
+    google_id: str
+    email: str
+    name: Optional[str] = None
+    profile_picture: Optional[str] = None
+
+class UserResponse(BaseModel):
+    id: int
+    google_id: str
+    email: str
+    name: Optional[str]
+    profile_picture: Optional[str]
+    created_at: str
+    last_login: str
+
+class LinkTradingPayload(BaseModel):
+    user_id: int
+    session_id: str
+
+
+@app.post("/api/v1/auth/user")
+def upsert_user(payload: GoogleAuthPayload):
+    """
+    Create or update a user from Google OAuth.
+    Called by NextAuth after successful Google login.
+    """
+    conn = None
+    try:
+        conn = get_trading_db()
+        if not conn:
+            raise HTTPException(status_code=503, detail="Database connection failed")
+        
+        cur = conn.cursor()
+        
+        # Upsert user (insert or update on conflict)
+        cur.execute("""
+            INSERT INTO users (google_id, email, name, profile_picture, last_login)
+            VALUES (%s, %s, %s, %s, NOW())
+            ON CONFLICT (google_id) DO UPDATE SET
+                email = EXCLUDED.email,
+                name = EXCLUDED.name,
+                profile_picture = EXCLUDED.profile_picture,
+                last_login = NOW()
+            RETURNING id, google_id, email, name, profile_picture, created_at, last_login
+        """, (payload.google_id, payload.email, payload.name, payload.profile_picture))
+        
+        user = cur.fetchone()
+        conn.commit()
+        
+        return {
+            "status": "success",
+            "user": {
+                "id": user['id'],
+                "google_id": user['google_id'],
+                "email": user['email'],
+                "name": user['name'],
+                "profile_picture": user['profile_picture'],
+                "created_at": user['created_at'].isoformat() if user['created_at'] else None,
+                "last_login": user['last_login'].isoformat() if user['last_login'] else None,
+            }
+        }
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.get("/api/v1/auth/user/{user_id}")
+def get_user(user_id: int):
+    """Get user profile by ID"""
+    conn = None
+    try:
+        conn = get_trading_db()
+        if not conn:
+            raise HTTPException(status_code=503, detail="Database connection failed")
+        
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, google_id, email, name, profile_picture, created_at, last_login, is_active
+            FROM users WHERE id = %s
+        """, (user_id,))
+        
+        user = cur.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {
+            "status": "success",
+            "user": {
+                "id": user['id'],
+                "google_id": user['google_id'],
+                "email": user['email'],
+                "name": user['name'],
+                "profile_picture": user['profile_picture'],
+                "created_at": user['created_at'].isoformat() if user['created_at'] else None,
+                "last_login": user['last_login'].isoformat() if user['last_login'] else None,
+                "is_active": user['is_active']
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.get("/api/v1/auth/user-by-email/{email}")
+def get_user_by_email(email: str):
+    """Get user profile by email"""
+    conn = None
+    try:
+        conn = get_trading_db()
+        if not conn:
+            raise HTTPException(status_code=503, detail="Database connection failed")
+        
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, google_id, email, name, profile_picture, created_at, last_login, is_active
+            FROM users WHERE email = %s
+        """, (email,))
+        
+        user = cur.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {
+            "status": "success",
+            "user": {
+                "id": user['id'],
+                "google_id": user['google_id'],
+                "email": user['email'],
+                "name": user['name'],
+                "profile_picture": user['profile_picture'],
+                "created_at": user['created_at'].isoformat() if user['created_at'] else None,
+                "last_login": user['last_login'].isoformat() if user['last_login'] else None,
+                "is_active": user['is_active']
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.post("/api/v1/auth/link-trading")
+def link_trading_session(payload: LinkTradingPayload):
+    """
+    Link a trading session to an authenticated user.
+    This allows users to persist their trading portfolios across sessions.
+    """
+    conn = None
+    try:
+        conn = get_trading_db()
+        if not conn:
+            raise HTTPException(status_code=503, detail="Database connection failed")
+        
+        cur = conn.cursor()
+        
+        # Verify user exists
+        cur.execute("SELECT id FROM users WHERE id = %s", (payload.user_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Link the trading user to the authenticated user
+        cur.execute("""
+            UPDATE trading_users 
+            SET user_id = %s 
+            WHERE session_id = %s
+            RETURNING id, session_id, user_id, wallet_balance, portfolio_value
+        """, (payload.user_id, payload.session_id))
+        
+        trading_user = cur.fetchone()
+        if not trading_user:
+            # No trading session exists, create one
+            cur.execute("""
+                INSERT INTO trading_users (session_id, user_id, wallet_balance, available_margin, portfolio_value)
+                VALUES (%s, %s, 10000.00, 10000.00, 10000.00)
+                RETURNING id, session_id, user_id, wallet_balance, portfolio_value
+            """, (payload.session_id, payload.user_id))
+            trading_user = cur.fetchone()
+        
+        conn.commit()
+        
+        return {
+            "status": "success",
+            "message": "Trading session linked to user",
+            "trading_user": {
+                "id": trading_user['id'],
+                "session_id": trading_user['session_id'],
+                "user_id": trading_user['user_id'],
+                "wallet_balance": float(trading_user['wallet_balance']),
+                "portfolio_value": float(trading_user['portfolio_value'])
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.get("/api/v1/auth/trading-sessions/{user_id}")
+def get_user_trading_sessions(user_id: int):
+    """Get all trading sessions for a user"""
+    conn = None
+    try:
+        conn = get_trading_db()
+        if not conn:
+            raise HTTPException(status_code=503, detail="Database connection failed")
+        
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, session_id, wallet_balance, portfolio_value, total_pnl, 
+                   total_trades, win_rate, created_at, last_active
+            FROM trading_users 
+            WHERE user_id = %s
+            ORDER BY last_active DESC
+        """, (user_id,))
+        
+        sessions = []
+        for row in cur.fetchall():
+            sessions.append({
+                "id": row['id'],
+                "session_id": row['session_id'],
+                "wallet_balance": float(row['wallet_balance']),
+                "portfolio_value": float(row['portfolio_value']),
+                "total_pnl": float(row['total_pnl']) if row['total_pnl'] else 0.0,
+                "total_trades": row['total_trades'],
+                "win_rate": float(row['win_rate']) if row['win_rate'] else 0.0,
+                "created_at": row['created_at'].isoformat() if row['created_at'] else None,
+                "last_active": row['last_active'].isoformat() if row['last_active'] else None
+            })
+        
+        return {"status": "success", "count": len(sessions), "sessions": sessions}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
+
+# ═══════════════════════════════════════════════════════
 # WEBSOCKET ENDPOINTS
 # ═══════════════════════════════════════════════════════
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Search } from 'lucide-react';
+import UserMenu from './UserMenu';
 
 export default function Navbar() {
     const pathname = usePathname();
@@ -38,7 +38,16 @@ export default function Navbar() {
                     >
                         Stocks
                     </Link>
+                    <Link
+                        href="/trading"
+                        className={`text-xs font-bold tracking-widest transition-colors uppercase ${isActive('/trading') ? 'text-cyan-400' : 'text-gray-500 hover:text-white'}`}
+                    >
+                        Trading
+                    </Link>
                 </div>
+
+                {/* User Menu */}
+                <UserMenu />
             </div>
         </nav>
     );

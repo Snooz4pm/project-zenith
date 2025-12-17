@@ -9,3 +9,4 @@ apscheduler
 google-generativeai
 sqlalchemy
 apify-client
+python-jose[cryptography]
