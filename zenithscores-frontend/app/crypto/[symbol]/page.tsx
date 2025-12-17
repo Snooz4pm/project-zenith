@@ -159,7 +159,7 @@ export default function AssetPage() {
     return (
         <div className="min-h-screen bg-black text-white pb-20 font-sans selection:bg-blue-500/30">
             {/* Nav */}
-            <div className="border-b border-gray-800 bg-black/80 backdrop-blur sticky top-0 z-50">
+            <div className="border-b border-gray-800 bg-black/80 backdrop-blur sticky top-16 z-40">
                 <div className="container mx-auto px-6 py-4 flex items-center justify-between">
                     <Link href="/crypto" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors group">
                         <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />

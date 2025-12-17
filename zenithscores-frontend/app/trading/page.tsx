@@ -532,7 +532,7 @@ export default function TradingPage() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
             {/* Header - Mobile Optimized */}
-            <div className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10">
+            <div className="sticky top-16 z-40 bg-black/80 backdrop-blur-xl border-b border-white/10">
                 <div className="container mx-auto px-4 py-3">
                     {/* Mobile Header Grid */}
                     <div className="grid grid-cols-[44px_1fr_44px] md:flex md:items-center md:justify-between gap-2 md:gap-4">

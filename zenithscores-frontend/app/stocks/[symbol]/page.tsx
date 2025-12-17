@@ -109,7 +109,7 @@ export default function StockDetailPage() {
         <div className="theme-stock min-h-screen bg-[#F3F4F6] text-slate-800 pb-20 font-sans">
 
             {/* 1. Header Section */}
-            <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+            <div className="bg-white border-b border-gray-200 sticky top-16 z-20 shadow-sm">
                 <div className="container mx-auto px-4 py-3">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-4 w-full md:w-auto">

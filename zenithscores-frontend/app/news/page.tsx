@@ -190,7 +190,7 @@ export default function NewsPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10">
+      <div className="sticky top-16 z-40 bg-black/80 backdrop-blur-xl border-b border-white/10">
         <div className="container mx-auto px-4 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between">
             {/* Left: Back + Title */}
@@ -490,8 +490,8 @@ export default function NewsPage() {
                             key={pageNum}
                             onClick={() => setCurrentPage(pageNum)}
                             className={`w-10 h-10 rounded-lg font-bold transition-colors ${currentPage === pageNum
-                                ? 'bg-white text-black'
-                                : 'bg-white/10 text-white hover:bg-white/20'
+                              ? 'bg-white text-black'
+                              : 'bg-white/10 text-white hover:bg-white/20'
                               }`}
                           >
                             {pageNum}

@@ -16,7 +16,7 @@ export default function StockPortal() {
     return (
         <div className="theme-stock min-h-screen bg-[var(--background-dark)] text-[var(--foreground)]">
             {/* Sub-Header / Portal Theme */}
-            <div className="border-b border-[var(--border-color)] bg-[var(--background-card)] shadow-sm sticky top-0 z-30">
+            <div className="border-b border-[var(--border-color)] bg-[var(--background-card)] shadow-sm sticky top-16 z-20">
                 <div className="container mx-auto px-6 py-4 flex justify-between items-center">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
