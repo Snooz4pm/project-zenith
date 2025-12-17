@@ -25,7 +25,7 @@ export default function Navbar() {
         { href: '/crypto', label: 'Crypto' },
         { href: '/stocks', label: 'Stocks' },
         { href: '/news', label: 'News' },
-        { href: '/trading', label: 'Trading' },
+        { href: '/trading', label: 'Signals' },
     ];
 
     return (
