@@ -265,7 +265,7 @@ export default function LandingPage() {
 
           {/* Right: Enhanced Radar Visualization - Hidden on small mobile */}
           <motion.div
-            className="relative h-[300px] md:h-[450px] w-full hidden sm:block"
+            className="relative min-h-[300px] md:min-h-[450px] h-auto w-full hidden sm:block"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
