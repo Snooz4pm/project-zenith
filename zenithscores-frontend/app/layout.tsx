@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AuthProvider from "@/components/AuthProvider";
 import FloatingCommandButton from "@/components/FloatingCommandButton";
+import TermsAcceptanceModal from "@/components/TermsAcceptanceModal";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -35,12 +36,35 @@ export default function RootLayout({
       <body className="antialiased font-sans">
         <AuthProvider>
           <Navbar />
-          {/* Main content - no bottom padding needed anymore */}
+          {/* Global Terms Acceptance Check */}
+          <TermsAcceptanceModal />
+
           <main>
             {children}
+            {/* Global Financial Disclaimer Footer */}
+            <div className="bg-black/50 border-t border-white/5 py-8 mt-12 px-6">
+              <div className="container mx-auto max-w-4xl text-center">
+                <p className="text-[10px] text-gray-500 leading-relaxed uppercase tracking-widest mb-4">
+                  Financial Disclaimer & Regulatory Disclosure
+                </p>
+                <p className="text-xs text-gray-400 leading-relaxed max-w-3xl mx-auto">
+                  ZenithScores is an educational and data-tracking platform. All research, scores, and analysis provided are for
+                  <strong> informational and educational purposes only</strong>. Nothing on this platform constitutes financial, investment,
+                  legal, or tax advice. Trading stocks, cryptocurrencies, and other assets carries a high risk of loss.
+                  Past performance is not indicative of future results. Always conduct your own research and consult with a qualified
+                  financial professional before making any investment decisions.
+                </p>
+                <div className="flex justify-center gap-6 mt-6">
+                  <a href="/terms" className="text-[10px] text-gray-600 hover:text-white transition-colors">Terms of Service</a>
+                  <a href="/privacy" className="text-[10px] text-gray-600 hover:text-white transition-colors">Privacy Policy</a>
+                  <span className="text-[10px] text-gray-700">© 2025 ZenithScores Ecosystem</span>
+                </div>
+              </div>
+            </div>
           </main>
-          <Footer />
-          {/* Floating Command Button - mobile only, thumb-friendly nav */}
+          {/* Removing double footer if it exists elsewhere, or keeping layout clean */}
+          {/* <Footer /> */}
+
           <FloatingCommandButton />
         </AuthProvider>
       </body>

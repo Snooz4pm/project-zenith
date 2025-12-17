@@ -1,0 +1,194 @@
+/**
+ * 🔔 NOTIFICATION ENGINE
+ * Push notifications for 3-hour pulse, alerts, and engagement
+ */
+
+export interface NotificationConfig {
+    enabled: boolean;
+    pulseReminders: boolean;
+    arenaUpdates: boolean;
+    predictionResults: boolean;
+    coachAlerts: boolean;
+    streakWarnings: boolean;
+}
+
+export interface PushNotification {
+    id: string;
+    type: 'pulse' | 'arena' | 'prediction' | 'coach' | 'streak' | 'achievement';
+    title: string;
+    body: string;
+    icon?: string;
+    timestamp: Date;
+    read: boolean;
+    action?: string;
+}
+
+const STORAGE_KEY = 'zenith_notifications';
+const CONFIG_KEY = 'zenith_notification_config';
+
+// Default config
+export function getDefaultConfig(): NotificationConfig {
+    return {
+        enabled: true,
+        pulseReminders: true,
+        arenaUpdates: true,
+        predictionResults: true,
+        coachAlerts: true,
+        streakWarnings: true,
+    };
+}
+
+// Load/Save config
+export function loadNotificationConfig(): NotificationConfig {
+    if (typeof window === 'undefined') return getDefaultConfig();
+    const stored = localStorage.getItem(CONFIG_KEY);
+    return stored ? JSON.parse(stored) : getDefaultConfig();
+}
+
+export function saveNotificationConfig(config: NotificationConfig): void {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+}
+
+// Notification storage
+export function loadNotifications(): PushNotification[] {
+    if (typeof window === 'undefined') return [];
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return [];
+    return JSON.parse(stored).map((n: any) => ({
+        ...n,
+        timestamp: new Date(n.timestamp),
+    }));
+}
+
+export function saveNotifications(notifications: PushNotification[]): void {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications.slice(0, 50))); // Keep last 50
+}
+
+// Create notifications
+export function createNotification(
+    type: PushNotification['type'],
+    title: string,
+    body: string,
+    action?: string
+): PushNotification {
+    return {
+        id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        type,
+        title,
+        body,
+        timestamp: new Date(),
+        read: false,
+        action,
+    };
+}
+
+// Pre-built notification factories
+export const NotificationFactory = {
+    pulseReady: () => createNotification(
+        'pulse',
+        '🔥 3-Hour Pulse Ready!',
+        'Market mood updated. Check hot assets & your edge now.',
+        '/dashboard'
+    ),
+
+    streakWarning: (streak: number) => createNotification(
+        'streak',
+        '⚠️ Streak at Risk!',
+        `Your ${streak}-day streak expires soon. Check in now!`,
+        '/dashboard'
+    ),
+
+    predictionResult: (symbol: string, correct: boolean) => createNotification(
+        'prediction',
+        correct ? '✅ Prediction Correct!' : '❌ Prediction Missed',
+        correct
+            ? `Your ${symbol} prediction was correct! +20 XP earned.`
+            : `Your ${symbol} prediction expired. Try again!`,
+        '/dashboard'
+    ),
+
+    arenaUpdate: (rank: number) => createNotification(
+        'arena',
+        '🏆 Arena Update',
+        `You moved to rank #${rank} on the weekly leaderboard!`,
+        '/dashboard'
+    ),
+
+    coachFeedback: (symbol: string, result: 'win' | 'loss') => createNotification(
+        'coach',
+        result === 'win' ? '✅ Trade Reviewed' : '📊 Coach Feedback Ready',
+        `Your ${symbol} trade has been analyzed. View coaching insights.`,
+        '/trading/coach'
+    ),
+
+    achievementUnlocked: (title: string, icon: string) => createNotification(
+        'achievement',
+        `${icon} Achievement Unlocked!`,
+        `You earned "${title}"! View your badges.`,
+        '/dashboard'
+    ),
+
+    levelUp: (level: number) => createNotification(
+        'achievement',
+        '🎉 Level Up!',
+        `You reached Level ${level}! New rewards unlocked.`,
+        '/dashboard'
+    ),
+};
+
+// Browser Push Notification (requires permission)
+export async function requestPushPermission(): Promise<boolean> {
+    if (typeof window === 'undefined' || !('Notification' in window)) return false;
+
+    if (Notification.permission === 'granted') return true;
+
+    const result = await Notification.requestPermission();
+    return result === 'granted';
+}
+
+export function showBrowserNotification(title: string, body: string, icon?: string): void {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+
+    new Notification(title, {
+        body,
+        icon: icon || '/icon-192.png',
+    });
+}
+
+// 3-Hour Pulse Scheduler
+export function scheduleNextPulseNotification(): void {
+    if (typeof window === 'undefined') return;
+
+    const now = new Date();
+    const currentHour = now.getHours();
+    const nextPulseHour = Math.ceil((currentHour + 1) / 3) * 3;
+
+    const nextPulse = new Date(now);
+    nextPulse.setHours(nextPulseHour % 24, 0, 0, 0);
+    if (nextPulseHour >= 24) nextPulse.setDate(nextPulse.getDate() + 1);
+
+    const msUntilPulse = nextPulse.getTime() - now.getTime();
+
+    // Schedule notification 5 minutes before pulse
+    const notifyAt = msUntilPulse - (5 * 60 * 1000);
+
+    if (notifyAt > 0) {
+        setTimeout(() => {
+            const config = loadNotificationConfig();
+            if (config.enabled && config.pulseReminders) {
+                showBrowserNotification('🔥 3-Hour Pulse in 5 mins!', 'Get ready for market insights.');
+
+                // Add to notification list
+                const notifications = loadNotifications();
+                notifications.unshift(NotificationFactory.pulseReady());
+                saveNotifications(notifications);
+            }
+
+            // Schedule next one
+            scheduleNextPulseNotification();
+        }, notifyAt);
+    }
+}

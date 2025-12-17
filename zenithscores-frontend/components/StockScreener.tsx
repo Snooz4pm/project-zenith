@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, ArrowUp, ArrowDown, Star, Search, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
+import { Filter, ArrowUp, ArrowDown, Star, Search, SlidersHorizontal, ChevronDown, ChevronUp, Lock } from 'lucide-react';
 import Link from 'next/link';
+import { isPremiumUser, FREE_STOCK_LIMIT } from '@/lib/premium';
+import PremiumWall from '@/components/PremiumWall';
 
 interface Stock {
     symbol: string;
@@ -45,6 +47,12 @@ export default function StockScreener({ initialSector }: StockScreenerProps) {
     const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
     const [view, setView] = useState<'market' | 'watchlist'>('market');
+    const [premium, setPremium] = useState(false);
+
+    // Check premium status on mount
+    useEffect(() => {
+        setPremium(isPremiumUser());
+    }, []);
 
     // Sync initialSector prop with selectedSectors state
     useEffect(() => {
@@ -265,7 +273,7 @@ export default function StockScreener({ initialSector }: StockScreenerProps) {
                 {/* Results Grid/List */}
                 <div className="space-y-4">
                     <AnimatePresence>
-                        {filteredStocks.map((stock, i) => (
+                        {(premium ? filteredStocks : filteredStocks.slice(0, FREE_STOCK_LIMIT)).map((stock, i) => (
                             <motion.div
                                 key={stock.symbol}
                                 layout
@@ -331,6 +339,22 @@ export default function StockScreener({ initialSector }: StockScreenerProps) {
                     {filteredStocks.length === 0 && (
                         <div className="text-center py-20 text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                             No stocks match your filters.
+                        </div>
+                    )}
+
+                    {/* Premium Wall - Show after free limit */}
+                    {!premium && filteredStocks.length > FREE_STOCK_LIMIT && (
+                        <div className="mt-6">
+                            <div className="mb-4 flex items-center justify-center gap-2 text-gray-500">
+                                <Lock size={16} />
+                                <span className="text-sm">
+                                    +{filteredStocks.length - FREE_STOCK_LIMIT} more stocks locked
+                                </span>
+                            </div>
+                            <PremiumWall
+                                stocksLocked={filteredStocks.length - FREE_STOCK_LIMIT}
+                                onUnlock={() => setPremium(true)}
+                            />
                         </div>
                     )}
                 </div>

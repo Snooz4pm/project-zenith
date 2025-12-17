@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import UserMenu from './UserMenu';
+import ScoreAlerts from './ScoreAlerts';
 
 export default function Navbar() {
     const pathname = usePathname();
@@ -22,8 +23,11 @@ export default function Navbar() {
     }, []);
 
     const navLinks = [
+        { href: '/dashboard', label: 'Dashboard' },
         { href: '/crypto', label: 'Crypto' },
         { href: '/stocks', label: 'Stocks' },
+        { href: '/forex', label: 'Forex' },
+        { href: '/commodities', label: 'Commodities' },
         { href: '/news', label: 'News' },
         { href: '/trading', label: 'Signals' },
     ];
@@ -116,8 +120,9 @@ export default function Navbar() {
                     ))}
                 </div>
 
-                {/* Right Side - UserMenu only (no hamburger on mobile anymore) */}
-                <div className="flex items-center">
+                {/* Right Side - Alerts + UserMenu */}
+                <div className="flex items-center gap-3">
+                    <ScoreAlerts />
                     <UserMenu />
                 </div>
             </div>

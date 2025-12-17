@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
     ArrowLeft, TrendingUp, TrendingDown, Wallet, BarChart3,
     Trophy, History, AlertTriangle, CheckCircle, X, RefreshCw,
-    DollarSign, Percent, Target, Shield, Activity, Bell, LogIn, User
+    DollarSign, Percent, Target, Shield, Activity, Bell, LogIn, User, GraduationCap
 } from 'lucide-react';
 import PortfolioChart from '@/components/PortfolioChart';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
@@ -659,6 +659,16 @@ export default function TradingPage() {
                                 <span className="sm:hidden">{tab.label.length > 6 ? tab.label.slice(0, 4) : tab.label}</span>
                             </button>
                         ))}
+                        {/* Coach Tab - Links to separate page */}
+                        <Link
+                            href="/trading/coach"
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors whitespace-nowrap flex-shrink-0 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30"
+                        >
+                            <GraduationCap size={16} />
+                            <span className="hidden sm:inline">Coach</span>
+                            <span className="sm:hidden">Coach</span>
+                            <span className="text-[10px] px-1.5 py-0.5 bg-purple-500/30 rounded-full">Pro</span>
+                        </Link>
                     </div>
                 </div>
 
