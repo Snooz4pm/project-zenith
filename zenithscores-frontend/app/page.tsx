@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useRef } from 'react';
+import { Suspense, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Activity, Cpu, ShieldCheck, History, Zap, TrendingUp, Newspaper, ChevronDown } from 'lucide-react';
 import { motion, useInView } from 'framer-motion';
@@ -14,6 +14,7 @@ import MagneticButton from '@/components/MagneticButton';
 import GlowingBorder from '@/components/GlowingBorder';
 import LiveIndicator from '@/components/LiveIndicator';
 import AnimatedProgress from '@/components/AnimatedProgress';
+import ScanningExplainer from '@/components/ScanningExplainer';
 
 // Animation variants
 const staggerContainer = {
@@ -54,6 +55,7 @@ const scaleInItem = {
 export default function LandingPage() {
   const methodologyRef = useRef<HTMLDivElement>(null);
   const isMethodologyInView = useInView(methodologyRef, { once: true, margin: '-100px' });
+  const [showScanningExplainer, setShowScanningExplainer] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white font-sans selection:bg-cyan-500/30 overflow-x-hidden">
@@ -298,9 +300,12 @@ export default function LandingPage() {
                 className="absolute bottom-1/4 left-1/4 w-2.5 h-2.5 bg-purple-400 rounded-full shadow-[0_0_15px_#a855f7,0_0_30px_#a855f7]"
               />
 
-              {/* Center Display */}
-              <div className="z-10 text-center bg-black/60 backdrop-blur-xl p-8 rounded-2xl border border-white/10 shadow-2xl">
-                <div className="text-5xl font-mono font-bold tracking-tighter text-white mb-2 flex items-center justify-center gap-1">
+              {/* Center Display - Clickable */}
+              <button
+                onClick={() => setShowScanningExplainer(true)}
+                className="z-10 text-center bg-black/60 backdrop-blur-xl p-8 rounded-2xl border border-white/10 shadow-2xl cursor-pointer hover:border-cyan-500/30 hover:shadow-[0_0_30px_rgba(0,240,255,0.2)] transition-all duration-300 group"
+              >
+                <div className="text-5xl font-mono font-bold tracking-tighter text-white mb-2 flex items-center justify-center gap-1 group-hover:text-cyan-300 transition-colors">
                   <span>Scanning</span>
                   <motion.span
                     animate={{ opacity: [1, 0] }}
@@ -320,7 +325,14 @@ export default function LandingPage() {
                   gradientTo="#a855f7"
                   showGlow={true}
                 />
-              </div>
+                {/* Click hint */}
+                <div className="mt-4 text-[10px] text-gray-500 group-hover:text-cyan-400 transition-colors flex items-center justify-center gap-1">
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">Click to learn how it works</span>
+                  <svg className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </button>
             </InteractiveCard>
           </motion.div>
         </div>
@@ -480,6 +492,12 @@ export default function LandingPage() {
           </motion.div>
         </motion.div>
       </div>
+
+      {/* Scanning Explainer Modal */}
+      <ScanningExplainer
+        isOpen={showScanningExplainer}
+        onClose={() => setShowScanningExplainer(false)}
+      />
 
     </div>
   );

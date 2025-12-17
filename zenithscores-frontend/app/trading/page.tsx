@@ -531,27 +531,31 @@ export default function TradingPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
-            {/* Header */}
+            {/* Header - Mobile Optimized */}
             <div className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10">
-                <div className="container mx-auto px-4 md:px-6 py-3">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <Link href="/" className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                                <ArrowLeft size={20} />
-                            </Link>
-                            <div>
-                                <h1 className="text-xl font-bold flex items-center gap-2">
-                                    📈 Zenith Paper Trading
-                                    <span className="text-xs px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full">DEMO</span>
-                                </h1>
-                                <p className="text-xs text-gray-500">Session: {sessionId}</p>
-                            </div>
+                <div className="container mx-auto px-4 py-3">
+                    {/* Mobile Header Grid */}
+                    <div className="grid grid-cols-[44px_1fr_44px] md:flex md:items-center md:justify-between gap-2 md:gap-4">
+                        {/* Back Button */}
+                        <Link href="/" className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 transition-colors flex-shrink-0">
+                            <ArrowLeft size={20} />
+                        </Link>
+
+                        {/* Title - Centered on mobile, left on desktop */}
+                        <div className="min-w-0 text-center md:text-left md:flex-1">
+                            <h1 className="text-lg md:text-xl font-bold flex items-center justify-center md:justify-start gap-2 truncate">
+                                <span className="hidden md:inline">📈</span>
+                                <span className="truncate">Zenith Trading</span>
+                                <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full flex-shrink-0">DEMO</span>
+                            </h1>
+                            <p className="text-[10px] md:text-xs text-gray-500 truncate">Session: {sessionId?.slice(0, 8)}...</p>
                         </div>
 
+                        {/* Refresh Button */}
                         <button
                             onClick={handleRefresh}
                             disabled={refreshing}
-                            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                            className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 transition-colors flex-shrink-0"
                         >
                             <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
                         </button>
@@ -630,99 +634,213 @@ export default function TradingPage() {
                 </div>
             )}
 
-            {/* Tabs */}
-            <div className="container mx-auto px-4 py-4">
-                <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                    {[
-                        { id: 'portfolio', label: 'Portfolio', icon: Wallet },
-                        { id: 'trade', label: 'Trade', icon: BarChart3 },
-                        { id: 'history', label: 'History', icon: History },
-                        { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
-                        { id: 'analytics', label: 'Analytics', icon: Activity },
-                    ].map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id as any)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
-                                ? 'bg-white text-black'
-                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                                }`}
-                        >
-                            <tab.icon size={16} />
-                            {tab.label}
-                        </button>
-                    ))}
+            {/* Tabs - Mobile Optimized */}
+            <div className="container mx-auto px-0 md:px-4 py-4">
+                {/* Scrollable tabs wrapper with proper padding */}
+                <div className="overflow-x-auto scrollbar-hide -webkit-overflow-scrolling-touch">
+                    <div className="flex gap-2 mb-6 px-4 md:px-0 min-w-max">
+                        {[
+                            { id: 'portfolio', label: 'Portfolio', icon: Wallet },
+                            { id: 'trade', label: 'Trade', icon: BarChart3 },
+                            { id: 'history', label: 'History', icon: History },
+                            { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
+                            { id: 'analytics', label: 'Analytics', icon: Activity },
+                        ].map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors whitespace-nowrap flex-shrink-0 ${activeTab === tab.id
+                                    ? 'bg-white text-black'
+                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                    }`}
+                            >
+                                <tab.icon size={16} />
+                                <span className="hidden sm:inline">{tab.label}</span>
+                                <span className="sm:hidden">{tab.label.length > 6 ? tab.label.slice(0, 4) : tab.label}</span>
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
-                {/* Portfolio Tab */}
-                {activeTab === 'portfolio' && portfolio && (
-                    <div className="space-y-6">
-                        {/* Portfolio Chart */}
-                        {sessionId && (
-                            <PortfolioChart
-                                sessionId={sessionId}
-                                currentValue={portfolio.portfolio_value}
-                                totalPnl={portfolio.total_pnl}
-                            />
-                        )}
+                {/* Tab content wrapper with proper padding */}
+                <div className="px-4 md:px-0">
 
+                    {/* Portfolio Tab */}
+                    {activeTab === 'portfolio' && portfolio && (
+                        <div className="space-y-6">
+                            {/* Portfolio Chart */}
+                            {sessionId && (
+                                <PortfolioChart
+                                    sessionId={sessionId}
+                                    currentValue={portfolio.portfolio_value}
+                                    totalPnl={portfolio.total_pnl}
+                                />
+                            )}
+
+                            <div className="glass-panel rounded-xl p-4">
+                                <h2 className="text-lg font-bold mb-4">Your Holdings</h2>
+                                {portfolio.holdings.length === 0 ? (
+                                    <div className="text-center py-12 text-gray-500">
+                                        <Wallet className="mx-auto mb-4 opacity-50" size={48} />
+                                        <p>No holdings yet. Start trading!</p>
+                                        <button
+                                            onClick={() => setActiveTab('trade')}
+                                            className="mt-4 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
+                                        >
+                                            Open Trading
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr className="text-xs text-gray-500 uppercase border-b border-white/10">
+                                                    <th className="text-left py-3 px-2">Asset</th>
+                                                    <th className="text-right py-3 px-2">Quantity</th>
+                                                    <th className="text-right py-3 px-2">Avg Price</th>
+                                                    <th className="text-right py-3 px-2">Current</th>
+                                                    <th className="text-right py-3 px-2">Value</th>
+                                                    <th className="text-right py-3 px-2">P&L</th>
+                                                    <th className="text-right py-3 px-2">Leverage</th>
+                                                    <th className="text-center py-3 px-2">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {portfolio.holdings.map((holding) => (
+                                                    <tr key={holding.symbol} className="border-b border-white/5 hover:bg-white/5">
+                                                        <td className="py-3 px-2">
+                                                            <div className="font-bold">{holding.symbol}</div>
+                                                            <div className="text-xs text-gray-500">{holding.name}</div>
+                                                        </td>
+                                                        <td className="text-right py-3 px-2 font-mono">{holding.quantity.toFixed(4)}</td>
+                                                        <td className="text-right py-3 px-2 font-mono">{formatCurrency(holding.avg_buy_price)}</td>
+                                                        <td className="text-right py-3 px-2 font-mono">{formatCurrency(holding.current_price)}</td>
+                                                        <td className="text-right py-3 px-2 font-mono font-bold">{formatCurrency(holding.current_value)}</td>
+                                                        <td className={`text-right py-3 px-2 font-mono font-bold ${holding.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                            {formatCurrency(holding.unrealized_pnl)}
+                                                        </td>
+                                                        <td className="text-right py-3 px-2">
+                                                            <span className={`px-2 py-0.5 rounded text-xs ${holding.leverage > 1 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                                                                {holding.leverage}x
+                                                            </span>
+                                                        </td>
+                                                        <td className="text-center py-3 px-2">
+                                                            <button
+                                                                onClick={() => {
+                                                                    const asset = assets.find(a => a.symbol === holding.symbol);
+                                                                    if (asset) openTradeModal(asset, 'sell');
+                                                                }}
+                                                                className="px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 text-sm"
+                                                            >
+                                                                Sell
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Trade Tab */}
+                    {activeTab === 'trade' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {assets.map(asset => (
+                                <motion.div
+                                    key={asset.symbol}
+                                    className="glass-panel rounded-xl p-4 hover:border-white/20 transition-colors"
+                                    whileHover={{ scale: 1.02 }}
+                                >
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div>
+                                            <div className="font-bold text-lg">{asset.symbol}</div>
+                                            <div className="text-xs text-gray-500">{asset.name}</div>
+                                        </div>
+                                        <span className={`text-xs px-2 py-0.5 rounded ${asset.asset_type === 'crypto' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
+                                            }`}>
+                                            {asset.asset_type}
+                                        </span>
+                                    </div>
+
+                                    <div className="mb-4">
+                                        <div className="text-2xl font-bold font-mono">{formatCurrency(asset.current_price)}</div>
+                                        <div className={`text-sm flex items-center gap-1 ${asset.price_change_24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                            {asset.price_change_24h >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                                            {formatPercent(asset.price_change_24h)}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => openTradeModal(asset, 'buy')}
+                                            className="flex-1 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 font-medium transition-colors"
+                                        >
+                                            Buy
+                                        </button>
+                                        <button
+                                            onClick={() => openTradeModal(asset, 'sell')}
+                                            className="flex-1 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 font-medium transition-colors"
+                                        >
+                                            Sell
+                                        </button>
+                                    </div>
+
+                                    <div className="mt-3 text-xs text-gray-500 flex items-center gap-1">
+                                        <Shield size={12} />
+                                        Max Leverage: {asset.max_leverage}x
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* History Tab */}
+                    {activeTab === 'history' && (
                         <div className="glass-panel rounded-xl p-4">
-                            <h2 className="text-lg font-bold mb-4">Your Holdings</h2>
-                            {portfolio.holdings.length === 0 ? (
+                            <h2 className="text-lg font-bold mb-4">Trade History</h2>
+                            {tradeHistory.length === 0 ? (
                                 <div className="text-center py-12 text-gray-500">
-                                    <Wallet className="mx-auto mb-4 opacity-50" size={48} />
-                                    <p>No holdings yet. Start trading!</p>
-                                    <button
-                                        onClick={() => setActiveTab('trade')}
-                                        className="mt-4 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
-                                    >
-                                        Open Trading
-                                    </button>
+                                    <History className="mx-auto mb-4 opacity-50" size={48} />
+                                    <p>No trades yet</p>
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
                                         <thead>
                                             <tr className="text-xs text-gray-500 uppercase border-b border-white/10">
+                                                <th className="text-left py-3 px-2">Date</th>
                                                 <th className="text-left py-3 px-2">Asset</th>
+                                                <th className="text-center py-3 px-2">Type</th>
                                                 <th className="text-right py-3 px-2">Quantity</th>
-                                                <th className="text-right py-3 px-2">Avg Price</th>
-                                                <th className="text-right py-3 px-2">Current</th>
-                                                <th className="text-right py-3 px-2">Value</th>
+                                                <th className="text-right py-3 px-2">Price</th>
+                                                <th className="text-right py-3 px-2">Total</th>
                                                 <th className="text-right py-3 px-2">P&L</th>
-                                                <th className="text-right py-3 px-2">Leverage</th>
-                                                <th className="text-center py-3 px-2">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {portfolio.holdings.map((holding) => (
-                                                <tr key={holding.symbol} className="border-b border-white/5 hover:bg-white/5">
-                                                    <td className="py-3 px-2">
-                                                        <div className="font-bold">{holding.symbol}</div>
-                                                        <div className="text-xs text-gray-500">{holding.name}</div>
+                                            {tradeHistory.map((trade) => (
+                                                <tr key={trade.id} className="border-b border-white/5 hover:bg-white/5">
+                                                    <td className="py-3 px-2 text-sm text-gray-400">
+                                                        {new Date(trade.executed_at).toLocaleDateString()}
                                                     </td>
-                                                    <td className="text-right py-3 px-2 font-mono">{holding.quantity.toFixed(4)}</td>
-                                                    <td className="text-right py-3 px-2 font-mono">{formatCurrency(holding.avg_buy_price)}</td>
-                                                    <td className="text-right py-3 px-2 font-mono">{formatCurrency(holding.current_price)}</td>
-                                                    <td className="text-right py-3 px-2 font-mono font-bold">{formatCurrency(holding.current_value)}</td>
-                                                    <td className={`text-right py-3 px-2 font-mono font-bold ${holding.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                        {formatCurrency(holding.unrealized_pnl)}
-                                                    </td>
-                                                    <td className="text-right py-3 px-2">
-                                                        <span className={`px-2 py-0.5 rounded text-xs ${holding.leverage > 1 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-500/20 text-gray-400'}`}>
-                                                            {holding.leverage}x
+                                                    <td className="py-3 px-2 font-bold">{trade.symbol}</td>
+                                                    <td className="py-3 px-2 text-center">
+                                                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${trade.trade_type === 'buy'
+                                                            ? 'bg-emerald-500/20 text-emerald-400'
+                                                            : 'bg-red-500/20 text-red-400'
+                                                            }`}>
+                                                            {trade.trade_type.toUpperCase()}
                                                         </span>
                                                     </td>
-                                                    <td className="text-center py-3 px-2">
-                                                        <button
-                                                            onClick={() => {
-                                                                const asset = assets.find(a => a.symbol === holding.symbol);
-                                                                if (asset) openTradeModal(asset, 'sell');
-                                                            }}
-                                                            className="px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 text-sm"
-                                                        >
-                                                            Sell
-                                                        </button>
+                                                    <td className="text-right py-3 px-2 font-mono">{trade.quantity.toFixed(4)}</td>
+                                                    <td className="text-right py-3 px-2 font-mono">{formatCurrency(trade.price_at_execution)}</td>
+                                                    <td className="text-right py-3 px-2 font-mono">{formatCurrency(trade.total_value)}</td>
+                                                    <td className={`text-right py-3 px-2 font-mono font-bold ${trade.realized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'
+                                                        }`}>
+                                                        {trade.realized_pnl !== 0 ? formatCurrency(trade.realized_pnl) : '-'}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -731,169 +849,63 @@ export default function TradingPage() {
                                 </div>
                             )}
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {/* Trade Tab */}
-                {activeTab === 'trade' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {assets.map(asset => (
-                            <motion.div
-                                key={asset.symbol}
-                                className="glass-panel rounded-xl p-4 hover:border-white/20 transition-colors"
-                                whileHover={{ scale: 1.02 }}
-                            >
-                                <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                        <div className="font-bold text-lg">{asset.symbol}</div>
-                                        <div className="text-xs text-gray-500">{asset.name}</div>
-                                    </div>
-                                    <span className={`text-xs px-2 py-0.5 rounded ${asset.asset_type === 'crypto' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
-                                        }`}>
-                                        {asset.asset_type}
-                                    </span>
+                    {/* Leaderboard Tab */}
+                    {activeTab === 'leaderboard' && (
+                        <div className="glass-panel rounded-xl p-4">
+                            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                <Trophy className="text-yellow-400" />
+                                Top Traders
+                            </h2>
+                            {leaderboard.length === 0 ? (
+                                <div className="text-center py-12 text-gray-500">
+                                    <Trophy className="mx-auto mb-4 opacity-50" size={48} />
+                                    <p>No traders yet</p>
                                 </div>
-
-                                <div className="mb-4">
-                                    <div className="text-2xl font-bold font-mono">{formatCurrency(asset.current_price)}</div>
-                                    <div className={`text-sm flex items-center gap-1 ${asset.price_change_24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                        {asset.price_change_24h >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                                        {formatPercent(asset.price_change_24h)}
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => openTradeModal(asset, 'buy')}
-                                        className="flex-1 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 font-medium transition-colors"
-                                    >
-                                        Buy
-                                    </button>
-                                    <button
-                                        onClick={() => openTradeModal(asset, 'sell')}
-                                        className="flex-1 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 font-medium transition-colors"
-                                    >
-                                        Sell
-                                    </button>
-                                </div>
-
-                                <div className="mt-3 text-xs text-gray-500 flex items-center gap-1">
-                                    <Shield size={12} />
-                                    Max Leverage: {asset.max_leverage}x
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                )}
-
-                {/* History Tab */}
-                {activeTab === 'history' && (
-                    <div className="glass-panel rounded-xl p-4">
-                        <h2 className="text-lg font-bold mb-4">Trade History</h2>
-                        {tradeHistory.length === 0 ? (
-                            <div className="text-center py-12 text-gray-500">
-                                <History className="mx-auto mb-4 opacity-50" size={48} />
-                                <p>No trades yet</p>
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="text-xs text-gray-500 uppercase border-b border-white/10">
-                                            <th className="text-left py-3 px-2">Date</th>
-                                            <th className="text-left py-3 px-2">Asset</th>
-                                            <th className="text-center py-3 px-2">Type</th>
-                                            <th className="text-right py-3 px-2">Quantity</th>
-                                            <th className="text-right py-3 px-2">Price</th>
-                                            <th className="text-right py-3 px-2">Total</th>
-                                            <th className="text-right py-3 px-2">P&L</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {tradeHistory.map((trade) => (
-                                            <tr key={trade.id} className="border-b border-white/5 hover:bg-white/5">
-                                                <td className="py-3 px-2 text-sm text-gray-400">
-                                                    {new Date(trade.executed_at).toLocaleDateString()}
-                                                </td>
-                                                <td className="py-3 px-2 font-bold">{trade.symbol}</td>
-                                                <td className="py-3 px-2 text-center">
-                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${trade.trade_type === 'buy'
-                                                        ? 'bg-emerald-500/20 text-emerald-400'
-                                                        : 'bg-red-500/20 text-red-400'
-                                                        }`}>
-                                                        {trade.trade_type.toUpperCase()}
-                                                    </span>
-                                                </td>
-                                                <td className="text-right py-3 px-2 font-mono">{trade.quantity.toFixed(4)}</td>
-                                                <td className="text-right py-3 px-2 font-mono">{formatCurrency(trade.price_at_execution)}</td>
-                                                <td className="text-right py-3 px-2 font-mono">{formatCurrency(trade.total_value)}</td>
-                                                <td className={`text-right py-3 px-2 font-mono font-bold ${trade.realized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'
+                            ) : (
+                                <div className="space-y-3">
+                                    {leaderboard.map((entry, index) => (
+                                        <div
+                                            key={index}
+                                            className={`flex items-center justify-between p-3 rounded-lg ${index === 0 ? 'bg-yellow-500/10 border border-yellow-500/20' :
+                                                index === 1 ? 'bg-gray-400/10 border border-gray-400/20' :
+                                                    index === 2 ? 'bg-amber-700/10 border border-amber-700/20' :
+                                                        'bg-white/5'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${index === 0 ? 'bg-yellow-500 text-black' :
+                                                    index === 1 ? 'bg-gray-400 text-black' :
+                                                        index === 2 ? 'bg-amber-700 text-white' :
+                                                            'bg-white/10 text-gray-400'
                                                     }`}>
-                                                    {trade.realized_pnl !== 0 ? formatCurrency(trade.realized_pnl) : '-'}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Leaderboard Tab */}
-                {activeTab === 'leaderboard' && (
-                    <div className="glass-panel rounded-xl p-4">
-                        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                            <Trophy className="text-yellow-400" />
-                            Top Traders
-                        </h2>
-                        {leaderboard.length === 0 ? (
-                            <div className="text-center py-12 text-gray-500">
-                                <Trophy className="mx-auto mb-4 opacity-50" size={48} />
-                                <p>No traders yet</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {leaderboard.map((entry, index) => (
-                                    <div
-                                        key={index}
-                                        className={`flex items-center justify-between p-3 rounded-lg ${index === 0 ? 'bg-yellow-500/10 border border-yellow-500/20' :
-                                            index === 1 ? 'bg-gray-400/10 border border-gray-400/20' :
-                                                index === 2 ? 'bg-amber-700/10 border border-amber-700/20' :
-                                                    'bg-white/5'
-                                            }`}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${index === 0 ? 'bg-yellow-500 text-black' :
-                                                index === 1 ? 'bg-gray-400 text-black' :
-                                                    index === 2 ? 'bg-amber-700 text-white' :
-                                                        'bg-white/10 text-gray-400'
-                                                }`}>
-                                                {entry.rank}
+                                                    {entry.rank}
+                                                </div>
+                                                <div>
+                                                    <div className="font-bold">{entry.display_name}</div>
+                                                    <div className="text-xs text-gray-500">{entry.total_trades} trades • {entry.win_rate.toFixed(1)}% win rate</div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <div className="font-bold">{entry.display_name}</div>
-                                                <div className="text-xs text-gray-500">{entry.total_trades} trades • {entry.win_rate.toFixed(1)}% win rate</div>
+                                            <div className="text-right">
+                                                <div className="font-bold font-mono">{formatCurrency(entry.portfolio_value)}</div>
+                                                <div className={`text-sm ${entry.total_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                    {formatCurrency(entry.total_pnl)}
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="font-bold font-mono">{formatCurrency(entry.portfolio_value)}</div>
-                                            <div className={`text-sm ${entry.total_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                {formatCurrency(entry.total_pnl)}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
-                {/* Analytics Tab */}
-                {activeTab === 'analytics' && (
-                    <AnalyticsDashboard sessionId={sessionId || ''} />
-                )}
-            </div>
+                    {/* Analytics Tab */}
+                    {activeTab === 'analytics' && (
+                        <AnalyticsDashboard sessionId={sessionId || ''} />
+                    )}
+                </div>{/* End tab content wrapper */}
+            </div>{/* End tabs container */}
 
             {/* Trade Modal */}
             <AnimatePresence>
