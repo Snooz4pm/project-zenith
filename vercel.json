@@ -11,5 +11,11 @@
             "src": "/(.*)",
             "dest": "merged_api.py"
         }
+    ],
+    "crons": [
+        {
+            "path": "/api/cron/news",
+            "schedule": "0 * * * *"
+        }
     ]
 }
