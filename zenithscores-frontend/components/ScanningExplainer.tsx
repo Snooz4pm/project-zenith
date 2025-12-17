@@ -7,6 +7,8 @@ import { X, Cpu, BarChart3, TrendingUp, Shield, Zap, Clock } from 'lucide-react'
 interface ScanningExplainerProps {
     isOpen: boolean;
     onClose: () => void;
+    onMouseEnter?: () => void;
+    onMouseLeave?: () => void;
 }
 
 const scanningSteps = [
@@ -48,18 +50,18 @@ const scanningSteps = [
     },
 ];
 
-export function ScanningExplainer({ isOpen, onClose }: ScanningExplainerProps) {
+export function ScanningExplainer({ isOpen, onClose, onMouseEnter, onMouseLeave }: ScanningExplainerProps) {
     return (
         <AnimatePresence>
             {isOpen && (
                 <>
-                    {/* Backdrop */}
+                    {/* Backdrop - pointer-events-none to allow transparency and not block button hover */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]"
+                        className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-[200] pointer-events-none"
                     />
 
                     {/* Modal */}
@@ -68,7 +70,9 @@ export function ScanningExplainer({ isOpen, onClose }: ScanningExplainerProps) {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[600px] md:max-h-[80vh] z-[201] overflow-auto"
+                        className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[600px] md:max-h-[80vh] z-[201] overflow-auto pointer-events-auto"
+                        onMouseEnter={onMouseEnter}
+                        onMouseLeave={onMouseLeave}
                     >
                         <div className="relative bg-[#0a0a12] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
                             {/* Glowing header effect */}
