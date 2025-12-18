@@ -910,28 +910,7 @@ def get_stock_peers(symbol: str):
 
 # ═══════════════════════════════════════════════════════
 # TRADING ENDPOINTS
-            return {"status": "success", "data": [{"symbol": "NVDA", "name": "NVIDIA", "price_usd": 140.50, "price_change_24h": 4.5, "zenith_score": 92}]}
-
-        stocks = []
-        for item in unique_list[:limit]:
-            price = float(item.get('price', 0))
-            change = float(item.get('change_percentage', '0%').replace('%', ''))
-            volume = float(item.get('volume', 0))
-            score = calculate_stock_score({'price': price, 'changesPercentage': change, 'volume': volume, 'avgVolume': volume})
-            
-            stocks.append({
-                "symbol": item.get('ticker'),
-                "price_usd": price,
-                "price_change_24h": change,
-                "zenith_score": score,
-                "type": "stock"
-            })
-            
-        stocks.sort(key=lambda x: x['zenith_score'], reverse=True)
-        return {"status": "success", "count": len(stocks), "data": stocks}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+# ═══════════════════════════════════════════════════════
 
 # ═══════════════════════════════════════════════════════
 # FOREX & COMMODITIES ENDPOINTS

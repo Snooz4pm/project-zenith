@@ -3,7 +3,10 @@
     "builds": [
         {
             "src": "merged_api.py",
-            "use": "@vercel/python"
+            "use": "@vercel/python",
+            "config": {
+                "maxLambdaSize": "50mb"
+            }
         }
     ],
     "routes": [
@@ -17,5 +20,8 @@
             "path": "/api/cron/news",
             "schedule": "0 * * * *"
         }
-    ]
+    ],
+    "env": {
+        "PYTHONUNBUFFERED": "1"
+    }
 }
