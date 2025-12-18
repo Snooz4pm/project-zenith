@@ -63,7 +63,11 @@ export function loadNotifications(): PushNotification[] {
 
 export function saveNotifications(notifications: PushNotification[]): void {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications.slice(0, 50))); // Keep last 50
+
+    // Deduplicate by ID
+    const unique = Array.from(new Map(notifications.map(n => [n.id, n])).values());
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(unique.slice(0, 50))); // Keep last 50
 }
 
 // Create notifications
@@ -173,9 +177,19 @@ export function sendHighScoreAlert(symbol: string, score: number): void {
     const config = loadNotificationConfig();
     if (!config.enabled) return;
 
-    // Add to notification list
+    const notif = NotificationFactory.highScoreSignal(symbol, score);
+
+    // Check for duplicates in last 5 minutes (to avoid spamming same signal)
     const notifications = loadNotifications();
-    notifications.unshift(NotificationFactory.highScoreSignal(symbol, score));
+    const isDuplicate = notifications.some(n =>
+        n.type === 'signal' &&
+        n.title.includes(symbol) &&
+        (Date.now() - new Date(n.timestamp).getTime() < 5 * 60 * 1000)
+    );
+
+    if (isDuplicate) return;
+
+    notifications.unshift(notif);
     saveNotifications(notifications);
 
     // Show browser notification if permitted
@@ -202,12 +216,20 @@ export function getPushPermissionStatus(): 'granted' | 'denied' | 'default' | 'u
 }
 
 // 3-Hour Pulse Scheduler
+let pulseTimer: NodeJS.Timeout | null = null;
+
 export function scheduleNextPulseNotification(): void {
     if (typeof window === 'undefined') return;
 
+    // Prevent multiple timers
+    if ((window as any).__zenith_pulse_scheduled) return;
+    (window as any).__zenith_pulse_scheduled = true;
+
+    if (pulseTimer) clearTimeout(pulseTimer);
+
     const now = new Date();
     const currentHour = now.getHours();
-    const nextPulseHour = Math.ceil((currentHour + 1) / 3) * 3;
+    const nextPulseHour = Math.ceil((currentHour + 0.001) / 3) * 3;
 
     const nextPulse = new Date(now);
     nextPulse.setHours(nextPulseHour % 24, 0, 0, 0);
@@ -219,19 +241,31 @@ export function scheduleNextPulseNotification(): void {
     const notifyAt = msUntilPulse - (5 * 60 * 1000);
 
     if (notifyAt > 0) {
-        setTimeout(() => {
+        pulseTimer = setTimeout(() => {
+            (window as any).__zenith_pulse_scheduled = false;
             const config = loadNotificationConfig();
             if (config.enabled && config.pulseReminders) {
-                showBrowserNotification('🔥 3-Hour Pulse in 5 mins!', 'Get ready for market insights.');
-
-                // Add to notification list
+                const pulseId = `pulse_${nextPulse.getTime()}`;
                 const notifications = loadNotifications();
-                notifications.unshift(NotificationFactory.pulseReady());
-                saveNotifications(notifications);
+
+                // Deduplicate pulse notifications
+                if (!notifications.some(n => n.id === pulseId)) {
+                    showBrowserNotification('🔥 3-Hour Pulse in 5 mins!', 'Get ready for market insights.');
+                    const notif = NotificationFactory.pulseReady();
+                    notif.id = pulseId;
+                    notifications.unshift(notif);
+                    saveNotifications(notifications);
+                }
             }
 
             // Schedule next one
             scheduleNextPulseNotification();
         }, notifyAt);
+    } else if (msUntilPulse > 0) {
+        // If we are within the 5 minute window, check again in 1 minute
+        pulseTimer = setTimeout(() => {
+            (window as any).__zenith_pulse_scheduled = false;
+            scheduleNextPulseNotification();
+        }, 60000);
     }
 }

@@ -57,7 +57,7 @@ export default function CommoditiesScreener() {
     const fetchCommoditiesData = async () => {
         setLoading(true);
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
             const res = await fetch(`${apiUrl}/api/v1/commodities/prices`);
             const data = await res.json();
 
@@ -114,8 +114,8 @@ export default function CommoditiesScreener() {
                 <button
                     onClick={() => setActiveCategory('all')}
                     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeCategory === 'all'
-                            ? 'bg-gray-900 text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                 >
                     All Commodities
@@ -125,8 +125,8 @@ export default function CommoditiesScreener() {
                         key={key}
                         onClick={() => setActiveCategory(key as any)}
                         className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${activeCategory === key
-                                ? `${info.bg} ${info.color} border border-current`
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            ? `${info.bg} ${info.color} border border-current`
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                     >
                         <info.icon size={14} />
@@ -198,8 +198,8 @@ export default function CommoditiesScreener() {
                                         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                                             <div
                                                 className={`h-full rounded-full ${commodity.zenithScore >= 70 ? 'bg-gradient-to-r from-green-500 to-emerald-400' :
-                                                        commodity.zenithScore >= 50 ? 'bg-gradient-to-r from-blue-500 to-cyan-400' :
-                                                            'bg-gradient-to-r from-red-500 to-orange-400'
+                                                    commodity.zenithScore >= 50 ? 'bg-gradient-to-r from-blue-500 to-cyan-400' :
+                                                        'bg-gradient-to-r from-red-500 to-orange-400'
                                                     }`}
                                                 style={{ width: `${commodity.zenithScore}%` }}
                                             />

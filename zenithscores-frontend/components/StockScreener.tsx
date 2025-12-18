@@ -69,7 +69,7 @@ export default function StockScreener({ initialSector }: StockScreenerProps) {
             try {
                 // In a real app, we might pass filter params to the API
                 // For now, we fetch all trending/available and filter client-side
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
                 const res = await fetch(`${apiUrl}/api/v1/stocks/trending`);
                 const data = await res.json();
                 if (data.status === 'success') {

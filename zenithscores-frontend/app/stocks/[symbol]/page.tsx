@@ -62,32 +62,49 @@ export default function StockDetailPage() {
 
     const [stock, setStock] = useState<StockData | null>(null);
     const [history, setHistory] = useState<any[]>([]);
+    const [peers, setPeers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [chartTimeframe, setChartTimeframe] = useState('3M');
     const [showScoreOverlay, setShowScoreOverlay] = useState(true);
 
     useEffect(() => {
-        // In a real app, fetch from API. Simulating data here.
-        setTimeout(() => {
-            const mockPrice = Math.random() * 500 + 50;
-            const mockScore = Math.floor(Math.random() * 60) + 20; // 20-80
+        const fetchData = async () => {
+            try {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
 
-            setStock({
-                symbol: symbol.toUpperCase(),
-                name: `${symbol.toUpperCase()} Inc.`,
-                description: `Leading technology company in ${symbol} sector.`,
-                price_usd: mockPrice,
-                price_change_24h: (Math.random() * 5) - 2,
-                zenith_score: mockScore,
-                volume_24h: 35000000,
-                market_cap: 2500000000000,
-                sector: 'Technology',
-                industry: 'Consumer Electronics',
-                beta: 1.2
-            });
-            setHistory(generateHistory(mockPrice, mockScore));
-            setLoading(false);
-        }, 1000);
+                // 1. Fetch main stock data (Synthetic for now but could be real info)
+                const mockPrice = Math.random() * 500 + 50;
+                const mockScore = Math.floor(Math.random() * 60) + 20;
+
+                setStock({
+                    symbol: symbol.toUpperCase(),
+                    name: `${symbol.toUpperCase()} Inc.`,
+                    description: `Leading technology company in ${symbol} sector.`,
+                    price_usd: mockPrice,
+                    price_change_24h: (Math.random() * 5) - 2.5,
+                    zenith_score: mockScore,
+                    volume_24h: 35000000,
+                    market_cap: 2500000000000,
+                    sector: 'Technology',
+                    industry: 'Consumer Electronics',
+                    beta: 1.2
+                });
+                setHistory(generateHistory(mockPrice, mockScore));
+
+                // 2. Fetch real peers from new endpoint
+                const peersRes = await fetch(`${apiUrl}/api/v1/stocks/${symbol}/peers`);
+                const peersData = await peersRes.json();
+                if (peersData.status === 'success') {
+                    setPeers(peersData.peers);
+                }
+            } catch (error) {
+                console.error("Failed to fetch stock data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
     }, [symbol]);
 
     if (loading) return (
@@ -354,16 +371,26 @@ export default function StockDetailPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
-                                        {[1, 2, 3].map((_, i) => (
-                                            <tr key={i} className="hover:bg-gray-50 transition-colors">
-                                                <td className="py-3 font-bold text-gray-900">MOCK-{i}</td>
+                                        {peers.length > 0 ? peers.map((peer, i) => (
+                                            <tr key={peer.symbol} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => window.location.href = `/stocks/${peer.symbol}`}>
+                                                <td className="py-3 font-bold text-gray-900">{peer.symbol}</td>
                                                 <td className="py-3">
-                                                    <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold">7{i}</span>
+                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${peer.zenith_score >= 80 ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                        {peer.zenith_score}
+                                                    </span>
                                                 </td>
-                                                <td className="py-3 text-right font-mono text-gray-600">$1{i}2.40</td>
-                                                <td className="py-3 text-right font-bold text-green-600">+1.{i}%</td>
+                                                <td className="py-3 text-right font-mono text-gray-600">${peer.price.toFixed(2)}</td>
+                                                <td className={`py-3 text-right font-bold ${peer.change_24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {peer.change_24h >= 0 ? '+' : ''}{peer.change_24h.toFixed(1)}%
+                                                </td>
                                             </tr>
-                                        ))}
+                                        )) : (
+                                            [1, 2, 3].map((_, i) => (
+                                                <tr key={i} className="animate-pulse">
+                                                    <td colSpan={4} className="py-3 bg-gray-50 rounded"></td>
+                                                </tr>
+                                            ))
+                                        )}
                                     </tbody>
                                 </table>
                             </div>

@@ -215,6 +215,7 @@ export default function LearnModulePage() {
     const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
     const [completedChapters, setCompletedChapters] = useState<Set<string>>(new Set());
     const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [showCompletionModal, setShowCompletionModal] = useState(false);
 
     useEffect(() => {
         if (courseId) {
@@ -286,6 +287,11 @@ export default function LearnModulePage() {
     const isFirstChapter = currentPartIndex === 0 && currentChapterIndex === 0;
     const isLastChapter = currentPartIndex === (course?.parts.length || 1) - 1 &&
         currentChapterIndex === (currentPart?.chapters.length || 1) - 1;
+
+    const handleFinishCourse = () => {
+        markComplete();
+        setShowCompletionModal(true);
+    };
 
     if (!course) {
         return (
@@ -419,7 +425,7 @@ export default function LearnModulePage() {
                 </AnimatePresence>
 
                 {/* Main Content */}
-                <main className={`flex-1 min-h-[calc(100vh-4rem)] ${sidebarOpen ? 'lg:ml-0' : ''}`}>
+                <main className={`flex-1 min-h-[calc(100vh-4rem)] pb-24 ${sidebarOpen ? 'lg:ml-0' : ''}`}>
                     <div className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-12">
                         {/* Chapter Header */}
                         <motion.div
@@ -484,13 +490,13 @@ export default function LearnModulePage() {
                             )}
 
                             {isLastChapter ? (
-                                <Link
-                                    href="/learning"
-                                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold hover:opacity-90 transition-opacity"
+                                <button
+                                    onClick={handleFinishCourse}
+                                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-emerald-500/20"
                                 >
                                     <Trophy size={20} />
                                     Finish Course
-                                </Link>
+                                </button>
                             ) : (
                                 <button
                                     onClick={goToNext}
@@ -512,6 +518,67 @@ export default function LearnModulePage() {
                     onClick={() => setSidebarOpen(false)}
                 />
             )}
+
+            {/* Completion Modal */}
+            <AnimatePresence>
+                {showCompletionModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/80 backdrop-blur-md"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="relative w-full max-w-lg bg-[#0a0a0f] border border-white/10 rounded-2xl p-8 text-center shadow-2xl overflow-hidden"
+                        >
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 via-purple-500 to-emerald-500" />
+
+                            {/* Confetti-like decor */}
+                            <div className="absolute -top-12 -left-12 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl" />
+                            <div className="absolute -bottom-12 -right-12 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl" />
+
+                            <div className="mb-6 inline-flex p-4 rounded-full bg-yellow-400/10 border border-yellow-400/20">
+                                <Trophy size={48} className="text-yellow-400" />
+                            </div>
+
+                            <h2 className="text-3xl font-black text-white mb-2">COURSE COMPLETE!</h2>
+                            <p className="text-gray-400 mb-8">
+                                Congratulations! You've successfully mastered <span className="text-white font-semibold">"{course.title}"</span>. Your Zenith trading skills have significantly leveled up.
+                            </p>
+
+                            <div className="grid grid-cols-2 gap-4 mb-8">
+                                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                                    <div className="text-2xl font-bold text-cyan-400">+{totalChapters * 10}</div>
+                                    <div className="text-xs text-gray-500 uppercase font-bold tracking-wider">XP Earned</div>
+                                </div>
+                                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                                    <div className="text-2xl font-bold text-emerald-400">Master</div>
+                                    <div className="text-xs text-gray-500 uppercase font-bold tracking-wider">Rank Achieved</div>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={() => router.push('/learning')}
+                                    className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold hover:opacity-90 transition-opacity"
+                                >
+                                    Explore More Courses
+                                </button>
+                                <button
+                                    onClick={() => router.push('/trading')}
+                                    className="w-full py-4 rounded-xl bg-white/5 text-white font-bold hover:bg-white/10 transition-colors border border-white/10"
+                                >
+                                    Practice with Paper Trading
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

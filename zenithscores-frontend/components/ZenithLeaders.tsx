@@ -41,7 +41,7 @@ export default function ZenithLeaders() {
     const fetchTokens = async () => {
         setLoading(true);
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
 
             let endpoint = `${apiUrl}/api/v1/tokens/scored?limit=100`;
             if (query) {

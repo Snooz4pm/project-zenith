@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LayoutGrid, List, SlidersHorizontal, Star, Activity, Zap, TrendingUp, TrendingDown } from 'lucide-react';
+import { LayoutGrid, List, SlidersHorizontal, Star, Activity, Zap, TrendingUp, TrendingDown, Target, Database } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import AssetGrid from '@/components/AssetGrid';
@@ -16,12 +16,12 @@ const SECTORS = ['DeFi', 'Gaming', 'L1', 'L2', 'Meme', 'AI', 'RWA', 'Infrastruct
 
 // Sector Index definitions with color themes
 const SECTOR_INDEXES = [
-    { id: 'defi', name: 'DeFi', color: 'from-blue-500 to-cyan-500', icon: '🏦' },
-    { id: 'gaming', name: 'Gaming/NFT', color: 'from-purple-500 to-pink-500', icon: '🎮' },
-    { id: 'l1', name: 'Layer 1', color: 'from-orange-500 to-red-500', icon: '⛓️' },
-    { id: 'l2', name: 'Layer 2', color: 'from-emerald-500 to-green-500', icon: '📈' },
-    { id: 'meme', name: 'Meme', color: 'from-yellow-500 to-orange-500', icon: '🐕' },
-    { id: 'ai', name: 'AI/ML', color: 'from-violet-500 to-purple-500', icon: '🤖' },
+    { id: 'defi', name: 'DeFi', icon: '🏦', color: 'from-blue-500 to-cyan-500' },
+    { id: 'gaming', name: 'Gaming', icon: '🎮', color: 'from-purple-500 to-pink-500' },
+    { id: 'infra', name: 'Infrastructure', icon: '⛓️', color: 'from-blue-500 to-indigo-500' },
+    { id: 'l2', name: 'Layer 2', icon: '📈', color: 'from-emerald-500 to-green-500' },
+    { id: 'meme', name: 'Meme', icon: '🐕', color: 'from-yellow-500 to-orange-500' },
+    { id: 'ai', name: 'AI/ML', icon: '🤖', color: 'from-violet-500 to-purple-500' },
 ];
 
 export default function CryptoDashboard() {
@@ -90,6 +90,17 @@ export default function CryptoDashboard() {
         fetchTokens();
     }, []);
 
+    const toggleWatchlist = (symbol: string) => {
+        const newWatchlist = new Set(watchlist);
+        if (newWatchlist.has(symbol)) {
+            newWatchlist.delete(symbol);
+        } else {
+            newWatchlist.add(symbol);
+        }
+        setWatchlist(newWatchlist);
+        localStorage.setItem('zenith_crypto_watchlist', JSON.stringify(Array.from(newWatchlist)));
+    };
+
     // Handle token click for quick trade
     const handleTokenClick = (token: any) => {
         setSelectedToken(token);
@@ -135,7 +146,7 @@ export default function CryptoDashboard() {
                     </h3>
                     <div className="grid grid-cols-2 gap-3">
                         {SECTOR_INDEXES.map(sector => {
-                            const sectorKey = sector.id === 'gaming' ? 'gamingnft' : sector.id;
+                            const sectorKey = sector.id;
                             const data = sectorScores[sectorKey] || { score: 50 + Math.floor(Math.random() * 30), change: Math.random() * 6 - 3 };
                             const isPositive = data.change >= 0;
 
@@ -146,8 +157,8 @@ export default function CryptoDashboard() {
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
                                     className={`relative overflow-hidden p-3 rounded-xl border transition-all ${selectedSector === sector.name
-                                            ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/20'
-                                            : 'border-white/10 hover:border-white/20'
+                                        ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/20'
+                                        : 'border-white/10 hover:border-white/20'
                                         }`}
                                 >
                                     <div className={`absolute inset-0 bg-gradient-to-br ${sector.color} opacity-10`} />
@@ -285,7 +296,12 @@ export default function CryptoDashboard() {
                     {view === 'heatmap' ? (
                         <CryptoHeatmap tokens={filteredTokens} />
                     ) : (
-                        <AssetGrid tokens={filteredTokens} onTokenClick={handleTokenClick} />
+                        <AssetGrid
+                            tokens={filteredTokens}
+                            onTokenClick={handleTokenClick}
+                            watchlist={watchlist}
+                            onToggleWatchlist={toggleWatchlist}
+                        />
                     )}
 
                     {filteredTokens.length === 0 && (

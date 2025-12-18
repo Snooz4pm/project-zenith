@@ -47,7 +47,7 @@ export default function ArenaLeaderboard() {
 
     const fetchLeaderboard = async () => {
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
             const res = await fetch(`${apiUrl}/api/v1/trading/leaderboard?limit=10`);
             const data = await res.json();
 
@@ -124,8 +124,8 @@ export default function ArenaLeaderboard() {
                         key={tab}
                         onClick={() => setActiveTab(tab)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === tab
-                                ? 'bg-white text-black'
-                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                            ? 'bg-white text-black'
+                            : 'bg-white/5 text-gray-400 hover:bg-white/10'
                             }`}
                     >
                         {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -143,8 +143,8 @@ export default function ArenaLeaderboard() {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: i * 0.05 }}
                             className={`flex items-center justify-between p-3 rounded-xl ${entry.rank <= 3
-                                    ? 'bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20'
-                                    : 'bg-white/5'
+                                ? 'bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20'
+                                : 'bg-white/5'
                                 }`}
                         >
                             <div className="flex items-center gap-3">
@@ -175,8 +175,8 @@ export default function ArenaLeaderboard() {
                         <div
                             key={challenge.id}
                             className={`p-3 rounded-xl border ${challenge.active
-                                    ? 'bg-purple-500/10 border-purple-500/30'
-                                    : 'bg-white/5 border-white/10'
+                                ? 'bg-purple-500/10 border-purple-500/30'
+                                : 'bg-white/5 border-white/10'
                                 }`}
                         >
                             <div className="flex items-center justify-between mb-1">

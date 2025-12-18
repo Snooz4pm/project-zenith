@@ -592,7 +592,7 @@ def health_check_v1():
 
 # --- NEWS ENDPOINTS ---
 
-@app.get("/articles/{category}")
+@app.get("/api/v1/news/articles/{category}")
 async def get_articles_by_category(
     category: str,
     limit: int = Query(default=10, ge=1, le=100),
@@ -637,7 +637,7 @@ async def get_articles_by_category(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-@app.get("/top-articles")
+@app.get("/api/v1/news/top-articles")
 async def get_top_articles(
     limit: int = Query(default=20, ge=1, le=100),
     hours: int = Query(default=24, ge=1, le=168),
@@ -676,7 +676,7 @@ async def get_top_articles(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-@app.get("/categories")
+@app.get("/api/v1/news/categories")
 async def get_categories():
     try:
         with NewsDB() as db:
@@ -685,7 +685,7 @@ async def get_categories():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-@app.get("/stats")
+@app.get("/api/v1/news/stats")
 async def get_stats():
     try:
         with NewsDB() as db:
@@ -719,7 +719,7 @@ def get_scored_tokens(
     premium = is_user_premium(session_id)
     effective_limit = limit
     if not premium:
-        effective_limit = min(limit, 10)
+        effective_limit = min(limit, 30) # Increased from 10 to 30 for better UX
     
     if CACHE_DATA and (current_time - CACHE_TIMESTAMP < CACHE_DURATION):
         return {
@@ -731,15 +731,27 @@ def get_scored_tokens(
         }
 
     try:
-        url = "https://api.dexscreener.com/latest/dex/search?q=uniswap%20eth%20v2"
-        response = requests.get(url, timeout=10)
-        if response.status_code != 200: raise HTTPException(status_code=502, detail="DexScreener Unavailable")
+        # Fetching a broader set of pairs to ensure more than 18 tokens
+        # dexScreener search 'v2' is a bit restrictive, using broader queries
+        queries = ["uniswap eth v2", "pancake bsc", "raydium solana"]
+        all_pairs = []
         
-        data = response.json()
-        if not data.get('pairs'): return {"status": "success", "count": 0, "data": []}
+        for q in queries:
+            s_url = f"https://api.dexscreener.com/latest/dex/search?q={q}"
+            try:
+                r = requests.get(s_url, timeout=5)
+                if r.status_code == 200:
+                    all_pairs.extend(r.json().get('pairs', []))
+            except: continue
+
+        if not all_pairs: return {"status": "success", "count": 0, "data": []}
         
         tokens = []
-        for pair in data['pairs']:
+        seen_symbols = set()
+
+        for pair in all_pairs:
+            symbol = pair.get('baseToken', {}).get('symbol', 'UNKNOWN')
+            if symbol in seen_symbols: continue
             if not pair.get('baseToken') or not pair.get('liquidity') or not pair.get('volume'): continue
             
             liquidity_usd = pair['liquidity'].get('usd', 0)
@@ -778,26 +790,42 @@ def get_scored_tokens(
 def get_trending_tokens(limit: int = 20):
     return get_scored_tokens(limit=limit)
 
-@app.get("/api/v1/stocks/trending")
-def get_trending_stocks(limit: int = 20):
+@app.get("/api/v1/stocks/{symbol}/peers")
+def get_stock_peers(symbol: str):
+    """Get peer comparison for a stock"""
     try:
-        url = f"https://www.alphavantage.co/query?function=TOP_GAINERS_LOSERS&apikey={ALPHA_VANTAGE_KEY}"
-        response = requests.get(url, timeout=10)
-        data = response.json()
+        # Standard peers for major tickers, otherwise return industry relatives
+        PEER_MAP = {
+            "AAPL": ["MSFT", "GOOGL", "AMZN", "META", "TSLA"],
+            "TSLA": ["RIVN", "LCID", "NIO", "BYDDF", "F"],
+            "NVDA": ["AMD", "INTC", "AVGO", "MU", "QCOM"],
+            "MSFT": ["GOOGL", "AAPL", "ORCL", "CRM", "AMZN"],
+            "BTC": ["ETH", "SOL", "AVAX", "ADA", "XRP"],
+        }
         
-        market_list = []
-        if "most_actively_traded" in data: market_list.extend(data["most_actively_traded"])
-        if "top_gainers" in data: market_list.extend(data["top_gainers"])
+        peers = PEER_MAP.get(symbol.upper(), ["AAPL", "MSFT", "GOOGL"])
+        results = []
+        
+        for p in peers:
+            # Calculate a synthetic Zenith score for peers to keep it consistent
+            score = 60 + (hash(p) % 35) # Dynamic score 60-95
+            results.append({
+                "symbol": p,
+                "zenith_score": score,
+                "price": 100 + (hash(p) % 500), # Synthetic but dynamic
+                "change_24h": (hash(p) % 10 - 5) + 0.5 # Synthetic -4.5% to +5.5%
+            })
             
-        seen = set()
-        unique_list = []
-        for m in market_list:
-            if m['ticker'] not in seen:
-                seen.add(m['ticker'])
-                unique_list.append(m)
-        
-        # Fallback Mock
-        if not unique_list:
+        return {
+            "status": "success",
+            "symbol": symbol,
+            "peers": results
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# ═══════════════════════════════════════════════════════
+# TRADING ENDPOINTS
             return {"status": "success", "data": [{"symbol": "NVDA", "name": "NVIDIA", "price_usd": 140.50, "price_change_24h": 4.5, "zenith_score": 92}]}
 
         stocks = []
@@ -1571,6 +1599,70 @@ def get_user(user_id: int):
             conn.close()
 
 
+# ═══════════════════════════════════════════════════════
+# PAYPAL WEBHOOK & PREMIUM ACTIVATION
+# ═══════════════════════════════════════════════════════
+
+@app.post("/api/v1/payments/paypal-webhook")
+async def paypal_webhook(request: Request):
+    """
+    Handle PayPal Webhook events for automated premium activation.
+    Expected events: CHECKOUT.ORDER.APPROVED or PAYMENT.CAPTURE.COMPLETED
+    """
+    try:
+        data = await request.json()
+        event_type = data.get("event_type")
+        resource = data.get("resource", {})
+        
+        # PayPal usually passes our custom mapping in custom_id
+        # We expect the frontend to pass the user's session_id or email here
+        custom_id = resource.get("custom_id") or resource.get("purchase_units", [{}])[0].get("custom_id")
+        
+        print(f"💰 PayPal Webhook Received: {event_type} for ID: {custom_id}")
+        
+        if event_type in ["PAYMENT.CAPTURE.COMPLETED", "CHECKOUT.ORDER.APPROVED"]:
+            if not custom_id:
+                print("⚠️ Webhook received but no custom_id (session_id) found")
+                return {"status": "ignored", "reason": "missing_custom_id"}
+            
+            # Activate Premium
+            conn = get_trading_db()
+            if conn:
+                try:
+                    cur = conn.cursor()
+                    # Premium expires in 30 days
+                    expiry = datetime.now() + timedelta(days=30)
+                    
+                    # Try session_id first, then email if it looks like one
+                    if "@" in custom_id:
+                        cur.execute("""
+                            UPDATE trading_users 
+                            SET is_premium = TRUE, premium_expires_at = %s 
+                            WHERE session_id IN (SELECT session_id FROM trading_users WHERE session_id LIKE %s)
+                        """, (expiry, f"%{custom_id}%"))
+                    else:
+                        cur.execute("""
+                            UPDATE trading_users 
+                            SET is_premium = TRUE, premium_expires_at = %s 
+                            WHERE session_id = %s
+                        """, (expiry, custom_id))
+                    
+                    conn.commit()
+                    print(f"🚀 Premium Activated for {custom_id} until {expiry}")
+                    return {"status": "success", "message": "Premium activated"}
+                except Exception as e:
+                    print(f"❌ Premium Activation Error: {e}")
+                    return {"status": "error", "message": str(e)}
+                finally:
+                    conn.close()
+        
+        return {"status": "received"}
+        
+    except Exception as e:
+        print(f"🔥 Webhook parsing error: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 @app.get("/api/v1/auth/user-by-email/{email}")
 def get_user_by_email(email: str):
     """Get user profile by email"""
@@ -2003,6 +2095,27 @@ class WatchlistItem(BaseModel):
     asset_type: str = "crypto"  # crypto, stock, forex
     name: Optional[str] = None
 
+class CommunityPostRequest(BaseModel):
+    user_id: str
+    username: str
+    avatar: Optional[str] = None
+    type: str
+    content: str
+    asset: Optional[dict] = None
+
+class CommunityCommentRequest(BaseModel):
+    user_id: str
+    username: str
+    content: str
+
+class QuizSubmission(BaseModel):
+    user_id: str
+    module_id: str
+    difficulty: str
+    score: int
+    total_questions: int
+    passed: bool
+
 @app.get("/api/v1/watchlist/{session_id}")
 def get_watchlist(session_id: str):
     """Get user's watchlist"""
@@ -2096,30 +2209,268 @@ def remove_from_watchlist(session_id: str, symbol: str):
     finally:
         conn.close()
 
-@app.post("/api/v1/watchlist/{session_id}/sync")
-def sync_watchlist(session_id: str, symbols: List[str]):
-    """Sync local watchlist to server (bulk add)"""
+# ═══════════════════════════════════════════════════════
+# COMMUNITY FEED ENDPOINTS (Persistent via Neon DB)
+# ═══════════════════════════════════════════════════════
+
+def init_community_tables():
+    """Ensure community tables exist"""
     conn = get_trading_db()
-    if not conn:
-        return {"status": "error", "message": "Database not available"}
+    if not conn: return
+    try:
+        cur = conn.cursor()
+        # 1. Posts table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS community_posts (
+                id SERIAL PRIMARY KEY,
+                user_id VARCHAR(255) NOT NULL,
+                username VARCHAR(255) NOT NULL,
+                avatar TEXT,
+                type VARCHAR(50) NOT NULL,
+                content TEXT NOT NULL,
+                asset JSONB,
+                likes_count INTEGER DEFAULT 0,
+                comments_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        # 2. Likes table (to prevent double-liking)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS community_likes (
+                user_id VARCHAR(255) NOT NULL,
+                post_id INTEGER REFERENCES community_posts(id) ON DELETE CASCADE,
+                PRIMARY KEY (user_id, post_id)
+            )
+        """)
+        # 3. Comments table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS community_comments (
+                id SERIAL PRIMARY KEY,
+                post_id INTEGER REFERENCES community_posts(id) ON DELETE CASCADE,
+                user_id VARCHAR(255) NOT NULL,
+                username VARCHAR(255) NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        conn.commit()
+    except Exception as e:
+        print(f"Community Table Init Error: {e}")
+    finally:
+        conn.close()
+
+# ═══════════════════════════════════════════════════════
+# ACADEMY QUIZ ENDPOINTS (Persistent via Neon DB)
+# ═══════════════════════════════════════════════════════
+
+def init_academy_tables():
+    """Ensure academy quiz tables exist"""
+    conn = get_trading_db()
+    if not conn: return
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS academy_quiz_progress (
+                id SERIAL PRIMARY KEY,
+                user_id VARCHAR(255) NOT NULL,
+                module_id VARCHAR(100) NOT NULL,
+                difficulty VARCHAR(50) NOT NULL,
+                score INTEGER NOT NULL,
+                total_questions INTEGER NOT NULL,
+                passed BOOLEAN NOT NULL,
+                completed_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(user_id, module_id, difficulty)
+            )
+        """)
+        conn.commit()
+    except Exception as e:
+        print(f"Academy Table Init Error: {e}")
+    finally:
+        conn.close()
+
+@app.get("/api/v1/academy/progress/{user_id}")
+def get_academy_progress(user_id: str):
+    """Fetch user's quiz progress"""
+    init_academy_tables()
+    conn = get_trading_db()
+    if not conn: return {"status": "success", "data": []}
     
     try:
         cur = conn.cursor()
-        added = 0
-        for symbol in symbols:
-            try:
-                cur.execute("""
-                    INSERT INTO user_watchlist (session_id, symbol, asset_type)
-                    VALUES (%s, %s, 'crypto')
-                    ON CONFLICT (session_id, symbol) DO NOTHING
-                """, (session_id, symbol))
-                if cur.rowcount > 0:
-                    added += 1
-            except:
-                pass
+        cur.execute("SELECT * FROM academy_quiz_progress WHERE user_id = %s", (user_id,))
+        rows = cur.fetchall()
+        for r in rows:
+            r['completed_at'] = r['completed_at'].isoformat()
+        return {"status": "success", "data": rows}
+    except Exception as e:
+        return {"status": "error", "message": str(e), "data": []}
+    finally:
+        conn.close()
+
+@app.post("/api/v1/academy/quiz/submit")
+def submit_quiz_result(submission: QuizSubmission):
+    """Save quiz result and update progress"""
+    init_academy_tables()
+    conn = get_trading_db()
+    if not conn: return {"status": "error", "message": "DB Down"}
+    
+    try:
+        cur = conn.cursor()
+        # Insert or update result
+        cur.execute("""
+            INSERT INTO academy_quiz_progress (user_id, module_id, difficulty, score, total_questions, passed, completed_at)
+            VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            ON CONFLICT (user_id, module_id, difficulty) DO UPDATE SET
+                score = EXCLUDED.score,
+                total_questions = EXCLUDED.total_questions,
+                passed = EXCLUDED.passed,
+                completed_at = NOW()
+        """, (submission.user_id, submission.module_id, submission.difficulty, submission.score, submission.total_questions, submission.passed))
         
         conn.commit()
-        return {"status": "success", "message": f"Synced {added} symbols", "added": added}
+        return {"status": "success", "message": "Progress saved"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        conn.close()
+
+@app.get("/api/v1/community/posts")
+def get_community_posts(session_id: Optional[str] = None):
+    """Fetch all community posts with like status for current user"""
+    init_community_tables()
+    conn = get_trading_db()
+    if not conn: return {"status": "success", "data": []}
+    
+    try:
+        cur = conn.cursor()
+        # Fetch posts and whether current user liked them
+        if session_id:
+            cur.execute("""
+                SELECT p.*, (l.user_id IS NOT NULL) as liked
+                FROM community_posts p
+                LEFT JOIN community_likes l ON p.id = l.post_id AND l.user_id = %s
+                ORDER BY p.created_at DESC
+                LIMIT 50
+            """, (session_id,))
+        else:
+            cur.execute("""
+                SELECT *, FALSE as liked FROM community_posts 
+                ORDER BY created_at DESC LIMIT 50
+            """)
+        
+        posts = cur.fetchall()
+        
+        # Format results
+        for p in posts:
+            p['id'] = str(p['id'])
+            p['timestamp'] = p['created_at'].isoformat() if p['created_at'] else None
+            # Fetch replies for each post (simple version: top 5 replies)
+            cur.execute("""
+                SELECT id, user_id, username, content, created_at as timestamp
+                FROM community_comments 
+                WHERE post_id = %s 
+                ORDER BY created_at ASC
+                LIMIT 20
+            """, (p['id'],))
+            replies = cur.fetchall()
+            for r in replies:
+                r['id'] = str(r['id'])
+                r['timestamp'] = r['timestamp'].isoformat()
+            p['replies'] = replies
+            
+        return {"status": "success", "data": posts}
+    except Exception as e:
+        print(f"Get Posts Error: {e}")
+        return {"status": "error", "message": str(e), "data": []}
+    finally:
+        conn.close()
+
+@app.post("/api/v1/community/posts")
+def create_community_post(post: CommunityPostRequest):
+    """Save a new community post"""
+    init_community_tables()
+    conn = get_trading_db()
+    if not conn: return {"status": "error", "message": "DB Down"}
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO community_posts (user_id, username, avatar, type, content, asset)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (post.user_id, post.username, post.avatar, post.type, post.content, json.dumps(post.asset) if post.asset else None))
+        
+        post_id = cur.fetchone()['id']
+        conn.commit()
+        return {"status": "success", "post_id": str(post_id)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        conn.close()
+
+@app.post("/api/v1/community/posts/{post_id}/like")
+def toggle_post_like(post_id: int, user_id: str):
+    """Toggle like for a post"""
+    conn = get_trading_db()
+    if not conn: return {"status": "error", "message": "DB Down"}
+    
+    try:
+        cur = conn.cursor()
+        # Check if already liked
+        cur.execute("SELECT 1 FROM community_likes WHERE user_id = %s AND post_id = %s", (user_id, post_id))
+        if cur.fetchone():
+            # Unlike
+            cur.execute("DELETE FROM community_likes WHERE user_id = %s AND post_id = %s", (user_id, post_id))
+            cur.execute("UPDATE community_posts SET likes_count = GREATEST(0, likes_count - 1) WHERE id = %s", (post_id,))
+            liked = False
+        else:
+            # Like
+            cur.execute("INSERT INTO community_likes (user_id, post_id) VALUES (%s, %s)", (user_id, post_id))
+            cur.execute("UPDATE community_posts SET likes_count = likes_count + 1 WHERE id = %s", (post_id,))
+            liked = True
+        
+        conn.commit()
+        # Get new count
+        cur.execute("SELECT likes_count FROM community_posts WHERE id = %s", (post_id,))
+        count = cur.fetchone()['likes_count']
+        
+        return {"status": "success", "liked": liked, "likes": count}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        conn.close()
+
+@app.post("/api/v1/community/posts/{post_id}/comment")
+def add_community_comment(post_id: int, comment: CommunityCommentRequest):
+    """Add a comment to a post"""
+    conn = get_trading_db()
+    if not conn: return {"status": "error", "message": "DB Down"}
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO community_comments (post_id, user_id, username, content)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, created_at
+        """, (post_id, comment.user_id, comment.username, comment.content))
+        
+        row = cur.fetchone()
+        comment_id = row['id']
+        timestamp = row['created_at']
+        
+        cur.execute("UPDATE community_posts SET comments_count = comments_count + 1 WHERE id = %s", (post_id,))
+        conn.commit()
+        
+        return {
+            "status": "success", 
+            "comment": {
+                "id": str(comment_id),
+                "user_id": comment.user_id,
+                "username": comment.username,
+                "content": comment.content,
+                "timestamp": timestamp.isoformat()
+            }
+        }
     except Exception as e:
         return {"status": "error", "message": str(e)}
     finally:

@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { getZenithSignal } from '@/lib/zenith';
 import { formatNumber } from '@/lib/utils';
-import { ArrowUp, ArrowDown, ExternalLink } from 'lucide-react';
+import { ArrowUp, ArrowDown, ExternalLink, Star } from 'lucide-react';
 
 interface Token {
     symbol: string;
@@ -19,9 +19,11 @@ interface Token {
 interface AssetGridProps {
     tokens: Token[];
     onTokenClick?: (token: Token) => void;
+    watchlist?: Set<string>;
+    onToggleWatchlist?: (symbol: string) => void;
 }
 
-export default function AssetGrid({ tokens, onTokenClick }: AssetGridProps) {
+export default function AssetGrid({ tokens, onTokenClick, watchlist, onToggleWatchlist }: AssetGridProps) {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {tokens.map((token, index) => {
@@ -37,6 +39,22 @@ export default function AssetGrid({ tokens, onTokenClick }: AssetGridProps) {
                         onClick={() => onTokenClick?.(token)}
                         className={`group relative bg-[#1E1E24] border border-[#2A2A35] rounded-2xl p-6 hover:border-gray-600 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 block ${onTokenClick ? 'cursor-pointer' : ''}`}
                     >
+                        {/* Watchlist Toggle */}
+                        {onToggleWatchlist && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleWatchlist(token.symbol);
+                                }}
+                                className="absolute top-4 right-4 z-20 p-2 rounded-lg bg-black/20 hover:bg-black/40 transition-colors"
+                            >
+                                <Star
+                                    size={16}
+                                    className={watchlist?.has(token.symbol) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-500'}
+                                />
+                            </button>
+                        )}
+
                         {/* 1. Header: Score & Decision Dominance */}
                         <div className="flex justify-between items-start mb-6">
                             <div className="flex flex-col">

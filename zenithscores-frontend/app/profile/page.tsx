@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import {
     ArrowLeft, User, Mail, Calendar, Trophy, TrendingUp, TrendingDown,
-    Edit2, Save, X, Shield, Activity, DollarSign, BarChart3, LogOut, CheckCircle, History, Bot
+    Edit2, Save, X, Shield, Activity, DollarSign, BarChart3, LogOut, CheckCircle, History, Zap
 } from 'lucide-react';
 import ProfileEnhancements from '@/components/ProfileEnhancements';
 
@@ -591,16 +591,16 @@ export default function ProfilePage() {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 rounded-lg bg-emerald-500/20">
-                                        <Bot className="text-emerald-400" size={24} />
+                                        <Zap className="text-emerald-400" size={24} />
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold flex items-center gap-2">
-                                            Zenith AI
+                                            Zenith Scoring Engine
                                             <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">
                                                 Active
                                             </span>
                                         </h3>
-                                        <p className="text-xs text-gray-400">AI coaching powered by Zenith system</p>
+                                        <p className="text-xs text-gray-500">Institutional-grade market intelligence</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -611,9 +611,9 @@ export default function ProfilePage() {
 
                             <div className="mt-4 p-3 bg-black/30 rounded-xl border border-white/5">
                                 <p className="text-xs text-gray-400">
-                                    ✅ <strong className="text-white">No API key needed</strong> — Zenith provides AI coaching for all users.
+                                    ✅ <strong className="text-white">Proprietary Scoring</strong> — Zenith uses advanced multi-factor analysis for all assets.
                                     <br />
-                                    🚀 Premium users get unlimited AI roasts and personalized trade analysis.
+                                    🚀 Premium users get deeper signal analysis and personalized portfolio roasts via the Scoring Core.
                                 </p>
                             </div>
                         </motion.div>

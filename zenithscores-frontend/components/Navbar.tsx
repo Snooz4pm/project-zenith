@@ -122,7 +122,7 @@ export default function Navbar() {
                 </div>
 
                 {/* Right Side - Alerts + UserMenu */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 relative z-[101]">
                     <ScoreAlerts />
                     <UserMenu />
                 </div>

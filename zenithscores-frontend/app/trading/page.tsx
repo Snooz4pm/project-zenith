@@ -209,7 +209,7 @@ export default function TradingPage() {
     const connectWebSocket = () => {
         if (!sessionId) return;
 
-        const wsUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
+        const wsUrl = (process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app')
             .replace('http://', 'ws://')
             .replace('https://', 'wss://');
 
@@ -390,10 +390,11 @@ export default function TradingPage() {
         }
 
         if (tradeType === 'sell' && portfolio) {
+            // For paper trading, allowing selling without holdings to enable shorting.
+            // The constraint is primarily on margin/balance which is checked below.
             const holding = portfolio.holdings.find(h => h.symbol === selectedAsset?.symbol);
-            if (!holding || holding.quantity < qty) {
-                return `Insufficient holdings. You have ${holding?.quantity || 0} ${selectedAsset?.symbol}`;
-            }
+            // No longer returning error if holding is missing or quantity is less than qty
+            // because this will initiate a short position.
         }
 
         if (stopLoss && selectedAsset) {
@@ -1020,8 +1021,8 @@ export default function TradingPage() {
                                     </div>
 
                                     <Link
-                                        href="/premium"
-                                        className="block w-full text-center py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg shadow-purple-500/20"
+                                        href="/profile#premium"
+                                        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-bold hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all"
                                     >
                                         Upgrade to Pro
                                     </Link>

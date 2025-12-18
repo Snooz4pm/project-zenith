@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react';
 import {
     ArrowLeft, Brain, Zap, Target, TrendingUp, Award, Lock,
     ChevronRight, AlertTriangle, CheckCircle, XCircle, Flame,
-    Crown, Infinity, BarChart2, Shield, Clock, Star
+    Crown, Infinity as InfinityIcon, BarChart2, Shield, Clock, Star
 } from 'lucide-react';
 import {
     getRankFromXp, getRankColor, getNextRank, RANKS,
@@ -39,10 +39,10 @@ function QuotaCard({ used, total, isPremium }: { used: number; total: number; is
                 <div className="flex items-center gap-3 mb-4">
                     <motion.div
                         animate={{ scale: [1, 1.1, 1] }}
-                        transition={{ duration: 2, repeat: Infinity }}
+                        transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
                         className="text-4xl text-yellow-400"
                     >
-                        <Infinity size={48} />
+                        <InfinityIcon size={48} />
                     </motion.div>
                     <div>
                         <p className="text-white font-medium">Unlimited trade analysis today.</p>
@@ -73,8 +73,8 @@ function QuotaCard({ used, total, isPremium }: { used: number; total: number; is
                         animate={{ scale: 1 }}
                         transition={{ delay: i * 0.1 }}
                         className={`w-4 h-4 rounded-full ${i < used
-                                ? 'bg-gradient-to-br from-cyan-400 to-blue-500'
-                                : 'bg-white/10 border border-white/20'
+                            ? 'bg-gradient-to-br from-cyan-400 to-blue-500'
+                            : 'bg-white/10 border border-white/20'
                             }`}
                     />
                 ))}
@@ -86,8 +86,8 @@ function QuotaCard({ used, total, isPremium }: { used: number; total: number; is
                     initial={{ width: 0 }}
                     animate={{ width: `${percentage}%` }}
                     className={`h-full rounded-full ${remaining <= 1 ? 'bg-red-500' :
-                            remaining <= 2 ? 'bg-yellow-500' :
-                                'bg-gradient-to-r from-cyan-500 to-blue-500'
+                        remaining <= 2 ? 'bg-yellow-500' :
+                            'bg-gradient-to-r from-cyan-500 to-blue-500'
                         }`}
                 />
             </div>
@@ -325,7 +325,7 @@ function EmptyStateCoach() {
         >
             <motion.div
                 animate={{ scale: [1, 1.05, 1], opacity: [0.8, 1, 0.8] }}
-                transition={{ duration: 3, repeat: Infinity }}
+                transition={{ duration: 3, repeat: Number.POSITIVE_INFINITY }}
                 className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center"
             >
                 <Brain size={40} className="text-cyan-400" />
@@ -520,8 +520,8 @@ export default function CoachDashboardPage() {
                             <div className="text-right hidden sm:block">
                                 <p className="text-xs text-gray-500">Discipline</p>
                                 <p className={`text-lg font-bold ${stats.disciplineScore >= 80 ? 'text-green-400' :
-                                        stats.disciplineScore >= 60 ? 'text-yellow-400' :
-                                            'text-red-400'
+                                    stats.disciplineScore >= 60 ? 'text-yellow-400' :
+                                        'text-red-400'
                                     }`}>
                                     {stats.disciplineScore}%
                                 </p>

@@ -6,7 +6,15 @@ import {
     MessageSquare, Image, TrendingUp, TrendingDown, Heart,
     MessageCircle, Share2, Lock, Plus, X, Send, User
 } from 'lucide-react';
+import { useSession, signIn } from 'next-auth/react';
 import { isPremiumUser } from '@/lib/premium';
+
+interface Comment {
+    id: string;
+    username: string;
+    content: string;
+    timestamp: Date;
+}
 
 interface CommunityPost {
     id: string;
@@ -21,6 +29,7 @@ interface CommunityPost {
     comments: number;
     timestamp: Date;
     liked?: boolean;
+    replies?: Comment[];
 }
 
 const DEMO_POSTS: CommunityPost[] = [
@@ -45,73 +54,133 @@ const DEMO_POSTS: CommunityPost[] = [
         comments: 5,
         timestamp: new Date(Date.now() - 1000 * 60 * 120),
     },
-    {
-        id: '3',
-        userId: 'u3',
-        username: 'DiamondHands',
-        type: 'prediction',
-        content: 'My 3-hour prediction: NVDA going UP 📈 Score is 92 and momentum building. Who else is bullish?',
-        asset: { symbol: 'NVDA', direction: 'long' },
-        likes: 31,
-        comments: 12,
-        timestamp: new Date(Date.now() - 1000 * 60 * 180),
-    },
 ];
 
-const STORAGE_KEY = 'zenith_community_posts';
-
 export default function CommunityFeed() {
+    const { data: session } = useSession();
     const [premium, setPremium] = useState(false);
-    const [posts, setPosts] = useState<CommunityPost[]>(DEMO_POSTS);
+    const [posts, setPosts] = useState<CommunityPost[]>([]);
+    const [loading, setLoading] = useState(true);
     const [showComposer, setShowComposer] = useState(false);
     const [newPost, setNewPost] = useState('');
     const [postType, setPostType] = useState<CommunityPost['type']>('insight');
 
-    useEffect(() => {
-        setPremium(isPremiumUser());
+    const [activePostComments, setActivePostComments] = useState<string | null>(null);
+    const [commentText, setCommentText] = useState('');
 
-        // Load custom posts from localStorage
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            const customPosts = JSON.parse(stored).map((p: any) => ({
-                ...p,
-                timestamp: new Date(p.timestamp),
-            }));
-            setPosts([...customPosts, ...DEMO_POSTS]);
+    const fetchPosts = async () => {
+        try {
+            const baseUrl = 'https://defioracleworkerapi.vercel.app'; // Fallback for local dev
+            const session_id = session?.user?.email || 'guest';
+            const url = `${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/community/posts?session_id=${session_id}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.status === 'success') {
+                const formattedPosts = data.data.map((p: CommunityPost) => ({
+                    ...p,
+                    timestamp: new Date(p.timestamp),
+                    replies: p.replies?.map((r: Comment) => ({ ...r, timestamp: new Date(r.timestamp) })) || []
+                }));
+                setPosts(formattedPosts);
+            }
+        } catch (error) {
+            console.error('Fetch posts failed:', error);
+        } finally {
+            setLoading(false);
         }
-    }, []);
-
-    const handleLike = (postId: string) => {
-        setPosts(posts.map(p =>
-            p.id === postId
-                ? { ...p, likes: p.liked ? p.likes - 1 : p.likes + 1, liked: !p.liked }
-                : p
-        ));
     };
 
-    const handlePost = () => {
+    useEffect(() => {
+        setPremium(isPremiumUser());
+        fetchPosts();
+    }, [session]);
+
+    const handleLike = async (postId: string) => {
+        if (!session) {
+            signIn('google');
+            return;
+        }
+
+        try {
+            const baseUrl = 'https://defioracleworkerapi.vercel.app';
+            const url = `${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/community/posts/${postId}/like?user_id=${session.user?.email}`;
+            const res = await fetch(url, { method: 'POST' });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                setPosts(posts.map((p: CommunityPost) => p.id === postId ? { ...p, liked: data.liked, likes: data.likes } : p));
+            }
+        } catch (error) {
+            console.error('Like failed:', error);
+        }
+    };
+
+    const handleComment = async (postId: string) => {
+        if (!session) {
+            signIn('google');
+            return;
+        }
+        if (!commentText.trim()) return;
+
+        try {
+            const baseUrl = 'https://defioracleworkerapi.vercel.app';
+            const url = `${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/community/posts/${postId}/comment`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: session.user?.email,
+                    username: session.user?.name || 'Anonymous',
+                    content: commentText
+                })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                setPosts(posts.map((p: CommunityPost) => p.id === postId ? {
+                    ...p,
+                    replies: [...(p.replies || []), { ...data.comment, timestamp: new Date(data.comment.timestamp) }],
+                    comments: p.comments + 1
+                } : p));
+                setCommentText('');
+            }
+        } catch (error) {
+            console.error('Comment failed:', error);
+        }
+    };
+
+    const handlePost = async () => {
+        if (!session) {
+            signIn('google');
+            return;
+        }
         if (!newPost.trim()) return;
 
-        const post: CommunityPost = {
-            id: `post_${Date.now()}`,
-            userId: 'me',
-            username: 'You',
-            type: postType,
-            content: newPost,
-            likes: 0,
-            comments: 0,
-            timestamp: new Date(),
-        };
+        try {
+            const baseUrl = 'https://defioracleworkerapi.vercel.app';
+            const url = `${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/community/posts`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: session.user?.email,
+                    username: session.user?.name || 'Anonymous',
+                    avatar: session.user?.image,
+                    type: postType,
+                    content: newPost,
+                    asset: null // Handle asset if needed
+                })
+            });
+            const data = await res.json();
 
-        const updated = [post, ...posts];
-        setPosts(updated);
-
-        // Save custom posts
-        const customPosts = updated.filter(p => p.userId === 'me');
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(customPosts));
-
-        setNewPost('');
-        setShowComposer(false);
+            if (data.status === 'success') {
+                fetchPosts();
+                setNewPost('');
+                setShowComposer(false);
+            }
+        } catch (error) {
+            console.error('Post failed:', error);
+        }
     };
 
     const formatTime = (date: Date) => {
@@ -122,13 +191,30 @@ export default function CommunityFeed() {
         return `${Math.floor(hours / 24)}d`;
     };
 
+    if (loading) {
+        return (
+            <div className="h-48 rounded-2xl border border-white/10 bg-[#1a1a2e]/80 p-5 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                    <p className="text-xs text-gray-400">Loading Community...</p>
+                </div>
+            </div>
+        );
+    }
+
     if (!premium) {
         return (
             <div className="relative rounded-2xl border border-white/10 bg-[#1a1a2e]/80 p-5 backdrop-blur-xl overflow-hidden">
                 <div className="absolute inset-0 backdrop-blur-sm bg-black/40 z-10 flex flex-col items-center justify-center">
                     <Lock className="w-6 h-6 text-purple-400 mb-2" />
                     <p className="text-sm text-white font-bold">Community Feed</p>
-                    <p className="text-[10px] text-gray-400">Share trades & insights</p>
+                    <p className="text-[10px] text-gray-400 text-center px-4">Share trades & insights with Zenith Pro</p>
+                    <button
+                        onClick={() => window.location.href = '#premium'}
+                        className="mt-3 px-4 py-1.5 bg-purple-500 rounded-lg text-xs font-bold text-white hover:bg-purple-600 transition-colors"
+                    >
+                        Upgrade to Unlock
+                    </button>
                 </div>
                 <div className="blur-sm opacity-40">
                     <div className="h-24 bg-white/5 rounded-xl mb-3" />
@@ -147,12 +233,21 @@ export default function CommunityFeed() {
                     <h3 className="font-bold text-white">Community Feed</h3>
                     <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full">Live</span>
                 </div>
-                <button
-                    onClick={() => setShowComposer(!showComposer)}
-                    className="p-2 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 transition-colors"
-                >
-                    {showComposer ? <X size={16} /> : <Plus size={16} />}
-                </button>
+                {session ? (
+                    <button
+                        onClick={() => setShowComposer(!showComposer)}
+                        className="p-2 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 transition-colors"
+                    >
+                        {showComposer ? <X size={16} /> : <Plus size={16} />}
+                    </button>
+                ) : (
+                    <button
+                        onClick={() => signIn('google')}
+                        className="text-[10px] text-cyan-400 hover:underline"
+                    >
+                        Sign in to post
+                    </button>
+                )}
             </div>
 
             {/* Composer */}
@@ -177,8 +272,8 @@ export default function CommunityFeed() {
                                         key={type}
                                         onClick={() => setPostType(type)}
                                         className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-all ${postType === type
-                                                ? 'bg-cyan-500/30 text-cyan-400 border border-cyan-500/50'
-                                                : 'bg-white/5 text-gray-400'
+                                            ? 'bg-cyan-500/30 text-cyan-400 border border-cyan-500/50'
+                                            : 'bg-white/5 text-gray-400'
                                             }`}
                                     >
                                         <Icon size={12} />
@@ -211,7 +306,7 @@ export default function CommunityFeed() {
 
             {/* Posts */}
             <div className="max-h-96 overflow-y-auto">
-                {posts.map((post) => (
+                {posts.map((post: CommunityPost) => (
                     <div key={post.id} className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors">
                         {/* Author */}
                         <div className="flex items-center gap-2 mb-2">
@@ -230,8 +325,8 @@ export default function CommunityFeed() {
                         {/* Trade Badge */}
                         {post.asset && (
                             <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg mb-2 ${post.asset.direction === 'long'
-                                    ? 'bg-green-500/10 border border-green-500/30'
-                                    : 'bg-red-500/10 border border-red-500/30'
+                                ? 'bg-green-500/10 border border-green-500/30'
+                                : 'bg-red-500/10 border border-red-500/30'
                                 }`}>
                                 {post.asset.direction === 'long' ? (
                                     <TrendingUp size={12} className="text-green-400" />
@@ -256,7 +351,10 @@ export default function CommunityFeed() {
                                 <Heart size={14} fill={post.liked ? 'currentColor' : 'none'} />
                                 {post.likes}
                             </button>
-                            <button className="flex items-center gap-1 text-xs hover:text-cyan-400 transition-colors">
+                            <button
+                                onClick={() => setActivePostComments(activePostComments === post.id ? null : post.id)}
+                                className={`flex items-center gap-1 text-xs transition-colors ${activePostComments === post.id ? 'text-cyan-400' : 'hover:text-cyan-400'}`}
+                            >
                                 <MessageCircle size={14} />
                                 {post.comments}
                             </button>
@@ -264,6 +362,51 @@ export default function CommunityFeed() {
                                 <Share2 size={14} />
                             </button>
                         </div>
+
+                        {/* Comments Section */}
+                        <AnimatePresence>
+                            {activePostComments === post.id && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="mt-4 space-y-3 pt-4 border-t border-white/5"
+                                >
+                                    {post.replies?.map((reply: Comment) => (
+                                        <div key={reply.id} className="flex gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                                                <User size={10} className="text-gray-400" />
+                                            </div>
+                                            <div className="flex-1 bg-white/5 rounded-lg p-2">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-[10px] font-bold text-white">{reply.username}</span>
+                                                    <span className="text-[8px] text-gray-500">{formatTime(reply.timestamp)}</span>
+                                                </div>
+                                                <p className="text-[11px] text-gray-300">{reply.content}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={commentText}
+                                            onChange={(e) => setCommentText(e.target.value)}
+                                            placeholder="Write a comment..."
+                                            className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500/50"
+                                            onKeyDown={(e) => e.key === 'Enter' && handleComment(post.id)}
+                                        />
+                                        <button
+                                            onClick={() => handleComment(post.id)}
+                                            disabled={!commentText.trim()}
+                                            className="p-1.5 rounded-lg bg-cyan-500 text-white disabled:opacity-50"
+                                        >
+                                            <Send size={14} />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 ))}
             </div>

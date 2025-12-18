@@ -110,7 +110,7 @@ export default function ForexScreener() {
     const fetchForexData = async () => {
         setLoading(true);
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
             const res = await fetch(`${apiUrl}/api/v1/forex/rates`);
             const data = await res.json();
 

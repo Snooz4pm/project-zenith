@@ -61,7 +61,7 @@ export default function BrutalCoachCard({ trade, recentTrades = [] }: BrutalCoac
             }
 
             try {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
                 const sessionId = localStorage.getItem('zenith_session_id') || 'demo-user';
 
                 const res = await fetch(`${apiUrl}/api/v1/trading/roast`, {
