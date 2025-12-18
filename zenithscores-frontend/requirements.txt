@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+python-dotenv
+requests
+beautifulsoup4
+psycopg2-binary
+feedparser
+apscheduler
+google-generativeai
+sqlalchemy
+apify-client
+python-jose[cryptography]
+pycryptodome
