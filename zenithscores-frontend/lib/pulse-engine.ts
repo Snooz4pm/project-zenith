@@ -114,8 +114,11 @@ export function generatePulseData(assets: { symbol: string; score: number; chang
     const hotAssets = sorted.slice(0, 3);
     const coldAssets = sorted.slice(-3).reverse();
 
-    // Generate edge message
-    const yourEdge = EDGE_MESSAGES[Math.floor(Math.random() * EDGE_MESSAGES.length)];
+    // Generate edge message - use deterministic seed based on 3-hour window
+    // This prevents the message from changing constantly on each render
+    const pulseWindowSeed = Math.floor(now.getHours() / 3);
+    const edgeIndex = (pulseWindowSeed + now.getDate()) % EDGE_MESSAGES.length;
+    const yourEdge = EDGE_MESSAGES[edgeIndex];
 
     // Trading bias based on conditions
     const tradingBias = avgScore > 70
