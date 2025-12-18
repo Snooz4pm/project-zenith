@@ -21,25 +21,68 @@ from pydantic import BaseModel, Field
 from fastapi.responses import JSONResponse
 from fastapi import Request
 
-# Database Imports
-from news_database import NewsDB  # For News
-from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, Boolean
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
+# Database Imports - Made resilient for serverless
+NEWS_DB_AVAILABLE = False
+try:
+    from news_database import NewsDB
+    NEWS_DB_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ NewsDB import failed: {e}")
+    class NewsDB:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def get_total_articles(self): return 0
+        def get_category_stats(self): return []
+        def get_source_stats(self): return []
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
+# SQLAlchemy - Made resilient
+SQLALCHEMY_AVAILABLE = False
+try:
+    from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, Boolean
+    from sqlalchemy.orm import sessionmaker, declarative_base, Session
+    SQLALCHEMY_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ SQLAlchemy import failed: {e}")
+    create_engine = None
+    declarative_base = lambda: object
+
+# Psycopg2 - Made resilient
+PSYCOPG2_AVAILABLE = False
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    PSYCOPG2_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ psycopg2 import failed: {e}")
+    psycopg2 = None
+    RealDictCursor = None
+
 import uuid
 
 # Trading Engine Import (Optional fallback)
+TRADING_ENGINE_AVAILABLE = False
 try:
     from trading_engine import TradingEngine, TradeRequest, TradeResponse, get_asset_price
     TRADING_ENGINE_AVAILABLE = True
-except ImportError:
-    TRADING_ENGINE_AVAILABLE = False
-    print("⚠️ Trading engine module not available, using internal logic")
+except ImportError as e:
+    print(f"⚠️ Trading engine module not available: {e}")
 
-import google.generativeai as genai
-import backend_security
+# Gemini AI - Made resilient
+GEMINI_AVAILABLE = False
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Gemini AI import failed: {e}")
+    genai = None
+
+# Backend Security - Made resilient  
+SECURITY_AVAILABLE = False
+try:
+    import backend_security
+    SECURITY_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Backend security import failed: {e}")
 
 TRADING_ENABLED = True  # Always enable trading endpoints
 
@@ -602,12 +645,21 @@ def debug_endpoint():
     return {
         "status": "debug",
         "python_version": sys.version,
-        "database_url_set": db_url != "NOT_SET",
-        "neon_host_set": neon_host != "NOT_SET",
-        "alpha_vantage_key_set": alpha_key != "NOT_SET",
-        "gemini_key_set": gemini_key != "NOT_SET",
+        "modules": {
+            "news_db": NEWS_DB_AVAILABLE,
+            "sqlalchemy": SQLALCHEMY_AVAILABLE,
+            "psycopg2": PSYCOPG2_AVAILABLE,
+            "trading_engine": TRADING_ENGINE_AVAILABLE,
+            "gemini_ai": GEMINI_AVAILABLE,
+            "security": SECURITY_AVAILABLE
+        },
+        "env_vars": {
+            "database_url_set": db_url != "NOT_SET",
+            "neon_host_set": neon_host != "NOT_SET",
+            "alpha_vantage_key_set": alpha_key != "NOT_SET",
+            "gemini_key_set": gemini_key != "NOT_SET"
+        },
         "sqlalchemy_engine": engine is not None,
-        "trading_engine_available": TRADING_ENGINE_AVAILABLE,
         "timestamp": datetime.now().isoformat()
     }
 
