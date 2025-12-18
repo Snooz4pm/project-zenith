@@ -12,7 +12,7 @@ import type {
 } from './news-types';
 
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
+const API_BASE_URL = ''; // Use relative path to avoid CORS and ensure correct routing
 
 class NewsAPI {
     private baseUrl: string;

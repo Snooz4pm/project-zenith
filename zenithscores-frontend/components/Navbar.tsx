@@ -103,7 +103,7 @@ export default function Navbar() {
                                 ${isActive(link.href) ? 'w-full' : 'w-0 group-hover:w-full'}
                             `} />
 
-                            {/* Active glow dot - simplified without layoutId */}
+                            {/* Active glow dot - simplified without rigid layoutId */}
                             {isActive(link.href) && (
                                 <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff] pointer-events-none" />
                             )}
