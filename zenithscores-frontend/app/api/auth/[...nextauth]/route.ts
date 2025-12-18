@@ -52,9 +52,11 @@ export const authOptions: NextAuthOptions = {
             return session;
         },
     },
+    /*
     pages: {
         signIn: '/auth/signin', // Custom sign-in page (optional, can use default)
     },
+    */
     session: {
         strategy: "jwt",
         maxAge: 30 * 24 * 60 * 60, // 30 days

@@ -9,18 +9,8 @@ import ScoreAlerts from './ScoreAlerts';
 
 export default function Navbar() {
     const pathname = usePathname();
-    const [isScrolled, setIsScrolled] = useState(false);
 
     const isActive = (path: string) => pathname?.startsWith(path);
-
-    // Track scroll for enhanced navbar effect
-    useEffect(() => {
-        const handleScroll = () => {
-            setIsScrolled(window.scrollY > 20);
-        };
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
 
     const navLinks = [
         { href: '/dashboard', label: 'Dashboard' },
@@ -35,7 +25,7 @@ export default function Navbar() {
 
     return (
         <nav
-            className="relative z-[1000] bg-black/80 backdrop-blur-xl border-b border-white/10"
+            className="fixed top-0 left-0 right-0 z-[1000] bg-black/80 backdrop-blur-xl border-b border-white/10 w-full"
         >
             {/* Reduced height on mobile (h-14), full height on desktop (md:h-16) */}
             <div className="container mx-auto px-4 md:px-6 h-14 md:h-16 flex items-center justify-between">
@@ -75,16 +65,15 @@ export default function Navbar() {
                     </span>
                 </Link>
 
-                {/* Desktop Navigation - hidden on mobile */}
-                <div className="hidden md:flex items-center gap-8">
+                <div className="hidden md:flex items-center gap-8 h-full">
                     {navLinks.map((link) => (
                         <Link
                             key={link.href}
                             href={link.href}
-                            className="relative group cursor-pointer"
+                            className="relative group h-full flex items-center px-1"
                         >
                             <span className={`
-                                text-xs font-bold tracking-[0.15em] uppercase transition-colors duration-300 pointer-events-auto
+                                text-xs font-bold tracking-[0.15em] uppercase transition-colors duration-300
                                 ${isActive(link.href)
                                     ? 'text-cyan-400'
                                     : 'text-gray-400 hover:text-white'
@@ -95,21 +84,21 @@ export default function Navbar() {
 
                             {/* Animated underline */}
                             <span className={`
-                                absolute -bottom-1 left-0 h-[2px] bg-gradient-to-r from-cyan-400 to-purple-500
+                                absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-cyan-400 to-purple-500
                                 transition-all duration-300 ease-out pointer-events-none
                                 ${isActive(link.href) ? 'w-full' : 'w-0 group-hover:w-full'}
                             `} />
 
-                            {/* Active glow dot - simplified without rigid layoutId */}
+                            {/* Active glow dot */}
                             {isActive(link.href) && (
-                                <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff] pointer-events-none" />
+                                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff] pointer-events-none" />
                             )}
                         </Link>
                     ))}
                 </div>
 
                 {/* Right Side - Alerts + UserMenu */}
-                <div className="flex items-center gap-3 relative z-[101]">
+                <div className="flex items-center gap-3 relative z-10">
                     <ScoreAlerts />
                     <UserMenu />
                 </div>
