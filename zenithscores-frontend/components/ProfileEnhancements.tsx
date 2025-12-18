@@ -88,9 +88,9 @@ export default function ProfileEnhancements({ userId, sessionId, onAccountDelete
             >
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                     <Bot className="text-purple-400" size={20} />
-                    AI Assistant Persona
+                    Assistant Persona
                 </h3>
-                <p className="text-sm text-gray-400 mb-4">Choose how Zenith AI communicates with you</p>
+                <p className="text-sm text-gray-400 mb-4">Choose your preferred communication style</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {AI_PERSONAS.map(persona => (
@@ -98,8 +98,8 @@ export default function ProfileEnhancements({ userId, sessionId, onAccountDelete
                             key={persona.id}
                             onClick={() => setAiPersona(persona.id)}
                             className={`relative p-4 rounded-xl border transition-all text-left ${aiPersona === persona.id
-                                    ? 'border-purple-500/50 bg-purple-500/10 shadow-lg shadow-purple-500/10'
-                                    : 'border-white/10 hover:border-white/20 bg-black/20'
+                                ? 'border-purple-500/50 bg-purple-500/10 shadow-lg shadow-purple-500/10'
+                                : 'border-white/10 hover:border-white/20 bg-black/20'
                                 }`}
                         >
                             {aiPersona === persona.id && (
@@ -138,8 +138,8 @@ export default function ProfileEnhancements({ userId, sessionId, onAccountDelete
                             title={achievement.description}
                         >
                             <div className={`aspect-square rounded-xl flex items-center justify-center text-2xl transition-transform ${achievement.unlocked
-                                    ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 group-hover:scale-110'
-                                    : 'bg-black/30 border border-white/5'
+                                ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 group-hover:scale-110'
+                                : 'bg-black/30 border border-white/5'
                                 }`}>
                                 {achievement.icon}
                             </div>
@@ -230,7 +230,7 @@ export default function ProfileEnhancements({ userId, sessionId, onAccountDelete
                             Delete Account & All Data
                         </button>
                         <p className="text-[10px] text-gray-600 mt-1">
-                            This permanently removes all your data including watchlists, trade history, and AI chat history.
+                            This permanently removes all your data including watchlists, trade history, and chat history.
                         </p>
                     </div>
                 </div>
@@ -276,7 +276,7 @@ export default function ProfileEnhancements({ userId, sessionId, onAccountDelete
                                 <ul className="text-xs text-gray-500 mt-2 space-y-1">
                                     <li>• Paper Trading history & portfolio</li>
                                     <li>• Watchlists & saved assets</li>
-                                    <li>• AI Coach chat history</li>
+                                    <li>• Coach chat history</li>
                                     <li>• Learning progress & achievements</li>
                                 </ul>
                             </div>

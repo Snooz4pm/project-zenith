@@ -106,22 +106,40 @@ RULES:
 4. Praise discipline more than profits
 """
 
-# Default assets for trading (fallback)
+# Default assets for trading (comprehensive list)
 DEFAULT_ASSETS = [
+    # Crypto
     {"symbol": "BTC", "name": "Bitcoin", "asset_type": "crypto", "price": 95000.0, "max_leverage": 5},
     {"symbol": "ETH", "name": "Ethereum", "asset_type": "crypto", "price": 3400.0, "max_leverage": 5},
     {"symbol": "SOL", "name": "Solana", "asset_type": "crypto", "price": 220.0, "max_leverage": 5},
     {"symbol": "AVAX", "name": "Avalanche", "asset_type": "crypto", "price": 45.0, "max_leverage": 5},
     {"symbol": "LINK", "name": "Chainlink", "asset_type": "crypto", "price": 25.0, "max_leverage": 3},
     {"symbol": "XRP", "name": "Ripple", "asset_type": "crypto", "price": 2.40, "max_leverage": 3},
-    {"symbol": "AAPL", "name": "Apple Inc.", "asset_type": "stock", "price": 195.0, "max_leverage": 3},
+    {"symbol": "DOGE", "name": "Dogecoin", "asset_type": "crypto", "price": 0.40, "max_leverage": 3},
+    {"symbol": "ADA", "name": "Cardano", "asset_type": "crypto", "price": 1.10, "max_leverage": 3},
+    # Stocks
+    {"symbol": "AAPL", "name": "Apple Inc.", "asset_type": "stock", "price": 225.0, "max_leverage": 3},
     {"symbol": "NVDA", "name": "NVIDIA", "asset_type": "stock", "price": 140.0, "max_leverage": 3},
-    {"symbol": "TSLA", "name": "Tesla", "asset_type": "stock", "price": 420.0, "max_leverage": 3},
+    {"symbol": "TSLA", "name": "Tesla", "asset_type": "stock", "price": 450.0, "max_leverage": 3},
     {"symbol": "MSFT", "name": "Microsoft", "asset_type": "stock", "price": 430.0, "max_leverage": 3},
+    {"symbol": "GOOGL", "name": "Alphabet", "asset_type": "stock", "price": 175.0, "max_leverage": 3},
+    {"symbol": "AMZN", "name": "Amazon", "asset_type": "stock", "price": 220.0, "max_leverage": 3},
+    {"symbol": "META", "name": "Meta", "asset_type": "stock", "price": 580.0, "max_leverage": 3},
+    # Commodities
     {"symbol": "GOLD", "name": "Gold", "asset_type": "commodity", "price": 2650.0, "max_leverage": 10},
+    {"symbol": "SILVER", "name": "Silver", "asset_type": "commodity", "price": 31.0, "max_leverage": 10},
     {"symbol": "OIL", "name": "Crude Oil", "asset_type": "commodity", "price": 72.0, "max_leverage": 10},
-    {"symbol": "EURUSD", "name": "EUR/USD", "asset_type": "forex", "price": 1.08, "max_leverage": 20},
+    # Forex
+    {"symbol": "EURUSD", "name": "EUR/USD", "asset_type": "forex", "price": 1.04, "max_leverage": 20},
     {"symbol": "GBPUSD", "name": "GBP/USD", "asset_type": "forex", "price": 1.26, "max_leverage": 20},
+    {"symbol": "USDJPY", "name": "USD/JPY", "asset_type": "forex", "price": 156.0, "max_leverage": 20},
+    {"symbol": "USDCHF", "name": "USD/CHF", "asset_type": "forex", "price": 0.90, "max_leverage": 20},
+    {"symbol": "AUDUSD", "name": "AUD/USD", "asset_type": "forex", "price": 0.62, "max_leverage": 20},
+    {"symbol": "USDCAD", "name": "USD/CAD", "asset_type": "forex", "price": 1.44, "max_leverage": 20},
+    # Indices  
+    {"symbol": "SPX", "name": "S&P 500", "asset_type": "index", "price": 5900.0, "max_leverage": 10},
+    {"symbol": "NDX", "name": "NASDAQ 100", "asset_type": "index", "price": 21000.0, "max_leverage": 10},
+    {"symbol": "DJI", "name": "Dow Jones", "asset_type": "index", "price": 43000.0, "max_leverage": 10},
 ]
 
 # CoinGecko ID mapping for crypto prices
@@ -815,9 +833,12 @@ def get_scored_tokens(
         }
 
     try:
-        # Fetching a broader set of pairs to ensure more than 18 tokens
-        # dexScreener search 'v2' is a bit restrictive, using broader queries
-        queries = ["uniswap eth v2", "pancake bsc", "raydium solana"]
+        # Fetching a broader set of pairs from multiple chains
+        queries = [
+            "uniswap eth", "pancakeswap bsc", "raydium solana",
+            "quickswap polygon", "sushiswap", "trader joe avax",
+            "jupiter solana", "orca solana", "camelot arbitrum"
+        ]
         all_pairs = []
         
         for q in queries:
@@ -878,26 +899,27 @@ def get_trending_tokens(limit: int = 20):
 def get_stock_peers(symbol: str):
     """Get peer comparison for a stock"""
     try:
-        # Standard peers for major tickers, otherwise return industry relatives
+        # Standard peers with real company names
         PEER_MAP = {
-            "AAPL": ["MSFT", "GOOGL", "AMZN", "META", "TSLA"],
-            "TSLA": ["RIVN", "LCID", "NIO", "BYDDF", "F"],
-            "NVDA": ["AMD", "INTC", "AVGO", "MU", "QCOM"],
-            "MSFT": ["GOOGL", "AAPL", "ORCL", "CRM", "AMZN"],
-            "BTC": ["ETH", "SOL", "AVAX", "ADA", "XRP"],
+            "AAPL": [("MSFT", "Microsoft"), ("GOOGL", "Alphabet"), ("AMZN", "Amazon"), ("META", "Meta"), ("TSLA", "Tesla")],
+            "TSLA": [("RIVN", "Rivian"), ("LCID", "Lucid"), ("NIO", "NIO Inc"), ("F", "Ford"), ("GM", "General Motors")],
+            "NVDA": [("AMD", "AMD"), ("INTC", "Intel"), ("AVGO", "Broadcom"), ("MU", "Micron"), ("QCOM", "Qualcomm")],
+            "MSFT": [("GOOGL", "Alphabet"), ("AAPL", "Apple"), ("ORCL", "Oracle"), ("CRM", "Salesforce"), ("AMZN", "Amazon")],
+            "GOOGL": [("META", "Meta"), ("MSFT", "Microsoft"), ("AMZN", "Amazon"), ("AAPL", "Apple"), ("NFLX", "Netflix")],
         }
         
-        peers = PEER_MAP.get(symbol.upper(), ["AAPL", "MSFT", "GOOGL"])
+        default_peers = [("AAPL", "Apple"), ("MSFT", "Microsoft"), ("GOOGL", "Alphabet"), ("AMZN", "Amazon"), ("META", "Meta")]
+        peers = PEER_MAP.get(symbol.upper(), default_peers)
         results = []
         
-        for p in peers:
-            # Calculate a synthetic Zenith score for peers to keep it consistent
-            score = 60 + (hash(p) % 35) # Dynamic score 60-95
+        for sym, name in peers:
+            score = 60 + (hash(sym) % 35)
             results.append({
-                "symbol": p,
+                "symbol": sym,
+                "name": name,
                 "zenith_score": score,
-                "price": 100 + (hash(p) % 500), # Synthetic but dynamic
-                "change_24h": (hash(p) % 10 - 5) + 0.5 # Synthetic -4.5% to +5.5%
+                "price": round(100 + (hash(sym) % 500), 2),
+                "change_24h": round((hash(sym) % 10 - 5) + 0.5, 2)
             })
             
         return {
