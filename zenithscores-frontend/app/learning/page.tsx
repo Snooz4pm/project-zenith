@@ -129,7 +129,7 @@ export default function LearningHubPage() {
     const fetchProgress = async () => {
         setIsLoadingProgress(true);
         try {
-            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/academy/progress/${session?.user?.email}`);
             const data = await res.json();
             if (data.status === 'success') {

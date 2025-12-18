@@ -46,7 +46,7 @@ export default function CryptoDashboard() {
     useEffect(() => {
         const fetchTokens = async () => {
             try {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
                 const res = await fetch(`${apiUrl}/api/v1/tokens/scored?limit=100`);
                 const data = await res.json();
                 if (data.status === 'success') {

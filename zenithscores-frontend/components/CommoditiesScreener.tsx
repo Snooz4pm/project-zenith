@@ -57,7 +57,7 @@ export default function CommoditiesScreener() {
     const fetchCommoditiesData = async () => {
         setLoading(true);
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
             const res = await fetch(`${apiUrl}/api/v1/commodities/prices`);
             const data = await res.json();
 

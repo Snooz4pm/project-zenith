@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Bot, Sparkles, Lock } from 'lucide-react';
 import Link from 'next/link';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
 interface QuotaData {
     allowed: boolean;

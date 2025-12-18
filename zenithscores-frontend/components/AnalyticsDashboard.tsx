@@ -26,7 +26,7 @@ export function AnalyticsDashboard({ sessionId }: { sessionId: string }) {
 
     const fetchAnalytics = async () => {
         try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
             const res = await fetch(`${API_URL}/api/v1/trading/analytics/${sessionId}`);
             const json = await res.json();
             if (json.status === 'success') {

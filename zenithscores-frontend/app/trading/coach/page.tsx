@@ -26,7 +26,7 @@ export default function TradingCoachPage() {
     const fetchTrades = async () => {
         try {
             const sessionId = localStorage.getItem('zenith_trading_session') || 'demo-user';
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
             const res = await fetch(`${apiUrl}/api/v1/trading/history?session_id=${sessionId}&limit=50`);
             const data = await res.json();
 

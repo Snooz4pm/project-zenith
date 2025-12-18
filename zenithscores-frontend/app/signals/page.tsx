@@ -22,7 +22,7 @@ interface Signal {
     volume_24h?: number;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
 export default function SignalsPage() {
     const [signals, setSignals] = useState<Signal[]>([]);

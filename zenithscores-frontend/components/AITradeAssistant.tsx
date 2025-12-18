@@ -7,7 +7,7 @@ import {
     Target, Shield, Lightbulb, X, Maximize2, Minimize2, Sparkles
 } from 'lucide-react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
 interface TradeContext {
     symbol: string;

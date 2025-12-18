@@ -87,7 +87,7 @@ const formatPercent = (value: number) => {
     return `${sign}${value.toFixed(2)}%`;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
 export default function TradingPage() {
     // NextAuth session
@@ -209,7 +209,7 @@ export default function TradingPage() {
     const connectWebSocket = () => {
         if (!sessionId) return;
 
-        const wsUrl = (process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app')
+        const wsUrl = (process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app')
             .replace('http://', 'ws://')
             .replace('https://', 'wss://');
 

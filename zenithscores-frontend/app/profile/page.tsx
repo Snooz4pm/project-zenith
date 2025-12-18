@@ -45,7 +45,7 @@ interface UserProfile {
     last_login: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {

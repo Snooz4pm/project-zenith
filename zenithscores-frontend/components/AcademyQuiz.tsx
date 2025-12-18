@@ -70,7 +70,7 @@ export default function AcademyQuiz({ moduleId, difficulty, courseTitle, onClose
 
         if (session?.user?.email) {
             try {
-                const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+                const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
                 await fetch(`${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/academy/quiz/submit`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

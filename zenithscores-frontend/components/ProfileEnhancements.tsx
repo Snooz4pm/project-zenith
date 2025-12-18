@@ -7,7 +7,7 @@ import {
     Mic, Brain, Zap, Target, TrendingUp, Award, Flame, ChevronRight
 } from 'lucide-react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
 // AI Persona Options
 const AI_PERSONAS = [

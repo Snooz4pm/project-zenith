@@ -70,7 +70,7 @@ export default function StockDetailPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
                 // 1. Fetch main stock data (Synthetic for now but could be real info)
                 const mockPrice = Math.random() * 500 + 50;

@@ -12,7 +12,7 @@ import type {
 } from './news-types';
 
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
 class NewsAPI {
     private baseUrl: string;

@@ -59,7 +59,7 @@ export default function AssetPage() {
                 setMeta(metadata);
 
                 // Feature 2: Get Dynamic Market Data
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
                 let t: any = null;
 

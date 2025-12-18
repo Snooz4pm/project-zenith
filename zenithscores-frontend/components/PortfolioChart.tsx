@@ -36,7 +36,7 @@ const TIME_RANGES: { value: TimeRange; label: string; hours: number }[] = [
     { value: 'ALL', label: 'ALL', hours: 0 },
 ];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {

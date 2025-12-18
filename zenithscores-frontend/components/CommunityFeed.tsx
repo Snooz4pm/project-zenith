@@ -70,7 +70,7 @@ export default function CommunityFeed() {
 
     const fetchPosts = async () => {
         try {
-            const baseUrl = 'https://defioracleworkerapi.vercel.app'; // Fallback for local dev
+            const baseUrl = 'https://project-zenith-zexd.vercel.app'; // Fallback for local dev
             const session_id = session?.user?.email || 'guest';
             const url = `${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/community/posts?session_id=${session_id}`;
             const res = await fetch(url);
@@ -102,7 +102,7 @@ export default function CommunityFeed() {
         }
 
         try {
-            const baseUrl = 'https://defioracleworkerapi.vercel.app';
+            const baseUrl = 'https://project-zenith-zexd.vercel.app';
             const url = `${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/community/posts/${postId}/like?user_id=${session.user?.email}`;
             const res = await fetch(url, { method: 'POST' });
             const data = await res.json();
@@ -123,7 +123,7 @@ export default function CommunityFeed() {
         if (!commentText.trim()) return;
 
         try {
-            const baseUrl = 'https://defioracleworkerapi.vercel.app';
+            const baseUrl = 'https://project-zenith-zexd.vercel.app';
             const url = `${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/community/posts/${postId}/comment`;
             const res = await fetch(url, {
                 method: 'POST',
@@ -157,7 +157,7 @@ export default function CommunityFeed() {
         if (!newPost.trim()) return;
 
         try {
-            const baseUrl = 'https://defioracleworkerapi.vercel.app';
+            const baseUrl = 'https://project-zenith-zexd.vercel.app';
             const url = `${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/community/posts`;
             const res = await fetch(url, {
                 method: 'POST',

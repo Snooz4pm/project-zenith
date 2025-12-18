@@ -47,7 +47,7 @@ export default function ArenaLeaderboard() {
 
     const fetchLeaderboard = async () => {
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.vercel.app';
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
             const res = await fetch(`${apiUrl}/api/v1/trading/leaderboard?limit=10`);
             const data = await res.json();
 
