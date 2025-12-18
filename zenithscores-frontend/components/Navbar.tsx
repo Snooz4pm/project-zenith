@@ -84,10 +84,10 @@ export default function Navbar() {
                         <Link
                             key={link.href}
                             href={link.href}
-                            className="relative group"
+                            className="relative group cursor-pointer"
                         >
                             <span className={`
-                                text-xs font-bold tracking-[0.15em] uppercase transition-colors duration-300
+                                text-xs font-bold tracking-[0.15em] uppercase transition-colors duration-300 pointer-events-auto
                                 ${isActive(link.href)
                                     ? 'text-cyan-400'
                                     : 'text-gray-400 hover:text-white'
@@ -99,16 +99,13 @@ export default function Navbar() {
                             {/* Animated underline */}
                             <span className={`
                                 absolute -bottom-1 left-0 h-[2px] bg-gradient-to-r from-cyan-400 to-purple-500
-                                transition-all duration-300 ease-out
+                                transition-all duration-300 ease-out pointer-events-none
                                 ${isActive(link.href) ? 'w-full' : 'w-0 group-hover:w-full'}
                             `} />
 
-                            {/* Active glow dot */}
+                            {/* Active glow dot - simplified without layoutId */}
                             {isActive(link.href) && (
-                                <motion.span
-                                    layoutId="nav-indicator"
-                                    className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff]"
-                                />
+                                <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff] pointer-events-none" />
                             )}
                         </Link>
                     ))}

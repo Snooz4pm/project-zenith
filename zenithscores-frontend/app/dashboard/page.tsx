@@ -14,6 +14,8 @@ import ArenaLeaderboard from '@/components/ArenaLeaderboard';
 import CommunityFeed from '@/components/CommunityFeed';
 import CloneTrading from '@/components/CloneTrading';
 import PremiumWall from '@/components/PremiumWall';
+import SignalsTable from '@/components/SignalsTable';
+import AssetPicker from '@/components/AssetPicker';
 import { isPremiumUser, getPremiumDaysRemaining } from '@/lib/premium';
 import { AlertCircle, Calendar } from 'lucide-react';
 
@@ -153,7 +155,15 @@ export default function DashboardPage() {
                             </div>
                         </div>
 
-                        {/* Second Row */}
+                        {/* Signals & Market Watch */}
+                        <div className="grid lg:grid-cols-3 gap-6 mt-6">
+                            <SignalsTable />
+                            <div className="h-full">
+                                <AssetPicker />
+                            </div>
+                        </div>
+
+                        {/* Analysis & Social */}
                         <div className="grid md:grid-cols-2 gap-6 mt-6">
                             {/* Predictions */}
                             <PredictionStreaks />
