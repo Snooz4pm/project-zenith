@@ -34,11 +34,8 @@ export default function Navbar() {
     ];
 
     return (
-        <motion.nav
-            initial={{ y: -100 }}
-            animate={{ y: 0 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-[100] bg-black/80 backdrop-blur-xl border-b border-white/10"
+        <nav
+            className="relative z-[1000] bg-black/80 backdrop-blur-xl border-b border-white/10"
         >
             {/* Reduced height on mobile (h-14), full height on desktop (md:h-16) */}
             <div className="container mx-auto px-4 md:px-6 h-14 md:h-16 flex items-center justify-between">
@@ -117,7 +114,7 @@ export default function Navbar() {
                     <UserMenu />
                 </div>
             </div>
-        </motion.nav>
+        </nav>
     );
 }
 
