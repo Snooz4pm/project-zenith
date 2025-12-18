@@ -22,10 +22,10 @@ interface LearningModule {
     locked: boolean;
 }
 
-// Course data
+// Course data - mapped to learning-content.ts course IDs
 const COURSES: LearningModule[] = [
     {
-        id: 'fundamentals',
+        id: 'trading-fundamentals',
         title: 'Trading Fundamentals',
         description: 'Master the basics of market analysis, order types, and risk management.',
         duration: '2h 15m',
@@ -33,23 +33,11 @@ const COURSES: LearningModule[] = [
         difficulty: 'beginner',
         icon: <BookOpen size={24} />,
         color: 'from-blue-500 to-cyan-500',
-        progress: 100,
+        progress: 0,
         locked: false
     },
     {
-        id: 'technicals',
-        title: 'Technical Analysis',
-        description: 'Learn to read charts, identify patterns, and use key indicators.',
-        duration: '3h 30m',
-        lessons: 12,
-        difficulty: 'intermediate',
-        icon: <TrendingUp size={24} />,
-        color: 'from-purple-500 to-pink-500',
-        progress: 65,
-        locked: false
-    },
-    {
-        id: 'zenith-score',
+        id: 'zenith-score-mastery',
         title: 'Zenith Score Mastery',
         description: 'Understand how Zenith Scores work and how to trade with them.',
         duration: '1h 45m',
@@ -57,23 +45,35 @@ const COURSES: LearningModule[] = [
         difficulty: 'beginner',
         icon: <Target size={24} />,
         color: 'from-emerald-500 to-green-500',
-        progress: 30,
+        progress: 0,
         locked: false
     },
     {
-        id: 'risk-management',
+        id: 'technical-analysis',
+        title: 'Technical Analysis',
+        description: 'Learn to read charts, identify patterns, and use key indicators.',
+        duration: '3h 50m',
+        lessons: 12,
+        difficulty: 'intermediate',
+        icon: <TrendingUp size={24} />,
+        color: 'from-purple-500 to-pink-500',
+        progress: 0,
+        locked: false
+    },
+    {
+        id: 'risk-management-pro',
         title: 'Risk Management Pro',
         description: 'Position sizing, stop-losses, and portfolio protection strategies.',
-        duration: '2h 00m',
+        duration: '2h 20m',
         lessons: 7,
-        difficulty: 'intermediate',
+        difficulty: 'advanced',
         icon: <Shield size={24} />,
         color: 'from-orange-500 to-red-500',
         progress: 0,
         locked: false
     },
     {
-        id: 'psychology',
+        id: 'trading-psychology',
         title: 'Trading Psychology',
         description: 'Control emotions, avoid FOMO, and develop a winning mindset.',
         duration: '2h 30m',
@@ -82,19 +82,19 @@ const COURSES: LearningModule[] = [
         icon: <Lightbulb size={24} />,
         color: 'from-yellow-500 to-orange-500',
         progress: 0,
-        locked: true
+        locked: false
     },
     {
-        id: 'defi-mastery',
+        id: 'defi-deep-dive',
         title: 'DeFi Deep Dive',
         description: 'Advanced strategies for decentralized finance protocols.',
-        duration: '4h 00m',
+        duration: '3h 20m',
         lessons: 15,
         difficulty: 'advanced',
         icon: <Zap size={24} />,
         color: 'from-violet-500 to-purple-500',
         progress: 0,
-        locked: true
+        locked: false
     }
 ];
 
@@ -163,8 +163,8 @@ export default function LearningHubPage() {
                                     key={filter}
                                     onClick={() => setActiveFilter(filter)}
                                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeFilter === filter
-                                            ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
-                                            : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                                        ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
+                                        : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
                                         }`}
                                 >
                                     {filter.charAt(0).toUpperCase() + filter.slice(1)}
@@ -181,8 +181,8 @@ export default function LearningHubPage() {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.1 }}
                                     className={`relative overflow-hidden rounded-xl border ${course.locked
-                                            ? 'border-white/5 opacity-60'
-                                            : 'border-white/10 hover:border-white/20'
+                                        ? 'border-white/5 opacity-60'
+                                        : 'border-white/10 hover:border-white/20'
                                         } bg-gradient-to-br from-gray-900/80 to-black transition-all group`}
                                 >
                                     {/* Gradient Top Bar */}
@@ -211,8 +211,8 @@ export default function LearningHubPage() {
                                                 <BookOpen size={12} /> {course.lessons} lessons
                                             </span>
                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${course.difficulty === 'beginner' ? 'bg-emerald-500/20 text-emerald-400' :
-                                                    course.difficulty === 'intermediate' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                        'bg-red-500/20 text-red-400'
+                                                course.difficulty === 'intermediate' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                    'bg-red-500/20 text-red-400'
                                                 }`}>
                                                 {course.difficulty}
                                             </span>
@@ -236,34 +236,25 @@ export default function LearningHubPage() {
                                             </div>
                                         )}
 
-                                        {/* CTA Button */}
-                                        <button
-                                            disabled={course.locked}
+                                        {/* CTA Button - Links to dedicated learning page */}
+                                        <Link
+                                            href={course.locked ? '#' : `/learn/${course.id}`}
+                                            onClick={(e) => course.locked && e.preventDefault()}
                                             className={`mt-4 w-full py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${course.locked
-                                                    ? 'bg-white/5 text-gray-500 cursor-not-allowed'
-                                                    : course.progress === 100
-                                                        ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
-                                                        : 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:opacity-90'
+                                                ? 'bg-white/5 text-gray-500 cursor-not-allowed'
+                                                : 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:opacity-90'
                                                 }`}
                                         >
                                             {course.locked ? (
                                                 <>
                                                     <Lock size={14} /> Unlock with Pro
                                                 </>
-                                            ) : course.progress === 100 ? (
-                                                <>
-                                                    <CheckCircle size={14} /> Review
-                                                </>
-                                            ) : course.progress > 0 ? (
-                                                <>
-                                                    <Play size={14} /> Continue
-                                                </>
                                             ) : (
                                                 <>
-                                                    <Play size={14} /> Start Course
+                                                    <Play size={14} /> Start Learning
                                                 </>
                                             )}
-                                        </button>
+                                        </Link>
                                     </div>
                                 </motion.div>
                             ))}
