@@ -150,15 +150,26 @@ if not DATABASE_URL and os.getenv("NEON_HOST"):
 
 engine = None
 SessionLocal = None
-Base = declarative_base()
 
-if DATABASE_URL:
+# Safe Base declaration
+try:
+    if SQLALCHEMY_AVAILABLE:
+        Base = declarative_base()
+    else:
+        Base = object
+except Exception as e:
+    print(f"⚠️ declarative_base failed: {e}")
+    Base = object
+
+if DATABASE_URL and SQLALCHEMY_AVAILABLE and create_engine is not None:
     try:
         engine = create_engine(DATABASE_URL, pool_pre_ping=True)
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         print("✅ SQLAlchemy Engine Initialized")
     except Exception as e:
         print(f"⚠️ SQLAlchemy Init Failed: {e}")
+        engine = None
+        SessionLocal = None
 
 # SQLAlchemy Dependency
 def get_db():
