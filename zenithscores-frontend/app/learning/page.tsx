@@ -163,7 +163,7 @@ export default function LearningHubPage() {
     );
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white pb-32">
             {/* Header */}
             <div className="sticky top-14 md:top-16 z-30 bg-black/80 backdrop-blur-xl border-b border-white/10">
                 <div className="container mx-auto px-4 md:px-6 py-3">

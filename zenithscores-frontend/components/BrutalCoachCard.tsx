@@ -107,18 +107,42 @@ export default function BrutalCoachCard({ trade, recentTrades = [] }: BrutalCoac
     }, [trade, recentTrades, isPremiumUser()]);
 
     if (!premium) {
+        // Show basic coach for free users (still functional, just simpler)
         return (
-            <div className="relative rounded-2xl border border-white/10 bg-[#1a1a2e]/80 p-5 backdrop-blur-xl overflow-hidden">
-                <div className="absolute inset-0 backdrop-blur-sm bg-black/40 z-10 flex flex-col items-center justify-center">
-                    <Bot className="w-8 h-8 text-red-400 mb-2" />
-                    <p className="text-sm text-white font-bold">Brutal AI Coach</p>
-                    <p className="text-[10px] text-gray-400">Get real feedback on your trades</p>
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl border border-orange-500/30 bg-orange-500/10 p-5"
+            >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-xl bg-gradient-to-br from-orange-500 to-red-500">
+                            <Bot size={20} className="text-white" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-white flex items-center gap-2">
+                                Trading Coach
+                                <span className="text-[10px] px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full">Free</span>
+                            </h3>
+                            <p className="text-xs text-gray-400">Start trading to get feedback</p>
+                        </div>
+                    </div>
                 </div>
-                <div className="blur-sm opacity-40">
-                    <div className="h-24 bg-white/5 rounded-xl mb-3" />
-                    <div className="h-16 bg-white/5 rounded-xl" />
+
+                {/* Basic Message */}
+                <div className="p-4 rounded-xl bg-black/20 mb-4">
+                    <p className="text-white text-sm leading-relaxed">
+                        "Execute a trade in paper trading and I'll analyze your decision. Every trade teaches something."
+                    </p>
                 </div>
-            </div>
+
+                {/* Upgrade CTA */}
+                <div className="p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-cyan-500/10 border border-purple-500/20">
+                    <p className="text-xs text-gray-400 mb-1">🔥 Premium unlocks:</p>
+                    <p className="text-sm text-white">AI-powered roasts, XP tracking, discipline scores</p>
+                </div>
+            </motion.div>
         );
     }
 

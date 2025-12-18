@@ -24,18 +24,38 @@ const DEMO_ALERTS: Alert[] = [
 
 export default function ScoreAlerts() {
     const [premium, setPremium] = useState(false);
-    const [alerts, setAlerts] = useState<Alert[]>(DEMO_ALERTS);
+    const [alerts, setAlerts] = useState<Alert[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [showSetupModal, setShowSetupModal] = useState(false);
 
     useEffect(() => {
         setPremium(isPremiumUser());
+
+        // Load read status from localStorage
+        const readAlerts = JSON.parse(localStorage.getItem('zenith_read_alerts') || '[]') as string[];
+        const initialAlerts = DEMO_ALERTS.map(a => ({
+            ...a,
+            read: readAlerts.includes(a.id)
+        }));
+        setAlerts(initialAlerts);
     }, []);
 
     const unreadCount = alerts.filter(a => !a.read).length;
 
     const markAsRead = (id: string) => {
         setAlerts(prev => prev.map(a => a.id === id ? { ...a, read: true } : a));
+        // Persist to localStorage
+        const readAlerts = JSON.parse(localStorage.getItem('zenith_read_alerts') || '[]') as string[];
+        if (!readAlerts.includes(id)) {
+            readAlerts.push(id);
+            localStorage.setItem('zenith_read_alerts', JSON.stringify(readAlerts));
+        }
+    };
+
+    const markAllAsRead = () => {
+        setAlerts(prev => prev.map(a => ({ ...a, read: true })));
+        const allIds = alerts.map(a => a.id);
+        localStorage.setItem('zenith_read_alerts', JSON.stringify(allIds));
     };
 
     const getAlertIcon = (type: Alert['type']) => {
