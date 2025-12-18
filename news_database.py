@@ -23,25 +23,27 @@ class NewsDatabase:
     def connect(self):
         """Connect to Neon database"""
         try:
+            # Verified Neon DB URL
+            VERIFIED_DB_URL = "postgresql://neondb_owner:npg_r2SjAQEbg3De@ep-morning-frost-addvv38i-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require"
+            
             # Try DATABASE_URL first (full connection string)
             database_url = os.getenv("DATABASE_URL")
             
             if database_url:
                 self.conn = psycopg2.connect(database_url)
-            else:
+            elif os.getenv("NEON_HOST"):
                 # Construct from individual NEON_* variables
                 host = os.getenv("NEON_HOST")
                 database = os.getenv("NEON_DATABASE")
                 user = os.getenv("NEON_USER")
                 password = os.getenv("NEON_PASSWORD")
-                
-                if host and database and user and password:
-                    # Build connection string
-                    conn_string = f"postgresql://{user}:{password}@{host}/{database}?sslmode=require"
-                    self.conn = psycopg2.connect(conn_string)
-                else:
-                    print("⚠️ Missing Database Credentials. Running in Degradation Mode.")
-                    return
+                conn_string = f"postgresql://{user}:{password}@{host}/{database}?sslmode=require"
+                self.conn = psycopg2.connect(conn_string)
+            else:
+                # Use Verified Fallback
+                print("⚠️ Using Verified Database URL Fallback.")
+                self.conn = psycopg2.connect(VERIFIED_DB_URL)
+
             
             self.cur = self.conn.cursor()
             print("✅ Connected to Neon database")
@@ -80,9 +82,9 @@ class NewsDatabase:
                 INSERT INTO articles (
                     hash, title, article, url, source, 
                     category, category_confidence, matched_keywords,
-                    word_count, fetched_at
+                    word_count, importance_score, sentiment_score, why_it_matters, fetched_at
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (hash) DO NOTHING
                 RETURNING id
             """, (
@@ -95,6 +97,9 @@ class NewsDatabase:
                 data.get('category_confidence', 0.0),
                 Json(data.get('matched_keywords', [])),
                 word_count,
+                data.get('importance_score'),
+                data.get('sentiment_score'),
+                data.get('why_it_matters'),
                 datetime.utcnow()
             ))
             

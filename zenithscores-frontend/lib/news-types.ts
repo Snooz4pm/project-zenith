@@ -13,6 +13,7 @@ export interface Article {
     matched_keywords: string[];
     word_count?: number;
     ai_importance?: number;
+    sentiment_score?: number;
     why_it_matters?: string;
     fetched_at: string;
 }

@@ -713,7 +713,7 @@ async def get_articles_by_category(
             db.cur.execute(f"""
                 SELECT id, title, article, url, source, category,
                     category_confidence, matched_keywords, word_count,
-                    importance_score, sentiment_score, fetched_at
+                    importance_score, sentiment_score, why_it_matters, fetched_at
                 FROM articles
                 WHERE category = %s AND category_confidence >= %s
                 ORDER BY {order_clause} LIMIT %s
@@ -732,8 +732,10 @@ async def get_articles_by_category(
                     "category_confidence": float(row[6]) if row[6] else 0.0,
                     "matched_keywords": row[7] if row[7] else [],
                     "word_count": row[8],
-                    "ai_importance": float(row[9]) if row[9] else None,
-                    "fetched_at": row[11].isoformat() if row[11] else None
+                    "ai_importance": float(row[9]) if row[9] is not None else 0.0,
+                    "sentiment_score": float(row[10]) if row[10] is not None else 0.0,
+                    "why_it_matters": row[11],
+                    "fetched_at": row[12].isoformat() if row[12] else None
                 })
             return {"articles": articles, "count": len(articles)}
     except Exception as e:
@@ -751,7 +753,7 @@ async def get_top_articles(
             db.cur.execute("""
                 SELECT id, title, article, url, source, category,
                     category_confidence, matched_keywords, word_count,
-                    importance_score, fetched_at
+                    importance_score, sentiment_score, why_it_matters, fetched_at
                 FROM articles
                 WHERE fetched_at >= %s AND category_confidence >= %s
                 ORDER BY importance_score DESC NULLS LAST, category_confidence DESC, fetched_at DESC
@@ -771,8 +773,10 @@ async def get_top_articles(
                     "category_confidence": float(row[6]) if row[6] else 0.0,
                     "matched_keywords": row[7][:5] if row[7] else [],
                     "word_count": row[8],
-                    "ai_importance": float(row[9]) if row[9] else None,
-                    "fetched_at": row[10].isoformat() if row[10] else None
+                    "ai_importance": float(row[9]) if row[9] is not None else 0.0,
+                    "sentiment_score": float(row[10]) if row[10] is not None else 0.0,
+                    "why_it_matters": row[11],
+                    "fetched_at": row[12].isoformat() if row[12] else None
                 })
             return {"articles": articles, "count": len(articles)}
     except Exception as e:

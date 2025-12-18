@@ -10,7 +10,10 @@ import ScoreAlerts from './ScoreAlerts';
 export default function Navbar() {
     const pathname = usePathname();
 
-    const isActive = (path: string) => pathname?.startsWith(path);
+    const isActive = (path: string) => {
+        if (path === '/') return pathname === '/';
+        return pathname?.startsWith(path);
+    };
 
     const navLinks = [
         { href: '/dashboard', label: 'Dashboard' },
@@ -70,7 +73,10 @@ export default function Navbar() {
                         <Link
                             key={link.href}
                             href={link.href}
-                            className="relative group h-full flex items-center px-1"
+                            className={`
+                                relative h-full flex items-center px-1 transition-all duration-300
+                                ${isActive(link.href) ? 'opacity-100' : 'opacity-70 hover:opacity-100'}
+                            `}
                         >
                             <span className={`
                                 text-xs font-bold tracking-[0.15em] uppercase transition-colors duration-300
@@ -83,7 +89,7 @@ export default function Navbar() {
                             </span>
 
                             {/* Animated underline */}
-                            <span className={`
+                            <div className={`
                                 absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-cyan-400 to-purple-500
                                 transition-all duration-300 ease-out pointer-events-none
                                 ${isActive(link.href) ? 'w-full' : 'w-0 group-hover:w-full'}
@@ -91,7 +97,7 @@ export default function Navbar() {
 
                             {/* Active glow dot */}
                             {isActive(link.href) && (
-                                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff] pointer-events-none" />
+                                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff] pointer-events-none" />
                             )}
                         </Link>
                     ))}
