@@ -22,65 +22,57 @@ export default function DashboardPage() {
     const [premium, setPremium] = useState(false);
     const [daysRemaining, setDaysRemaining] = useState(0);
     const [activeTab, setActiveTab] = useState<'overview' | 'community' | 'arena'>('overview');
+    const [showPremiumWall, setShowPremiumWall] = useState(false);
 
     useEffect(() => {
         setPremium(isPremiumUser());
         setDaysRemaining(getPremiumDaysRemaining());
     }, []);
 
-    // Non-premium: Show preview + paywall
-    if (!premium) {
-        return (
-            <div className="min-h-screen bg-[#0a0a12] text-white">
-                <div className="container mx-auto px-6 py-8">
-                    {/* Header */}
-                    <div className="mb-8">
-                        <Link href="/" className="text-sm text-gray-500 hover:text-cyan-400 mb-2 inline-block">
-                            ← Back to Home
-                        </Link>
-                        <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                            <LayoutDashboard className="text-cyan-400" />
-                            Premium Dashboard
-                            <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full">Premium</span>
-                        </h1>
-                        <p className="text-gray-400 mt-2">Your command center for market intelligence</p>
+    // Handle premium action - show wall if not premium
+    const handlePremiumAction = (callback?: () => void) => {
+        if (premium) {
+            callback?.();
+        } else {
+            setShowPremiumWall(true);
+        }
+    };
+
+    // Premium wall modal for actions
+    const PremiumActionWall = () => (
+        showPremiumWall ? (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="max-w-lg w-full mx-4"
+                >
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowPremiumWall(false)}
+                            className="absolute -top-2 -right-2 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-gray-400 hover:text-white z-10"
+                        >
+                            ×
+                        </button>
+                        <PremiumWall
+                            stocksLocked={0}
+                            onUnlock={() => {
+                                setPremium(true);
+                                setShowPremiumWall(false);
+                            }}
+                        />
                     </div>
-
-                    {/* Preview Grid (blurred) */}
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 relative">
-                        <div className="blur-sm pointer-events-none opacity-60">
-                            <ThreeHourPulse />
-                        </div>
-                        <div className="blur-sm pointer-events-none opacity-60">
-                            <XPProgressionCard />
-                        </div>
-                        <div className="blur-sm pointer-events-none opacity-60">
-                            <PredictionStreaks />
-                        </div>
-
-                        {/* Overlay */}
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="p-6 rounded-2xl bg-black/80 backdrop-blur-lg text-center">
-                                <Lock className="w-10 h-10 text-purple-400 mx-auto mb-3" />
-                                <h3 className="text-lg font-bold text-white mb-2">Premium Features Locked</h3>
-                                <p className="text-sm text-gray-400 mb-3">Unlock all engagement features</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Premium Wall */}
-                    <PremiumWall
-                        stocksLocked={0}
-                        onUnlock={() => setPremium(true)}
-                    />
-                </div>
+                </motion.div>
             </div>
-        );
-    }
+        ) : null
+    );
 
     // Premium: Full dashboard
     return (
         <div className="min-h-screen bg-[#0a0a12] text-white">
+            {/* Premium Action Modal */}
+            <PremiumActionWall />
+
             <div className="container mx-auto px-6 py-8">
                 {/* Expiration Warning */}
                 {daysRemaining <= 5 && (
@@ -109,22 +101,24 @@ export default function DashboardPage() {
                         <div>
                             <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                                 <LayoutDashboard className="text-cyan-400" />
-                                Premium Dashboard
-                                <Crown className="w-5 h-5 text-yellow-400" />
+                                Dashboard
+                                {premium && <Crown className="w-5 h-5 text-yellow-400" />}
+                                {!premium && <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full">Try Premium</span>}
                             </h1>
                             <p className="text-gray-400 mt-1">Your command center for market intelligence</p>
                         </div>
 
                         <div className="flex items-center gap-3">
                             <NotificationCenter />
-                            <Link
-                                href="/trading/coach"
+                            <button
+                                onClick={() => handlePremiumAction(() => window.location.href = '/trading/coach')}
                                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-all"
                             >
                                 <Award size={16} />
                                 Trading Coach
-                                <ChevronRight size={14} />
-                            </Link>
+                                {!premium && <Lock size={12} />}
+                                {premium && <ChevronRight size={14} />}
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -186,6 +186,68 @@ async def rate_limit_middleware(request: Request, call_next):
     return response
 
 # ═══════════════════════════════════════════════════════
+# AI QUOTA SYSTEM (Free=5/day, Premium=Unlimited)
+# ═══════════════════════════════════════════════════════
+
+FREE_AI_DAILY_LIMIT = 5  # Free users get 5 AI requests per day
+
+# In-memory quota storage (use Redis in production)
+# Key: f"ai_quota:{session_id}:{date}" -> count
+ai_quota_storage: Dict[str, int] = {}
+
+def get_today_key() -> str:
+    """Get today's date string for quota key"""
+    return datetime.now().strftime("%Y-%m-%d")
+
+def check_ai_quota(session_id: str) -> dict:
+    """
+    Check if user has remaining AI quota.
+    Returns: {"allowed": bool, "remaining": int, "limit": int, "is_premium": bool}
+    """
+    # 1. Check premium status - premium users have unlimited
+    is_premium = is_user_premium(session_id)
+    if is_premium:
+        return {"allowed": True, "remaining": -1, "limit": -1, "is_premium": True}
+    
+    # 2. Check quota for free users
+    today = get_today_key()
+    quota_key = f"ai_quota:{session_id}:{today}"
+    
+    current_usage = ai_quota_storage.get(quota_key, 0)
+    remaining = FREE_AI_DAILY_LIMIT - current_usage
+    
+    return {
+        "allowed": remaining > 0,
+        "remaining": max(0, remaining),
+        "limit": FREE_AI_DAILY_LIMIT,
+        "is_premium": False,
+        "used": current_usage
+    }
+
+def increment_ai_quota(session_id: str) -> None:
+    """Increment AI usage for a session"""
+    today = get_today_key()
+    quota_key = f"ai_quota:{session_id}:{today}"
+    ai_quota_storage[quota_key] = ai_quota_storage.get(quota_key, 0) + 1
+    
+    # Clean old keys (simple cleanup - remove yesterday's entries)
+    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    keys_to_remove = [k for k in ai_quota_storage.keys() if yesterday in k or 
+                      (k.split(":")[-1] < yesterday and "ai_quota" in k)]
+    for k in keys_to_remove:
+        ai_quota_storage.pop(k, None)
+
+@app.get("/api/v1/ai/quota/{session_id}")
+def get_ai_quota(session_id: str):
+    """Get user's AI quota status"""
+    quota = check_ai_quota(session_id)
+    return {
+        "status": "success",
+        "data": quota
+    }
+
+
+# ═══════════════════════════════════════════════════════
 # DATA MODELS (Pydantic)
 # ═══════════════════════════════════════════════════════
 
@@ -1611,6 +1673,87 @@ def link_trading_session(payload: LinkTradingPayload):
             conn.close()
 
 
+class DeleteAccountPayload(BaseModel):
+    user_id: Optional[int] = None
+    session_id: str
+
+@app.delete("/api/v1/auth/delete-account")
+def delete_user_account(payload: DeleteAccountPayload):
+    """
+    Permanently delete a user account and ALL associated data.
+    This performs a cascading wipe of:
+    - User watchlists
+    - Trade history  
+    - Portfolio holdings
+    - Trading sessions
+    - User record
+    """
+    conn = None
+    try:
+        conn = get_trading_db()
+        if not conn:
+            raise HTTPException(status_code=503, detail="Database connection failed")
+        
+        cur = conn.cursor()
+        deleted_counts = {}
+        
+        # 1. Delete from user_watchlist by session_id
+        try:
+            cur.execute("DELETE FROM user_watchlist WHERE session_id = %s", (payload.session_id,))
+            deleted_counts['watchlist'] = cur.rowcount
+        except: pass
+        
+        # 2. Delete from trades by session_id
+        try:
+            cur.execute("DELETE FROM trades WHERE session_id = %s", (payload.session_id,))
+            deleted_counts['trades'] = cur.rowcount
+        except: pass
+        
+        # 3. Delete from portfolio_holdings by session_id
+        try:
+            cur.execute("DELETE FROM portfolio_holdings WHERE session_id = %s", (payload.session_id,))
+            deleted_counts['holdings'] = cur.rowcount
+        except: pass
+        
+        # 4. Delete from portfolio_history by session_id
+        try:
+            cur.execute("DELETE FROM portfolio_history WHERE session_id = %s", (payload.session_id,))
+            deleted_counts['history'] = cur.rowcount
+        except: pass
+        
+        # 5. Delete from trading_users by session_id
+        try:
+            cur.execute("DELETE FROM trading_users WHERE session_id = %s", (payload.session_id,))
+            deleted_counts['trading_users'] = cur.rowcount
+        except: pass
+        
+        # 6. Delete from users table if user_id provided
+        if payload.user_id:
+            try:
+                cur.execute("DELETE FROM users WHERE id = %s", (payload.user_id,))
+                deleted_counts['users'] = cur.rowcount
+            except: pass
+        
+        conn.commit()
+        
+        return {
+            "status": "success",
+            "message": "Account permanently deleted",
+            "deleted": deleted_counts
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
+
+
 @app.get("/api/v1/auth/trading-sessions/{user_id}")
 def get_user_trading_sessions(user_id: int):
     """Get all trading sessions for a user"""
@@ -1849,6 +1992,138 @@ async def broadcast_to_session(session_id: str, data: Dict):
     
     for ws in dead:
         active_connections[session_id].discard(ws)
+
+
+# ═══════════════════════════════════════════════════════
+# WATCHLIST ENDPOINTS (Persistent via Neon DB)
+# ═══════════════════════════════════════════════════════
+
+class WatchlistItem(BaseModel):
+    symbol: str
+    asset_type: str = "crypto"  # crypto, stock, forex
+    name: Optional[str] = None
+
+@app.get("/api/v1/watchlist/{session_id}")
+def get_watchlist(session_id: str):
+    """Get user's watchlist"""
+    conn = get_trading_db()
+    if not conn:
+        return {"status": "success", "data": [], "message": "Database not available"}
+    
+    try:
+        cur = conn.cursor()
+        # Create table if not exists
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_watchlist (
+                id SERIAL PRIMARY KEY,
+                session_id VARCHAR(255) NOT NULL,
+                symbol VARCHAR(50) NOT NULL,
+                asset_type VARCHAR(20) DEFAULT 'crypto',
+                name VARCHAR(255),
+                added_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(session_id, symbol)
+            )
+        """)
+        conn.commit()
+        
+        cur.execute("""
+            SELECT symbol, asset_type, name, added_at 
+            FROM user_watchlist 
+            WHERE session_id = %s 
+            ORDER BY added_at DESC
+        """, (session_id,))
+        
+        rows = cur.fetchall()
+        items = [{"symbol": r["symbol"], "asset_type": r["asset_type"], "name": r["name"], "added_at": r["added_at"].isoformat() if r["added_at"] else None} for r in rows]
+        
+        return {"status": "success", "data": items, "count": len(items)}
+    except Exception as e:
+        return {"status": "error", "message": str(e), "data": []}
+    finally:
+        conn.close()
+
+@app.post("/api/v1/watchlist/{session_id}")
+def add_to_watchlist(session_id: str, item: WatchlistItem):
+    """Add symbol to watchlist"""
+    conn = get_trading_db()
+    if not conn:
+        return {"status": "error", "message": "Database not available"}
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO user_watchlist (session_id, symbol, asset_type, name)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (session_id, symbol) DO NOTHING
+            RETURNING id
+        """, (session_id, item.symbol, item.asset_type, item.name))
+        
+        result = cur.fetchone()
+        conn.commit()
+        
+        if result:
+            return {"status": "success", "message": f"Added {item.symbol} to watchlist"}
+        else:
+            return {"status": "success", "message": f"{item.symbol} already in watchlist"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        conn.close()
+
+@app.delete("/api/v1/watchlist/{session_id}/{symbol}")
+def remove_from_watchlist(session_id: str, symbol: str):
+    """Remove symbol from watchlist"""
+    conn = get_trading_db()
+    if not conn:
+        return {"status": "error", "message": "Database not available"}
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            DELETE FROM user_watchlist 
+            WHERE session_id = %s AND symbol = %s
+        """, (session_id, symbol))
+        
+        deleted = cur.rowcount
+        conn.commit()
+        
+        if deleted:
+            return {"status": "success", "message": f"Removed {symbol} from watchlist"}
+        else:
+            return {"status": "success", "message": f"{symbol} not in watchlist"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        conn.close()
+
+@app.post("/api/v1/watchlist/{session_id}/sync")
+def sync_watchlist(session_id: str, symbols: List[str]):
+    """Sync local watchlist to server (bulk add)"""
+    conn = get_trading_db()
+    if not conn:
+        return {"status": "error", "message": "Database not available"}
+    
+    try:
+        cur = conn.cursor()
+        added = 0
+        for symbol in symbols:
+            try:
+                cur.execute("""
+                    INSERT INTO user_watchlist (session_id, symbol, asset_type)
+                    VALUES (%s, %s, 'crypto')
+                    ON CONFLICT (session_id, symbol) DO NOTHING
+                """, (session_id, symbol))
+                if cur.rowcount > 0:
+                    added += 1
+            except:
+                pass
+        
+        conn.commit()
+        return {"status": "success", "message": f"Synced {added} symbols", "added": added}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":

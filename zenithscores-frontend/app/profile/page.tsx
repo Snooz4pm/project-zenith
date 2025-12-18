@@ -8,6 +8,7 @@ import {
     ArrowLeft, User, Mail, Calendar, Trophy, TrendingUp, TrendingDown,
     Edit2, Save, X, Shield, Activity, DollarSign, BarChart3, LogOut, CheckCircle, History, Bot
 } from 'lucide-react';
+import ProfileEnhancements from '@/components/ProfileEnhancements';
 
 // Types
 interface TradingSession {
@@ -83,32 +84,6 @@ export default function ProfilePage() {
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [activeProfileTab, setActiveProfileTab] = useState<'sessions' | 'history'>('sessions');
-    const [geminiKey, setGeminiKey] = useState('');
-    const [keySaving, setKeySaving] = useState(false);
-
-    const handleSaveGeminiKey = async () => {
-        if (!geminiKey) return;
-        setKeySaving(true);
-        try {
-            const sessionId = localStorage.getItem('zenith_session_id') || 'demo-user';
-            const res = await fetch(`${API_URL}/api/v1/user/keys`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ session_id: sessionId, gemini_key: geminiKey })
-            });
-
-            if (res.ok) {
-                setSaveSuccess(true);
-                setGeminiKey('');
-                setTimeout(() => setSaveSuccess(false), 3000);
-            }
-        } catch (e) {
-            console.error('Failed to save key:', e);
-            setError('Failed to secure AI key');
-        } finally {
-            setKeySaving(false);
-        }
-    };
 
     // Load user data
     useEffect(() => {
@@ -606,62 +581,53 @@ export default function ProfilePage() {
                             </Link>
                         </motion.div>
 
-                        {/* Zenith Sync - AI Engine */}
+                        {/* Zenith AI Status - System Powered */}
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.4 }}
-                            className="bg-gradient-to-br from-indigo-900/20 to-blue-900/20 border border-indigo-500/20 rounded-2xl p-6 backdrop-blur-xl"
+                            className="bg-gradient-to-br from-emerald-900/20 to-cyan-900/20 border border-emerald-500/20 rounded-2xl p-6 backdrop-blur-xl"
                         >
-                            <div className="flex items-center gap-3 mb-4">
-                                <Bot className="text-indigo-400" />
-                                <h3 className="text-lg font-bold">Zenith Sync</h3>
-                                <span className="text-[10px] px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-full border border-indigo-500/30">AI Engine</span>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-lg bg-emerald-500/20">
+                                        <Bot className="text-emerald-400" size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold flex items-center gap-2">
+                                            Zenith AI
+                                            <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">
+                                                Active
+                                            </span>
+                                        </h3>
+                                        <p className="text-xs text-gray-400">AI coaching powered by Zenith system</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50"></div>
+                                    <span className="text-sm text-emerald-400 font-medium">Connected</span>
+                                </div>
                             </div>
 
-                            <p className="text-sm text-gray-400 mb-6 font-mono text-[11px]">
-                                Connect your own Google Gemini API key to enable high-frequency AI trade coaching and personalized brutal roasts. Your key is encrypted with AES-256-CBC before storage.
-                            </p>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2 font-bold">Gemini API Key</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="password"
-                                            value={geminiKey}
-                                            onChange={(e) => setGeminiKey(e.target.value)}
-                                            placeholder="Enter your API key..."
-                                            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500/50 transition-colors"
-                                        />
-                                        <button
-                                            onClick={handleSaveGeminiKey}
-                                            disabled={keySaving || !geminiKey}
-                                            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-500/20"
-                                        >
-                                            {keySaving ? 'Saving...' : 'Sync'}
-                                        </button>
-                                    </div>
-                                    <p className="text-[10px] text-gray-500 mt-2 flex items-center gap-1">
-                                        <Shield size={10} /> Securely stored in Zenith Vault using AES-256.
-                                    </p>
-                                </div>
-
-                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                                    <h4 className="text-xs font-bold text-indigo-300 mb-2 uppercase tracking-tighter">Sync Status</h4>
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-2 h-2 rounded-full ${userProfile ? 'bg-emerald-500 animate-pulse' : 'bg-gray-500'}`}></div>
-                                        <span className="text-xs text-gray-300">{userProfile ? 'Active & Encrypted' : 'Not Connected'}</span>
-                                    </div>
-                                    <p className="text-[10px] text-gray-500 mt-2">
-                                        Personal keys take priority over system keys for AI coaching.
-                                    </p>
-                                </div>
+                            <div className="mt-4 p-3 bg-black/30 rounded-xl border border-white/5">
+                                <p className="text-xs text-gray-400">
+                                    ✅ <strong className="text-white">No API key needed</strong> — Zenith provides AI coaching for all users.
+                                    <br />
+                                    🚀 Premium users get unlimited AI roasts and personalized trade analysis.
+                                </p>
                             </div>
                         </motion.div>
+
+                        {/* Profile Enhancements - AI Persona, Achievements, Skills, Settings */}
+                        <ProfileEnhancements
+                            userId={userProfile?.id}
+                            sessionId={tradingSessions[0]?.session_id || localStorage.getItem('trading_session_id') || undefined}
+                            onAccountDeleted={() => signOut({ callbackUrl: '/' })}
+                        />
                     </div>
                 </div>
             </div>
         </div>
     );
 }
+

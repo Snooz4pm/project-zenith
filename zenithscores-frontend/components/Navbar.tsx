@@ -27,10 +27,10 @@ export default function Navbar() {
         { href: '/crypto', label: 'Crypto' },
         { href: '/stocks', label: 'Stocks' },
         { href: '/forex', label: 'Forex' },
-        { href: '/commodities', label: 'Commodities' },
         { href: '/signals', label: 'Signals' },
         { href: '/news', label: 'News' },
         { href: '/trading', label: 'Trading' },
+        { href: '/learning', label: 'Learn' },
     ];
 
     return (

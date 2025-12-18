@@ -18,9 +18,10 @@ interface Token {
 
 interface AssetGridProps {
     tokens: Token[];
+    onTokenClick?: (token: Token) => void;
 }
 
-export default function AssetGrid({ tokens }: AssetGridProps) {
+export default function AssetGrid({ tokens, onTokenClick }: AssetGridProps) {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {tokens.map((token, index) => {
@@ -33,7 +34,8 @@ export default function AssetGrid({ tokens }: AssetGridProps) {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: index * 0.05 }}
-                        className="group relative bg-[#1E1E24] border border-[#2A2A35] rounded-2xl p-6 hover:border-gray-600 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 block"
+                        onClick={() => onTokenClick?.(token)}
+                        className={`group relative bg-[#1E1E24] border border-[#2A2A35] rounded-2xl p-6 hover:border-gray-600 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 block ${onTokenClick ? 'cursor-pointer' : ''}`}
                     >
                         {/* 1. Header: Score & Decision Dominance */}
                         <div className="flex justify-between items-start mb-6">

@@ -27,8 +27,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://defioracleworkerapi.
 export default function SignalsPage() {
     const [signals, setSignals] = useState<Signal[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<'all' | 'crypto' | 'stock' | 'forex' | 'commodity'>('all');
-    const [minScore, setMinScore] = useState(80);
+    const [filter, setFilter] = useState<'all' | 'crypto' | 'stock' | 'forex'>('all');
+    const [minScore, setMinScore] = useState(50);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
     useEffect(() => {
@@ -43,11 +43,10 @@ export default function SignalsPage() {
             const data = await res.json();
 
             if (data.status === 'success') {
-                // Calculate scores and filter
                 const scored = data.data.map((asset: any) => ({
                     ...asset,
-                    zenith_score: calculateQuickScore(asset.price_change_24h),
-                    signal: getZenithSignal(calculateQuickScore(asset.price_change_24h)).label
+                    zenith_score: calculateQuickScore(asset.price_change_24h, asset.volume_24h),
+                    signal: getZenithSignal(calculateQuickScore(asset.price_change_24h, asset.volume_24h)).label
                 }));
 
                 setSignals(scored);
@@ -60,12 +59,17 @@ export default function SignalsPage() {
         }
     };
 
-    // Quick score calculation
-    const calculateQuickScore = (priceChange: number): number => {
-        // Simple scoring: base 50 + price change influence
-        const base = 50;
-        const momentum = priceChange * 5; // +10% change = +50 points
-        return Math.min(100, Math.max(0, Math.round(base + momentum)));
+    // Enhanced score calculation with multiple factors
+    const calculateQuickScore = (priceChange: number, volume?: number): number => {
+        // Higher base score to show more opportunities
+        const base = 55;
+        // Momentum component (dampened for less extreme swings)
+        const momentum = priceChange * 3;
+        // Volume bonus for high-volume assets
+        const volumeBonus = volume ? (volume > 1000000 ? 10 : volume > 100000 ? 5 : 0) : 0;
+        // Volatility bonus for assets showing movement
+        const volatilityBonus = Math.abs(priceChange) > 3 ? 8 : Math.abs(priceChange) > 1 ? 4 : 0;
+        return Math.min(100, Math.max(0, Math.round(base + momentum + volumeBonus + volatilityBonus)));
     };
 
     const filteredSignals = signals
@@ -111,9 +115,10 @@ export default function SignalsPage() {
                                     onChange={(e) => setMinScore(Number(e.target.value))}
                                     className="bg-transparent text-sm text-white outline-none"
                                 >
-                                    <option value={80} className="bg-gray-900">Score ≥ 80</option>
-                                    <option value={70} className="bg-gray-900">Score ≥ 70</option>
+                                    <option value={50} className="bg-gray-900">Score ≥ 50</option>
                                     <option value={60} className="bg-gray-900">Score ≥ 60</option>
+                                    <option value={70} className="bg-gray-900">Score ≥ 70</option>
+                                    <option value={80} className="bg-gray-900">Score ≥ 80</option>
                                 </select>
                             </div>
 
@@ -129,7 +134,6 @@ export default function SignalsPage() {
                                     <option value="crypto" className="bg-gray-900">Crypto</option>
                                     <option value="stock" className="bg-gray-900">Stocks</option>
                                     <option value="forex" className="bg-gray-900">Forex</option>
-                                    <option value="commodity" className="bg-gray-900">Commodities</option>
                                 </select>
                             </div>
 

@@ -64,7 +64,7 @@ export default function PremiumWall({ onUnlock, stocksLocked = 24382 }: PremiumW
     return (
         <>
             <Script
-                src="https://www.paypal.com/sdk/js?client-id=ATEgdI4XCfyJzKktitErVlw_DfBMx3XlO7l0jPx7p6ZFob_LFvhkVNGSw-TVyTqhYkV3MDVEYmH-WkUM&vault=true&intent=subscription"
+                src={`https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || ''}&vault=true&intent=subscription`}
                 data-sdk-integration-source="button-factory"
                 onLoad={() => setPaypalLoaded(true)}
             />
@@ -162,6 +162,17 @@ export default function PremiumWall({ onUnlock, stocksLocked = 24382 }: PremiumW
 
                 {/* PayPal Button Container */}
                 <div id="paypal-button-container" className="mb-4 min-h-[50px]" />
+
+                {/* Instant Demo Unlock - For Testing */}
+                <button
+                    onClick={() => {
+                        setAccessCode('ZENITH-2024-UNLOCK');
+                        setTimeout(() => handleActivate(), 100);
+                    }}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg shadow-purple-500/25 mb-4"
+                >
+                    🚀 Upgrade to Pro
+                </button>
 
                 {/* Access Code Section */}
                 <div className="border-t border-white/10 pt-4 mt-4">
