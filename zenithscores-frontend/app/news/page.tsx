@@ -67,13 +67,13 @@ export default function NewsPage() {
       if (selectedCategory) {
         data = await newsAPI.getArticlesByCategory(selectedCategory, {
           limit: 500,
-          minConfidence: 0.4,
+          minConfidence: 0.1,
         });
       } else {
         data = await newsAPI.getTopArticles({
           limit: 500,
-          hours: 48,
-          minConfidence: 0.4,
+          hours: 168,
+          minConfidence: 0.1,
         });
       }
 
