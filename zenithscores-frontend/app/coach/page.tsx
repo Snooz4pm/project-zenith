@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
     Bot, Zap, Trophy, Target, Flame, Shield, Lock,
-    ChevronRight, Star, Award, TrendingUp, Clock, Check
+    ChevronRight, Star, Award, TrendingUp, Check, Crown
 } from 'lucide-react';
 import Link from 'next/link';
 import { isPremiumUser, savePremiumStatus } from '@/lib/premium';
+import TradingCoachEmptyState from '@/components/TradingCoachEmptyState';
 
 const FEATURES = [
     {
@@ -57,16 +58,19 @@ const WHAT_YOU_GET = [
     'Weekly personalized performance reports',
 ];
 
-export default function CoachWelcomePage() {
+export default function CoachPage() {
     const [premium, setPremium] = useState(false);
-    const [isActivating, setIsActivating] = useState(false);
+    const [hasSession, setHasSession] = useState(false);
 
     useEffect(() => {
         setPremium(isPremiumUser());
+        // Check if user has a trading session
+        const sessionId = localStorage.getItem('trading_session_id');
+        setHasSession(!!sessionId);
     }, []);
 
-    // If already premium, redirect to dashboard
-    if (premium) {
+    // If already premium with a session, redirect to coach dashboard
+    if (premium && hasSession) {
         return (
             <div className="min-h-screen bg-[#0a0a12] text-white flex items-center justify-center">
                 <div className="text-center">
@@ -74,18 +78,32 @@ export default function CoachWelcomePage() {
                     <h1 className="text-2xl font-bold mb-2">You're Already Premium!</h1>
                     <p className="text-gray-400 mb-6">Your coach is ready and waiting.</p>
                     <Link
-                        href="/dashboard"
+                        href="/trading/coach"
                         className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg font-bold"
                     >
-                        Enter Dashboard <ChevronRight size={18} />
+                        Enter Coach Dashboard <ChevronRight size={18} />
                     </Link>
                 </div>
             </div>
         );
     }
 
+    // If premium but no session, show empty state to start trading
+    if (premium && !hasSession) {
+        return (
+            <div className="min-h-screen bg-[#0a0a12] text-white pt-20 md:pt-24">
+                <div className="container mx-auto px-4 md:px-6 py-8">
+                    <TradingCoachEmptyState
+                        quota={{ used: 0, limit: 5, remaining: 5, isPremium: true }}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // Non-premium: Show landing page with features and pricing
     return (
-        <div className="min-h-screen bg-[#0a0a12] text-white">
+        <div className="min-h-screen bg-[#0a0a12] text-white pt-16 md:pt-20">
             {/* Hero Section */}
             <div className="relative overflow-hidden">
                 {/* Background Glow */}
@@ -185,8 +203,8 @@ export default function CoachWelcomePage() {
                         <h3 className="text-xl font-bold mb-4 text-gray-400">Free Tier</h3>
                         <ul className="space-y-3 text-sm text-gray-400">
                             <li className="flex items-center gap-2">
-                                <Clock size={14} className="text-gray-500" />
-                                15-minute delayed pulse
+                                <Zap size={14} className="text-gray-500" />
+                                5 AI analyses per day
                             </li>
                             <li className="flex items-center gap-2">
                                 <Lock size={14} className="text-gray-500" />
@@ -206,7 +224,7 @@ export default function CoachWelcomePage() {
                     {/* Premium */}
                     <div className="p-6 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-cyan-500/30">
                         <h3 className="text-xl font-bold mb-4 text-cyan-400 flex items-center gap-2">
-                            <Star size={18} className="text-yellow-400" />
+                            <Crown size={18} className="text-yellow-400" />
                             Premium — $19.99/mo
                         </h3>
                         <ul className="space-y-3 text-sm text-white">
@@ -237,18 +255,15 @@ export default function CoachWelcomePage() {
                         Less than one bad trade costs you
                     </p>
 
-                    <Link
-                        href="/dashboard"
-                        onClick={(e) => {
-                            e.preventDefault();
+                    <button
+                        onClick={() => {
                             savePremiumStatus(true);
-                            setPremium(true);
-                            window.location.href = '/dashboard';
+                            window.location.href = '/trading';
                         }}
-                        className="block w-full py-4 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-xl font-bold text-lg hover:from-cyan-400 hover:to-purple-400 transition-all"
+                        className="w-full py-4 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-xl font-bold text-lg hover:from-cyan-400 hover:to-purple-400 transition-all"
                     >
                         Activate Premium Now
-                    </Link>
+                    </button>
 
                     <p className="text-xs text-gray-500 mt-4">
                         7-day money-back guarantee • Cancel anytime

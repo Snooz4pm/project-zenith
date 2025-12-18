@@ -14,18 +14,7 @@ export default function StockPortal() {
     };
 
     return (
-        <div className="theme-stock min-h-screen bg-[var(--background-dark)] text-[var(--foreground)]">
-            {/* Sub-Header / Portal Theme */}
-            <div className="border-b border-[var(--border-color)] bg-[var(--background-card)] shadow-sm sticky top-16 z-20">
-                <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                            🏢 Stock Market <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">Equities</span>
-                        </h1>
-                        <p className="text-sm text-gray-500">Screen, analyze, and track stocks using live algorithm-driven scores.</p>
-                    </div>
-                </div>
-            </div>
+        <div className="theme-stock min-h-screen bg-[var(--background-dark)] text-[var(--foreground)] pt-20 md:pt-24">
 
             <main className="container mx-auto px-6 py-8">
                 {/* Search Bar - styled slightly lighter */}

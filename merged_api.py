@@ -2610,7 +2610,7 @@ def create_community_post(post: CommunityPostRequest):
         conn.close()
 
 @app.post("/api/v1/community/posts/{post_id}/like")
-def toggle_post_like(post_id: int, user_id: str):
+def toggle_post_like(post_id: int, user_id: str = Query(...)):
     """Toggle like for a post"""
     conn = get_trading_db()
     if not conn: return {"status": "error", "message": "DB Down"}

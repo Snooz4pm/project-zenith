@@ -532,38 +532,7 @@ export default function TradingPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
-            {/* Header - Mobile Optimized */}
-            <div className="sticky top-16 z-40 bg-black/80 backdrop-blur-xl border-b border-white/10">
-                <div className="container mx-auto px-4 py-3">
-                    {/* Mobile Header Grid */}
-                    <div className="grid grid-cols-[44px_1fr_44px] md:flex md:items-center md:justify-between gap-2 md:gap-4">
-                        {/* Back Button */}
-                        <Link href="/" className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 transition-colors flex-shrink-0">
-                            <ArrowLeft size={20} />
-                        </Link>
-
-                        {/* Title - Centered on mobile, left on desktop */}
-                        <div className="min-w-0 text-center md:text-left md:flex-1">
-                            <h1 className="text-lg md:text-xl font-bold flex items-center justify-center md:justify-start gap-2 truncate">
-                                <span className="hidden md:inline">📈</span>
-                                <span className="truncate">Zenith Trading</span>
-                                <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full flex-shrink-0">DEMO</span>
-                            </h1>
-                            <p className="text-[10px] md:text-xs text-gray-500 truncate">Session: {sessionId?.slice(0, 8)}...</p>
-                        </div>
-
-                        {/* Refresh Button */}
-                        <button
-                            onClick={handleRefresh}
-                            disabled={refreshing}
-                            className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 transition-colors flex-shrink-0"
-                        >
-                            <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
-                        </button>
-                    </div>
-                </div>
-            </div>
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white pt-20 md:pt-24">
 
             {/* Success Toast */}
             <AnimatePresence>

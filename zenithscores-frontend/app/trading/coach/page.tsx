@@ -1,15 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { GraduationCap, Lock, TrendingUp, BarChart3, Lightbulb, Clock, Bot } from 'lucide-react';
+import { GraduationCap, Lightbulb, Clock, Brain } from 'lucide-react';
 import Link from 'next/link';
 import WeeklySummary from '@/components/WeeklySummary';
 import TradeFeedbackCard from '@/components/TradeFeedbackCard';
 import BrutalCoachCard from '@/components/BrutalCoachCard';
-import PremiumWall from '@/components/PremiumWall';
+import TradingCoachEmptyState from '@/components/TradingCoachEmptyState';
 import { isPremiumUser } from '@/lib/premium';
 import { generateTradeFeedback, generateWeeklySummary, type Trade, type TradeFeedback, type WeeklySummary as WeeklySummaryType } from '@/lib/coaching-engine';
+
+interface QuotaInfo {
+    used: number;
+    limit: number;
+    remaining: number;
+    isPremium: boolean;
+}
 
 export default function TradingCoachPage() {
     const [premium, setPremium] = useState(false);
@@ -17,22 +23,64 @@ export default function TradingCoachPage() {
     const [trades, setTrades] = useState<Trade[]>([]);
     const [feedbacks, setFeedbacks] = useState<TradeFeedback[]>([]);
     const [weeklySummary, setWeeklySummary] = useState<WeeklySummaryType | null>(null);
+    const [quota, setQuota] = useState<QuotaInfo>({
+        used: 0,
+        limit: 5,
+        remaining: 5,
+        isPremium: false
+    });
 
     useEffect(() => {
-        setPremium(isPremiumUser());
+        const isPremium = isPremiumUser();
+        setPremium(isPremium);
         fetchTrades();
+        // Load quota from localStorage or API
+        loadQuota(isPremium);
     }, []);
+
+    const loadQuota = async (isPremiumUser: boolean) => {
+        // Get daily quota from localStorage
+        const today = new Date().toISOString().split('T')[0];
+        const storedQuota = localStorage.getItem('ai_quota');
+
+        if (storedQuota) {
+            const parsed = JSON.parse(storedQuota);
+            if (parsed.date === today) {
+                setQuota({
+                    used: parsed.used,
+                    limit: 5,
+                    remaining: 5 - parsed.used,
+                    isPremium: isPremiumUser
+                });
+                return;
+            }
+        }
+
+        // Reset for new day
+        localStorage.setItem('ai_quota', JSON.stringify({ date: today, used: 0 }));
+        setQuota({
+            used: 0,
+            limit: 5,
+            remaining: 5,
+            isPremium: isPremiumUser
+        });
+    };
 
     const fetchTrades = async () => {
         try {
-            const sessionId = localStorage.getItem('zenith_trading_session') || 'demo-user';
+            const sessionId = localStorage.getItem('trading_session_id');
+            if (!sessionId) {
+                setLoading(false);
+                return;
+            }
+
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
-            const res = await fetch(`${apiUrl}/api/v1/trading/history?session_id=${sessionId}&limit=50`);
+            const res = await fetch(`${apiUrl}/api/v1/trading/history/${sessionId}?limit=50`);
             const data = await res.json();
 
-            if (data.trades) {
+            if (data.status === 'success' && data.data) {
                 // Filter to only sell trades (closed positions) for feedback
-                const closedTrades = data.trades.filter((t: Trade) => t.trade_type === 'sell');
+                const closedTrades = data.data.filter((t: Trade) => t.trade_type === 'sell');
                 setTrades(closedTrades);
 
                 // Generate feedback for each trade
@@ -44,25 +92,9 @@ export default function TradingCoachPage() {
             }
         } catch (error) {
             console.error('Failed to fetch trades:', error);
-            // Generate demo data
-            generateDemoData();
         } finally {
             setLoading(false);
         }
-    };
-
-    const generateDemoData = () => {
-        const demoTrades: Trade[] = [
-            { id: 1, symbol: 'BTC', trade_type: 'sell', quantity: 0.1, price_at_execution: 95000, realized_pnl: 450, executed_at: new Date().toISOString(), leverage: 2 },
-            { id: 2, symbol: 'ETH', trade_type: 'sell', quantity: 2, price_at_execution: 3400, realized_pnl: -120, executed_at: new Date().toISOString(), leverage: 1 },
-            { id: 3, symbol: 'SOL', trade_type: 'sell', quantity: 10, price_at_execution: 220, realized_pnl: 280, executed_at: new Date().toISOString(), leverage: 3 },
-            { id: 4, symbol: 'NVDA', trade_type: 'sell', quantity: 5, price_at_execution: 140, realized_pnl: 85, executed_at: new Date().toISOString(), leverage: 1 },
-            { id: 5, symbol: 'TSLA', trade_type: 'sell', quantity: 3, price_at_execution: 420, realized_pnl: -210, executed_at: new Date().toISOString(), leverage: 2 },
-        ];
-
-        setTrades(demoTrades);
-        setFeedbacks(demoTrades.map(t => generateTradeFeedback(t)));
-        setWeeklySummary(generateWeeklySummary(demoTrades));
     };
 
     if (loading) {
@@ -73,60 +105,41 @@ export default function TradingCoachPage() {
         );
     }
 
-    // Non-premium: Show preview + paywall
-    if (!premium) {
+    // No trades yet - Show the beautiful empty state
+    if (trades.length === 0) {
         return (
-            <div className="min-h-screen bg-[#0a0a12] text-white">
-                <div className="container mx-auto px-6 py-8">
-                    {/* Header */}
-                    <div className="mb-8">
-                        <Link href="/trading" className="text-sm text-gray-500 hover:text-cyan-400 mb-2 inline-block">
-                            ← Back to Trading
-                        </Link>
-                        <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                            <GraduationCap className="text-purple-400" />
-                            Trading Coach
-                            <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full">Premium</span>
-                        </h1>
-                        <p className="text-gray-400 mt-2">AI-powered feedback to improve your trading</p>
-                    </div>
-
-                    {/* Preview (blurred) */}
-                    <div className="relative mb-8">
-                        <div className="blur-sm pointer-events-none opacity-50">
-                            {weeklySummary && <WeeklySummary summary={weeklySummary} />}
-                        </div>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <Lock className="w-12 h-12 text-purple-400" />
-                        </div>
-                    </div>
-
-                    {/* Premium Wall */}
-                    <PremiumWall
-                        stocksLocked={0}
-                        onUnlock={() => setPremium(true)}
+            <div className="min-h-screen bg-[#0a0a12] text-white pt-20 md:pt-24">
+                <div className="container mx-auto px-4 md:px-6 py-8">
+                    <TradingCoachEmptyState
+                        quota={quota}
+                        onStartSession={() => { }}
                     />
                 </div>
             </div>
         );
     }
 
-    // Premium: Full coach access
+    // Has trades - Full coach access
     return (
-        <div className="min-h-screen bg-[#0a0a12] text-white">
-            <div className="container mx-auto px-6 py-8">
-                {/* Header */}
-                <div className="mb-8">
-                    <Link href="/trading" className="text-sm text-gray-500 hover:text-cyan-400 mb-2 inline-block">
-                        ← Back to Trading
-                    </Link>
-                    <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                        <GraduationCap className="text-purple-400" />
-                        Trading Coach
-                        <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded-full">Active</span>
-                    </h1>
-                    <p className="text-gray-400 mt-2">Your personalized trading feedback</p>
-                </div>
+        <div className="min-h-screen bg-[#0a0a12] text-white pt-20 md:pt-24">
+            <div className="container mx-auto px-4 md:px-6 py-8">
+                {/* Status Bar */}
+                {!premium && (
+                    <div className="mb-6 p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Brain size={18} className="text-purple-400" />
+                            <span className="text-sm text-gray-400">
+                                AI Credits: <span className="text-white font-bold">{quota.remaining}</span> / {quota.limit} today
+                            </span>
+                        </div>
+                        <Link
+                            href="/coach#pricing"
+                            className="text-xs px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-purple-400 rounded-lg border border-purple-500/30 hover:bg-purple-500/30 transition-colors"
+                        >
+                            Upgrade for Unlimited
+                        </Link>
+                    </div>
+                )}
 
                 <div className="grid lg:grid-cols-3 gap-6">
                     {/* Weekly Summary (Left/Top) */}
@@ -182,17 +195,11 @@ export default function TradingCoachPage() {
                         Recent Trade Feedback
                     </h3>
 
-                    {feedbacks.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500 bg-white/5 rounded-xl border border-dashed border-white/10">
-                            No closed trades yet. Complete some trades to get feedback!
-                        </div>
-                    ) : (
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {feedbacks.slice(0, 6).map((feedback) => (
-                                <TradeFeedbackCard key={feedback.tradeId} feedback={feedback} />
-                            ))}
-                        </div>
-                    )}
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {feedbacks.slice(0, 6).map((feedback) => (
+                            <TradeFeedbackCard key={feedback.tradeId} feedback={feedback} />
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>

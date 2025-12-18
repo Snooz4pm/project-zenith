@@ -13,7 +13,6 @@ import PredictionStreaks from '@/components/PredictionStreaks';
 import ArenaLeaderboard from '@/components/ArenaLeaderboard';
 import CommunityFeed from '@/components/CommunityFeed';
 import CloneTrading from '@/components/CloneTrading';
-import NotificationCenter from '@/components/NotificationCenter';
 import PremiumWall from '@/components/PremiumWall';
 import { isPremiumUser, getPremiumDaysRemaining } from '@/lib/premium';
 import { AlertCircle, Calendar } from 'lucide-react';
@@ -69,11 +68,11 @@ export default function DashboardPage() {
 
     // Premium: Full dashboard
     return (
-        <div className="min-h-screen bg-[#0a0a12] text-white">
+        <div className="min-h-screen bg-[#0a0a12] text-white pt-20 md:pt-24">
             {/* Premium Action Modal */}
             <PremiumActionWall />
 
-            <div className="container mx-auto px-6 py-8">
+            <div className="container mx-auto px-6 py-6">
                 {/* Expiration Warning */}
                 {daysRemaining <= 5 && (
                     <div className="mb-6 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-between">
@@ -94,32 +93,26 @@ export default function DashboardPage() {
 
                 {/* Header */}
                 <div className="mb-6">
-                    <Link href="/" className="text-sm text-gray-500 hover:text-cyan-400 mb-2 inline-block">
-                        ← Back to Home
-                    </Link>
                     <div className="flex items-center justify-between flex-wrap gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                            <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
                                 <LayoutDashboard className="text-cyan-400" />
                                 Dashboard
                                 {premium && <Crown className="w-5 h-5 text-yellow-400" />}
                                 {!premium && <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full">Try Premium</span>}
                             </h1>
-                            <p className="text-gray-400 mt-1">Your command center for market intelligence</p>
+                            <p className="text-gray-400 mt-1 text-sm">Your command center for market intelligence</p>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                            <NotificationCenter />
-                            <button
-                                onClick={() => handlePremiumAction(() => window.location.href = '/trading/coach')}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-all"
-                            >
-                                <Award size={16} />
-                                Trading Coach
-                                {!premium && <Lock size={12} />}
-                                {premium && <ChevronRight size={14} />}
-                            </button>
-                        </div>
+                        <button
+                            onClick={() => handlePremiumAction(() => window.location.href = '/trading/coach')}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-all"
+                        >
+                            <Award size={16} />
+                            Trading Coach
+                            {!premium && <Lock size={12} />}
+                            {premium && <ChevronRight size={14} />}
+                        </button>
                     </div>
                 </div>
 

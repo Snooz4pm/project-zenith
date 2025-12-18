@@ -163,36 +163,7 @@ export default function LearningHubPage() {
     );
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white pb-32">
-            {/* Header */}
-            <div className="sticky top-14 md:top-16 z-30 bg-black/80 backdrop-blur-xl border-b border-white/10">
-                <div className="container mx-auto px-4 md:px-6 py-3">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <Link href="/" className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                                <ArrowLeft size={20} />
-                            </Link>
-                            <div>
-                                <h1 className="text-xl font-bold flex items-center gap-2">
-                                    📚 Learning Hub
-                                </h1>
-                                <p className="text-xs text-gray-500">Master trading with structured courses</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="text-right">
-                                <div className="text-xs text-gray-500">Overall Progress</div>
-                                <div className="text-lg font-bold text-cyan-400">
-                                    {activeTab === 'courses' ? totalProgress : Math.round((quizProgress.filter(p => p.passed).length / 18) * 100)}%
-                                </div>
-                            </div>
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
-                                <Award size={20} />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white pb-32 pt-20 md:pt-24">
 
             <div className="container mx-auto px-4 md:px-6 py-6 md:py-8">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

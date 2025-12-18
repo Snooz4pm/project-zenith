@@ -89,75 +89,60 @@ export default function SignalsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
-            {/* Header */}
-            <div className="sticky top-16 z-40 bg-black/80 backdrop-blur-xl border-b border-white/10">
-                <div className="container mx-auto px-4 py-4">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 flex items-center justify-center">
-                                    <Zap className="text-emerald-400" size={20} />
-                                </div>
-                                <div>
-                                    <h1 className="text-xl font-bold">Active Signals</h1>
-                                    <p className="text-xs text-gray-500">High-confidence trading opportunities (Score ≥ {minScore})</p>
-                                </div>
-                            </div>
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white pt-20 md:pt-24">
+            {/* Content */}
+            <div className="container mx-auto px-4 py-6">
+                {/* Inline Filters */}
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-3">
+                        {/* Score Filter */}
+                        <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
+                            <Target size={14} className="text-gray-500" />
+                            <select
+                                value={minScore}
+                                onChange={(e) => setMinScore(Number(e.target.value))}
+                                className="bg-transparent text-sm text-white outline-none"
+                            >
+                                <option value={50} className="bg-gray-900">Score ≥ 50</option>
+                                <option value={60} className="bg-gray-900">Score ≥ 60</option>
+                                <option value={70} className="bg-gray-900">Score ≥ 70</option>
+                                <option value={80} className="bg-gray-900">Score ≥ 80</option>
+                            </select>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                            {/* Score Filter */}
-                            <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
-                                <Target size={14} className="text-gray-500" />
-                                <select
-                                    value={minScore}
-                                    onChange={(e) => setMinScore(Number(e.target.value))}
-                                    className="bg-transparent text-sm text-white outline-none"
-                                >
-                                    <option value={50} className="bg-gray-900">Score ≥ 50</option>
-                                    <option value={60} className="bg-gray-900">Score ≥ 60</option>
-                                    <option value={70} className="bg-gray-900">Score ≥ 70</option>
-                                    <option value={80} className="bg-gray-900">Score ≥ 80</option>
-                                </select>
-                            </div>
-
-                            {/* Asset Type Filter */}
-                            <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
-                                <Filter size={14} className="text-gray-500" />
-                                <select
-                                    value={filter}
-                                    onChange={(e) => setFilter(e.target.value as any)}
-                                    className="bg-transparent text-sm text-white outline-none"
-                                >
-                                    <option value="all" className="bg-gray-900">All Assets</option>
-                                    <option value="crypto" className="bg-gray-900">Crypto</option>
-                                    <option value="stock" className="bg-gray-900">Stocks</option>
-                                    <option value="forex" className="bg-gray-900">Forex</option>
-                                </select>
-                            </div>
-
-                            {/* Last Updated */}
-                            {lastUpdated && (
-                                <div className="hidden md:flex items-center gap-2 text-xs text-gray-500">
-                                    <Clock size={12} />
-                                    Updated {lastUpdated.toLocaleTimeString()}
-                                </div>
-                            )}
-
-                            <button
-                                onClick={fetchSignals}
-                                className="p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                        {/* Asset Type Filter */}
+                        <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
+                            <Filter size={14} className="text-gray-500" />
+                            <select
+                                value={filter}
+                                onChange={(e) => setFilter(e.target.value as any)}
+                                className="bg-transparent text-sm text-white outline-none"
                             >
-                                <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                            </button>
+                                <option value="all" className="bg-gray-900">All Assets</option>
+                                <option value="crypto" className="bg-gray-900">Crypto</option>
+                                <option value="stock" className="bg-gray-900">Stocks</option>
+                                <option value="forex" className="bg-gray-900">Forex</option>
+                            </select>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            {/* Content */}
-            <div className="container mx-auto px-4 py-8">
+                    <div className="flex items-center gap-3">
+                        {/* Last Updated */}
+                        {lastUpdated && (
+                            <div className="hidden md:flex items-center gap-2 text-xs text-gray-500">
+                                <Clock size={12} />
+                                Updated {lastUpdated.toLocaleTimeString()}
+                            </div>
+                        )}
+
+                        <button
+                            onClick={fetchSignals}
+                            className="p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                        >
+                            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                        </button>
+                    </div>
+                </div>
                 {loading ? (
                     <EmptyState type="loading" />
                 ) : filteredSignals.length === 0 ? (
