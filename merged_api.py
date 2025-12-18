@@ -590,6 +590,27 @@ def health_check_v1():
     """Alias for health check"""
     return {"status": "healthy", "service": "Unified API"}
 
+@app.get("/api/v1/debug")
+def debug_endpoint():
+    """Debug endpoint to diagnose serverless issues"""
+    import sys
+    db_url = os.getenv("DATABASE_URL", "NOT_SET")
+    neon_host = os.getenv("NEON_HOST", "NOT_SET")
+    alpha_key = os.getenv("ALPHA_VANTAGE_KEY", "NOT_SET")
+    gemini_key = os.getenv("GEMINI_API_KEY", "NOT_SET")
+    
+    return {
+        "status": "debug",
+        "python_version": sys.version,
+        "database_url_set": db_url != "NOT_SET",
+        "neon_host_set": neon_host != "NOT_SET",
+        "alpha_vantage_key_set": alpha_key != "NOT_SET",
+        "gemini_key_set": gemini_key != "NOT_SET",
+        "sqlalchemy_engine": engine is not None,
+        "trading_engine_available": TRADING_ENGINE_AVAILABLE,
+        "timestamp": datetime.now().isoformat()
+    }
+
 # --- NEWS ENDPOINTS ---
 
 @app.get("/api/v1/news/articles/{category}")
