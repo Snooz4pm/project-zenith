@@ -24,6 +24,9 @@ export const metadata: Metadata = {
   title: "Zenith Scores | Market Intelligence Dashboard",
   description: "Real-time market regime analysis powered by Machine Alpha. Track BULLISH, BEARISH, and CONSOLIDATION signals with VIX and 200-Day SMA indicators.",
   keywords: ["market analysis", "trading signals", "VIX", "SMA", "market regime", "zenith scores"],
+  verification: {
+    google: 'crE3qi5ygHNAn3Yz803lwq85AS9dDihHP1SfsNKTBKg',
+  },
 };
 
 export default function RootLayout({
