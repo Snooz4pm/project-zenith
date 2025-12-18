@@ -38,14 +38,7 @@ export default function Navbar() {
             initial={{ y: -100 }}
             animate={{ y: 0 }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className={`
-                fixed top-0 left-0 right-0 z-[100]
-                transition-all duration-500 ease-out
-                ${isScrolled
-                    ? 'bg-black/60 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.5)]'
-                    : 'bg-transparent border-b border-transparent'
-                }
-            `}
+            className="relative z-[100] bg-black/80 backdrop-blur-xl border-b border-white/10"
         >
             {/* Reduced height on mobile (h-14), full height on desktop (md:h-16) */}
             <div className="container mx-auto px-4 md:px-6 h-14 md:h-16 flex items-center justify-between">

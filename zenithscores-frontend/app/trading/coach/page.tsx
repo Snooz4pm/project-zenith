@@ -108,7 +108,7 @@ export default function TradingCoachPage() {
     // No trades yet - Show the beautiful empty state
     if (trades.length === 0) {
         return (
-            <div className="min-h-screen bg-[#0a0a12] text-white pt-20 md:pt-24">
+            <div className="min-h-screen bg-[#0a0a12] text-white ">
                 <div className="container mx-auto px-4 md:px-6 py-8">
                     <TradingCoachEmptyState
                         quota={quota}
@@ -121,7 +121,7 @@ export default function TradingCoachPage() {
 
     // Has trades - Full coach access
     return (
-        <div className="min-h-screen bg-[#0a0a12] text-white pt-20 md:pt-24">
+        <div className="min-h-screen bg-[#0a0a12] text-white ">
             <div className="container mx-auto px-4 md:px-6 py-8">
                 {/* Status Bar */}
                 {!premium && (

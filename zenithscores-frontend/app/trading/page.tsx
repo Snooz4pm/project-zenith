@@ -532,7 +532,7 @@ export default function TradingPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white pt-20 md:pt-24">
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white ">
 
             {/* Success Toast */}
             <AnimatePresence>
