@@ -4,15 +4,17 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import PortfolioChart from '@/components/PortfolioChart';
+import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
+import { OnboardingTour } from '@/components/OnboardingTour';
+import AssetPicker from '@/components/AssetPicker';
+import SignalsTable from '@/components/SignalsTable';
 import {
     ArrowLeft, TrendingUp, TrendingDown, Wallet, BarChart3,
     Trophy, History, AlertTriangle, CheckCircle, X, RefreshCw,
     DollarSign, Percent, Target, Shield, Activity, Bell, LogIn, User, GraduationCap,
-    Users, MessageSquare, CreditCard
+    Users, MessageSquare, CreditCard, Zap
 } from 'lucide-react';
-import PortfolioChart from '@/components/PortfolioChart';
-import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
-import { OnboardingTour } from '@/components/OnboardingTour';
 
 // Types
 interface Asset {
@@ -124,7 +126,7 @@ export default function TradingPage() {
     const [executing, setExecuting] = useState(false);
 
     // View
-    const [activeTab, setActiveTab] = useState<'portfolio' | 'trade' | 'history' | 'leaderboard' | 'analytics' | 'community'>('portfolio');
+    const [activeTab, setActiveTab] = useState<'portfolio' | 'trade' | 'history' | 'leaderboard' | 'analytics' | 'community' | 'signals'>('portfolio');
 
     // WebSocket connections
     const wsRef = useRef<WebSocket | null>(null);
@@ -613,6 +615,7 @@ export default function TradingPage() {
                         {[
                             { id: 'portfolio', label: 'Portfolio', icon: Wallet },
                             { id: 'trade', label: 'Trade', icon: BarChart3 },
+                            { id: 'signals', label: 'Signals', icon: Zap },
                             { id: 'history', label: 'History', icon: History },
                             { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
                             { id: 'analytics', label: 'Analytics', icon: Activity },
@@ -729,58 +732,78 @@ export default function TradingPage() {
 
                     {/* Trade Tab */}
                     {activeTab === 'trade' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {assets.map(asset => (
-                                <motion.div
-                                    key={asset.symbol}
-                                    className="glass-panel rounded-xl p-4 hover:border-white/20 transition-colors"
-                                    whileHover={{ scale: 1.02 }}
-                                >
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div>
-                                            <div className="font-bold text-lg">{asset.symbol}</div>
-                                            <div className="text-xs text-gray-500">{asset.name}</div>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                            {/* Asset Picker Sidebar */}
+                            <div className="md:col-span-1 h-full min-h-[500px]">
+                                <AssetPicker
+                                    assets={assets}
+                                    onSelect={(asset) => openTradeModal(asset, 'buy')}
+                                />
+                            </div>
+
+                            {/* Asset Grid */}
+                            <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-min">
+                                {assets.map(asset => (
+                                    <motion.div
+                                        key={asset.symbol}
+                                        className="glass-panel rounded-xl p-4 hover:border-white/20 transition-colors h-fit"
+                                        whileHover={{ scale: 1.02 }}
+                                    >
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div>
+                                                <div className="font-bold text-lg">{asset.symbol}</div>
+                                                <div className="text-xs text-gray-500">{asset.name}</div>
+                                            </div>
+                                            <span className={`text-xs px-2 py-0.5 rounded flex items-center gap-1 ${asset.asset_type === 'crypto' ? 'bg-purple-500/20 text-purple-400' :
+                                                asset.asset_type === 'stock' ? 'bg-blue-500/20 text-blue-400' :
+                                                    asset.asset_type === 'commodity' ? 'bg-amber-500/20 text-amber-400' :
+                                                        'bg-emerald-500/20 text-emerald-400'
+                                                }`}>
+                                                {asset.asset_type === 'commodity' && <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                                                {asset.asset_type === 'forex' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                                                {asset.asset_type}
+                                            </span>
                                         </div>
-                                        <span className={`text-xs px-2 py-0.5 rounded flex items-center gap-1 ${asset.asset_type === 'crypto' ? 'bg-purple-500/20 text-purple-400' :
-                                            asset.asset_type === 'stock' ? 'bg-blue-500/20 text-blue-400' :
-                                                asset.asset_type === 'commodity' ? 'bg-amber-500/20 text-amber-400' :
-                                                    'bg-emerald-500/20 text-emerald-400'
-                                            }`}>
-                                            {asset.asset_type === 'commodity' && <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
-                                            {asset.asset_type === 'forex' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
-                                            {asset.asset_type}
-                                        </span>
-                                    </div>
 
-                                    <div className="mb-4">
-                                        <div className="text-2xl font-bold font-mono">{formatCurrency(asset.current_price)}</div>
-                                        <div className={`text-sm flex items-center gap-1 ${asset.price_change_24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                            {asset.price_change_24h >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                                            {formatPercent(asset.price_change_24h)}
+                                        <div className="mb-4">
+                                            <div className="text-2xl font-bold font-mono">{formatCurrency(asset.current_price)}</div>
+                                            <div className={`text-sm flex items-center gap-1 ${asset.price_change_24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {asset.price_change_24h >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                                                {formatPercent(asset.price_change_24h)}
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => openTradeModal(asset, 'buy')}
-                                            className="flex-1 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 font-medium transition-colors"
-                                        >
-                                            Buy
-                                        </button>
-                                        <button
-                                            onClick={() => openTradeModal(asset, 'sell')}
-                                            className="flex-1 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 font-medium transition-colors"
-                                        >
-                                            Sell
-                                        </button>
-                                    </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => openTradeModal(asset, 'buy')}
+                                                className="flex-1 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 font-medium transition-colors"
+                                            >
+                                                Buy
+                                            </button>
+                                            <button
+                                                onClick={() => openTradeModal(asset, 'sell')}
+                                                className="flex-1 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 font-medium transition-colors"
+                                            >
+                                                Sell
+                                            </button>
+                                        </div>
 
-                                    <div className="mt-3 text-xs text-gray-500 flex items-center gap-1">
-                                        <Shield size={12} />
-                                        Max Leverage: {asset.max_leverage}x
-                                    </div>
-                                </motion.div>
-                            ))}
+                                        <div className="mt-3 text-xs text-gray-500 flex items-center gap-1">
+                                            <Shield size={12} />
+                                            Max Leverage: {asset.max_leverage}x
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Signals Tab */}
+                    {activeTab === 'signals' && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="md:col-span-3">
+                                <SignalsTable />
+                            </div>
                         </div>
                     )}
 

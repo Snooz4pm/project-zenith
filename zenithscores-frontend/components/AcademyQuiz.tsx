@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     CheckCircle2, XCircle, ArrowRight, RotateCcw,
@@ -18,17 +18,40 @@ interface AcademyQuizProps {
     onComplete: (score: number, passed: boolean) => void;
 }
 
+// Internal interface for individual question performance
+interface QuestionSignal {
+    timeTaken: number;
+    answerChanges: number;
+    isCorrect: boolean;
+}
+
 export default function AcademyQuiz({ moduleId, difficulty, courseTitle, onClose, onComplete }: AcademyQuizProps) {
     const { data: session } = useSession();
     const [currentStep, setCurrentStep] = useState(0);
     const [score, setScore] = useState(0);
     const [showResults, setShowResults] = useState(false);
+
+    // Interaction State
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
-    const [isAnswered, setIsAnswered] = useState(false);
+    const [isConfirmed, setIsConfirmed] = useState(false); // New: separate selection from confirmation
     const [isCorrect, setIsCorrect] = useState(false);
+
+    // Signal Capture State
+    const [startTime, setStartTime] = useState<number>(Date.now());
+    const [answerChanges, setAnswerChanges] = useState(0);
+    const [signals, setSignals] = useState<QuestionSignal[]>([]);
 
     const questions = ACADEMY_QUIZZES[moduleId]?.[difficulty] || [];
     const currentQuestion = questions[currentStep];
+
+    // Reset signal timers when question changes
+    useEffect(() => {
+        setStartTime(Date.now());
+        setAnswerChanges(0);
+        setSelectedOption(null);
+        setIsConfirmed(false);
+        setIsCorrect(false);
+    }, [currentStep]);
 
     const getPassingThreshold = () => {
         if (difficulty === 'easy') return 0.7;
@@ -36,59 +59,106 @@ export default function AcademyQuiz({ moduleId, difficulty, courseTitle, onClose
         return 0.83;
     };
 
-    const handleAnswer = (option: string) => {
-        if (isAnswered) return;
+    const handleSelectOption = (option: string) => {
+        if (isConfirmed) return; // Locked after confirmation
 
+        if (selectedOption && selectedOption !== option) {
+            setAnswerChanges(prev => prev + 1);
+        }
         setSelectedOption(option);
-        setIsAnswered(true);
+    };
 
-        const correct = option.startsWith(currentQuestion.correctAnswer);
+    const confirmAnswer = () => {
+        if (!selectedOption || isConfirmed) return;
+
+        const timeTaken = Date.now() - startTime;
+        const correct = selectedOption.startsWith(currentQuestion.correctAnswer);
+
+        setIsConfirmed(true);
         setIsCorrect(correct);
 
         if (correct) {
             setScore(prev => prev + 1);
         }
+
+        // Capture signal
+        setSignals(prev => [...prev, {
+            timeTaken,
+            answerChanges,
+            isCorrect: correct
+        }]);
     };
 
     const nextQuestion = () => {
         if (currentStep < questions.length - 1) {
             setCurrentStep(prev => prev + 1);
-            setSelectedOption(null);
-            setIsAnswered(false);
         } else {
             finalizeQuiz();
         }
     };
 
     const finalizeQuiz = async () => {
-        const finalScore = score;
+        // Prepare final data
+        const finalScore = score + (isCorrect ? 1 : 0); // Add current if correct (already handled in confirmAnswer? No, score updates in confirmAnswer)
+        // Wait, confirmAnswer updates score. So 'score' is up to date AFTER render. 
+        // But finalizeQuiz called from nextQuestion.
+        // Let's trace: 
+        // confirmAnswer -> updates score -> User clicks Next -> nextQuestion (last) -> finalizeQuiz.
+        // Correct.
+
         const total = questions.length;
-        const percentage = finalScore / total;
+        const percentage = score / total; // Use 'score' state directly
         const passed = percentage >= getPassingThreshold();
 
         setShowResults(true);
 
+        // Aggregate Signals for API
+        const totalTime = signals.reduce((acc, curr) => acc + curr.timeTaken, 0);
+        const avgTime = totalTime / signals.length || 0;
+        const totalChanges = signals.reduce((acc, curr) => acc + curr.answerChanges, 0);
+
+        // Count repeated mistakes? We'd need history. For now send 0 or implement later.
+        // Difficulty mapping: Easy=1, Medium=3, Hard=5
+        const difficultyScore = difficulty === 'hard' ? 5 : difficulty === 'medium' ? 3 : 1;
+
         if (session?.user?.email) {
             try {
-                const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
-                await fetch(`${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/academy/quiz/submit`, {
+                const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+
+                // 1. Submit existing completion logic
+                // Using fetch wrapper or relative path if configured
+                await fetch('/api/v1/academy/quiz/submit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        user_id: session.user.email,
+                        user_id: session.user.email, // Using email as ID per convention found
                         module_id: moduleId,
                         difficulty: difficulty,
-                        score: finalScore,
+                        score: score,
                         total_questions: total,
                         passed: passed
                     })
                 });
+
+                // 2. Submit Signals to Paths Engine (NEW)
+                await fetch('/api/paths/calculate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        accuracy: Math.round(percentage * 100),
+                        avgTimePerQuestion: Math.round(avgTime),
+                        difficulty: difficultyScore,
+                        answerChanges: totalChanges,
+                        repeatedMistakes: 0
+                    })
+                });
+
             } catch (error) {
-                console.error('Failed to save progress:', error);
+                console.error('Failed to save progress or paths:', error);
             }
         }
 
-        onComplete(finalScore, passed);
+        onComplete(score, passed);
     };
 
     if (questions.length === 0) {
@@ -188,8 +258,14 @@ export default function AcademyQuiz({ moduleId, difficulty, courseTitle, onClose
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-xl mb-6"
+                className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-xl mb-6 relative"
             >
+                <div className="absolute top-4 right-4 text-xs text-gray-600 font-mono flex items-center gap-1">
+                    <Clock size={10} />
+                    {/* Visual timer could go here, for now simpler */}
+                    Recording
+                </div>
+
                 <h3 className="text-lg md:text-xl text-white font-medium mb-8 leading-relaxed">
                     {currentQuestion.question}
                 </h3>
@@ -201,18 +277,21 @@ export default function AcademyQuiz({ moduleId, difficulty, courseTitle, onClose
                         const isCorrectOption = optionKey === currentQuestion.correctAnswer;
 
                         let variant = "default";
-                        if (isAnswered) {
+                        if (isConfirmed) {
                             if (isCorrectOption) variant = "correct";
                             else if (isSelected) variant = "incorrect";
+                        } else if (isSelected) {
+                            variant = "selected";
                         }
 
                         return (
                             <button
                                 key={idx}
-                                onClick={() => handleAnswer(option)}
-                                disabled={isAnswered}
+                                onClick={() => handleSelectOption(option)}
+                                disabled={isConfirmed}
                                 className={`w-full text-left p-4 rounded-xl border transition-all flex items-center justify-between group
                                     ${variant === 'default' ? 'border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10' : ''}
+                                    ${variant === 'selected' ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-100' : ''}
                                     ${variant === 'correct' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400' : ''}
                                     ${variant === 'incorrect' ? 'border-red-500/50 bg-red-500/10 text-red-400' : ''}
                                 `}
@@ -227,7 +306,7 @@ export default function AcademyQuiz({ moduleId, difficulty, courseTitle, onClose
 
                 {/* Explanation */}
                 <AnimatePresence>
-                    {isAnswered && (
+                    {isConfirmed && (
                         <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
@@ -260,7 +339,25 @@ export default function AcademyQuiz({ moduleId, difficulty, courseTitle, onClose
                 >
                     Cancel Exam
                 </button>
-                {isAnswered && (
+
+                {/* 
+                    Two-step logic:
+                    1. If not confirmed, button = "Confirm Answer" (disabled if no selection)
+                    2. If confirmed, button = "Next Question" / "Finish"
+                */}
+                {!isConfirmed ? (
+                    <button
+                        onClick={confirmAnswer}
+                        disabled={!selectedOption}
+                        className={`px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-all
+                            ${selectedOption
+                                ? 'bg-white text-black hover:bg-gray-200'
+                                : 'bg-white/5 text-gray-500 cursor-not-allowed'}
+                        `}
+                    >
+                        Confirm Answer
+                    </button>
+                ) : (
                     <motion.button
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}

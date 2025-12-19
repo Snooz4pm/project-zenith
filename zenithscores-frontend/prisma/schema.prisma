@@ -306,3 +306,35 @@ model zenith_scores {
   change_24h Decimal?  @db.Decimal(10, 4)
   updated_at DateTime? @default(now()) @db.Timestamp(6)
 }
+
+model UserTrait {
+  id                Int      @id @default(autoincrement())
+  user_id           String   @unique @db.VarChar(255)
+  analytical_depth  Int      @default(0)
+  risk_discipline   Int      @default(0)
+  adaptability      Int      @default(0)
+  consistency       Int      @default(0)
+  emotional_stability Int    @default(0)
+  updated_at        DateTime @default(now()) @updatedAt
+
+  @@index([user_id], map: "idx_user_traits_user")
+}
+
+model PathDefinition {
+  id          String   @id @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?
+  created_at  DateTime @default(now())
+}
+
+model UserPathScore {
+  id         Int      @id @default(autoincrement())
+  user_id    String   @db.VarChar(255)
+  path_id    String   @db.VarChar(50)
+  score      Int      @default(0)
+  confidence Int      @default(0)
+  updated_at DateTime @default(now()) @updatedAt
+
+  @@unique([user_id, path_id])
+  @@index([user_id], map: "idx_user_path_scores_user")
+}

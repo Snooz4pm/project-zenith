@@ -7,6 +7,9 @@ import WeeklySummary from '@/components/WeeklySummary';
 import TradeFeedbackCard from '@/components/TradeFeedbackCard';
 import BrutalCoachCard from '@/components/BrutalCoachCard';
 import TradingCoachEmptyState from '@/components/TradingCoachEmptyState';
+import ThreeHourPulse from '@/components/ThreeHourPulse';
+import CloneTrading from '@/components/CloneTrading';
+import PredictionStreaks from '@/components/PredictionStreaks';
 import { isPremiumUser } from '@/lib/premium';
 import { generateTradeFeedback, generateWeeklySummary, type Trade, type TradeFeedback, type WeeklySummary as WeeklySummaryType } from '@/lib/coaching-engine';
 
@@ -143,8 +146,14 @@ export default function TradingCoachPage() {
 
                 <div className="grid lg:grid-cols-3 gap-6">
                     {/* Weekly Summary (Left/Top) */}
-                    <div className="lg:col-span-2">
+                    <div className="lg:col-span-2 space-y-6">
+                        <ThreeHourPulse />
                         {weeklySummary && <WeeklySummary summary={weeklySummary} />}
+
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <PredictionStreaks />
+                            <CloneTrading />
+                        </div>
                     </div>
 
                     {/* Quick Stats (Right) */}

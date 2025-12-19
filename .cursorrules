@@ -1,0 +1,45 @@
+# Cursor AI Rules for This Project
+
+You are working on a Next.js 14 project with NextAuth authentication.
+
+## CRITICAL RULES (NEVER BREAK)
+
+1. NEVER create a root `/api` folder - it shadows Next.js auth routes
+2. NEVER upgrade Next.js from version 14.2.21
+3. NEVER use `bcrypt` - use `bcryptjs` instead (Vercel compatibility)
+4. NEVER assume database tables exist - run `npx prisma db push` after schema changes
+5. NEVER modify auth files without explicit permission
+
+## PROTECTED FILES (Ask Before Editing)
+
+- api/auth/[...nextauth]/route.ts
+- prisma/schema.prisma
+- package.json
+- .env / .env.local
+- next.config.js
+
+## BEFORE ANY CHANGE
+
+1. State what you're changing and why
+2. Show the diff before applying
+3. Wait for approval on protected files
+
+## AFTER ANY CHANGE
+
+Run: `npm run build`
+
+For auth changes, also verify:
+- `npm run dev` starts correctly
+- Login flow works end-to-end
+
+## TECH STACK
+
+- Next.js 14.2.21
+- NextAuth (Google + Credentials)
+- Prisma + Neon Postgres
+- bcryptjs for password hashing
+- Vercel deployment
+
+## WHEN IN DOUBT
+
+Ask the user before proceeding.

@@ -3,20 +3,56 @@
 import { useState } from 'react';
 import { Search, Star, TrendingUp } from 'lucide-react';
 
-export default function AssetPicker() {
+interface Asset {
+    symbol: string;
+    name: string;
+    current_price: number;
+    price_change_24h: number;
+    asset_type: string;
+    max_leverage: number;
+}
+
+interface AssetPickerProps {
+    assets?: Asset[];
+    onSelect?: (asset: Asset) => void;
+}
+
+interface DisplayAsset {
+    symbol: string;
+    name: string;
+    price: number;
+    change: number;
+    icon: string;
+    color: string;
+    original?: Asset;
+}
+
+export default function AssetPicker({ assets: externalAssets, onSelect }: AssetPickerProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilter, setActiveFilter] = useState<'all' | 'favorites' | 'trending'>('all');
 
-    const assets = [
-        { symbol: 'BTC', name: 'Bitcoin', price: 43250.00, change: 2.4, icon: '₿', color: 'bg-[#f7931a]/20 text-[#f7931a]' },
-        { symbol: 'ETH', name: 'Ethereum', price: 2285.50, change: 3.1, icon: 'Ξ', color: 'bg-[#627eea]/20 text-[#627eea]' },
-        { symbol: 'SOL', name: 'Solana', price: 98.45, change: -1.2, icon: '◎', color: 'bg-[#14f195]/20 text-[#14f195]' },
-        { symbol: 'BNB', name: 'Binance Coin', price: 312.80, change: 0.8, icon: 'B', color: 'bg-[#f3ba2f]/20 text-[#f3ba2f]' },
-        { symbol: 'XRP', name: 'Ripple', price: 0.6245, change: 5.3, icon: 'X', color: 'bg-[#23a8db]/20 text-[#23a8db]' },
-        { symbol: 'ADA', name: 'Cardano', price: 0.5832, change: -0.5, icon: '₳', color: 'bg-[#0033ad]/20 text-[#0033ad]' },
+    const defaultAssets: DisplayAsset[] = [
+        { symbol: 'BTC', name: 'Bitcoin', price: 43250.00, change: 2.4, icon: '₿', color: 'bg-[#f7931a]/20 text-[#f7931a]', original: { symbol: 'BTC', name: 'Bitcoin', current_price: 43250.00, price_change_24h: 2.4, asset_type: 'crypto', max_leverage: 10 } },
+        { symbol: 'ETH', name: 'Ethereum', price: 2285.50, change: 3.1, icon: 'Ξ', color: 'bg-[#627eea]/20 text-[#627eea]', original: { symbol: 'ETH', name: 'Ethereum', current_price: 2285.50, price_change_24h: 3.1, asset_type: 'crypto', max_leverage: 10 } },
+        { symbol: 'SOL', name: 'Solana', price: 98.45, change: -1.2, icon: '◎', color: 'bg-[#14f195]/20 text-[#14f195]', original: { symbol: 'SOL', name: 'Solana', current_price: 98.45, price_change_24h: -1.2, asset_type: 'crypto', max_leverage: 5 } },
+        { symbol: 'BNB', name: 'Binance Coin', price: 312.80, change: 0.8, icon: 'B', color: 'bg-[#f3ba2f]/20 text-[#f3ba2f]', original: { symbol: 'BNB', name: 'Binance Coin', current_price: 312.80, price_change_24h: 0.8, asset_type: 'crypto', max_leverage: 5 } },
+        { symbol: 'XRP', name: 'Ripple', price: 0.6245, change: 5.3, icon: 'X', color: 'bg-[#23a8db]/20 text-[#23a8db]', original: { symbol: 'XRP', name: 'Ripple', current_price: 0.6245, price_change_24h: 5.3, asset_type: 'crypto', max_leverage: 5 } },
+        { symbol: 'ADA', name: 'Cardano', price: 0.5832, change: -0.5, icon: '₳', color: 'bg-[#0033ad]/20 text-[#0033ad]', original: { symbol: 'ADA', name: 'Cardano', current_price: 0.5832, price_change_24h: -0.5, asset_type: 'crypto', max_leverage: 5 } },
     ];
 
-    const filteredAssets = assets.filter(asset => {
+    const displayAssets: DisplayAsset[] = externalAssets
+        ? externalAssets.map(a => ({
+            symbol: a.symbol,
+            name: a.name,
+            price: a.current_price,
+            change: a.price_change_24h,
+            icon: a.symbol && a.symbol.length > 0 ? a.symbol[0] : '?',
+            color: a.price_change_24h >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400',
+            original: a
+        }))
+        : defaultAssets;
+
+    const filteredAssets = displayAssets.filter(asset => {
         const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             asset.symbol.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -72,6 +108,7 @@ export default function AssetPicker() {
                 {filteredAssets.map((asset) => (
                     <div
                         key={asset.symbol}
+                        onClick={() => onSelect && asset.original && onSelect(asset.original)}
                         className="group flex items-center justify-between p-3 rounded-lg bg-[#141829] border border-[#1a1f3a] hover:border-[#2a3150] hover:translate-x-1 transition-all cursor-pointer"
                     >
                         <div className="flex items-center gap-3">
