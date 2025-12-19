@@ -1,13 +1,40 @@
+'use client';
+
+import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
-import PredictiveSearch from '@/components/PredictiveSearch';
-import CryptoDashboard from '@/components/CryptoDashboard';
-import CryptoTicker from '@/components/CryptoTicker';
+
+// Lazy load heavy components for smooth navigation
+const CryptoTicker = dynamic(() => import('@/components/CryptoTicker'), {
+    loading: () => <div className="h-10 bg-gray-900 animate-pulse" />,
+    ssr: false
+});
+
+const PredictiveSearch = dynamic(() => import('@/components/PredictiveSearch'), {
+    loading: () => <div className="h-16 bg-gray-900 rounded-lg animate-pulse" />,
+    ssr: false
+});
+
+const CryptoDashboard = dynamic(() => import('@/components/CryptoDashboard'), {
+    loading: () => (
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="h-32 bg-gray-900/50 rounded-xl animate-pulse" />
+                <div className="h-32 bg-gray-900/50 rounded-xl animate-pulse" />
+                <div className="h-32 bg-gray-900/50 rounded-xl animate-pulse" />
+            </div>
+            <div className="h-96 bg-gray-900/50 rounded-xl animate-pulse" />
+        </div>
+    ),
+    ssr: false
+});
 
 export default function CryptoPortal() {
     return (
         <div className="min-h-screen bg-black text-white">
             {/* Top Bar Ticker */}
-            <CryptoTicker />
+            <Suspense fallback={<div className="h-10 bg-gray-900 animate-pulse" />}>
+                <CryptoTicker />
+            </Suspense>
 
             {/* Sub-Header / Portal Theme */}
             <div className="border-b border-gray-800 bg-black/50 backdrop-blur-sm">
@@ -25,7 +52,9 @@ export default function CryptoPortal() {
                         <PredictiveSearch mode="crypto" behavior="filter" className="w-full max-w-xl mx-auto" />
                     </Suspense>
                 </div>
-                <CryptoDashboard />
+                <Suspense fallback={<div className="h-96 bg-gray-900/50 rounded-xl animate-pulse" />}>
+                    <CryptoDashboard />
+                </Suspense>
             </main>
 
             {/* Short Footer */}

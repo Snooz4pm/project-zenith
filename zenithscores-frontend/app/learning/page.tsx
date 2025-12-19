@@ -1,16 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import {
     ArrowLeft, BookOpen, TrendingUp, Lightbulb, Target, Shield,
     ChevronRight, Play, CheckCircle, Lock, Star, Zap, Award, Clock,
     Trophy, GraduationCap, BarChart3, BrainCircuit
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import AcademyQuiz from '@/components/AcademyQuiz';
-import PathsDashboard from '@/components/paths/PathsDashboard';
+
+// Lazy load heavy components for smooth navigation
+const AcademyQuiz = dynamic(() => import('@/components/AcademyQuiz'), {
+    loading: () => <div className="h-64 bg-gray-900/50 rounded-xl animate-pulse" />,
+    ssr: false
+});
+
+const PathsDashboard = dynamic(() => import('@/components/paths/PathsDashboard'), {
+    loading: () => <div className="h-96 bg-gray-900/50 rounded-xl animate-pulse" />,
+    ssr: false
+});
 
 // Learning Module Types
 interface LearningModule {

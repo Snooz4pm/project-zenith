@@ -106,10 +106,10 @@ export default function FloatingCommandButton() {
                                         const Icon = item.icon;
                                         const active = isActive(item.href);
                                         return (
-                                            // 🔧 WORKAROUND: Using <a> instead of <Link> due to Next.js routing freeze
-                                            <a
+                                            <Link
                                                 key={item.href}
                                                 href={item.href}
+                                                prefetch={false}
                                                 onClick={() => setIsOpen(false)}
                                                 className={`
                                                     flex items-center gap-4 p-3 rounded-xl transition-all tap-feedback
@@ -137,7 +137,7 @@ export default function FloatingCommandButton() {
                                                 {active && (
                                                     <div className="ml-auto w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff]" />
                                                 )}
-                                            </a>
+                                            </Link>
                                         );
                                     })}
                                 </div>
@@ -150,9 +150,10 @@ export default function FloatingCommandButton() {
                                     {secondaryItems.map((item) => {
                                         const Icon = item.icon;
                                         return (
-                                            <a
+                                            <Link
                                                 key={item.href}
                                                 href={item.disabled ? '#' : item.href}
+                                                prefetch={false}
                                                 onClick={(e) => {
                                                     if (item.disabled) {
                                                         e.preventDefault();
@@ -170,7 +171,7 @@ export default function FloatingCommandButton() {
                                             >
                                                 <Icon size={18} className="text-gray-400" />
                                                 <span className="text-xs text-gray-500">{item.label}</span>
-                                            </a>
+                                            </Link>
                                         );
                                     })}
                                 </div>
