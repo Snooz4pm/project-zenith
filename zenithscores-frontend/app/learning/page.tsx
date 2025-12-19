@@ -6,10 +6,11 @@ import Link from 'next/link';
 import {
     ArrowLeft, BookOpen, TrendingUp, Lightbulb, Target, Shield,
     ChevronRight, Play, CheckCircle, Lock, Star, Zap, Award, Clock,
-    Trophy, GraduationCap, BarChart3
+    Trophy, GraduationCap, BarChart3, BrainCircuit
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import AcademyQuiz from '@/components/AcademyQuiz';
+import PathsDashboard from '@/components/paths/PathsDashboard';
 
 // Learning Module Types
 interface LearningModule {
@@ -112,7 +113,7 @@ const QUICK_TIPS = [
 
 export default function LearningHubPage() {
     const { data: session } = useSession();
-    const [activeTab, setActiveTab] = useState<'courses' | 'quizzes'>('courses');
+    const [activeTab, setActiveTab] = useState<'courses' | 'quizzes' | 'paths'>('courses');
     const [activeFilter, setActiveFilter] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all');
     const [tipIndex, setTipIndex] = useState(0);
     const [activeQuiz, setActiveQuiz] = useState<{ moduleId: string, difficulty: 'easy' | 'medium' | 'hard', title: string } | null>(null);
@@ -187,6 +188,14 @@ export default function LearningHubPage() {
                             >
                                 <div className="flex items-center gap-2">
                                     <Trophy size={16} /> Certification Exams
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('paths')}
+                                className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${activeTab === 'paths' ? 'border-cyan-500 text-white' : 'border-transparent text-gray-500 hover:text-white'}`}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <BrainCircuit size={16} /> My Paths
                                 </div>
                             </button>
                         </div>
@@ -309,6 +318,10 @@ export default function LearningHubPage() {
                                     ))}
                                 </div>
                             </>
+                        ) : activeTab === 'paths' ? (
+                            <div className="-mx-4 md:-mx-0">
+                                <PathsDashboard />
+                            </div>
                         ) : (
                             <div className="space-y-6">
                                 <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-white/10 rounded-2xl p-6 mb-8">
@@ -460,6 +473,6 @@ export default function LearningHubPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

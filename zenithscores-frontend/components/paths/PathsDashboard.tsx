@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BrainCircuit, Lock, Loader2, RefreshCw } from 'lucide-react';
 import PathCard from './PathCard';
+import CalibrationComplete from '@/components/CalibrationComplete';
 
 interface UserTrait {
     analytical_depth: number;
@@ -125,6 +126,17 @@ export default function PathsDashboard() {
 
     return (
         <div className="max-w-6xl mx-auto px-4 py-8">
+            {/* 
+            <AnimatePresence>
+                 {primaryPath && (
+                    <CalibrationComplete 
+                        primaryPathName={primaryPath.path_name} 
+                        onContinue={() => {}} 
+                    />
+                 )}
+            </AnimatePresence> 
+            */}
+
             {/* Header */}
             <div className="mb-12">
                 <div className="flex items-center gap-3 mb-2">

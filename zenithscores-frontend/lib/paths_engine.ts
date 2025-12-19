@@ -27,6 +27,7 @@ export interface UserTraits {
     adaptability: number;
     consistency: number;
     emotional_stability: number;
+    calibration_confidence: number;
 }
 
 // --- CONSTANTS ---
@@ -64,6 +65,8 @@ const PATH_DEFINITIONS = {
  * This is a partial calculation to be aggregated later.
  */
 export function calculateQuizTraits(signal: QuizSignal): Partial<UserTraits> {
+    const confidenceDelta = 15; // +15% confidence per quiz
+
     let analytical_depth = (signal.accuracy * 0.6) + ((signal.difficulty * 20) * 0.4);
     analytical_depth = Math.min(100, Math.max(0, analytical_depth));
 
@@ -86,7 +89,8 @@ export function calculateQuizTraits(signal: QuizSignal): Partial<UserTraits> {
         analytical_depth: Math.max(0, analytical_depth),
         consistency: Math.max(0, Math.min(100, consistency)),
         emotional_stability: Math.max(0, Math.min(100, emotional_stability)),
-        adaptability: Math.max(0, Math.min(100, adaptability))
+        adaptability: Math.max(0, Math.min(100, adaptability)),
+        calibration_confidence: confidenceDelta
     };
 }
 
@@ -133,7 +137,8 @@ export async function updateUserPaths(userId: string, newTraits: Partial<UserTra
         risk_discipline: existing?.risk_discipline || 0,
         adaptability: existing?.adaptability || 0,
         consistency: existing?.consistency || 0,
-        emotional_stability: existing?.emotional_stability || 0
+        emotional_stability: existing?.emotional_stability || 0,
+        calibration_confidence: existing?.calibration_confidence || 0
     };
 
     // 2. Rolling Average (50% old, 50% new)
@@ -145,6 +150,9 @@ export async function updateUserPaths(userId: string, newTraits: Partial<UserTra
             // If first time, take the new value directly
             if (existing === null || currentTraits[key] === 0) {
                 updatedTraits[key] = newTraits[key]!;
+            } else if (key === 'calibration_confidence') {
+                // Accumulate confidence, max 100
+                updatedTraits[key] = Math.min(100, currentTraits[key] + newTraits[key]!);
             } else {
                 updatedTraits[key] = Math.round((currentTraits[key] * 0.5) + (newTraits[key]! * 0.5));
             }
@@ -162,8 +170,7 @@ export async function updateUserPaths(userId: string, newTraits: Partial<UserTra
     const pathScores = calculatePathScores(updatedTraits);
 
     // 5. Save Path Scores
-    // Confidence is hardcoded low for now until we have real data counting
-    const confidence = 60;
+    const confidence = updatedTraits.calibration_confidence;
 
     for (const [pathId, score] of Object.entries(pathScores)) {
         await prisma.userPathScore.upsert({

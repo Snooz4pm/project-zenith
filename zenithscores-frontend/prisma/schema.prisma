@@ -315,6 +315,7 @@ model UserTrait {
   adaptability      Int      @default(0)
   consistency       Int      @default(0)
   emotional_stability Int    @default(0)
+  calibration_confidence Int    @default(0)
   updated_at        DateTime @default(now()) @updatedAt
 
   @@index([user_id], map: "idx_user_traits_user")
