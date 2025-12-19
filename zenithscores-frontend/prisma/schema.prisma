@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -19,4 +16,259 @@ model User {
   avatar        String?
   created_at    DateTime  @default(now())
   last_login    DateTime?
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model articles {
+  id                  Int       @id @default(autoincrement())
+  hash                String    @unique @db.VarChar(64)
+  title               String
+  article             String
+  url                 String
+  source              String    @db.VarChar(255)
+  category            String    @default("General") @db.VarChar(50)
+  category_confidence Decimal?  @default(0.0) @db.Decimal(3, 2)
+  matched_keywords    Json?     @default("[]")
+  fetched_at          DateTime  @default(now()) @db.Timestamp(6)
+  published_at        DateTime? @db.Timestamp(6)
+  word_count          Int?
+  sentiment_score     Decimal?  @db.Decimal(3, 2)
+  importance_score    Decimal?  @db.Decimal(3, 2)
+  created_at          DateTime  @default(now()) @db.Timestamp(6)
+  updated_at          DateTime  @default(now()) @db.Timestamp(6)
+  why_it_matters      String?
+
+  @@index([category], map: "idx_articles_category")
+  @@index([category, fetched_at(sort: Desc)], map: "idx_articles_category_fetched")
+  @@index([fetched_at(sort: Desc)], map: "idx_articles_fetched_at")
+  @@index([hash], map: "idx_articles_hash")
+  @@index([matched_keywords], map: "idx_articles_keywords", type: Gin)
+  @@index([source], map: "idx_articles_source")
+}
+
+model categories {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique @db.VarChar(50)
+  description   String?
+  keyword_count Int?     @default(0)
+  article_count Int?     @default(0)
+  created_at    DateTime @default(now()) @db.Timestamp(6)
+}
+
+model community_comments {
+  id         Int       @id @default(autoincrement())
+  post_id    Int?
+  user_id    String    @db.VarChar(255)
+  username   String    @db.VarChar(255)
+  content    String
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model community_likes {
+  user_id String @db.VarChar(255)
+  post_id Int
+
+  @@id([user_id, post_id])
+}
+
+model community_posts {
+  id             Int       @id @default(autoincrement())
+  user_id        String    @db.VarChar(255)
+  username       String    @db.VarChar(255)
+  avatar         String?
+  type           String    @db.VarChar(50)
+  content        String
+  asset          Json?
+  likes_count    Int?      @default(0)
+  comments_count Int?      @default(0)
+  created_at     DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model playing_with_neon {
+  id    Int    @id @default(autoincrement())
+  name  String
+  value Float? @db.Real
+}
+
+model product_outcomes {
+  id                    Int       @id @default(autoincrement())
+  keyword               String?   @db.VarChar
+  avg_price             Float?
+  supplier_count        Int?
+  listing_count         Int?
+  predicted_opportunity Float?
+  confidence            String?   @db.VarChar
+  is_red_ocean          Boolean?
+  created_at            DateTime? @db.Timestamp(6)
+
+  @@index([id], map: "ix_product_outcomes_id")
+  @@index([keyword], map: "ix_product_outcomes_keyword")
+}
+
+model source_stats {
+  id             Int       @id @default(autoincrement())
+  source         String    @unique @db.VarChar(255)
+  total_articles Int?      @default(0)
+  last_scraped   DateTime? @db.Timestamp(6)
+  success_rate   Decimal?  @default(100.0) @db.Decimal(5, 2)
+  avg_confidence Decimal?  @default(0.0) @db.Decimal(3, 2)
+  created_at     DateTime  @default(now()) @db.Timestamp(6)
+}
+
+model trading_assets {
+  id               Int       @id @default(autoincrement())
+  symbol           String    @unique @db.VarChar(20)
+  name             String?   @db.VarChar(100)
+  asset_type       String    @db.VarChar(20)
+  current_price    Decimal?  @default(0) @db.Decimal(20, 8)
+  price_change_24h Decimal?  @default(0) @db.Decimal(10, 4)
+  high_24h         Decimal?  @default(0) @db.Decimal(20, 8)
+  low_24h          Decimal?  @default(0) @db.Decimal(20, 8)
+  volume_24h       Decimal?  @default(0) @db.Decimal(20, 2)
+  market_cap       Decimal?  @default(0) @db.Decimal(25, 2)
+  last_updated     DateTime? @default(now()) @db.Timestamp(6)
+  is_active        Boolean?  @default(true)
+  max_leverage     Int?      @default(5)
+
+  @@index([symbol], map: "idx_trading_assets_symbol")
+  @@index([asset_type], map: "idx_trading_assets_type")
+}
+
+model trading_holdings {
+  id                     Int       @id @default(autoincrement())
+  user_id                Int?
+  asset_id               Int?
+  symbol                 String    @db.VarChar(20)
+  quantity               Decimal   @default(0) @db.Decimal(20, 8)
+  avg_buy_price          Decimal   @default(0) @db.Decimal(20, 8)
+  leverage               Int?      @default(1)
+  margin_used            Decimal?  @default(0) @db.Decimal(20, 2)
+  entry_value            Decimal?  @default(0) @db.Decimal(20, 2)
+  current_value          Decimal?  @default(0) @db.Decimal(20, 2)
+  unrealized_pnl         Decimal?  @default(0) @db.Decimal(20, 2)
+  unrealized_pnl_percent Decimal?  @default(0) @db.Decimal(10, 4)
+  stop_loss_price        Decimal?  @db.Decimal(20, 8)
+  take_profit_price      Decimal?  @db.Decimal(20, 8)
+  liquidation_price      Decimal?  @db.Decimal(20, 8)
+  created_at             DateTime? @default(now()) @db.Timestamp(6)
+  updated_at             DateTime? @default(now()) @db.Timestamp(6)
+
+  @@unique([user_id, asset_id])
+  @@index([asset_id], map: "idx_trading_holdings_asset")
+  @@index([user_id], map: "idx_trading_holdings_user")
+}
+
+model trading_pending_orders {
+  id                Int       @id @default(autoincrement())
+  user_id           Int?
+  asset_id          Int?
+  symbol            String    @db.VarChar(20)
+  order_type        String    @db.VarChar(20)
+  trade_type        String    @db.VarChar(10)
+  quantity          Decimal   @db.Decimal(20, 8)
+  leverage          Int?      @default(1)
+  trigger_price     Decimal   @db.Decimal(20, 8)
+  limit_price       Decimal?  @db.Decimal(20, 8)
+  stop_loss_price   Decimal?  @db.Decimal(20, 8)
+  take_profit_price Decimal?  @db.Decimal(20, 8)
+  margin_reserved   Decimal?  @default(0) @db.Decimal(20, 2)
+  status            String?   @default("pending") @db.VarChar(20)
+  expires_at        DateTime? @db.Timestamp(6)
+  created_at        DateTime? @default(now()) @db.Timestamp(6)
+  triggered_at      DateTime? @db.Timestamp(6)
+  cancelled_at      DateTime? @db.Timestamp(6)
+
+  @@index([user_id], map: "idx_pending_orders_user")
+}
+
+model trading_portfolio_history {
+  id              Int       @id @default(autoincrement())
+  user_id         Int?
+  portfolio_value Decimal   @db.Decimal(20, 2)
+  wallet_balance  Decimal   @db.Decimal(20, 2)
+  total_pnl       Decimal?  @default(0) @db.Decimal(20, 2)
+  recorded_at     DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([user_id, recorded_at(sort: Desc)], map: "idx_portfolio_history_user_time")
+}
+
+model trading_trades {
+  id                 Int       @id @default(autoincrement())
+  user_id            Int?
+  asset_id           Int?
+  symbol             String    @db.VarChar(20)
+  trade_type         String    @db.VarChar(10)
+  order_type         String?   @default("market") @db.VarChar(20)
+  quantity           Decimal   @db.Decimal(20, 8)
+  leverage           Int?      @default(1)
+  price_at_execution Decimal   @db.Decimal(20, 8)
+  total_value        Decimal   @db.Decimal(20, 2)
+  margin_cost        Decimal?  @default(0) @db.Decimal(20, 2)
+  stop_loss_price    Decimal?  @db.Decimal(20, 8)
+  take_profit_price  Decimal?  @db.Decimal(20, 8)
+  realized_pnl       Decimal?  @default(0) @db.Decimal(20, 2)
+  status             String?   @default("executed") @db.VarChar(20)
+  trigger_type       String?   @db.VarChar(20)
+  executed_at        DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([status], map: "idx_trading_trades_status")
+  @@index([executed_at(sort: Desc)], map: "idx_trading_trades_time")
+  @@index([user_id], map: "idx_trading_trades_user")
+}
+
+model trading_users {
+  id                 Int       @id @default(autoincrement())
+  session_id         String    @unique @db.VarChar(100)
+  username           String?   @db.VarChar(50)
+  wallet_balance     Decimal?  @default(10000.00) @db.Decimal(20, 2)
+  margin_used        Decimal?  @default(0.00) @db.Decimal(20, 2)
+  available_margin   Decimal?  @default(10000.00) @db.Decimal(20, 2)
+  portfolio_value    Decimal?  @default(10000.00) @db.Decimal(20, 2)
+  total_pnl          Decimal?  @default(0.00) @db.Decimal(20, 2)
+  realized_pnl       Decimal?  @default(0.00) @db.Decimal(20, 2)
+  unrealized_pnl     Decimal?  @default(0.00) @db.Decimal(20, 2)
+  total_trades       Int?      @default(0)
+  winning_trades     Int?      @default(0)
+  losing_trades      Int?      @default(0)
+  win_rate           Decimal?  @default(0.00) @db.Decimal(5, 2)
+  max_leverage       Int?      @default(5)
+  created_at         DateTime? @default(now()) @db.Timestamp(6)
+  last_active        DateTime? @default(now()) @db.Timestamp(6)
+  is_premium         Boolean?  @default(false)
+  premium_expires_at DateTime? @db.Timestamp(6)
+
+  @@index([portfolio_value(sort: Desc)], map: "idx_trading_users_portfolio")
+  @@index([session_id], map: "idx_trading_users_session")
+}
+
+model user_sessions {
+  id            Int       @id @default(autoincrement())
+  user_id       Int?
+  session_token String    @unique @db.VarChar(255)
+  expires_at    DateTime  @db.Timestamp(6)
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([session_token], map: "idx_user_sessions_token")
+}
+
+model users {
+  id              Int       @id @default(autoincrement())
+  google_id       String    @unique @db.VarChar(255)
+  email           String    @unique @db.VarChar(255)
+  name            String?   @db.VarChar(255)
+  profile_picture String?
+  created_at      DateTime? @default(now()) @db.Timestamp(6)
+  last_login      DateTime? @default(now()) @db.Timestamp(6)
+  is_active       Boolean?  @default(true)
+
+  @@index([email], map: "idx_users_email")
+  @@index([google_id], map: "idx_users_google_id")
+}
+
+model zenith_scores {
+  symbol     String    @id @db.VarChar(20)
+  score      Decimal?  @db.Decimal(5, 2)
+  change_24h Decimal?  @db.Decimal(10, 4)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
 }
