@@ -80,7 +80,18 @@ export const authOptions: NextAuthOptions = {
             return token
         }
     },
-    debug: process.env.NODE_ENV === 'development' || true, // Temporarily forced true for debugging
+    debug: true,
     secret: process.env.NEXTAUTH_SECRET,
+    logger: {
+        error(code, metadata) {
+            console.error('NEXTAUTH ERROR:', code, JSON.stringify(metadata, null, 2))
+        },
+        warn(code) {
+            console.warn('NEXTAUTH WARN:', code)
+        },
+        debug(code, metadata) {
+            console.log('NEXTAUTH DEBUG:', code, metadata)
+        }
+    }
 }
 
