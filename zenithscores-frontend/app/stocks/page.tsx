@@ -1,27 +1,26 @@
 'use client';
 
-import { Suspense, useState } from 'react';
-import PredictiveSearch from '@/components/PredictiveSearch';
-import StockScreener from '@/components/StockScreener';
-import SectorMatrix from '@/components/SectorMatrix';
+import { useState } from 'react';
+import dynamic from 'next/dynamic';
+
+// 🔧 NUCLEAR FIX: Client-only dynamic imports for smooth navigation
+const PredictiveSearch = dynamic(() => import('@/components/PredictiveSearch'), { ssr: false });
+const StockScreener = dynamic(() => import('@/components/StockScreener'), { ssr: false });
+const SectorMatrix = dynamic(() => import('@/components/SectorMatrix'), { ssr: false });
 
 export default function StockPortal() {
     const [selectedSector, setSelectedSector] = useState<string | null>(null);
 
     const handleSectorSelect = (sector: string) => {
-        // Toggle sector selection
         setSelectedSector(prev => prev === sector ? null : sector);
     };
 
     return (
         <div className="theme-stock min-h-screen bg-[var(--background-dark)] text-[var(--foreground)] pt-20 md:pt-24">
-
             <main className="container mx-auto px-6 py-8">
-                {/* Search Bar - styled slightly lighter */}
+                {/* Search Bar */}
                 <div className="mb-8">
-                    <Suspense fallback={<div className="w-full max-w-md mx-auto h-12 bg-gray-200 rounded-lg animate-pulse" />}>
-                        <PredictiveSearch mode="stock" behavior="filter" className="w-full max-w-md mx-auto" />
-                    </Suspense>
+                    <PredictiveSearch mode="stock" behavior="filter" className="w-full max-w-md mx-auto" />
                 </div>
 
                 {/* Macro View - Sector Matrix */}

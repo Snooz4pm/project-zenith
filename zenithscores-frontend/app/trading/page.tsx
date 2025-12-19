@@ -4,11 +4,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import PortfolioChart from '@/components/PortfolioChart';
-import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
-import { OnboardingTour } from '@/components/OnboardingTour';
-import AssetPicker from '@/components/AssetPicker';
-import SignalsTable from '@/components/SignalsTable';
+import dynamic from 'next/dynamic';
+
+// 🔧 NUCLEAR FIX: Client-only dynamic imports for smooth navigation
+const PortfolioChart = dynamic(() => import('@/components/PortfolioChart'), { ssr: false });
+const AnalyticsDashboard = dynamic(() => import('@/components/AnalyticsDashboard').then(mod => ({ default: mod.AnalyticsDashboard })), { ssr: false });
+const OnboardingTour = dynamic(() => import('@/components/OnboardingTour').then(mod => ({ default: mod.OnboardingTour })), { ssr: false });
+const AssetPicker = dynamic(() => import('@/components/AssetPicker'), { ssr: false });
+const SignalsTable = dynamic(() => import('@/components/SignalsTable'), { ssr: false });
+
 import {
     ArrowLeft, TrendingUp, TrendingDown, Wallet, BarChart3,
     Trophy, History, AlertTriangle, CheckCircle, X, RefreshCw,
