@@ -60,6 +60,7 @@ export default function LoginPage() {
             <div className="space-y-4">
                 {/* Google Login */}
                 <button
+                    type="button"
                     onClick={handleGoogleLogin}
                     className="w-full flex items-center justify-center gap-3 bg-white text-zinc-900 font-medium py-3 rounded-xl hover:bg-zinc-100 transition-colors"
                 >
