@@ -19,6 +19,7 @@ import {
   Newspaper
 } from 'lucide-react';
 import ArticleCard from '@/components/ArticleCard';
+import UniversalLoader from '@/components/UniversalLoader';
 import { newsAPI, CATEGORIES } from '@/lib/news-api';
 import type { Article } from '@/lib/news-types';
 
@@ -275,12 +276,7 @@ export default function NewsPage() {
 
         {/* Loading state */}
         {loading && articles.length === 0 && (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <RefreshCw size={40} className="mx-auto mb-4 text-emerald-400 animate-spin" />
-              <p className="text-gray-400">Loading news...</p>
-            </div>
-          </div>
+          <UniversalLoader size="lg" message="Loading news..." />
         )}
 
         {/* Bookmarks View */}
