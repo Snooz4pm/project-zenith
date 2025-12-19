@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BrainCircuit, Lock, Loader2, RefreshCw } from 'lucide-react';
+import { PATHS_CONTENT } from '@/lib/paths-content';
 import PathCard from './PathCard';
 import CalibrationComplete from '@/components/CalibrationComplete';
 
@@ -17,7 +18,7 @@ interface UserTrait {
 
 interface UserPathScore {
     path_id: string;
-    path_name: string;
+    path_name?: string; // Optional from API
     score: number;
     rank: number;
 }
@@ -35,7 +36,8 @@ export default function PathsDashboard() {
                 if (res.ok) {
                     const data = await res.json();
                     setTraits(data.traits);
-                    setPathScores(data.pathScores);
+                    // Safety: Ensure array
+                    setPathScores(data.pathScores || []);
                 }
             } catch (error) {
                 console.error("Failed to fetch paths data", error);
@@ -123,6 +125,7 @@ export default function PathsDashboard() {
     // Sort scores just in case API didn't
     const sortedScores = [...pathScores].sort((a, b) => b.score - a.score);
     const primaryPath = sortedScores[0];
+    const primaryPathName = primaryPath?.path_name || PATHS_CONTENT[primaryPath?.path_id]?.name || "Unknown Path";
 
     return (
         <div className="max-w-6xl mx-auto px-4 py-8">
@@ -130,7 +133,7 @@ export default function PathsDashboard() {
             <AnimatePresence>
                  {primaryPath && (
                     <CalibrationComplete 
-                        primaryPathName={primaryPath.path_name} 
+                        primaryPathName={primaryPathName} 
                         onContinue={() => {}} 
                     />
                  )}
@@ -144,7 +147,7 @@ export default function PathsDashboard() {
                     <span className="text-xs font-bold text-cyan-400 uppercase tracking-widest">Paths Unlocked</span>
                 </div>
                 <h1 className="text-3xl md:text-5xl font-bold text-white mb-4 font-display">
-                    Your Primary Path: <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">{primaryPath?.path_name}</span>
+                    Your Primary Path: <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">{primaryPathName}</span>
                 </h1>
                 <p className="text-xl text-gray-400 max-w-2xl leading-relaxed">
                     Derived from consistency, risk discipline, and decision-making speed across multiple scenarios.
@@ -157,7 +160,7 @@ export default function PathsDashboard() {
                     <PathCard
                         key={path.path_id}
                         pathId={path.path_id}
-                        pathName={path.path_name} // Should match standard names
+                        pathName={path.path_name || PATHS_CONTENT[path.path_id]?.name || "Unnamed Path"}
                         score={path.score}
                         rank={idx + 1}
                         confidence={confidence}

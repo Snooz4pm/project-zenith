@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
         const userId = session.user.email;
 
         // Fetch in parallel
+        // path_name not on UserPathScore model; frontend resolves display names
         const [traits, pathScores] = await Promise.all([
             prisma.userTrait.findUnique({ where: { user_id: userId } }),
             prisma.userPathScore.findMany({

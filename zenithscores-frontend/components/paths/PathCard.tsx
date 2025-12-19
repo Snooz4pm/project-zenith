@@ -20,11 +20,23 @@ interface PathCardProps {
 
 
 export default function PathCard({ pathId, pathName, score, isLocked, confidence, rank }: PathCardProps) {
-    const details = PATH_DETAILS[pathId] || PATH_DETAILS['market-analyst'];
-    const Icon = details.icon;
+    const details = PATHS_CONTENT[pathId];
+
+    // Safety: Log if details are missing
+    if (!details) {
+        console.warn(`[PathCard] Missing content details for pathId: ${pathId}`);
+    }
+
+    const Icon = details?.icon || Activity; // Fallback icon
+    // Robust name fallback: Prop > Content > Default
+    const displayName = pathName || details?.name || "Unnamed Path";
 
     // For unlocked view, primary path is Rank 1
     const isPrimary = rank === 1;
+
+    // Safety: Fallback colors if details missing
+    const startColor = details?.startColor || 'from-gray-700';
+    const endColor = details?.endColor || 'to-gray-600';
 
     if (isLocked) {
         return (
@@ -39,7 +51,7 @@ export default function PathCard({ pathId, pathName, score, isLocked, confidence
                             <div className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-1">
                                 Path Locked
                             </div>
-                            <h3 className="text-xl font-bold text-gray-300">{pathName}</h3>
+                            <h3 className="text-xl font-bold text-gray-300">{displayName}</h3>
                         </div>
                     </div>
                     <Lock size={20} className="text-gray-500" />
@@ -59,13 +71,13 @@ export default function PathCard({ pathId, pathName, score, isLocked, confidence
             `}
         >
             {/* Background accent */}
-            <div className={`absolute top-0 right-0 w-64 h-64 bg-gradient-to-br ${details.startColor} ${details.endColor} opacity-5 blur-[80px] rounded-full pointer-events-none`} />
+            <div className={`absolute top-0 right-0 w-64 h-64 bg-gradient-to-br ${startColor} ${endColor} opacity-5 blur-[80px] rounded-full pointer-events-none`} />
 
             <div className="p-6 md:p-8 relative z-10">
                 {/* Header */}
                 <div className="flex justify-between items-start mb-6">
                     <div className="flex items-start gap-4">
-                        <div className={`p-3 rounded-xl bg-gradient-to-br ${details.startColor} ${details.endColor} shadow-lg`}>
+                        <div className={`p-3 rounded-xl bg-gradient-to-br ${startColor} ${endColor} shadow-lg`}>
                             <Icon size={isPrimary ? 32 : 24} className="text-white" />
                         </div>
                         <div>
@@ -73,8 +85,8 @@ export default function PathCard({ pathId, pathName, score, isLocked, confidence
                                 {isPrimary && <span className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 text-[10px] font-bold uppercase rounded-full border border-cyan-500/20">Primary Match</span>}
                                 <span className="text-xs text-gray-400 font-mono tracking-wider">MATCH: {score}%</span>
                             </div>
-                            <h3 className={`${isPrimary ? 'text-3xl' : 'text-xl'} font-bold text-white mb-1`}>{pathName}</h3>
-                            <p className="text-cyan-400 font-medium">{details.tagline}</p>
+                            <h3 className={`${isPrimary ? 'text-3xl' : 'text-xl'} font-bold text-white mb-1`}>{displayName}</h3>
+                            <p className="text-cyan-400 font-medium">{details?.tagline || 'Discover your trading personality'}</p>
                         </div>
                     </div>
                     {isPrimary && (
@@ -91,42 +103,50 @@ export default function PathCard({ pathId, pathName, score, isLocked, confidence
                         <div className="mb-4">
                             <h4 className="text-xs text-gray-500 uppercase tracking-widest mb-2 font-bold">Why this fits you</h4>
                             <p className="text-gray-300 leading-relaxed text-sm">
-                                {details.why}
+                                {details?.why || "Based on your activity, this path aligns with your decision-making style."}
                             </p>
                         </div>
 
-                        <div className="flex flex-col gap-3">
-                            <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg border border-white/5">
-                                <Zap size={16} className="text-yellow-400 mt-1 flex-shrink-0" />
-                                <div>
-                                    <span className="text-xs text-gray-400 uppercase font-bold block mb-0.5">Superpower</span>
-                                    <span className="text-sm text-gray-200">{details.superpower}</span>
+                        {details && (
+                            <div className="flex flex-col gap-3">
+                                <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg border border-white/5">
+                                    <Zap size={16} className="text-yellow-400 mt-1 flex-shrink-0" />
+                                    <div>
+                                        <span className="text-xs text-gray-400 uppercase font-bold block mb-0.5">Superpower</span>
+                                        <span className="text-sm text-gray-200">{details.superpower}</span>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg border border-white/5">
-                                <AlertTriangle size={16} className="text-orange-400 mt-1 flex-shrink-0" />
-                                <div>
-                                    <span className="text-xs text-gray-400 uppercase font-bold block mb-0.5">The Risk</span>
-                                    <span className="text-sm text-gray-200">{details.risk}</span>
+                                <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg border border-white/5">
+                                    <AlertTriangle size={16} className="text-orange-400 mt-1 flex-shrink-0" />
+                                    <div>
+                                        <span className="text-xs text-gray-400 uppercase font-bold block mb-0.5">The Risk</span>
+                                        <span className="text-sm text-gray-200">{details.risk}</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     {isPrimary && (
                         <div className="flex flex-col justify-between border-t md:border-t-0 md:border-l border-white/10 md:pl-8 pt-6 md:pt-0">
-                            <div>
-                                <h4 className="text-xs text-gray-500 uppercase tracking-widest mb-3 font-bold">Recommended Career Roles</h4>
-                                <div className="space-y-2">
-                                    {details.careerMatches.map((role: string, idx: number) => (
-                                        <div key={idx} className="flex items-center gap-2 text-sm text-cyan-100">
-                                            <CheckCircle2 size={14} className="text-cyan-500" />
-                                            {role}
-                                        </div>
-                                    ))}
+                            {details ? (
+                                <div>
+                                    <h4 className="text-xs text-gray-500 uppercase tracking-widest mb-3 font-bold">Recommended Career Roles</h4>
+                                    <div className="space-y-2">
+                                        {details.careerMatches?.map((role: string, idx: number) => (
+                                            <div key={idx} className="flex items-center gap-2 text-sm text-cyan-100">
+                                                <CheckCircle2 size={14} className="text-cyan-500" />
+                                                {role}
+                                            </div>
+                                        )) || <div className="text-gray-500 text-sm">No roles available</div>}
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="text-gray-500 italic text-sm">
+                                    Details unavailable for this path ID.
+                                </div>
+                            )}
 
                             <button
                                 onClick={() => window.location.href = `/learn/paths/${pathId}`}
