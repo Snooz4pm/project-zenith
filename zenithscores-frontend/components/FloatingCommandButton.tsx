@@ -106,13 +106,17 @@ export default function FloatingCommandButton() {
                                         const Icon = item.icon;
                                         const active = isActive(item.href);
                                         return (
-                                            <Link
+                                            // 🔧 NUCLEAR FIX: Using window.location.href for hard navigation
+                                            <a
                                                 key={item.href}
                                                 href={item.href}
-                                                prefetch={false}
-                                                onClick={() => setIsOpen(false)}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    setIsOpen(false);
+                                                    window.location.href = item.href;
+                                                }}
                                                 className={`
-                                                    flex items-center gap-4 p-3 rounded-xl transition-all tap-feedback
+                                                    flex items-center gap-4 p-3 rounded-xl transition-all tap-feedback cursor-pointer
                                                     ${active
                                                         ? 'bg-cyan-500/15 border border-cyan-500/30'
                                                         : 'hover:bg-white/5'
@@ -137,7 +141,7 @@ export default function FloatingCommandButton() {
                                                 {active && (
                                                     <div className="ml-auto w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff]" />
                                                 )}
-                                            </Link>
+                                            </a>
                                         );
                                     })}
                                 </div>

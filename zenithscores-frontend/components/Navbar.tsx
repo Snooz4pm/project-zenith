@@ -70,12 +70,17 @@ export default function Navbar() {
 
                 <div className="hidden md:flex items-center gap-8 h-full">
                     {navLinks.map((link) => (
-                        <Link
+                        // 🔧 NUCLEAR FIX: Using onClick with window.location.href
+                        // to bypass any stale Next.js router state
+                        <a
                             key={link.href}
                             href={link.href}
-                            prefetch={false}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                window.location.href = link.href;
+                            }}
                             className={`
-                                relative h-full flex items-center px-1 transition-all duration-300
+                                relative h-full flex items-center px-1 transition-all duration-300 cursor-pointer
                                 ${isActive(link.href) ? 'opacity-100' : 'opacity-70 hover:opacity-100'}
                             `}
                         >
@@ -100,7 +105,7 @@ export default function Navbar() {
                             {isActive(link.href) && (
                                 <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff] pointer-events-none" />
                             )}
-                        </Link>
+                        </a>
                     ))}
                 </div>
 
