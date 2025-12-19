@@ -1,23 +1,60 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
     LayoutDashboard, Zap, Crown, Award, Lock, ChevronRight,
-    MessageSquare, Copy, Users
+    MessageSquare, Copy, Users, AlertCircle, Calendar
 } from 'lucide-react';
-import ThreeHourPulse from '@/components/ThreeHourPulse';
-import XPProgressionCard from '@/components/XPProgressionCard';
-import PredictionStreaks from '@/components/PredictionStreaks';
-import ArenaLeaderboard from '@/components/ArenaLeaderboard';
-import CommunityFeed from '@/components/CommunityFeed';
-import CloneTrading from '@/components/CloneTrading';
-import PremiumWall from '@/components/PremiumWall';
-import SignalsTable from '@/components/SignalsTable';
-import AssetPicker from '@/components/AssetPicker';
 import { isPremiumUser, getPremiumDaysRemaining } from '@/lib/premium';
-import { AlertCircle, Calendar } from 'lucide-react';
+
+// Lazy load ALL heavy dashboard components for smooth navigation
+const ThreeHourPulse = dynamic(() => import('@/components/ThreeHourPulse'), {
+    loading: () => <div className="h-48 bg-gray-900/50 rounded-xl animate-pulse" />,
+    ssr: false
+});
+
+const XPProgressionCard = dynamic(() => import('@/components/XPProgressionCard'), {
+    loading: () => <div className="h-32 bg-gray-900/50 rounded-xl animate-pulse" />,
+    ssr: false
+});
+
+const PredictionStreaks = dynamic(() => import('@/components/PredictionStreaks'), {
+    loading: () => <div className="h-40 bg-gray-900/50 rounded-xl animate-pulse" />,
+    ssr: false
+});
+
+const ArenaLeaderboard = dynamic(() => import('@/components/ArenaLeaderboard'), {
+    loading: () => <div className="h-64 bg-gray-900/50 rounded-xl animate-pulse" />,
+    ssr: false
+});
+
+const CommunityFeed = dynamic(() => import('@/components/CommunityFeed'), {
+    loading: () => <div className="h-64 bg-gray-900/50 rounded-xl animate-pulse" />,
+    ssr: false
+});
+
+const CloneTrading = dynamic(() => import('@/components/CloneTrading'), {
+    loading: () => <div className="h-48 bg-gray-900/50 rounded-xl animate-pulse" />,
+    ssr: false
+});
+
+const PremiumWall = dynamic(() => import('@/components/PremiumWall'), {
+    loading: () => <div className="h-64 bg-gray-900/50 rounded-xl animate-pulse" />,
+    ssr: false
+});
+
+const SignalsTable = dynamic(() => import('@/components/SignalsTable'), {
+    loading: () => <div className="h-96 bg-gray-900/50 rounded-xl animate-pulse" />,
+    ssr: false
+});
+
+const AssetPicker = dynamic(() => import('@/components/AssetPicker'), {
+    loading: () => <div className="h-40 bg-gray-900/50 rounded-xl animate-pulse" />,
+    ssr: false
+});
 
 export default function DashboardPage() {
     const [premium, setPremium] = useState(false);
