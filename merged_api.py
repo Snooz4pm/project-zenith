@@ -548,7 +548,7 @@ def trigger_news_pipeline():
         print("⏰ CRON: Starting News Pipeline...")
         pipeline = NewsPipeline(delay_between_scrapes=1)
         # Run a quick collection to avoid timeouts (Vercel has 10s-50s limit)
-        stats = pipeline.run_full_collection(max_per_query=2) 
+        stats = pipeline.run_full_pipeline(max_per_query=2) 
         return {"status": "success", "message": "Pipeline Executed", "stats": stats}
     except Exception as e:
         print(f"❌ CRON Failed: {e}")
