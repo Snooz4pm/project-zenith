@@ -53,8 +53,8 @@ export default function LoginPage() {
                 >
                     <ShieldCheck className="w-8 h-8 text-emerald-400" />
                 </motion.div>
-                <h1 className="text-3xl font-bold tracking-tight text-white">Welcome Back</h1>
-                <p className="text-zinc-400">Sign in to access your Zenith Dashboard</p>
+                <h1 className="text-3xl font-bold tracking-tight text-white">Get Started</h1>
+                <p className="text-zinc-400">Sign in or create your account to continue</p>
             </div>
 
             <div className="space-y-4">
