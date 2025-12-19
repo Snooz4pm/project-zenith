@@ -67,6 +67,14 @@ export const authOptions: NextAuthOptions = {
             }
             return true
         },
+        async redirect({ url, baseUrl }) {
+            // If the url is relative, prepend the base url
+            if (url.startsWith("/")) return `${baseUrl}${url}`
+            // If the url is on the same origin, allow it
+            else if (new URL(url).origin === baseUrl) return url
+            // Default to dashboard
+            return `${baseUrl}/dashboard`
+        },
         async session({ session, token }) {
             if (token && session.user) {
                 // session.user.id = token.sub
