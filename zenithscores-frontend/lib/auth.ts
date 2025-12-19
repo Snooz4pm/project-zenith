@@ -63,8 +63,6 @@ export const authOptions: NextAuthOptions = {
     callbacks: {
         async signIn({ user, account }) {
             if (account?.provider === "google") {
-                // Upsert handled by adapter usually, but strict custom logic if needed:
-                // We rely on adapter to create/update user
                 return true
             }
             return true
@@ -81,5 +79,8 @@ export const authOptions: NextAuthOptions = {
             }
             return token
         }
-    }
+    },
+    debug: process.env.NODE_ENV === 'development' || true, // Temporarily forced true for debugging
+    secret: process.env.NEXTAUTH_SECRET,
 }
+
