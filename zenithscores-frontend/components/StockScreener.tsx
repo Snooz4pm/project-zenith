@@ -4,8 +4,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, ArrowUp, ArrowDown, Star, Search, SlidersHorizontal, ChevronDown, ChevronUp, Lock } from 'lucide-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { isPremiumUser, FREE_STOCK_LIMIT } from '@/lib/premium';
-import PremiumWall from '@/components/PremiumWall';
+
+// 🔧 Dynamic import to prevent CSR hydration blocking
+const PremiumWall = dynamic(() => import('@/components/PremiumWall'), { ssr: false });
 
 interface Stock {
     symbol: string;

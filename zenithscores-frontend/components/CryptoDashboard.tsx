@@ -4,11 +4,14 @@ import { useState, useEffect } from 'react';
 import { LayoutGrid, List, SlidersHorizontal, Star, Activity, Zap, TrendingUp, TrendingDown, Target, Database } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import AssetGrid from '@/components/AssetGrid';
-import CryptoHeatmap from '@/components/CryptoHeatmap';
-import AlertsFeed from '@/components/AlertsFeed';
-import MarketPulse from '@/components/MarketPulse';
-import QuickTradePrompt from '@/components/QuickTradePrompt';
+import dynamic from 'next/dynamic';
+
+// 🔧 Dynamic imports to prevent CSR hydration blocking
+const AssetGrid = dynamic(() => import('@/components/AssetGrid'), { ssr: false });
+const CryptoHeatmap = dynamic(() => import('@/components/CryptoHeatmap'), { ssr: false });
+const AlertsFeed = dynamic(() => import('@/components/AlertsFeed'), { ssr: false });
+const MarketPulse = dynamic(() => import('@/components/MarketPulse'), { ssr: false });
+const QuickTradePrompt = dynamic(() => import('@/components/QuickTradePrompt'), { ssr: false });
 
 // Categories for filters
 const CHAINS = ['Ethereum', 'Solana', 'BSC', 'Polygon', 'Arbitrum', 'Avalanche', 'Base'];
