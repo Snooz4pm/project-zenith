@@ -8,6 +8,7 @@ import {
     Command, X, Home, TrendingUp, LineChart,
     BarChart3, Newspaper, Bell, Settings, FileText
 } from 'lucide-react';
+import LoadingOverlay from './LoadingOverlay';
 
 const navItems = [
     { href: '/', label: 'Scores', icon: Home, description: 'Main dashboard' },
@@ -25,6 +26,7 @@ const secondaryItems = [
 
 export default function FloatingCommandButton() {
     const [isOpen, setIsOpen] = useState(false);
+    const [isNavigating, setIsNavigating] = useState(false);
     const pathname = usePathname();
 
     const isActive = (path: string) => {
@@ -34,6 +36,9 @@ export default function FloatingCommandButton() {
 
     return (
         <>
+            {/* Loading overlay during navigation */}
+            {isNavigating && <LoadingOverlay />}
+
             {/* Floating Button - Only on mobile */}
             <motion.button
                 onClick={() => setIsOpen(true)}
@@ -113,7 +118,10 @@ export default function FloatingCommandButton() {
                                                 onClick={(e) => {
                                                     e.preventDefault();
                                                     setIsOpen(false);
-                                                    window.location.href = item.href;
+                                                    setIsNavigating(true);
+                                                    setTimeout(() => {
+                                                        window.location.href = item.href;
+                                                    }, 50);
                                                 }}
                                                 className={`
                                                     flex items-center gap-4 p-3 rounded-xl transition-all tap-feedback cursor-pointer
