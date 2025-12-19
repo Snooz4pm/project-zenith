@@ -61,11 +61,23 @@ export const authOptions: NextAuthOptions = {
         })
     ],
     callbacks: {
-        async signIn({ user, account }) {
-            if (account?.provider === "google") {
+        async signIn({ user, account, profile }) {
+            try {
+                console.log('SIGNIN CALLBACK:', {
+                    userId: user?.id,
+                    email: user?.email,
+                    provider: account?.provider,
+                    providerAccountId: account?.providerAccountId
+                })
+                // For Google, always allow - PrismaAdapter handles user creation
+                if (account?.provider === "google") {
+                    return true
+                }
                 return true
+            } catch (error) {
+                console.error('SIGNIN CALLBACK ERROR:', error)
+                return false
             }
-            return true
         },
         async redirect({ url, baseUrl }) {
             // If the url is relative, prepend the base url
