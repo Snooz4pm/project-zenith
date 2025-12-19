@@ -25,6 +25,9 @@ const SECTOR_INDEXES = [
 ];
 
 export default function CryptoDashboard() {
+    // 🔍 DEBUG: Track component lifecycle
+    console.log('🟢 [CRYPTO DASHBOARD] Component rendering started');
+
     // Data State
     const [tokens, setTokens] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -44,11 +47,15 @@ export default function CryptoDashboard() {
     const [sectorScores, setSectorScores] = useState<Record<string, { score: number; change: number }>>({});
 
     useEffect(() => {
+        console.log('🟢 [CRYPTO DASHBOARD] Component mounted, fetching data...');
+
         const fetchTokens = async () => {
             try {
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
+                console.log('🔵 [CRYPTO DASHBOARD] Fetching from:', apiUrl);
                 const res = await fetch(`${apiUrl}/api/v1/tokens/scored?limit=100`);
                 const data = await res.json();
+                console.log('🔵 [CRYPTO DASHBOARD] Fetch completed, tokens:', data.data?.length || 0);
                 if (data.status === 'success') {
                     // Enrich with sectors/chains
                     const enriched = data.data.map((t: any, i: number) => ({
