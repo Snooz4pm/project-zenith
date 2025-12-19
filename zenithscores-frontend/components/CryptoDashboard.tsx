@@ -12,6 +12,7 @@ const CryptoHeatmap = dynamic(() => import('@/components/CryptoHeatmap'), { ssr:
 const AlertsFeed = dynamic(() => import('@/components/AlertsFeed'), { ssr: false });
 const MarketPulse = dynamic(() => import('@/components/MarketPulse'), { ssr: false });
 const QuickTradePrompt = dynamic(() => import('@/components/QuickTradePrompt'), { ssr: false });
+const UniversalLoader = dynamic(() => import('@/components/UniversalLoader'), { ssr: false });
 
 // Categories for filters
 const CHAINS = ['Ethereum', 'Solana', 'BSC', 'Polygon', 'Arbitrum', 'Avalanche', 'Base'];
@@ -123,12 +124,10 @@ export default function CryptoDashboard() {
         return true;
     });
 
+
     if (loading) return (
         <div className="h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
-            <div className="text-center">
-                <Zap className="mx-auto mb-4 text-cyan-400 animate-pulse" size={48} />
-                <p className="text-white/50 animate-pulse">Initializing Crypto Intelligence...</p>
-            </div>
+            <UniversalLoader size="lg" message="Initializing Crypto Intelligence..." />
         </div>
     );
 

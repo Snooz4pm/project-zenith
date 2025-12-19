@@ -9,6 +9,7 @@ import { isPremiumUser, FREE_STOCK_LIMIT } from '@/lib/premium';
 
 // 🔧 Dynamic import to prevent CSR hydration blocking
 const PremiumWall = dynamic(() => import('@/components/PremiumWall'), { ssr: false });
+const UniversalLoader = dynamic(() => import('@/components/UniversalLoader'), { ssr: false });
 
 interface Stock {
     symbol: string;
@@ -149,7 +150,7 @@ export default function StockScreener({ initialSector }: StockScreenerProps) {
     }, [stocks, searchQuery, selectedSectors, minScore, selectedCap, sortBy, view, watchlist]);
 
     if (loading) {
-        return <div className="h-96 w-full bg-gray-100 animate-pulse rounded-xl border border-gray-200" />;
+        return <UniversalLoader size="md" message="Loading stocks..." />;
     }
 
     return (
