@@ -10,12 +10,46 @@ datasource db {
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
+  emailVerified DateTime?
   password_hash String?
-  provider      String
+  provider      String?   @default("google")
   name          String?
-  avatar        String?
+  image         String?   // NextAuth expects 'image', not 'avatar'
   created_at    DateTime  @default(now())
   last_login    DateTime?
+  
+  // NextAuth relations
+  accounts      Account[]
+  sessions      Session[]
+}
+
+// Required by NextAuth PrismaAdapter for OAuth
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// Required by NextAuth PrismaAdapter for sessions
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
