@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, AlertTriangle, CheckCircle, ExternalLink } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, ExternalLink, X } from 'lucide-react';
 import Link from 'next/link';
 import { hasAcceptedTerms, acceptTerms } from '@/lib/premium';
 
@@ -46,6 +46,14 @@ export default function TermsAcceptanceModal() {
                     >
                         {/* Status Bar */}
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-cyan-500" />
+
+                        {/* Close (Debug/Escape Hatch) */}
+                        <button
+                            onClick={() => setShow(false)}
+                            className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
 
                         {/* Content */}
                         <div className="text-center mb-8">
@@ -99,8 +107,8 @@ export default function TermsAcceptanceModal() {
                                 onClick={handleAccept}
                                 disabled={!checked}
                                 className={`w-full py-4 rounded-xl font-bold text-lg transition-all shadow-lg ${checked
-                                        ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20'
-                                        : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                                    ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20'
+                                    : 'bg-gray-800 text-gray-500 cursor-not-allowed'
                                     }`}
                             >
                                 Enter ZenithScores
