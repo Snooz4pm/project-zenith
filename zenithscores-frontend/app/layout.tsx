@@ -7,7 +7,6 @@ import Footer from "@/components/Footer";
 import AuthProvider from "@/components/AuthProvider";
 import FloatingCommandButton from "@/components/FloatingCommandButton";
 import TermsAcceptanceModal from "@/components/TermsAcceptanceModal";
-import DebugWrapper from "@/components/DebugWrapper";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -39,9 +38,6 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="antialiased font-sans">
         <AuthProvider>
-          {/* 🔍 DEBUG: Navigation & Body Monitor - REMOVE FOR PRODUCTION */}
-          <DebugWrapper />
-
           <Navbar />
           {/* Global Terms Acceptance Check */}
           <TermsAcceptanceModal />

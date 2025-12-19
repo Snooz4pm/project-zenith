@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -21,24 +20,14 @@ import { isPremiumUser, getPremiumDaysRemaining } from '@/lib/premium';
 import { AlertCircle, Calendar } from 'lucide-react';
 
 export default function DashboardPage() {
-    // 🔍 DEBUG: Track component lifecycle
-    console.log('🟢 [DASHBOARD] Component rendering started');
-
-    const router = useRouter();
     const [premium, setPremium] = useState(false);
     const [daysRemaining, setDaysRemaining] = useState(0);
     const [activeTab, setActiveTab] = useState<'overview' | 'community' | 'arena'>('overview');
     const [showPremiumWall, setShowPremiumWall] = useState(false);
-    const [showDebugPanel, setShowDebugPanel] = useState(false);
 
     useEffect(() => {
-        console.log('🟢 [DASHBOARD] Component mounted');
         setPremium(isPremiumUser());
         setDaysRemaining(getPremiumDaysRemaining());
-
-        return () => {
-            console.log('🔴 [DASHBOARD] Component unmounting');
-        };
     }, []);
 
     // Handle premium action - show wall if not premium
@@ -82,61 +71,9 @@ export default function DashboardPage() {
     // Premium: Full dashboard
     return (
         <div className="min-h-screen bg-[#0a0a12] text-white pt-20 md:pt-24">
+
             {/* Premium Action Modal */}
             <PremiumActionWall />
-
-            {/* 🔍 DEBUG: Navigation Test Panel - REMOVE FOR PRODUCTION */}
-            <div className="fixed bottom-4 left-4 z-[200]">
-                <button
-                    onClick={() => setShowDebugPanel(!showDebugPanel)}
-                    className="px-3 py-2 bg-yellow-500 text-black text-xs font-bold rounded-lg shadow-lg"
-                >
-                    🔧 Debug
-                </button>
-                {showDebugPanel && (
-                    <div className="mt-2 p-4 bg-gray-900 border border-yellow-500/50 rounded-xl shadow-2xl min-w-[200px]">
-                        <p className="text-xs text-yellow-400 mb-3 font-bold">Navigation Test Panel</p>
-                        <div className="space-y-2">
-                            <button
-                                onClick={() => {
-                                    console.log('🔵 [TEST] router.push to /crypto');
-                                    router.push('/crypto');
-                                }}
-                                className="w-full px-3 py-2 bg-cyan-500/20 text-cyan-400 text-xs rounded hover:bg-cyan-500/30"
-                            >
-                                Go to Crypto (useRouter)
-                            </button>
-                            <button
-                                onClick={() => {
-                                    console.log('🔵 [TEST] router.push to /learning');
-                                    router.push('/learning');
-                                }}
-                                className="w-full px-3 py-2 bg-purple-500/20 text-purple-400 text-xs rounded hover:bg-purple-500/30"
-                            >
-                                Go to Learning (useRouter)
-                            </button>
-                            <button
-                                onClick={() => {
-                                    console.log('🔵 [TEST] Hard navigation to /crypto');
-                                    window.location.href = '/crypto';
-                                }}
-                                className="w-full px-3 py-2 bg-orange-500/20 text-orange-400 text-xs rounded hover:bg-orange-500/30"
-                            >
-                                Go to Crypto (Hard Reload)
-                            </button>
-                            <button
-                                onClick={() => {
-                                    console.log('🔵 [TEST] Hard navigation to /learning');
-                                    window.location.href = '/learning';
-                                }}
-                                className="w-full px-3 py-2 bg-red-500/20 text-red-400 text-xs rounded hover:bg-red-500/30"
-                            >
-                                Go to Learning (Hard Reload)
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </div>
 
             <div className="container mx-auto px-6 py-6">
                 {/* Expiration Warning */}

@@ -106,7 +106,8 @@ export default function FloatingCommandButton() {
                                         const Icon = item.icon;
                                         const active = isActive(item.href);
                                         return (
-                                            <Link
+                                            // 🔧 WORKAROUND: Using <a> instead of <Link> due to Next.js routing freeze
+                                            <a
                                                 key={item.href}
                                                 href={item.href}
                                                 onClick={() => setIsOpen(false)}
@@ -136,7 +137,7 @@ export default function FloatingCommandButton() {
                                                 {active && (
                                                     <div className="ml-auto w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff]" />
                                                 )}
-                                            </Link>
+                                            </a>
                                         );
                                     })}
                                 </div>
@@ -149,10 +150,16 @@ export default function FloatingCommandButton() {
                                     {secondaryItems.map((item) => {
                                         const Icon = item.icon;
                                         return (
-                                            <Link
+                                            <a
                                                 key={item.href}
                                                 href={item.disabled ? '#' : item.href}
-                                                onClick={() => !item.disabled && setIsOpen(false)}
+                                                onClick={(e) => {
+                                                    if (item.disabled) {
+                                                        e.preventDefault();
+                                                    } else {
+                                                        setIsOpen(false);
+                                                    }
+                                                }}
                                                 className={`
                                                     flex-1 flex flex-col items-center gap-1 p-3 rounded-xl
                                                     ${item.disabled
@@ -163,7 +170,7 @@ export default function FloatingCommandButton() {
                                             >
                                                 <Icon size={18} className="text-gray-400" />
                                                 <span className="text-xs text-gray-500">{item.label}</span>
-                                            </Link>
+                                            </a>
                                         );
                                     })}
                                 </div>
