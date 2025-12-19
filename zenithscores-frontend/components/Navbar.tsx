@@ -73,6 +73,7 @@ export default function Navbar() {
                         <Link
                             key={link.href}
                             href={link.href}
+                            prefetch={false}
                             className={`
                                 relative h-full flex items-center px-1 transition-all duration-300
                                 ${isActive(link.href) ? 'opacity-100' : 'opacity-70 hover:opacity-100'}
