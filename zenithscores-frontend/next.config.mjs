@@ -1,6 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   eslint: {
     // Disable ESLint during production builds (too many pre-existing issues)
     ignoreDuringBuilds: true,
@@ -20,4 +19,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-
