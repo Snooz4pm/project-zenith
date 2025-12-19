@@ -97,7 +97,7 @@ export default function CommunityFeed() {
 
     const handleLike = async (postId: string) => {
         if (!session) {
-            signIn('google');
+            signIn('google', { callbackUrl: '/trading' });
             return;
         }
 
@@ -117,7 +117,7 @@ export default function CommunityFeed() {
 
     const handleComment = async (postId: string) => {
         if (!session) {
-            signIn('google');
+            signIn('google', { callbackUrl: '/trading' });
             return;
         }
         if (!commentText.trim()) return;
@@ -151,7 +151,7 @@ export default function CommunityFeed() {
 
     const handlePost = async () => {
         if (!session) {
-            signIn('google');
+            signIn('google', { callbackUrl: '/trading' });
             return;
         }
         if (!newPost.trim()) return;
@@ -242,7 +242,7 @@ export default function CommunityFeed() {
                     </button>
                 ) : (
                     <button
-                        onClick={() => signIn('google')}
+                        onClick={() => signIn('google', { callbackUrl: '/trading' })}
                         className="text-[10px] text-cyan-400 hover:underline"
                     >
                         Sign in to post
