@@ -19,8 +19,13 @@ interface PathCardProps {
 
 
 
+import { useRouter } from 'next/navigation';
+
 export default function PathCard({ pathId, pathName, score, isLocked, confidence, rank }: PathCardProps) {
+    const router = useRouter();
     const details = PATHS_CONTENT[pathId];
+
+    // ... (rest of the component until the secondary button)
 
     // Safety: Log if details are missing
     if (!details) {
@@ -149,7 +154,7 @@ export default function PathCard({ pathId, pathName, score, isLocked, confidence
                             )}
 
                             <button
-                                onClick={() => window.location.href = `/learn/paths/${pathId}`}
+                                onClick={() => router.push(`/learning/paths/${pathId}`)}
                                 className="mt-6 w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-white/10 group"
                             >
                                 View Full Roadmap
@@ -165,7 +170,7 @@ export default function PathCard({ pathId, pathName, score, isLocked, confidence
                 <div className="px-6 pb-6 pt-2">
                     <div className="h-px bg-white/10 mb-4" />
                     <button
-                        onClick={() => window.location.href = `/learn/paths/${pathId}`}
+                        onClick={() => router.push(`/learning/paths/${pathId}`)}
                         className="w-full py-2 bg-white/5 hover:bg-white/10 text-gray-300 text-sm font-bold rounded-lg transition-colors"
                     >
                         View Details
