@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
         }
     } catch (error) {
         console.error('Error toggling like:', error);
-        return NextResponse.json({ error: 'Failed to toggle like' }, { status: 500 });
+        // Return graceful response to prevent frontend crash
+        return NextResponse.json({ error: 'Unable to toggle like', liked: false }, { status: 200 });
     }
 }

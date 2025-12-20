@@ -17,13 +17,15 @@ export async function GET(req: NextRequest) {
         // If logged in, check which posts the user has liked
         let likedPostIds: number[] = [];
         if (userId) {
-            const likes = await prisma.community_likes.findMany({
-                where: { user_id: userId },
-            });
-            likedPostIds = likes.map(l => l.post_id);
+            try {
+                const likes = await prisma.community_likes.findMany({
+                    where: { user_id: userId },
+                });
+                likedPostIds = likes.map(l => l.post_id);
+            } catch {
+                // Ignore likes error, continue with empty likes
+            }
         }
-
-        // Check follows if needed (optional for now)
 
         const formattedPosts = posts.map(post => ({
             id: post.id.toString(),
@@ -43,7 +45,8 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(formattedPosts);
     } catch (error) {
         console.error('Error fetching posts:', error);
-        return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 });
+        // Return empty array instead of error to prevent frontend crash
+        return NextResponse.json([]);
     }
 }
 
