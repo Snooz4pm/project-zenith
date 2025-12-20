@@ -1,0 +1,499 @@
+'use client';
+
+import { useLayoutEffect, useRef, useState, useEffect } from 'react';
+import { gsap } from 'gsap';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+    ArrowUpRight, TrendingUp, Bitcoin, Newspaper,
+    GraduationCap, BarChart3, User, Home, Zap
+} from 'lucide-react';
+
+/**
+ * CardNav - GSAP-powered animated navigation with Zenith theme
+ * Adapted from reactbits.dev CardNav component
+ */
+
+interface NavLink {
+    label: string;
+    href: string;
+    ariaLabel: string;
+    icon?: React.ReactNode;
+}
+
+interface NavItem {
+    label: string;
+    bgColor: string;
+    textColor: string;
+    links: NavLink[];
+    icon?: React.ReactNode;
+}
+
+interface CardNavProps {
+    className?: string;
+    ease?: string;
+}
+
+// Zenith navigation items
+const ZENITH_NAV_ITEMS: NavItem[] = [
+    {
+        label: "Markets",
+        bgColor: "rgba(0, 240, 255, 0.1)",
+        textColor: "#00f0ff",
+        icon: <TrendingUp size={20} />,
+        links: [
+            { label: "Stocks", href: "/stocks", ariaLabel: "Stock Market", icon: <TrendingUp size={14} /> },
+            { label: "Crypto", href: "/crypto", ariaLabel: "Cryptocurrency", icon: <Bitcoin size={14} /> },
+            { label: "Signals", href: "/trading", ariaLabel: "Trading Signals", icon: <Zap size={14} /> },
+        ]
+    },
+    {
+        label: "Trading",
+        bgColor: "rgba(168, 85, 247, 0.1)",
+        textColor: "#a855f7",
+        icon: <BarChart3 size={20} />,
+        links: [
+            { label: "Paper Trading", href: "/trading", ariaLabel: "Paper Trading", icon: <BarChart3 size={14} /> },
+            { label: "Dashboard", href: "/dashboard", ariaLabel: "Dashboard", icon: <Home size={14} /> },
+            { label: "Portfolio", href: "/trading?tab=portfolio", ariaLabel: "Portfolio", icon: <TrendingUp size={14} /> },
+        ]
+    },
+    {
+        label: "Learn",
+        bgColor: "rgba(16, 185, 129, 0.1)",
+        textColor: "#10b981",
+        icon: <GraduationCap size={20} />,
+        links: [
+            { label: "Academy", href: "/learning", ariaLabel: "Learning Academy", icon: <GraduationCap size={14} /> },
+            { label: "News", href: "/news", ariaLabel: "Market News", icon: <Newspaper size={14} /> },
+            { label: "Profile", href: "/profile", ariaLabel: "Your Profile", icon: <User size={14} /> },
+        ]
+    }
+];
+
+export default function CardNav({ className = '', ease = 'power3.out' }: CardNavProps) {
+    const pathname = usePathname();
+    const [isHamburgerOpen, setIsHamburgerOpen] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [mounted, setMounted] = useState(false);
+    const navRef = useRef<HTMLElement>(null);
+    const cardsRef = useRef<(HTMLDivElement | null)[]>([]);
+    const tlRef = useRef<gsap.core.Timeline | null>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    const calculateHeight = () => {
+        const navEl = navRef.current;
+        if (!navEl) return 280;
+
+        const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+        if (isMobile) {
+            return 400; // Taller on mobile for stacked cards
+        }
+        return 280;
+    };
+
+    const createTimeline = () => {
+        const navEl = navRef.current;
+        if (!navEl || !mounted) return null;
+
+        const validCards = cardsRef.current.filter(Boolean);
+
+        gsap.set(navEl, { height: 60, overflow: 'hidden' });
+        gsap.set(validCards, { y: 50, opacity: 0 });
+
+        const tl = gsap.timeline({ paused: true });
+
+        tl.to(navEl, {
+            height: calculateHeight,
+            duration: 0.4,
+            ease
+        });
+
+        tl.to(validCards, { y: 0, opacity: 1, duration: 0.4, ease, stagger: 0.08 }, '-=0.1');
+
+        return tl;
+    };
+
+    useLayoutEffect(() => {
+        if (!mounted) return;
+
+        const tl = createTimeline();
+        tlRef.current = tl;
+
+        return () => {
+            tl?.kill();
+            tlRef.current = null;
+        };
+    }, [ease, mounted]);
+
+    useLayoutEffect(() => {
+        if (!mounted) return;
+
+        const handleResize = () => {
+            if (!tlRef.current) return;
+
+            if (isExpanded) {
+                const newHeight = calculateHeight();
+                gsap.set(navRef.current, { height: newHeight });
+
+                tlRef.current.kill();
+                const newTl = createTimeline();
+                if (newTl) {
+                    newTl.progress(1);
+                    tlRef.current = newTl;
+                }
+            } else {
+                tlRef.current.kill();
+                const newTl = createTimeline();
+                if (newTl) {
+                    tlRef.current = newTl;
+                }
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [isExpanded, mounted]);
+
+    // Close menu on navigation
+    useEffect(() => {
+        if (isExpanded) {
+            setIsHamburgerOpen(false);
+            setIsExpanded(false);
+            tlRef.current?.reverse();
+        }
+    }, [pathname]);
+
+    const toggleMenu = () => {
+        const tl = tlRef.current;
+        if (!tl) return;
+
+        if (!isExpanded) {
+            setIsHamburgerOpen(true);
+            setIsExpanded(true);
+            tl.play(0);
+        } else {
+            setIsHamburgerOpen(false);
+            tl.eventCallback('onReverseComplete', () => setIsExpanded(false));
+            tl.reverse();
+        }
+    };
+
+    const setCardRef = (i: number) => (el: HTMLDivElement | null) => {
+        cardsRef.current[i] = el;
+    };
+
+    if (!mounted) {
+        return null; // Prevent SSR issues
+    }
+
+    return (
+        <div className={`card-nav-container ${className}`}>
+            <nav
+                ref={navRef}
+                className={`card-nav ${isExpanded ? 'open' : ''}`}
+            >
+                {/* Top Bar */}
+                <div className="card-nav-top">
+                    {/* Hamburger Menu */}
+                    <button
+                        className={`hamburger-menu ${isHamburgerOpen ? 'open' : ''}`}
+                        onClick={toggleMenu}
+                        aria-label={isExpanded ? 'Close menu' : 'Open menu'}
+                    >
+                        <div className="hamburger-line" />
+                        <div className="hamburger-line" />
+                    </button>
+
+                    {/* Logo */}
+                    <Link href="/" className="logo-container">
+                        <span className="logo-text">
+                            <span className="logo-zenith">ZENITH</span>
+                            <span className="logo-scores">SCORES</span>
+                        </span>
+                    </Link>
+
+                    {/* CTA Button */}
+                    <Link href="/trading" className="card-nav-cta-button">
+                        <Zap size={14} />
+                        Trade
+                    </Link>
+                </div>
+
+                {/* Navigation Cards */}
+                <div className="card-nav-content" aria-hidden={!isExpanded}>
+                    {ZENITH_NAV_ITEMS.map((item, idx) => (
+                        <div
+                            key={`${item.label}-${idx}`}
+                            className="nav-card"
+                            ref={setCardRef(idx)}
+                            style={{
+                                backgroundColor: item.bgColor,
+                                borderColor: item.textColor
+                            }}
+                        >
+                            <div className="nav-card-label" style={{ color: item.textColor }}>
+                                {item.icon}
+                                {item.label}
+                            </div>
+                            <div className="nav-card-links">
+                                {item.links.map((lnk, i) => (
+                                    <Link
+                                        key={`${lnk.label}-${i}`}
+                                        className="nav-card-link"
+                                        href={lnk.href}
+                                        aria-label={lnk.ariaLabel}
+                                        style={{ color: item.textColor }}
+                                        onClick={() => {
+                                            setIsHamburgerOpen(false);
+                                            tlRef.current?.reverse();
+                                        }}
+                                    >
+                                        <ArrowUpRight size={14} className="nav-card-link-icon" />
+                                        {lnk.label}
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </nav>
+
+            {/* Inline Styles */}
+            <style jsx>{`
+        .card-nav-container {
+          position: fixed;
+          top: 1rem;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 94%;
+          max-width: 900px;
+          z-index: 1000;
+        }
+
+        .card-nav {
+          display: block;
+          height: 60px;
+          background: rgba(10, 10, 18, 0.95);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 1rem;
+          box-shadow: 
+            0 4px 30px rgba(0, 0, 0, 0.3),
+            0 0 40px rgba(0, 240, 255, 0.05);
+          position: relative;
+          overflow: hidden;
+          will-change: height;
+        }
+
+        .card-nav-top {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 60px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 0.75rem;
+          z-index: 2;
+        }
+
+        .hamburger-menu {
+          height: 44px;
+          width: 44px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          gap: 6px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 0.75rem;
+          transition: all 0.2s ease;
+        }
+
+        .hamburger-menu:hover {
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(0, 240, 255, 0.3);
+        }
+
+        .hamburger-line {
+          width: 20px;
+          height: 2px;
+          background: #00f0ff;
+          transition: transform 0.25s ease, opacity 0.2s ease;
+          transform-origin: 50% 50%;
+        }
+
+        .hamburger-menu.open .hamburger-line:first-child {
+          transform: translateY(4px) rotate(45deg);
+        }
+
+        .hamburger-menu.open .hamburger-line:last-child {
+          transform: translateY(-4px) rotate(-45deg);
+        }
+
+        .logo-container {
+          display: flex;
+          align-items: center;
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          text-decoration: none;
+        }
+
+        .logo-text {
+          display: flex;
+          align-items: baseline;
+          gap: 4px;
+          font-weight: 800;
+          font-size: 18px;
+          letter-spacing: -0.5px;
+        }
+
+        .logo-zenith {
+          color: #00f0ff;
+        }
+
+        .logo-scores {
+          color: #fff;
+          opacity: 0.7;
+          font-size: 14px;
+        }
+
+        .card-nav-cta-button {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: linear-gradient(135deg, #00f0ff 0%, #a855f7 100%);
+          color: #0a0a12;
+          border: none;
+          border-radius: 0.75rem;
+          padding: 0 1rem;
+          height: 44px;
+          font-weight: 600;
+          font-size: 14px;
+          cursor: pointer;
+          text-decoration: none;
+          transition: all 0.3s ease;
+        }
+
+        .card-nav-cta-button:hover {
+          transform: scale(1.02);
+          box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+        }
+
+        .card-nav-content {
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: 68px;
+          bottom: 0;
+          padding: 0.5rem;
+          display: flex;
+          gap: 0.5rem;
+          visibility: hidden;
+          pointer-events: none;
+          z-index: 1;
+        }
+
+        .card-nav.open .card-nav-content {
+          visibility: visible;
+          pointer-events: auto;
+        }
+
+        .nav-card {
+          flex: 1;
+          min-width: 0;
+          border-radius: 0.75rem;
+          border: 1px solid currentColor;
+          display: flex;
+          flex-direction: column;
+          padding: 1rem;
+          gap: 0.75rem;
+          transition: all 0.2s ease;
+        }
+
+        .nav-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-card-label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 600;
+          font-size: 16px;
+          letter-spacing: -0.3px;
+        }
+
+        .nav-card-links {
+          margin-top: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .nav-card-link {
+          font-size: 14px;
+          cursor: pointer;
+          text-decoration: none;
+          opacity: 0.8;
+          transition: opacity 0.2s ease;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .nav-card-link:hover {
+          opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+          .card-nav-container {
+            width: 94%;
+            top: 0.75rem;
+          }
+
+          .card-nav-content {
+            flex-direction: column;
+            gap: 0.5rem;
+            top: 68px;
+          }
+
+          .nav-card {
+            padding: 0.75rem 1rem;
+          }
+
+          .nav-card-label {
+            font-size: 14px;
+          }
+
+          .nav-card-link {
+            font-size: 13px;
+          }
+
+          .card-nav-cta-button {
+            padding: 0 0.75rem;
+            font-size: 12px;
+          }
+
+          .logo-text {
+            font-size: 16px;
+          }
+
+          .logo-scores {
+            font-size: 12px;
+          }
+        }
+      `}</style>
+        </div>
+    );
+}
