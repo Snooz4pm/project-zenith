@@ -233,27 +233,62 @@ export const ACADEMY_QUIZZES: AcademyQuizzes = {
 
     // -- Market Analyst --
     "valuation-basics": {
-        "easy": [{
-            id: "val-1",
-            question: "In a Discounted Cash Flow model, what does WACC stand for?",
-            options: ["a) Weighted Average Cost of Capital", "b) Weighted Asset Capital Cost", "c) Working Asset Capital Calculation", "d) Weighted Average Credit Cost"],
-            correctAnswer: "a",
-            explanation: "WACC = Weighted Average Cost of Capital. It's the average rate a company pays to finance its assets."
-        }],
-        "medium": [{
-            id: "val-2",
-            question: "Which multiple is most appropriate for valuing a pre-revenue biotech company?",
-            options: ["a) P/E Ratio", "b) EV/Revenue", "c) P/S Ratio", "d) Price/Book Value"],
-            correctAnswer: "c",
-            explanation: "P/S (Price to Sales) or EV/Revenue multiples work for pre-revenue companies where earnings are negative."
-        }],
-        "hard": [{
-            id: "val-3",
-            question: "In a DCF model, the Terminal Value typically represents what percentage of total valuation?",
-            options: ["a) 20-30%", "b) 40-60%", "c) 60-80%", "d) 80-90%"],
-            correctAnswer: "c",
-            explanation: "Terminal Value often comprises 60-80% of total DCF valuation due to perpetuity assumptions."
-        }]
+        "easy": [
+            {
+                id: "val-e1",
+                question: "In a Discounted Cash Flow model, what does WACC stand for?",
+                options: ["a) Weighted Average Cost of Capital", "b) Weighted Asset Capital Cost", "c) Working Asset Capital Calculation", "d) Weighted Average Credit Cost"],
+                correctAnswer: "a",
+                explanation: "WACC = Weighted Average Cost of Capital. It's the average rate a company pays to finance its assets, blending cost of equity and debt."
+            },
+            {
+                id: "val-e2",
+                question: "If a company's discount rate increases from 10% to 12%, what happens to its DCF valuation?",
+                options: ["a) Increases significantly", "b) Decreases significantly", "c) Stays the same", "d) Depends on growth rate only"],
+                correctAnswer: "b",
+                explanation: "Higher discount rates reduce present value of future cash flows. A 2% increase typically lowers DCF value by 15-25%."
+            }
+        ],
+        "medium": [
+            {
+                id: "val-m1",
+                question: "NVIDIA trades at 67x P/E while Ford trades at 7x P/E. This difference is PRIMARILY due to:",
+                options: ["a) Ford has more debt", "b) Market expects higher growth from NVIDIA", "c) NVIDIA pays no dividend", "d) Ford is a better value"],
+                correctAnswer: "b",
+                explanation: "Growth expectations drive P/E multiples. NVIDIA's AI-driven growth justifies a premium, while Ford is a mature, cyclical business."
+            },
+            {
+                id: "val-m2",
+                question: "Which multiple is most appropriate for valuing a pre-profit SaaS company like Snowflake?",
+                options: ["a) P/E Ratio", "b) EV/EBITDA", "c) EV/Revenue (P/S)", "d) Price/Book Value"],
+                correctAnswer: "c",
+                explanation: "EV/Revenue or P/S works for unprofitable growth companies. P/E is meaningless when earnings are negative."
+            },
+            {
+                id: "val-m3",
+                question: "When building a peer group for Tesla comps, you should EXCLUDE:",
+                options: ["a) Rivian", "b) Ford", "c) Ferrari", "d) BYD"],
+                correctAnswer: "b",
+                explanation: "Ford is a legacy automaker with fundamentally different margins and growth profile. Pure EV or luxury auto peers are more comparable."
+            }
+        ],
+        "hard": [
+            {
+                id: "val-h1",
+                question: "Calculate the Terminal Value: Year 5 FCF = $19.2B, WACC = 11.5%, Perpetual Growth = 3.5%",
+                options: ["a) $248.4 billion", "b) $168.5 billion", "c) $304.0 billion", "d) $192.0 billion"],
+                correctAnswer: "a",
+                explanation: "TV = FCF × (1+g) / (WACC - g) = $19.2B × 1.035 / (0.115 - 0.035) = $19.87B / 0.08 = $248.4B",
+                calculation: "TV = 19.2 × 1.035 / 0.08 = 248.4"
+            },
+            {
+                id: "val-h2",
+                question: "In a DCF model, the Terminal Value typically represents what percentage of total Enterprise Value?",
+                options: ["a) 20-30%", "b) 40-55%", "c) 60-80%", "d) 85-95%"],
+                correctAnswer: "c",
+                explanation: "Terminal Value often comprises 60-80% of total DCF valuation because perpetuity assumptions capture infinite future cash flows."
+            }
+        ]
     },
     "financial-modeling": {
         "easy": [{
