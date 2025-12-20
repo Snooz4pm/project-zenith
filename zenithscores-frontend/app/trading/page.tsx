@@ -12,7 +12,7 @@ const AnalyticsDashboard = dynamic(() => import('@/components/AnalyticsDashboard
 const OnboardingTour = dynamic(() => import('@/components/OnboardingTour').then(mod => ({ default: mod.OnboardingTour })), { ssr: false });
 const AssetPicker = dynamic(() => import('@/components/AssetPicker'), { ssr: false });
 const SignalsTable = dynamic(() => import('@/components/SignalsTable'), { ssr: false });
-const CommunityFeedEnhanced = dynamic(() => import('@/components/CommunityFeedEnhanced'), { ssr: false });
+const CommunityFeed = dynamic(() => import('@/components/CommunityFeed'), { ssr: false });
 
 import {
     ArrowLeft, TrendingUp, TrendingDown, Wallet, BarChart3,
@@ -962,7 +962,7 @@ export default function TradingPage() {
 
                     {/* Community Tab - INTEGRATED COMPONENT */}
                     {activeTab === 'community' && (
-                        <CommunityFeedEnhanced />
+                        <CommunityFeed />
                     )}
                 </div>{/* End tab content wrapper */}
             </div>{/* End tabs container */}
