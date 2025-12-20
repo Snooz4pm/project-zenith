@@ -30,33 +30,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
         }
 
-        // In a real app we'd fetch the user ID from the email if session.user.id is missing
-        let userId = session.user.id;
-        if (!userId) {
-            // Fallback or error. For this implementation plan, I'll assume ID is on session
-            // or user needs to query it. 
-            // To be safe I should probably fetch the user by email if ID is missing.
-            // But I can't import prisma here easily without instantiating it again or importing from a shared lib.
-            // `lib/paths_engine.ts` instantiates it. I should maybe export prisma from there or use a singleton.
-            // The file `lib/paths_engine.ts` has `const prisma = new PrismaClient()`.
-            // I should probably move prisma instantiation to `lib/prisma.ts` singleton in a real app, 
-            // but for this file I'll trust `session.user.id` or simple string for now.
-
-            // Actually, I'll just pass session.user.email if that's what's used as ID in this system, 
-            // BUT standard is UUID. 
-            // Let's look at `AcademyQuiz.tsx`: it sends `user_id: session.user.email`.
-            // So the frontend thinks email is the ID.
-            // The schema `UserTrait.user_id` is String.
-            // If I use email as Foreign Key (logical), it works if consistency is kept.
-            // I will use `session.user.email` as the ID for now to match frontend expectation,
-            // but strictly speaking it should be the UUID. 
-            // Validating `schema.prisma`: `UserTrait` has `user_id` string, no relation defined in the snippet I saw?
-            // user_id String @unique.
-            // User model: id String @id @default(uuid()).
-            // If I store email in `user_id`, it might break strict relations if added later.
-            // But for now, I will use what `AcademyQuiz` sends: email.
-            userId = session.user.email;
-        }
+        // Use email as user identifier (consistent with frontend and UserTrait schema)
+        const userId = session.user.email;
 
         // Calculate partial traits from this quiz
         const partialTraits = calculateQuizTraits(body);

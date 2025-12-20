@@ -47,7 +47,7 @@ export default async function ModulePage({ params }: PageProps) {
                             {course.difficulty} Level
                         </span>
                         <span className="flex items-center gap-1 text-gray-400 text-xs">
-                            <Clock size={14} /> {course.duration}
+                            <Clock size={14} /> {course.estimatedTime}
                         </span>
                     </div>
 
@@ -55,7 +55,7 @@ export default async function ModulePage({ params }: PageProps) {
                         {course.title}
                     </h1>
                     <p className="text-xl text-gray-400 leading-relaxed max-w-2xl">
-                        {course.description}
+                        {course.subtitle}
                     </p>
                 </div>
 
