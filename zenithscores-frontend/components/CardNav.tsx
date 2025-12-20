@@ -5,8 +5,9 @@ import { gsap } from 'gsap';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-    ArrowUpRight, TrendingUp, Bitcoin, Newspaper,
-    GraduationCap, BarChart3, User, Home, Zap
+  ArrowUpRight, TrendingUp, Bitcoin, Newspaper,
+  GraduationCap, BarChart3, User, Home, Zap,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 /**
@@ -15,255 +16,368 @@ import {
  */
 
 interface NavLink {
-    label: string;
-    href: string;
-    ariaLabel: string;
-    icon?: React.ReactNode;
+  label: string;
+  href: string;
+  ariaLabel: string;
+  icon?: React.ReactNode;
 }
 
 interface NavItem {
-    label: string;
-    bgColor: string;
-    textColor: string;
-    links: NavLink[];
-    icon?: React.ReactNode;
+  label: string;
+  bgColor: string;
+  textColor: string;
+  links: NavLink[];
+  icon?: React.ReactNode;
 }
 
 interface CardNavProps {
-    className?: string;
-    ease?: string;
+  className?: string;
+  ease?: string;
 }
 
 // Zenith navigation items
 const ZENITH_NAV_ITEMS: NavItem[] = [
-    {
-        label: "Markets",
-        bgColor: "rgba(0, 240, 255, 0.1)",
-        textColor: "#00f0ff",
-        icon: <TrendingUp size={20} />,
-        links: [
-            { label: "Stocks", href: "/stocks", ariaLabel: "Stock Market", icon: <TrendingUp size={14} /> },
-            { label: "Crypto", href: "/crypto", ariaLabel: "Cryptocurrency", icon: <Bitcoin size={14} /> },
-            { label: "Signals", href: "/trading", ariaLabel: "Trading Signals", icon: <Zap size={14} /> },
-        ]
-    },
-    {
-        label: "Trading",
-        bgColor: "rgba(168, 85, 247, 0.1)",
-        textColor: "#a855f7",
-        icon: <BarChart3 size={20} />,
-        links: [
-            { label: "Paper Trading", href: "/trading", ariaLabel: "Paper Trading", icon: <BarChart3 size={14} /> },
-            { label: "Dashboard", href: "/dashboard", ariaLabel: "Dashboard", icon: <Home size={14} /> },
-            { label: "Portfolio", href: "/trading?tab=portfolio", ariaLabel: "Portfolio", icon: <TrendingUp size={14} /> },
-        ]
-    },
-    {
-        label: "Learn",
-        bgColor: "rgba(16, 185, 129, 0.1)",
-        textColor: "#10b981",
-        icon: <GraduationCap size={20} />,
-        links: [
-            { label: "Academy", href: "/learning", ariaLabel: "Learning Academy", icon: <GraduationCap size={14} /> },
-            { label: "News", href: "/news", ariaLabel: "Market News", icon: <Newspaper size={14} /> },
-            { label: "Profile", href: "/profile", ariaLabel: "Your Profile", icon: <User size={14} /> },
-        ]
-    }
+  {
+    label: "Markets",
+    bgColor: "rgba(0, 240, 255, 0.1)",
+    textColor: "#00f0ff",
+    icon: <TrendingUp size={20} />,
+    links: [
+      { label: "Stocks", href: "/stocks", ariaLabel: "Stock Market", icon: <TrendingUp size={14} /> },
+      { label: "Crypto", href: "/crypto", ariaLabel: "Cryptocurrency", icon: <Bitcoin size={14} /> },
+      { label: "Signals", href: "/trading", ariaLabel: "Trading Signals", icon: <Zap size={14} /> },
+    ]
+  },
+  {
+    label: "Trading",
+    bgColor: "rgba(168, 85, 247, 0.1)",
+    textColor: "#a855f7",
+    icon: <BarChart3 size={20} />,
+    links: [
+      { label: "Paper Trading", href: "/trading", ariaLabel: "Paper Trading", icon: <BarChart3 size={14} /> },
+      { label: "Dashboard", href: "/dashboard", ariaLabel: "Dashboard", icon: <Home size={14} /> },
+      { label: "Portfolio", href: "/trading?tab=portfolio", ariaLabel: "Portfolio", icon: <TrendingUp size={14} /> },
+    ]
+  },
+  {
+    label: "Learn",
+    bgColor: "rgba(16, 185, 129, 0.1)",
+    textColor: "#10b981",
+    icon: <GraduationCap size={20} />,
+    links: [
+      { label: "Academy", href: "/learning", ariaLabel: "Learning Academy", icon: <GraduationCap size={14} /> },
+      { label: "News", href: "/news", ariaLabel: "Market News", icon: <Newspaper size={14} /> },
+      { label: "Profile", href: "/profile", ariaLabel: "Your Profile", icon: <User size={14} /> },
+    ]
+  }
 ];
 
 export default function CardNav({ className = '', ease = 'power3.out' }: CardNavProps) {
-    const pathname = usePathname();
-    const [isHamburgerOpen, setIsHamburgerOpen] = useState(false);
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [mounted, setMounted] = useState(false);
-    const navRef = useRef<HTMLElement>(null);
-    const cardsRef = useRef<(HTMLDivElement | null)[]>([]);
-    const tlRef = useRef<gsap.core.Timeline | null>(null);
+  const pathname = usePathname();
+  const [isHamburgerOpen, setIsHamburgerOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const cardsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const tlRef = useRef<gsap.core.Timeline | null>(null);
+  const collapseTlRef = useRef<gsap.core.Timeline | null>(null);
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-    const calculateHeight = () => {
-        const navEl = navRef.current;
-        if (!navEl) return 280;
+  // Collapse/Expand animation
+  const toggleCollapse = () => {
+    if (!containerRef.current || !navRef.current) return;
 
-        const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
-        if (isMobile) {
-            return 400; // Taller on mobile for stacked cards
-        }
-        return 280;
-    };
-
-    const createTimeline = () => {
-        const navEl = navRef.current;
-        if (!navEl || !mounted) return null;
-
-        const validCards = cardsRef.current.filter(Boolean);
-
-        gsap.set(navEl, { height: 60, overflow: 'hidden' });
-        gsap.set(validCards, { y: 50, opacity: 0 });
-
-        const tl = gsap.timeline({ paused: true });
-
-        tl.to(navEl, {
-            height: calculateHeight,
-            duration: 0.4,
-            ease
-        });
-
-        tl.to(validCards, { y: 0, opacity: 1, duration: 0.4, ease, stagger: 0.08 }, '-=0.1');
-
-        return tl;
-    };
-
-    useLayoutEffect(() => {
-        if (!mounted) return;
-
-        const tl = createTimeline();
-        tlRef.current = tl;
-
-        return () => {
-            tl?.kill();
-            tlRef.current = null;
-        };
-    }, [ease, mounted]);
-
-    useLayoutEffect(() => {
-        if (!mounted) return;
-
-        const handleResize = () => {
-            if (!tlRef.current) return;
-
-            if (isExpanded) {
-                const newHeight = calculateHeight();
-                gsap.set(navRef.current, { height: newHeight });
-
-                tlRef.current.kill();
-                const newTl = createTimeline();
-                if (newTl) {
-                    newTl.progress(1);
-                    tlRef.current = newTl;
-                }
-            } else {
-                tlRef.current.kill();
-                const newTl = createTimeline();
-                if (newTl) {
-                    tlRef.current = newTl;
-                }
-            }
-        };
-
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, [isExpanded, mounted]);
-
-    // Close menu on navigation
-    useEffect(() => {
-        if (isExpanded) {
-            setIsHamburgerOpen(false);
-            setIsExpanded(false);
-            tlRef.current?.reverse();
-        }
-    }, [pathname]);
-
-    const toggleMenu = () => {
-        const tl = tlRef.current;
-        if (!tl) return;
-
-        if (!isExpanded) {
-            setIsHamburgerOpen(true);
-            setIsExpanded(true);
-            tl.play(0);
-        } else {
-            setIsHamburgerOpen(false);
-            tl.eventCallback('onReverseComplete', () => setIsExpanded(false));
-            tl.reverse();
-        }
-    };
-
-    const setCardRef = (i: number) => (el: HTMLDivElement | null) => {
-        cardsRef.current[i] = el;
-    };
-
-    if (!mounted) {
-        return null; // Prevent SSR issues
+    if (!isCollapsed) {
+      // Collapse - animate to left pill
+      gsap.to(containerRef.current, {
+        left: '1rem',
+        transform: 'translateX(0)',
+        width: '60px',
+        duration: 0.4,
+        ease: 'power3.out'
+      });
+      gsap.to(navRef.current, {
+        borderRadius: '50%',
+        width: '60px',
+        duration: 0.4,
+        ease: 'power3.out'
+      });
+      setIsCollapsed(true);
+    } else {
+      // Expand - animate back to center
+      gsap.to(containerRef.current, {
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '94%',
+        duration: 0.4,
+        ease: 'power3.out'
+      });
+      gsap.to(navRef.current, {
+        borderRadius: '1rem',
+        width: '100%',
+        duration: 0.4,
+        ease: 'power3.out'
+      });
+      setIsCollapsed(false);
     }
+  };
 
-    return (
-        <div className={`card-nav-container ${className}`}>
-            <nav
-                ref={navRef}
-                className={`card-nav ${isExpanded ? 'open' : ''}`}
-            >
-                {/* Top Bar */}
-                <div className="card-nav-top">
-                    {/* Hamburger Menu */}
-                    <button
-                        className={`hamburger-menu ${isHamburgerOpen ? 'open' : ''}`}
-                        onClick={toggleMenu}
-                        aria-label={isExpanded ? 'Close menu' : 'Open menu'}
-                    >
-                        <div className="hamburger-line" />
-                        <div className="hamburger-line" />
-                    </button>
+  const calculateHeight = () => {
+    const navEl = navRef.current;
+    if (!navEl) return 280;
 
-                    {/* Logo */}
-                    <Link href="/" className="logo-container">
-                        <span className="logo-text">
-                            <span className="logo-zenith">ZENITH</span>
-                            <span className="logo-scores">SCORES</span>
-                        </span>
-                    </Link>
+    const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+    if (isMobile) {
+      return 400; // Taller on mobile for stacked cards
+    }
+    return 280;
+  };
 
-                    {/* CTA Button */}
-                    <Link href="/trading" className="card-nav-cta-button">
-                        <Zap size={14} />
-                        Trade
-                    </Link>
-                </div>
+  const createTimeline = () => {
+    const navEl = navRef.current;
+    if (!navEl || !mounted) return null;
 
-                {/* Navigation Cards */}
-                <div className="card-nav-content" aria-hidden={!isExpanded}>
-                    {ZENITH_NAV_ITEMS.map((item, idx) => (
-                        <div
-                            key={`${item.label}-${idx}`}
-                            className="nav-card"
-                            ref={setCardRef(idx)}
-                            style={{
-                                backgroundColor: item.bgColor,
-                                borderColor: item.textColor
-                            }}
-                        >
-                            <div className="nav-card-label" style={{ color: item.textColor }}>
-                                {item.icon}
-                                {item.label}
-                            </div>
-                            <div className="nav-card-links">
-                                {item.links.map((lnk, i) => (
-                                    <Link
-                                        key={`${lnk.label}-${i}`}
-                                        className="nav-card-link"
-                                        href={lnk.href}
-                                        aria-label={lnk.ariaLabel}
-                                        style={{ color: item.textColor }}
-                                        onClick={() => {
-                                            setIsHamburgerOpen(false);
-                                            tlRef.current?.reverse();
-                                        }}
-                                    >
-                                        <ArrowUpRight size={14} className="nav-card-link-icon" />
-                                        {lnk.label}
-                                    </Link>
-                                ))}
-                            </div>
-                        </div>
+    const validCards = cardsRef.current.filter(Boolean);
+
+    gsap.set(navEl, { height: 60, overflow: 'hidden' });
+    gsap.set(validCards, { y: 50, opacity: 0 });
+
+    const tl = gsap.timeline({ paused: true });
+
+    tl.to(navEl, {
+      height: calculateHeight,
+      duration: 0.4,
+      ease
+    });
+
+    tl.to(validCards, { y: 0, opacity: 1, duration: 0.4, ease, stagger: 0.08 }, '-=0.1');
+
+    return tl;
+  };
+
+  useLayoutEffect(() => {
+    if (!mounted) return;
+
+    const tl = createTimeline();
+    tlRef.current = tl;
+
+    return () => {
+      tl?.kill();
+      tlRef.current = null;
+    };
+  }, [ease, mounted]);
+
+  useLayoutEffect(() => {
+    if (!mounted) return;
+
+    const handleResize = () => {
+      if (!tlRef.current) return;
+
+      if (isExpanded) {
+        const newHeight = calculateHeight();
+        gsap.set(navRef.current, { height: newHeight });
+
+        tlRef.current.kill();
+        const newTl = createTimeline();
+        if (newTl) {
+          newTl.progress(1);
+          tlRef.current = newTl;
+        }
+      } else {
+        tlRef.current.kill();
+        const newTl = createTimeline();
+        if (newTl) {
+          tlRef.current = newTl;
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isExpanded, mounted]);
+
+  // Close menu on navigation
+  useEffect(() => {
+    if (isExpanded) {
+      setIsHamburgerOpen(false);
+      setIsExpanded(false);
+      tlRef.current?.reverse();
+    }
+  }, [pathname]);
+
+  const toggleMenu = () => {
+    const tl = tlRef.current;
+    if (!tl) return;
+
+    if (!isExpanded) {
+      setIsHamburgerOpen(true);
+      setIsExpanded(true);
+      tl.play(0);
+    } else {
+      setIsHamburgerOpen(false);
+      tl.eventCallback('onReverseComplete', () => setIsExpanded(false));
+      tl.reverse();
+    }
+  };
+
+  const setCardRef = (i: number) => (el: HTMLDivElement | null) => {
+    cardsRef.current[i] = el;
+  };
+
+  if (!mounted) {
+    return null; // Prevent SSR issues
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className={`card-nav-container ${className}`}
+      style={{
+        position: 'fixed',
+        top: '1rem',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '94%',
+        maxWidth: '900px',
+        zIndex: 9999,
+      }}
+    >
+      <nav
+        ref={navRef}
+        className={`card-nav ${isExpanded ? 'open' : ''}`}
+        style={{
+          display: 'block',
+          height: '60px',
+          background: 'rgba(10, 10, 18, 0.95)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: isCollapsed ? '50%' : '1rem',
+          boxShadow: '0 4px 30px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 240, 255, 0.05)',
+          position: 'relative',
+          overflow: 'hidden',
+          willChange: 'height, width, border-radius',
+        }}
+      >
+        {/* Collapsed State - Just expand button */}
+        {isCollapsed ? (
+          <button
+            onClick={toggleCollapse}
+            aria-label="Expand navigation"
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#00f0ff',
+            }}
+          >
+            <ChevronRight size={24} />
+          </button>
+        ) : (
+          <>
+            {/* Top Bar */}
+            <div className="card-nav-top">
+              {/* Hamburger Menu */}
+              <button
+                className={`hamburger-menu ${isHamburgerOpen ? 'open' : ''}`}
+                onClick={toggleMenu}
+                aria-label={isExpanded ? 'Close menu' : 'Open menu'}
+              >
+                <div className="hamburger-line" />
+                <div className="hamburger-line" />
+              </button>
+
+              {/* Logo */}
+              <Link href="/" className="logo-container">
+                <span className="logo-text">
+                  <span className="logo-zenith">ZENITH</span>
+                  <span className="logo-scores">SCORES</span>
+                </span>
+              </Link>
+
+              {/* Right side: Trade + Collapse */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Link href="/trading" className="card-nav-cta-button">
+                  <Zap size={14} />
+                  Trade
+                </Link>
+
+                {/* Collapse Button */}
+                <button
+                  onClick={toggleCollapse}
+                  aria-label="Collapse navigation"
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '0.75rem',
+                    cursor: 'pointer',
+                    color: '#00f0ff',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Navigation Cards */}
+            <div className="card-nav-content" aria-hidden={!isExpanded}>
+              {ZENITH_NAV_ITEMS.map((item, idx) => (
+                <div
+                  key={`${item.label}-${idx}`}
+                  className="nav-card"
+                  ref={setCardRef(idx)}
+                  style={{
+                    backgroundColor: item.bgColor,
+                    borderColor: item.textColor
+                  }}
+                >
+                  <div className="nav-card-label" style={{ color: item.textColor }}>
+                    {item.icon}
+                    {item.label}
+                  </div>
+                  <div className="nav-card-links">
+                    {item.links.map((lnk, i) => (
+                      <Link
+                        key={`${lnk.label}-${i}`}
+                        className="nav-card-link"
+                        href={lnk.href}
+                        aria-label={lnk.ariaLabel}
+                        style={{ color: item.textColor }}
+                        onClick={() => {
+                          setIsHamburgerOpen(false);
+                          tlRef.current?.reverse();
+                        }}
+                      >
+                        <ArrowUpRight size={14} className="nav-card-link-icon" />
+                        {lnk.label}
+                      </Link>
                     ))}
+                  </div>
                 </div>
-            </nav>
+              ))}
+            </div>
+          </>
+        )}
+      </nav>
 
-            {/* Inline Styles */}
-            <style jsx>{`
+      {/* Inline Styles */}
+      <style jsx>{`
         .card-nav-container {
           position: fixed;
           top: 1rem;
@@ -494,6 +608,6 @@ export default function CardNav({ className = '', ease = 'power3.out' }: CardNav
           }
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
