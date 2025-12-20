@@ -72,24 +72,50 @@ export default function StockDetailPage() {
             try {
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
-                // 1. Fetch main stock data (Synthetic for now but could be real info)
-                const mockPrice = Math.random() * 500 + 50;
-                const mockScore = Math.floor(Math.random() * 60) + 20;
+                // 1. Fetch REAL stock data from Alpha Vantage GLOBAL_QUOTE via backend
+                const quoteRes = await fetch(`${apiUrl}/api/v1/stocks/quote/${symbol.toUpperCase()}`);
+                const quoteData = await quoteRes.json();
 
-                setStock({
-                    symbol: symbol.toUpperCase(),
-                    name: `${symbol.toUpperCase()} Inc.`,
-                    description: `Leading technology company in ${symbol} sector.`,
-                    price_usd: mockPrice,
-                    price_change_24h: (Math.random() * 5) - 2.5,
-                    zenith_score: mockScore,
-                    volume_24h: 35000000,
-                    market_cap: 2500000000000,
-                    sector: 'Technology',
-                    industry: 'Consumer Electronics',
-                    beta: 1.2
-                });
-                setHistory(generateHistory(mockPrice, mockScore));
+                let stockInfo: StockData;
+
+                if (quoteData.status === 'success' && quoteData.data) {
+                    // Use real data from Alpha Vantage GLOBAL_QUOTE endpoint
+                    const data = quoteData.data;
+                    stockInfo = {
+                        symbol: data.symbol || symbol.toUpperCase(),
+                        name: data.name || `${symbol.toUpperCase()} Inc.`,
+                        description: `Real-time quote for ${symbol.toUpperCase()}.`,
+                        price_usd: data.price_usd || 0,
+                        price_change_24h: data.price_change_24h || 0,
+                        zenith_score: data.zenith_score || 50,
+                        volume_24h: data.volume_24h || 0,
+                        market_cap: data.market_cap || 0,
+                        sector: data.sector || 'Technology',
+                        industry: data.industry || 'General',
+                        beta: data.beta || 1.0
+                    };
+                } else {
+                    // Fallback to mock data if API fails
+                    console.warn('Stock quote API failed, using fallback data');
+                    const fallbackPrice = 150.0;
+                    const fallbackScore = 50;
+                    stockInfo = {
+                        symbol: symbol.toUpperCase(),
+                        name: `${symbol.toUpperCase()} Inc.`,
+                        description: `Stock data for ${symbol.toUpperCase()}.`,
+                        price_usd: fallbackPrice,
+                        price_change_24h: 0,
+                        zenith_score: fallbackScore,
+                        volume_24h: 10000000,
+                        market_cap: 100000000000,
+                        sector: 'Technology',
+                        industry: 'General',
+                        beta: 1.0
+                    };
+                }
+
+                setStock(stockInfo);
+                setHistory(generateHistory(stockInfo.price_usd, stockInfo.zenith_score));
 
                 // 2. Fetch real peers from new endpoint
                 const peersRes = await fetch(`${apiUrl}/api/v1/stocks/${symbol}/peers`);
