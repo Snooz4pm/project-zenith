@@ -60,7 +60,8 @@ type FeedFilter = 'all' | 'following' | 'trades' | 'insights';
 
 export default function CommunityFeedEnhanced() {
     const { data: session } = useSession();
-    const [posts, setPosts] = useState<CommunityPost[]>(DEMO_POSTS);
+
+    const [posts, setPosts] = useState<CommunityPost[]>([]);
     const [loading, setLoading] = useState(false);
     const [showNewPost, setShowNewPost] = useState(false);
     const [newPostContent, setNewPostContent] = useState('');
@@ -96,11 +97,28 @@ export default function CommunityFeedEnhanced() {
 
     // Handle like
     const handleLike = async (postId: string) => {
+        // Optimistic update
         setPosts(prev => prev.map(post =>
             post.id === postId
                 ? { ...post, liked: !post.liked, likes: post.liked ? post.likes - 1 : post.likes + 1 }
                 : post
         ));
+
+        try {
+            await fetch('/api/community/likes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ postId }),
+            });
+        } catch (error) {
+            console.error('Like failed:', error);
+            // Revert on failure
+            setPosts(prev => prev.map(post =>
+                post.id === postId
+                    ? { ...post, liked: !post.liked, likes: post.liked ? post.likes - 1 : post.likes + 1 }
+                    : post
+            ));
+        }
     };
 
     // Handle delete post
@@ -142,27 +160,64 @@ export default function CommunityFeedEnhanced() {
     const handlePost = async () => {
         if (!newPostContent.trim()) return;
 
-        const newPost: CommunityPost = {
-            id: Date.now().toString(),
-            userId: session?.user?.email || 'guest',
-            username: session?.user?.name || 'Anonymous',
-            avatar: session?.user?.image || undefined,
+        const newPostData = {
             type: newPostType,
             content: newPostContent,
-            likes: 0,
-            comments: 0,
-            timestamp: new Date(),
-            isOwnPost: true
         };
 
-        setPosts(prev => [newPost, ...prev]);
-        setNewPostContent('');
-        setShowNewPost(false);
+        try {
+            const res = await fetch('/api/community/posts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newPostData),
+            });
+
+            if (res.ok) {
+                const createdPost = await res.json();
+                // Add to list immediately
+                setPosts(prev => [{
+                    ...createdPost,
+                    timestamp: new Date(createdPost.created_at || createdPost.timestamp),
+                    isOwnPost: true,
+                    liked: false
+                }, ...prev]);
+
+                setNewPostContent('');
+                setShowNewPost(false);
+            }
+        } catch (error) {
+            console.error('Failed to post:', error);
+        }
     };
+
+    // Load posts
+    const loadPosts = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/community/posts');
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                // Convert timestamp strings to Date objects
+                setPosts(data.map(p => ({ ...p, timestamp: new Date(p.timestamp) })));
+            }
+        } catch (error) {
+            console.error('Error loading posts:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadPosts();
+        // Poll for updates every 30s
+        const interval = setInterval(loadPosts, 30000);
+        return () => clearInterval(interval);
+    }, []);
 
     // Format time
     const formatTime = (date: Date) => {
-        const diff = Date.now() - date.getTime();
+        if (!date) return '';
+        const diff = Date.now() - new Date(date).getTime();
         if (diff < 60000) return 'now';
         if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
         if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;

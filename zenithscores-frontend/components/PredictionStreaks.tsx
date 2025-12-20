@@ -58,6 +58,19 @@ export default function PredictionStreaks({ assets = [] }: PredictionCardProps) 
         setPredictions(updated);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
+        if (confirm('Do you want to share this prediction with the community?')) {
+            // Share to community
+            fetch('/api/community/posts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'prediction',
+                    content: `I predict ${selectedSymbol} will go ${direction.toUpperCase()} in the next ${timeframe}! 🚀`,
+                    asset: { symbol: selectedSymbol, name: selectedSymbol, price: 0, score: 0 }
+                })
+            }).catch(e => console.error('Failed to share prediction:', e));
+        }
+
         setShowForm(false);
         setSelectedSymbol('');
     };
@@ -165,8 +178,8 @@ export default function PredictionStreaks({ assets = [] }: PredictionCardProps) 
                                     <button
                                         onClick={() => setDirection('up')}
                                         className={`py-2 rounded-lg flex items-center justify-center gap-1 transition-all ${direction === 'up'
-                                                ? 'bg-green-500/30 text-green-400 border border-green-500/50'
-                                                : 'bg-white/5 text-gray-400'
+                                            ? 'bg-green-500/30 text-green-400 border border-green-500/50'
+                                            : 'bg-white/5 text-gray-400'
                                             }`}
                                     >
                                         <TrendingUp size={14} /> UP
@@ -174,8 +187,8 @@ export default function PredictionStreaks({ assets = [] }: PredictionCardProps) 
                                     <button
                                         onClick={() => setDirection('down')}
                                         className={`py-2 rounded-lg flex items-center justify-center gap-1 transition-all ${direction === 'down'
-                                                ? 'bg-red-500/30 text-red-400 border border-red-500/50'
-                                                : 'bg-white/5 text-gray-400'
+                                            ? 'bg-red-500/30 text-red-400 border border-red-500/50'
+                                            : 'bg-white/5 text-gray-400'
                                             }`}
                                     >
                                         <TrendingDown size={14} /> DOWN
@@ -192,8 +205,8 @@ export default function PredictionStreaks({ assets = [] }: PredictionCardProps) 
                                             key={tf}
                                             onClick={() => setTimeframe(tf)}
                                             className={`py-1.5 rounded-lg text-xs transition-all ${timeframe === tf
-                                                    ? 'bg-cyan-500/30 text-cyan-400 border border-cyan-500/50'
-                                                    : 'bg-white/5 text-gray-400'
+                                                ? 'bg-cyan-500/30 text-cyan-400 border border-cyan-500/50'
+                                                : 'bg-white/5 text-gray-400'
                                                 }`}
                                         >
                                             {tf}

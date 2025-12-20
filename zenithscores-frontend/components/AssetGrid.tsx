@@ -99,11 +99,7 @@ export default function AssetGrid({ tokens, onTokenClick, watchlist, onToggleWat
                         </div>
 
                         {/* Hover Action / Link */}
-                        <a
-                            href={`/crypto/${token.symbol}`}
-                            className="absolute inset-0 z-10"
-                            aria-label={`View details for ${token.symbol}`}
-                        />
+
                     </motion.div>
                 );
             })}

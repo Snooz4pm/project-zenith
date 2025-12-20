@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
     LayoutDashboard, Zap, Crown, Award, Lock, ChevronRight,
     MessageSquare, Copy, Users, AlertCircle, Calendar
@@ -74,6 +75,13 @@ export default function DashboardPage() {
         } else {
             setShowPremiumWall(true);
         }
+    };
+
+    // Handle signal trade (One-Click)
+    const router = useRouter();
+    const handleSignalTrade = (symbol: string, direction: 'buy' | 'sell') => {
+        // Navigate to trading page with params
+        router.push(`/trading?asset=${symbol}&direction=${direction}`);
     };
 
     // Premium wall modal for actions
@@ -195,7 +203,7 @@ export default function DashboardPage() {
 
                         {/* Signals & Market Watch */}
                         <div className="grid lg:grid-cols-3 gap-6 mt-6">
-                            <SignalsTable />
+                            <SignalsTable onTrade={handleSignalTrade} />
                             <div className="h-full">
                                 <AssetPicker />
                             </div>

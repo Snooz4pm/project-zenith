@@ -242,10 +242,10 @@ export default function SignalsTable({ onTrade }: SignalsTableProps) {
                 </div>
 
                 <div className="p-4 border-t border-[#1a1f3a] bg-[#1a1f3a]/20">
-                    <button className="w-full py-2 flex items-center justify-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors group">
+                    <a href="/trading" className="w-full py-2 flex items-center justify-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors group">
                         View All Technical Signals
                         <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                    </button>
+                    </a>
                 </div>
             </div>
 

@@ -186,6 +186,26 @@ export default function ArticleCard({ article, isTopStory = false }: ArticleCard
         );
     }
 
+    const handleShare = async () => {
+        if (!confirm('Share this article to the community?')) return;
+
+        try {
+            await fetch('/api/community/posts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'insight',
+                    content: `Found this interesting article: ${article.title}`,
+                    asset: { symbol: 'NEWS', name: article.source, price: 0, score: 0 } // Mock asset for now
+                })
+            });
+            alert('Shared to community!');
+        } catch (e) {
+            console.error(e);
+            alert('Failed to share.');
+        }
+    };
+
     // Regular card variant
     return (
         <article className="group relative overflow-hidden rounded-xl bg-gray-900/50 border border-white/10 hover:border-white/20 hover:bg-gray-900/80 transition-all duration-300">
@@ -267,9 +287,12 @@ export default function ArticleCard({ article, isTopStory = false }: ArticleCard
 
                 {/* Engagement Buttons */}
                 <div className="flex gap-2 mb-4">
-                    <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs text-gray-400 hover:text-white transition-colors">
-                        <MessageCircle size={14} />
-                        Discuss
+                    <button
+                        onClick={handleShare}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs text-gray-400 hover:text-white transition-colors"
+                    >
+                        <Share2 size={14} />
+                        Share to Community
                     </button>
                 </div>
 
