@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ExternalLink, Bookmark, BookmarkCheck, Clock, TrendingUp } from 'lucide-react';
+import { ExternalLink, Bookmark, BookmarkCheck, Clock, TrendingUp, MessageCircle, Bell } from 'lucide-react';
 import type { Article } from '@/lib/news-types';
 import { formatRelativeTime, getCategoryBySlug, CATEGORIES } from '@/lib/news-api';
 
@@ -264,6 +264,22 @@ export default function ArticleCard({ article, isTopStory = false }: ArticleCard
                         <p className="text-gray-300 text-xs italic line-clamp-2">{article.why_it_matters}</p>
                     </div>
                 )}
+
+                {/* Engagement Buttons */}
+                <div className="flex gap-2 mb-4">
+                    <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs text-gray-400 hover:text-white transition-colors">
+                        <MessageCircle size={14} />
+                        Discuss
+                    </button>
+                    <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-cyan-500/20 rounded-lg text-xs text-gray-400 hover:text-cyan-400 transition-colors">
+                        <TrendingUp size={14} />
+                        Trade
+                    </button>
+                    <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-yellow-500/20 rounded-lg text-xs text-gray-400 hover:text-yellow-400 transition-colors">
+                        <Bell size={14} />
+                        Alert
+                    </button>
+                </div>
 
                 {/* Footer */}
                 <div className="flex items-center justify-between pt-4 border-t border-white/5">

@@ -18,7 +18,7 @@ import {
     ArrowLeft, TrendingUp, TrendingDown, Wallet, BarChart3,
     Trophy, History, AlertTriangle, CheckCircle, X, RefreshCw,
     DollarSign, Percent, Target, Shield, Activity, Bell, LogIn, User, GraduationCap,
-    Users, MessageSquare, CreditCard, Zap
+    Users, MessageSquare, CreditCard, Zap, Share2, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 // Types
@@ -658,17 +658,17 @@ export default function TradingPage() {
                     {/* Portfolio Tab */}
                     {activeTab === 'portfolio' && portfolio && (
                         <div className="space-y-6">
-                            {/* Portfolio Chart */}
-                            {sessionId && (
-                                <PortfolioChart
-                                    sessionId={sessionId}
-                                    currentValue={portfolio.portfolio_value}
-                                    totalPnl={portfolio.total_pnl}
-                                />
-                            )}
-
+                            {/* ACTIVE TRADES - SHOWN FIRST */}
                             <div className="glass-panel rounded-xl p-4">
-                                <h2 className="text-lg font-bold mb-4">Your Holdings</h2>
+                                <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                    <Activity className="text-emerald-400" size={20} />
+                                    Active Trades
+                                    {portfolio.holdings.length > 0 && (
+                                        <span className="text-xs px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full">
+                                            {portfolio.holdings.length} open
+                                        </span>
+                                    )}
+                                </h2>
                                 {portfolio.holdings.length === 0 ? (
                                     <div className="text-center py-12 text-gray-500">
                                         <Wallet className="mx-auto mb-4 opacity-50" size={48} />
@@ -715,15 +715,27 @@ export default function TradingPage() {
                                                             </span>
                                                         </td>
                                                         <td className="text-center py-3 px-2">
-                                                            <button
-                                                                onClick={() => {
-                                                                    const asset = assets.find(a => a.symbol === holding.symbol);
-                                                                    if (asset) openTradeModal(asset, 'sell');
-                                                                }}
-                                                                className="px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 text-sm"
-                                                            >
-                                                                Sell
-                                                            </button>
+                                                            <div className="flex items-center justify-center gap-2">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        // Share to community
+                                                                        setActiveTab('community');
+                                                                    }}
+                                                                    className="px-2 py-1 bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/30 text-sm flex items-center gap-1"
+                                                                    title="Share to Community"
+                                                                >
+                                                                    <Share2 size={14} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const asset = assets.find(a => a.symbol === holding.symbol);
+                                                                        if (asset) openTradeModal(asset, 'sell');
+                                                                    }}
+                                                                    className="px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 text-sm"
+                                                                >
+                                                                    Sell
+                                                                </button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -732,6 +744,15 @@ export default function TradingPage() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Portfolio Chart - Now below active trades */}
+                            {sessionId && (
+                                <PortfolioChart
+                                    sessionId={sessionId}
+                                    currentValue={portfolio.portfolio_value}
+                                    totalPnl={portfolio.total_pnl}
+                                />
+                            )}
                         </div>
                     )}
 
