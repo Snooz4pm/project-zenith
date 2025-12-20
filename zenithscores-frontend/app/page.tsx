@@ -2,6 +2,7 @@
 
 import { Suspense, useRef, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { ArrowRight, Activity, Cpu, ShieldCheck, History, Zap, TrendingUp, Newspaper, ChevronDown } from 'lucide-react';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
 import FuturisticBackground from '@/components/FuturisticBackground';
@@ -14,6 +15,12 @@ import MagneticButton from '@/components/MagneticButton';
 import GlowingBorder from '@/components/GlowingBorder';
 import LiveIndicator from '@/components/LiveIndicator';
 import AnimatedProgress from '@/components/AnimatedProgress';
+
+// Dynamic import for WebGL Threads background (client-only)
+const Threads = dynamic(() => import('@/components/Threads'), {
+  ssr: false,
+  loading: () => null
+});
 
 // Animation variants
 const staggerContainer = {
@@ -87,6 +94,18 @@ export default function LandingPage() {
 
       {/* HERO SECTION */}
       <div className="relative pt-16 md:pt-24 border-b border-white/5">
+        {/* Threads WebGL Background - Zenith Theme */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 1 }}>
+          <Threads
+            color={[0, 0.94, 1]} // Zenith Cyan (#00f0ff)
+            amplitude={0.8}
+            distance={0.3}
+            enableMouseInteraction={true}
+          />
+          {/* Gradient overlay to blend threads with content */}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0a0a0f]" />
+        </div>
+
         <div className="container mx-auto px-4 md:px-6 py-12 md:py-24 lg:py-32 relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-center">
 
           {/* Left: Product Statement */}
