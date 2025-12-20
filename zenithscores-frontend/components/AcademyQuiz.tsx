@@ -141,15 +141,19 @@ export default function AcademyQuiz({ moduleId, difficulty, courseTitle, onClose
                 });
 
                 // 2. Submit Signals to Paths Engine (NEW)
-                await fetch('/api/paths/calculate', {
+                await fetch('/api/paths/update', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        accuracy: Math.round(percentage * 100),
-                        avgTimePerQuestion: Math.round(avgTime),
-                        difficulty: difficultyScore,
-                        answerChanges: totalChanges,
-                        repeatedMistakes: 0
+                        quizId: moduleId,
+                        quizPerformance: {
+                            score: Math.round(percentage * 100),
+                            timeTaken: totalTime,
+                            questionCount: questions.length,
+                            difficulty: difficultyScore,
+                            answerChanges: totalChanges,
+                            repeatedMistakes: 0
+                        }
                     })
                 });
 
