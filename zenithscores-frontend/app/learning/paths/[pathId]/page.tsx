@@ -65,7 +65,7 @@ export default async function PathDetailPage({ params }: PageProps) {
 
                 <div className="flex flex-col md:flex-row gap-8 items-start">
                     <div className="p-6 bg-cyan-900/20 rounded-2xl border border-cyan-500/30">
-                        <div className="text-6xl">{pathContent.icon}</div>
+                        <BrainCircuit size={64} className="text-cyan-400" />
                     </div>
 
                     <div className="flex-1">
