@@ -3,10 +3,14 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import React, { Suspense } from "react";
 import dynamic from "next/dynamic";
-import Navbar from "@/components/Navbar";
 
 // 🔧 NUCLEAR FIX: Make all heavy/animated components client-only
 // This prevents CSR hydration blocking that causes navigation freezes
+const CardNav = dynamic(
+  () => import("@/components/CardNav"),
+  { ssr: false }
+);
+
 const FloatingCommandButton = dynamic(
   () => import("@/components/FloatingCommandButton"),
   { ssr: false }
@@ -50,11 +54,13 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="antialiased font-sans">
         <AuthProvider>
-          <Navbar />
+          {/* GSAP-powered CardNav - floating navigation */}
+          <CardNav />
 
           {/* 🔧 NUCLEAR FIX: Suspense wraps children for instant navigation */}
           <Suspense fallback={<div className="min-h-screen bg-[#0a0a12]" />}>
-            <main className="min-h-screen flex flex-col pt-16 md:pt-20">
+            {/* pt-20 accounts for floating CardNav height */}
+            <main className="min-h-screen flex flex-col pt-20 md:pt-24">
               <div className="flex-grow">
                 {children}
               </div>
