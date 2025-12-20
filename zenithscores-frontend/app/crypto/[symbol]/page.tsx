@@ -58,42 +58,71 @@ export default function AssetPage() {
                 const metadata = getCryptoMetadata(symbol);
                 setMeta(metadata);
 
-                // Feature 2: Get Dynamic Market Data
+                // Feature 2: Get REAL-TIME Market Data from CoinGecko/DexScreener
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
                 let t: any = null;
 
                 try {
-                    const res = await fetch(`${apiUrl}/api/v1/search?query=${symbol}`);
-                    const data = await res.json();
+                    // Use the new crypto quote endpoint that fetches real prices
+                    const quoteRes = await fetch(`${apiUrl}/api/v1/crypto/quote/${symbol.toUpperCase()}`);
+                    const quoteData = await quoteRes.json();
 
-                    if (data.status === 'success' && data.data.length > 0) {
-                        t = data.data[0];
+                    if (quoteData.status === 'success' && quoteData.data) {
+                        const data = quoteData.data;
+                        t = {
+                            symbol: data.symbol || symbol.toUpperCase(),
+                            name: data.name || `${symbol.toUpperCase()} Token`,
+                            price_usd: data.price_usd || 0,
+                            price_change_24h: data.price_change_24h || 0,
+                            zenith_score: data.zenith_score || 50,
+                            volume_24h: data.volume_24h || 0,
+                            liquidity_usd: data.liquidity_usd || 0,
+                            address: data.address || metadata.contractAddress || null,
+                            source: quoteData.source // 'coingecko', 'dexscreener', or 'fallback'
+                        };
                     }
                 } catch (apiError) {
-                    console.warn('API fetch failed, using fallback data:', apiError);
+                    console.warn('Crypto quote API failed, trying search fallback:', apiError);
+
+                    // Fallback: Try the search endpoint
+                    try {
+                        const res = await fetch(`${apiUrl}/api/v1/search?query=${symbol}`);
+                        const data = await res.json();
+
+                        if (data.status === 'success' && data.data.length > 0) {
+                            t = data.data[0];
+                        }
+                    } catch (searchError) {
+                        console.warn('Search fallback also failed:', searchError);
+                    }
                 }
 
-                // Fallback: Generate mock data if API returns nothing
+                // Final fallback: Use reasonable defaults for known major cryptos
                 if (!t) {
-                    const mockPrice = symbol.toUpperCase() === 'BTC' ? 95000 + Math.random() * 5000 :
-                        symbol.toUpperCase() === 'ETH' ? 3200 + Math.random() * 200 :
-                            Math.random() * 100 + 0.5;
-                    const mockScore = 50 + Math.floor(Math.random() * 30);
+                    console.warn('Using fallback data for', symbol);
+                    const fallbackPrices: { [key: string]: number } = {
+                        'BTC': 95000, 'ETH': 3400, 'SOL': 220, 'AVAX': 45,
+                        'LINK': 25, 'XRP': 2.4, 'DOGE': 0.4, 'ADA': 1.1
+                    };
+                    const fallbackPrice = fallbackPrices[symbol.toUpperCase()] || (Math.random() * 100 + 0.5);
+                    const fallbackScore = 50 + Math.floor(Math.random() * 20);
+
                     t = {
                         symbol: symbol.toUpperCase(),
                         name: metadata.symbol === 'TOKEN' ? `${symbol.toUpperCase()} Token` : symbol.toUpperCase(),
-                        price_usd: mockPrice,
-                        price_change_24h: (Math.random() * 10) - 5,
-                        zenith_score: mockScore,
-                        volume_24h: Math.random() * 10000000,
-                        liquidity_usd: Math.random() * 5000000,
+                        price_usd: fallbackPrice,
+                        price_change_24h: 0,
+                        zenith_score: fallbackScore,
+                        volume_24h: 0,
+                        liquidity_usd: 0,
                         address: metadata.contractAddress || null,
+                        source: 'fallback'
                     };
                 }
 
                 // Score Fallback
-                if (!t.zenith_score) {
+                if (!t.zenith_score || t.zenith_score === 0) {
                     t.zenith_score = 50 + (t.price_change_24h || 0) + ((t.volume_24h || 0) > 100000 ? 10 : 0);
                     if (t.zenith_score > 100) t.zenith_score = 99;
                     if (t.zenith_score < 0) t.zenith_score = 10;

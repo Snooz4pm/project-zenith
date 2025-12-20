@@ -1046,6 +1046,123 @@ def get_stock_quote(symbol: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.get("/api/v1/crypto/quote/{symbol}")
+def get_crypto_quote(symbol: str):
+    """
+    Get REAL-TIME crypto quote using CoinGecko for major tokens
+    and DexScreener for other tokens.
+    Returns accurate prices matching what you'd see on exchanges.
+    """
+    symbol_upper = symbol.upper()
+    
+    try:
+        # Method 1: Check if it's a major crypto in CoinGecko map
+        if symbol_upper in COINGECKO_MAP:
+            cg_id = COINGECKO_MAP[symbol_upper]
+            url = f"https://api.coingecko.com/api/v3/coins/{cg_id}?localization=false&tickers=false&community_data=false&developer_data=false"
+            
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                market_data = data.get('market_data', {})
+                
+                price = market_data.get('current_price', {}).get('usd', 0)
+                change_24h = market_data.get('price_change_percentage_24h', 0)
+                volume = market_data.get('total_volume', {}).get('usd', 0)
+                market_cap = market_data.get('market_cap', {}).get('usd', 0)
+                
+                # Calculate Zenith score
+                score = 50
+                if change_24h > 0: score += 10
+                if change_24h > 5: score += 20
+                if change_24h > 10: score += 20
+                if change_24h < 0: score -= 10
+                if change_24h < -5: score -= 10
+                score = max(0, min(100, score))
+                
+                return {
+                    "status": "success",
+                    "source": "coingecko",
+                    "data": {
+                        "symbol": symbol_upper,
+                        "name": data.get('name', symbol_upper),
+                        "price_usd": price,
+                        "price_change_24h": change_24h,
+                        "volume_24h": volume,
+                        "market_cap": market_cap,
+                        "zenith_score": score,
+                        "type": "crypto",
+                        "image": data.get('image', {}).get('large', None)
+                    }
+                }
+        
+        # Method 2: Search DexScreener for other tokens
+        search_url = f"https://api.dexscreener.com/latest/dex/search?q={symbol}"
+        response = requests.get(search_url, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            pairs = data.get('pairs', [])
+            
+            # Find the best matching pair (highest liquidity)
+            best_pair = None
+            best_liquidity = 0
+            
+            for pair in pairs:
+                base_symbol = pair.get('baseToken', {}).get('symbol', '').upper()
+                if base_symbol == symbol_upper:
+                    liquidity = pair.get('liquidity', {}).get('usd', 0)
+                    if liquidity > best_liquidity:
+                        best_liquidity = liquidity
+                        best_pair = pair
+            
+            if best_pair:
+                price = float(best_pair.get('priceUsd', 0))
+                price_change = best_pair.get('priceChange', {})
+                change_24h = float(price_change.get('h24', 0)) if price_change else 0
+                volume = float(best_pair.get('volume', {}).get('h24', 0))
+                
+                score = calculate_zenith_score(best_pair)
+                
+                return {
+                    "status": "success",
+                    "source": "dexscreener",
+                    "data": {
+                        "symbol": best_pair.get('baseToken', {}).get('symbol', symbol_upper),
+                        "name": best_pair.get('baseToken', {}).get('name', symbol_upper),
+                        "price_usd": price,
+                        "price_change_24h": change_24h,
+                        "volume_24h": volume,
+                        "liquidity_usd": best_liquidity,
+                        "zenith_score": score,
+                        "type": "crypto",
+                        "chain": best_pair.get('chainId', 'unknown'),
+                        "dex_url": best_pair.get('url', None),
+                        "address": best_pair.get('baseToken', {}).get('address', None)
+                    }
+                }
+        
+        # Fallback: Return mock data if nothing found
+        return {
+            "status": "success",
+            "source": "fallback",
+            "data": {
+                "symbol": symbol_upper,
+                "name": f"{symbol_upper} Token",
+                "price_usd": 0,
+                "price_change_24h": 0,
+                "volume_24h": 0,
+                "zenith_score": 50,
+                "type": "crypto",
+                "mock": True
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ═══════════════════════════════════════════════════════
 # TRADING ENDPOINTS
 # ═══════════════════════════════════════════════════════
