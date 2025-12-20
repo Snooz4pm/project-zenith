@@ -62,7 +62,7 @@ export default function CommunityFeedEnhanced() {
     const { data: session } = useSession();
 
     const [posts, setPosts] = useState<CommunityPost[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true); // Start as true to show loading state
     const [showNewPost, setShowNewPost] = useState(false);
     const [newPostContent, setNewPostContent] = useState('');
     const [newPostType, setNewPostType] = useState<CommunityPost['type']>('insight');
@@ -71,8 +71,18 @@ export default function CommunityFeedEnhanced() {
     const [filter, setFilter] = useState<FeedFilter>('all');
     const [showFilters, setShowFilters] = useState(false);
     const [menuOpen, setMenuOpen] = useState<string | null>(null);
+    const [mounted, setMounted] = useState(false);
+    const [isPremium, setIsPremium] = useState(false);
 
-    const isPremium = isPremiumUser();
+    // Handle hydration - only run on client
+    useEffect(() => {
+        setMounted(true);
+        try {
+            setIsPremium(isPremiumUser());
+        } catch {
+            setIsPremium(false);
+        }
+    }, []);
 
     // Filter posts
     const filteredPosts = posts.filter(post => {
@@ -230,6 +240,24 @@ export default function CommunityFeedEnhanced() {
         if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
         return `${Math.floor(diff / 86400000)}d`;
     };
+
+    // Show loading state during hydration or initial load
+    if (!mounted || loading) {
+        return (
+            <div className="relative">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <Users className="w-5 h-5 text-purple-400" />
+                        Community
+                    </h2>
+                </div>
+                <div className="text-center py-12 text-gray-500">
+                    <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                    <p>Loading community...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="relative">

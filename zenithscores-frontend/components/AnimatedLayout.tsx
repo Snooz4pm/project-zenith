@@ -34,7 +34,7 @@ const pageVariants = {
         scale: 1,
         transition: {
             duration: 0.4,
-            ease: [0.22, 1, 0.36, 1], // Custom easing for smooth feel
+            ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
             staggerChildren: 0.05,
         },
     },
@@ -44,7 +44,7 @@ const pageVariants = {
         scale: 0.99,
         transition: {
             duration: 0.25,
-            ease: [0.22, 1, 0.36, 1],
+            ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
         },
     },
 };
@@ -54,11 +54,11 @@ const fadeVariants = {
     initial: { opacity: 0 },
     enter: {
         opacity: 1,
-        transition: { duration: 0.3, ease: 'easeOut' }
+        transition: { duration: 0.3, ease: 'easeOut' as const }
     },
     exit: {
         opacity: 0,
-        transition: { duration: 0.2, ease: 'easeIn' }
+        transition: { duration: 0.2, ease: 'easeIn' as const }
     },
 };
 
@@ -68,7 +68,7 @@ const slideUpVariants = {
     enter: {
         opacity: 1,
         y: 0,
-        transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] }
+        transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }
     },
     exit: {
         opacity: 0,
