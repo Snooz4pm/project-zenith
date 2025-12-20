@@ -98,7 +98,103 @@ export function calculateQuizTraits(signal: QuizSignal): Partial<UserTraits> {
 /**
  * Deterministic Path Scoring
  */
-export function calculatePathScores(traits: UserTraits) {
+// --- TRADING LOGIC ---
+
+export interface TradingSignal {
+    stopRespectedRate: number;   // 0-100 (% of trades where stop loss was respected)
+    riskLimitRespect: number;    // 0-100 (% of trades within risk limits)
+    noStopLossRate: number;      // 0-100 (% of trades without stop loss)
+    overtradesCount: number;     // Number of overtrades per session
+    avgHoldingTime: number;      // Average trade duration in minutes
+    winRate: number;             // Win rate percentage
+    // Legacy fields for backward compatibility if needed, but above are the new standard
+}
+
+export function calculateTraitsFromTrading(signals: TradingSignal[]): Partial<UserTraits> {
+    if (signals.length === 0) return {};
+
+    const aggregated = signals.reduce((acc, signal) => ({
+        stopRespected: acc.stopRespected + signal.stopRespectedRate,
+        riskRespect: acc.riskRespect + signal.riskLimitRespect,
+        noStopLoss: acc.noStopLoss + signal.noStopLossRate,
+        overtrades: acc.overtrades + signal.overtradesCount,
+        holdingTime: acc.holdingTime + signal.avgHoldingTime,
+        winRate: acc.winRate + signal.winRate,
+        count: acc.count + 1
+    }), { stopRespected: 0, riskRespect: 0, noStopLoss: 0, overtrades: 0, holdingTime: 0, winRate: 0, count: 0 });
+
+    const avg = {
+        stopRespected: aggregated.stopRespected / aggregated.count,
+        riskRespect: aggregated.riskRespect / aggregated.count,
+        noStopLoss: aggregated.noStopLoss / aggregated.count,
+        overtrades: aggregated.overtrades / aggregated.count,
+        holdingTime: aggregated.holdingTime / aggregated.count,
+        winRate: aggregated.winRate / aggregated.count
+    };
+
+    return {
+        risk_discipline: calculateRiskDiscipline(avg),
+        emotional_stability: calculateEmotionalStability(avg),
+        consistency: calculateConsistency(avg),
+        adaptability: calculateAdaptability(avg)
+    };
+}
+
+function calculateRiskDiscipline(avg: any): number {
+    // Higher score for respecting stops and risk limits
+    const stopScore = avg.stopRespected; // 0-100
+    const riskScore = avg.riskRespect;   // 0-100
+    const noStopPenalty = avg.noStopLoss; // 0-100 (Bad)
+
+    // Formula: average of good behaviors minus penalty
+    let score = (stopScore * 0.4 + riskScore * 0.4) - (noStopPenalty * 0.2);
+    // Add bonus if noStopPenalty is 0 (perfect discipline)
+    if (avg.noStopLoss === 0) score += 10;
+
+    return Math.max(0, Math.min(100, score));
+}
+
+function calculateEmotionalStability(avg: any): number {
+    // Lower overtrading = more stability
+    // Base 100, subtract points for overtrading
+    let score = 100 - (avg.overtrades * 10); // -10 points per overtrade
+
+    // Holding time factor: extremely short holding times might indicate panic (scalping logic aside)
+    // For general emotional stability, very short trades < 1 min often mean panic
+    if (avg.holdingTime < 1) score -= 10;
+
+    return Math.max(0, Math.min(100, score));
+}
+
+function calculateConsistency(avg: any): number {
+    // Consistency is roughly correlated with following risk rules over time
+    // And maintaining a stable win rate (though win rate itself isn't consistency)
+
+    // Here we use Risk Respect as a proxy for process consistency
+    return Math.max(0, Math.min(100, avg.riskRespect));
+}
+
+function calculateAdaptability(avg: any): number {
+    // Adaptability is harder to measure from these simple signals
+    // We'll use Win Rate as a weak proxy (adapting to market conditions)
+    // combined with ensuring stops are used (adapting to being wrong)
+    return Math.min(100, (avg.winRate * 0.6) + (avg.stopRespected * 0.4));
+}
+
+/**
+ * Deterministic Path Scoring
+ * Calculates score (0-100) for each career path based on user traits.
+ */
+export function calculatePathScores(traits: UserTraits, tradingTraits?: Partial<UserTraits>) {
+    // Merge traits if trading data is provided (70% weight to trading data for practical traits)
+    const finalTraits = tradingTraits ? {
+        ...traits,
+        risk_discipline: (traits.risk_discipline * 0.3 + (tradingTraits.risk_discipline || 0) * 0.7),
+        emotional_stability: (traits.emotional_stability * 0.4 + (tradingTraits.emotional_stability || 0) * 0.6),
+        consistency: (traits.consistency * 0.5 + (tradingTraits.consistency || 0) * 0.5),
+        adaptability: (traits.adaptability * 0.6 + (tradingTraits.adaptability || 0) * 0.4)
+    } : traits;
+
     const scores: Record<string, number> = {};
 
     for (const [pathId, weights] of Object.entries(PATH_DEFINITIONS)) {
@@ -106,15 +202,15 @@ export function calculatePathScores(traits: UserTraits) {
         let totalWeight = 0;
 
         for (const [trait, weight] of Object.entries(weights)) {
-            if (trait in traits) {
-                score += traits[trait as keyof UserTraits] * weight;
+            if (trait in finalTraits) {
+                score += finalTraits[trait as keyof UserTraits] * weight;
                 totalWeight += weight;
             }
         }
 
         // Normalize if weights don't sum to 1 (safety)
         if (totalWeight > 0) {
-            scores[pathId] = Math.round(score / totalWeight);
+            scores[pathId] = Math.round((score / totalWeight) * 100); // Scale to 0-100
         } else {
             scores[pathId] = 0;
         }

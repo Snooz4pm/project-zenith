@@ -51,11 +51,6 @@ This approach evaluates an asset's *intrinsic value*. It asks: "What is this thi
 
 **For Stocks:** You become a business analyst. You study the company's financial statements (income statement, balance sheet, cash flow statement), its management team, competitive advantages (moat), industry position, and growth prospects.
 
-Key metrics include:
-- **P/E Ratio** - Price-to-Earnings
-- **EPS Growth** - Earnings Per Share
-- **Debt Levels**
-
 **For Currencies (Forex):** You analyze interest rates, inflation data (CPI), employment reports, GDP growth, and political stability.
 
 **For Crypto Assets:** Assess tokenomics (supply, distribution, utility), blockchain technical strength, developer team, and real-world adoption.
@@ -353,7 +348,7 @@ Core purposes:
 - **Scores 85+:** Exceptional strength
 
 > ⚡ Never go long in Red, never go short in Green!`
-                    }
+                    },
                 ]
             },
             {
@@ -1182,6 +1177,367 @@ Move assets between chains.
 
 > ⚠️ Tier 3 = Possible total loss from exploits or liquidation`
                     }
+                ]
+            }
+        ]
+    },
+    // === NEW COURSES (14 Total) ===
+
+    // -- Market Analyst --
+    {
+        id: "valuation-basics",
+        title: "Valuation 101: DCF & Multiples",
+        subtitle: "Master discounted cash flow analysis and valuation multiples",
+        icon: "📊",
+        estimatedTime: "1h 30min",
+        difficulty: "intermediate",
+        parts: [
+            {
+                id: "part-1",
+                title: "Fundamentals & Concepts",
+                estimatedTime: "30min",
+                chapters: [
+                    { id: "dcf-basics", title: "Discounted Cash Flow Fundamentals", content: "### DCF Basics\n\nDCF value = Sum of discounted future cash flows.\n\nKey inputs: Growth rate, WACC, Terminal Value." },
+                    { id: "multiples-analysis", title: "Comparable Company Analysis", content: "### Relative Valuation\n\nCompare P/E, EV/EBITDA against peer group." },
+                    { id: "real-world-valuation", title: "Real-World Valuation Cases", content: "### Case Study\n\nValuing AAPL vs. early stage tech." }
+                ]
+            },
+            {
+                id: "part-2",
+                title: "Practical Applications",
+                estimatedTime: "30min",
+                chapters: [
+                    { id: "dcf-model", title: "Building a DCF Model", content: "### Step-by-Step DCF\n\n1. Forecast FCF\n2. Calculate WACC\n3. Determine Terminal Value\n4. Discount back" },
+                    { id: "sensitivity", title: "Sensitivity Analysis", content: "### Stress Testing\n\nWhat if growth is 2% lower? A good model shows ranges, not points." }
+                ]
+            },
+            {
+                id: "part-3",
+                title: "Advanced Valuation",
+                estimatedTime: "30min",
+                chapters: [
+                    { id: "sotp", title: "Sum of the Parts", content: "### Conglomerates\n\nValuing business units separately often reveals hidden value." }
+                ]
+            }
+        ]
+    },
+    {
+        id: "financial-modeling",
+        title: "Excel for Finance Pros",
+        subtitle: "Advanced Excel techniques and best practices",
+        icon: "📈",
+        estimatedTime: "2h",
+        difficulty: "intermediate",
+        parts: [
+            {
+                id: "part-1",
+                title: "Excel Foundations",
+                estimatedTime: "40min",
+                chapters: [
+                    { id: "excel-advanced", title: "Advanced Excel Functions", content: "### Key Functions\n\nXLOOKUP, INDEX-MATCH, SUMIFS, OFFSET." },
+                    { id: "shortcuts", title: "Keyboard Shortcuts", content: "### Speed\n\nNever touch the mouse. Ctrl+Arrows, Alt-sequences." }
+                ]
+            },
+            {
+                id: "part-2",
+                title: "3-Statement Models",
+                estimatedTime: "50min",
+                chapters: [
+                    { id: "financial-model", title: "Building a 3-Statement Model", content: "### Linking Statements\n\nNet Income flows to Retained Earnings. D&A added back on SCF." },
+                    { id: "model-auditing", title: "Model Auditing", content: "### Error Checking\n\nBalance checks (Assets = Liab + Equity). Formatting standards." }
+                ]
+            }
+        ]
+    },
+    {
+        id: "macro-economics",
+        title: "Central Banks & Interest Rates", // Aligned with paths-content for Market Analyst
+        subtitle: "How monetary policy affects markets",
+        icon: "🏛️",
+        estimatedTime: "1h 30min",
+        difficulty: "intermediate",
+        parts: [
+            {
+                id: "part-1",
+                title: "The Central Bank Toolkit",
+                estimatedTime: "30min",
+                chapters: [
+                    { id: "cb-tools", title: "Rates & QE", content: "### Policy Tools\n\n1. Interest Rates (Price of money)\n2. Balance Sheet (Quantity of money)\n3. Forwards Guidance" },
+                    { id: "fomc", title: "Trading FOMC", content: "### The Fed Day Playbook\n\nInterpreting the 'Dot Plot' and press conference tone." }
+                ]
+            }
+        ]
+    },
+    {
+        id: "investment-writing",
+        title: "Structuring the Investment Memo",
+        subtitle: "Professional research report writing",
+        icon: "📝",
+        estimatedTime: "1h",
+        difficulty: "beginner",
+        parts: [
+            {
+                id: "part-1",
+                title: "Memo Architecture",
+                estimatedTime: "30min",
+                chapters: [
+                    { id: "thesis", title: "The Variant View", content: "### What is your edge?\n\nYou must have a view different from the market price." },
+                    { id: "risks", title: "Pre-Mortem", content: "### Kill Your Thesis\n\nList the top 3 reasons you could be wrong." }
+                ]
+            }
+        ]
+    },
+
+    // -- Data Research --
+    {
+        id: "stat-arb-basics",
+        title: "Mean Reversion & Z-Scores",
+        subtitle: "Statistical arbitrage basics",
+        icon: "🧮",
+        estimatedTime: "2h",
+        difficulty: "advanced",
+        parts: [
+            {
+                id: "part-1",
+                title: "Statistical Concepts",
+                estimatedTime: "40min",
+                chapters: [
+                    { id: "mean-rev", title: "Mean Reversion Theory", content: "### Rubber Band Effect\n\nPrice extended too far from average snaps back." },
+                    { id: "z-score", title: "Calculating Z-Scores", content: "### Standardization\n\n(Price - Mean) / StdDev. >2 is significant." }
+                ]
+            }
+        ]
+    },
+    {
+        id: "algo-python-intro",
+        title: "Backtesting Frameworks",
+        subtitle: "Python backtesting with backtrader or vectorbt",
+        icon: "🐍",
+        estimatedTime: "2h 30min",
+        difficulty: "advanced",
+        parts: [
+            {
+                id: "part-1",
+                title: "Python for Finance",
+                estimatedTime: "50min",
+                chapters: [
+                    { id: "pandas", title: "Pandas for Timeseries", content: "### DataFrames\n\nResampling, rolling windows, shifting data." },
+                    { id: "vectorbt", title: "Vectorized Backtesting", content: "### Speed\n\nTesting thousands of parameters in seconds using arrays." }
+                ]
+            }
+        ]
+    },
+    {
+        id: "market-microstructure",
+        title: "Order Books & Liquidity",
+        subtitle: "Market microstructure and reading Level 2",
+        icon: "🔬",
+        estimatedTime: "1h 45min",
+        difficulty: "advanced",
+        parts: [
+            {
+                id: "part-1",
+                title: "Microstructure Basics",
+                estimatedTime: "40min",
+                chapters: [
+                    { id: "order-book", title: "Limit Order Book", content: "### Anatomy of the Book\n\nBids, Asks, Depth. The spread is the cost of immediacy." },
+                    { id: "market-impact", title: "Market Impact", content: "### Slippage\n\nHow large orders move the price against you." }
+                ]
+            }
+        ]
+    },
+
+    // -- Systematic Trading --
+    {
+        id: "system-design",
+        title: "Building a Trading Plan",
+        subtitle: "Systematic strategy development",
+        icon: "⚙️",
+        estimatedTime: "1h 15min",
+        difficulty: "intermediate",
+        parts: [
+            {
+                id: "part-1",
+                title: "System Components",
+                estimatedTime: "30min",
+                chapters: [
+                    { id: "rules", title: "Definitive Rules", content: "### No Discretion\n\nEntry, Exit, Size must be mathematically defined." },
+                    { id: "expectancy", title: "Positive Expectancy", content: "### The Math\n\n(Win% * AvgWin) - (Loss% * AvgLoss) > 0." }
+                ]
+            }
+        ]
+    },
+    {
+        id: "backtest-rigor",
+        title: "Avoiding Overfitting",
+        subtitle: "Walk-forward analysis",
+        icon: "🧪",
+        estimatedTime: "1h 30min",
+        difficulty: "advanced",
+        parts: [
+            {
+                id: "part-1",
+                title: "Robustness Testing",
+                estimatedTime: "40min",
+                chapters: [
+                    { id: "overfitting", title: "The Curve Fitting Trap", content: "### Memorizing Noise\n\nA strategy that fits past data perfectly usually fails live." },
+                    { id: "walk-forward", title: "Walk-Forward Analysis", content: "### Optimize -> Test -> Roll\n\nTrain on 2020, Test on 2021. Train on 2021, Test on 2022." }
+                ]
+            }
+        ]
+    },
+    {
+        id: "modern-portfolio-theory",
+        title: "Correlation & Diversification",
+        subtitle: "MPT applications and portfolio optimization",
+        icon: "📊",
+        estimatedTime: "1h 45min",
+        difficulty: "intermediate",
+        parts: [
+            {
+                id: "part-1",
+                title: "MPT Basics",
+                estimatedTime: "40min",
+                chapters: [
+                    { id: "diversification", title: "The Free Lunch", content: "### Reducing Variance\n\nCombining uncorrelated assets reduces risk without reducing return." },
+                    { id: "efficient-frontier", title: "Efficient Frontier", content: "### Optimization\n\nFinding the max return for a given level of risk." }
+                ]
+            }
+        ]
+    },
+    {
+        id: "execution-algos",
+        title: "TWAP/VWAP Strategies",
+        subtitle: "Algorithmic execution strategies",
+        icon: "🤖",
+        estimatedTime: "1h",
+        difficulty: "advanced",
+        parts: [
+            {
+                id: "part-1",
+                title: "Execution Algos",
+                estimatedTime: "30min",
+                chapters: [
+                    { id: "vwap-algo", title: "Trading VWAP", content: "### Benchmark\n\nBuying when price is below VWAP. Institutional standard." },
+                    { id: "twap", title: "TWAP Execution", content: "### Time Slicing\n\nBuying 100 shares every 5 minutes to hide size." }
+                ]
+            }
+        ]
+    },
+
+    // -- Execution Trader --
+    {
+        id: "order-flow-dynamics",
+        title: "Level 2 & Order Flow",
+        subtitle: "Spotting institutional activity",
+        icon: "🌊",
+        estimatedTime: "1h 45min",
+        difficulty: "advanced",
+        parts: [
+            {
+                id: "part-1",
+                title: "Reading the Tape",
+                estimatedTime: "40min",
+                chapters: [
+                    { id: "time-sales", title: "Time & Sales", content: "### Analyzing Trades\n\nSpeed, Size, and Aggression. Green prints at Ask vs Red prints at Bid." },
+                    { id: "absorption", title: "Absorption", content: "### Hidden Walls\n\nPrice hits a level, high volume trades, but price doesn't move. Ideally a limit seller absorbing buys." }
+                ]
+            }
+        ]
+    },
+    {
+        id: "intraday-risk-mgmt",
+        title: "Position Sizing Under Fire",
+        subtitle: "Intraday risk management",
+        icon: "🔥",
+        estimatedTime: "1h 15min",
+        difficulty: "advanced",
+        parts: [
+            {
+                id: "part-1",
+                title: "Dynamic Risk",
+                estimatedTime: "30min",
+                chapters: [
+                    { id: "daily-stop", title: "Daily Stop Limits", content: "### Circuit Breakers\n\nStop trading if down X% on the day. Preserve mental capital." },
+                    { id: "sizing-vol", title: "Volatility Sizing", content: "### Adjusting Size\n\nTrade smaller in higher volatility. Risk $ amount should be constant." }
+                ]
+            }
+        ]
+    },
+
+    // -- Macro Observer --
+    {
+        id: "monetary-policy",
+        title: "The Fed & Global Central Banking",
+        subtitle: "Central bank policy analysis",
+        icon: "🏦",
+        estimatedTime: "1h 45min",
+        difficulty: "intermediate",
+        parts: [
+            {
+                id: "part-1",
+                title: "Global Central Banks",
+                estimatedTime: "40min",
+                chapters: [
+                    { id: "fed-ecb-boj", title: " The Big Three", content: "### Fed, ECB, BOJ\n\nUnderstanding their different mandates and impact on FX markets." },
+                    { id: "hawkish-dovish", title: "Hawk vs Dove", content: "### Sentiment Analysis\n\nHawks want higher rates (fear inflation). Doves want lower rates (fear unemployment)." }
+                ]
+            }
+        ]
+    },
+    {
+        id: "cross-asset-correlations",
+        title: "How Bonds Impact Tech Stocks",
+        subtitle: "Cross-asset correlations and duration",
+        icon: "🔗",
+        estimatedTime: "1h",
+        difficulty: "intermediate",
+        parts: [
+            {
+                id: "part-1",
+                title: "Inter-market Analysis",
+                estimatedTime: "30min",
+                chapters: [
+                    { id: "rates-equity", title: "Rates vs Equities", content: "### Discount Mechanism\n\nHigher rates = Lower present value of future cash flows (hits Tech hardest)." },
+                    { id: "usd-commodities", title: "USD vs Commodities", content: "### Inverse Relationship\n\nStrong Dollar usually means weaker Oil/Gold." }
+                ]
+            }
+        ]
+    },
+    {
+        id: "geopolitics-markets",
+        title: "Energy Markets & Conflict",
+        subtitle: "Geopolitical risk analysis",
+        icon: "🌍",
+        estimatedTime: "1h 30min",
+        difficulty: "intermediate",
+        parts: [
+            {
+                id: "part-1",
+                title: "Geopolitics",
+                estimatedTime: "30min",
+                chapters: [
+                    { id: "supply-shock", title: "Supply Shocks", content: "### Energy Security\n\nConflicts in producer regions spike prices." },
+                    { id: "safe-havens", title: "Flight to Safety", content: "### Risk Off\n\nCapital flows to US Treasuries, Gold, CHF, JPY during crises." }
+                ]
+            }
+        ]
+    },
+    {
+        id: "market-cycles",
+        title: "The Debt Cycle",
+        subtitle: "Market cycle analysis",
+        icon: "🔄",
+        estimatedTime: "1h 15min",
+        difficulty: "intermediate",
+        parts: [
+            {
+                id: "part-1",
+                title: "Long Term Debt Cycle",
+                estimatedTime: "30min",
+                chapters: [
+                    { id: "deleveraging", title: "Deleveraging", content: "### Ray Dalio's Framework\n\nWhen debt servicing exceeds income, a crisis occurs." },
+                    { id: "late-cycle", title: "Late Cycle Signs", content: "### The Top\n\nTight labor, rising inflation, inverted yield curve." }
                 ]
             }
         ]

@@ -11,6 +11,7 @@ export interface PathSkill {
     name: string;
     module: string;
     quizId: string;
+    moduleId: string; // Added for consistency with prompt
 }
 
 export interface PathContent {
@@ -23,7 +24,7 @@ export interface PathContent {
     why: string;
     superpower: string;
     risk: string;
-    careerMatches: string[]; // For the summary card
+    careerMatches: string[];
     deepDive: {
         roles: PathRole[];
         skills: PathSkill[];
@@ -49,10 +50,30 @@ export const PATHS_CONTENT: Record<string, PathContent> = {
                 { title: "Investment Committee Support", description: "Prepares data-driven memos for fund decision-makers." }
             ],
             skills: [
-                { name: "Fundamental Analysis", module: "Valuation 101: DCF & Multiples", quizId: "valuation-basics" },
-                { name: "Financial Modeling", module: "Excel for Finance Pros", quizId: "financial-modeling" },
-                { name: "Macroeconomic Theory", module: "Central Banks & Interest Rates", quizId: "macro-economics" },
-                { name: "Thesis Writing", module: "Structuring the Investment Memo", quizId: "investment-writing" }
+                {
+                    name: "Valuation 101: DCF & Multiples",
+                    module: "Valuation 101: DCF & Multiples",
+                    moduleId: "valuation-basics",
+                    quizId: "valuation-basics"
+                },
+                {
+                    name: "Excel for Finance Pros",
+                    module: "Excel for Finance Pros",
+                    moduleId: "financial-modeling",
+                    quizId: "financial-modeling"
+                },
+                {
+                    name: "Central Banks & Interest Rates",
+                    module: "Central Banks & Interest Rates",
+                    moduleId: "macro-economics",
+                    quizId: "macro-economics"
+                },
+                {
+                    name: "Structuring the Investment Memo",
+                    module: "Structuring the Investment Memo",
+                    moduleId: "investment-writing",
+                    quizId: "investment-writing"
+                }
             ]
         }
     },
@@ -74,10 +95,30 @@ export const PATHS_CONTENT: Record<string, PathContent> = {
                 { title: "Data Scientist (Fintech)", description: "Analyzes user/market data for product insights." }
             ],
             skills: [
-                { name: "Statistical Arbitrage", module: "Mean Reversion & Z-Scores", quizId: "stat-arb-basics" },
-                { name: "Risk Metrics", module: "VaR & Expected Shortfall", quizId: "risk-management-pro" },
-                { name: "Python/SQL", module: "Backtesting Frameworks", quizId: "algo-python-intro" },
-                { name: "Market Microstructure", module: "Order Books & Liquidity", quizId: "market-microstructure" }
+                {
+                    name: "Mean Reversion & Z-Scores",
+                    module: "Mean Reversion & Z-Scores",
+                    moduleId: "stat-arb-basics",
+                    quizId: "stat-arb-basics"
+                },
+                {
+                    name: "VaR & Expected Shortfall",
+                    module: "VaR & Expected Shortfall",
+                    moduleId: "risk-management-pro",
+                    quizId: "risk-management-pro"
+                },
+                {
+                    name: "Backtesting Frameworks",
+                    module: "Backtesting Frameworks",
+                    moduleId: "algo-python-intro",
+                    quizId: "algo-python-intro"
+                },
+                {
+                    name: "Order Books & Liquidity",
+                    module: "Order Books & Liquidity",
+                    moduleId: "market-microstructure",
+                    quizId: "market-microstructure"
+                }
             ]
         }
     },
@@ -99,10 +140,30 @@ export const PATHS_CONTENT: Record<string, PathContent> = {
                 { title: "Execution Algorithm Developer", description: "Optimizes trade entry/exit logic." }
             ],
             skills: [
-                { name: "System Design", module: "Building a Trading Plan", quizId: "system-design" },
-                { name: "Backtesting Rigor", module: "Avoiding Overfitting", quizId: "backtest-rigor" },
-                { name: "Portfolio Construction", module: "Correlation & Diversification", quizId: "modern-portfolio-theory" },
-                { name: "Execution Logic", module: "TWAP/VWAP Strategies", quizId: "execution-algos" }
+                {
+                    name: "Building a Trading Plan",
+                    module: "Building a Trading Plan",
+                    moduleId: "system-design",
+                    quizId: "system-design"
+                },
+                {
+                    name: "Avoiding Overfitting",
+                    module: "Avoiding Overfitting",
+                    moduleId: "backtest-rigor",
+                    quizId: "backtest-rigor"
+                },
+                {
+                    name: "Correlation & Diversification",
+                    module: "Correlation & Diversification",
+                    moduleId: "modern-portfolio-theory",
+                    quizId: "modern-portfolio-theory"
+                },
+                {
+                    name: "TWAP/VWAP Strategies",
+                    module: "TWAP/VWAP Strategies",
+                    moduleId: "execution-algos",
+                    quizId: "execution-algos"
+                }
             ]
         }
     },
@@ -124,10 +185,30 @@ export const PATHS_CONTENT: Record<string, PathContent> = {
                 { title: "Market Maker", description: "Provides liquidity and profits from spreads." }
             ],
             skills: [
-                { name: "Price Action", module: "Candlestick Patterns & Support/Resistance", quizId: "technical-analysis" },
-                { name: "Tape Reading", module: "Level 2 & Order Flow", quizId: "order-flow-dynamics" },
-                { name: "Risk Management", module: "Position Sizing Under Fire", quizId: "intraday-risk-mgmt" },
-                { name: "Psychology", module: "Managing Tilt", quizId: "trading-psychology" }
+                {
+                    name: "Candlestick Patterns",
+                    module: "Candlestick Patterns",
+                    moduleId: "technical-analysis",
+                    quizId: "technical-analysis"
+                },
+                {
+                    name: "Level 2 & Order Flow",
+                    module: "Level 2 & Order Flow",
+                    moduleId: "order-flow-dynamics",
+                    quizId: "order-flow-dynamics"
+                },
+                {
+                    name: "Position Sizing Under Fire",
+                    module: "Position Sizing Under Fire",
+                    moduleId: "intraday-risk-mgmt",
+                    quizId: "intraday-risk-mgmt"
+                },
+                {
+                    name: "Managing Tilt",
+                    module: "Managing Tilt",
+                    moduleId: "trading-psychology",
+                    quizId: "trading-psychology"
+                }
             ]
         }
     },
@@ -149,11 +230,37 @@ export const PATHS_CONTENT: Record<string, PathContent> = {
                 { title: "Thematic Researcher", description: "Identifies long-term structural shifts (e.g., AI, Green Energy)." }
             ],
             skills: [
-                { name: "Monetary Policy", module: "The Fed & Global Central Banking", quizId: "monetary-policy" },
-                { name: "Cross-Asset Correlation", module: "how Bonds Impact Tech Stocks", quizId: "cross-asset-correlations" },
-                { name: "Geopolitics", module: "Energy Markets & Conflict", quizId: "geopolitics-markets" },
-                { name: "Cycle Analysis", module: "The Debt Cycle", quizId: "market-cycles" }
+                {
+                    name: "The Fed & Global Central Banking",
+                    module: "The Fed & Global Central Banking",
+                    moduleId: "monetary-policy",
+                    quizId: "monetary-policy"
+                },
+                {
+                    name: "How Bonds Impact Tech Stocks",
+                    module: "How Bonds Impact Tech Stocks",
+                    moduleId: "cross-asset-correlations",
+                    quizId: "cross-asset-correlations"
+                },
+                {
+                    name: "Energy Markets & Conflict",
+                    module: "Energy Markets & Conflict",
+                    moduleId: "geopolitics-markets",
+                    quizId: "geopolitics-markets"
+                },
+                {
+                    name: "The Debt Cycle",
+                    module: "The Debt Cycle",
+                    moduleId: "market-cycles",
+                    quizId: "market-cycles"
+                }
             ]
         }
     }
 };
+
+// Also export as PATH_SKILLS for compatibility if needed, though PATHS_CONTENT is main
+export const PATH_SKILLS = Object.entries(PATHS_CONTENT).reduce((acc, [key, value]) => {
+    acc[key] = value.deepDive.skills;
+    return acc;
+}, {} as Record<string, PathSkill[]>);
