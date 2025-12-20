@@ -53,56 +53,8 @@ interface UserFollowStats {
 }
 
 // Demo posts with enhanced data
-const DEMO_POSTS: CommunityPost[] = [
-    {
-        id: '1',
-        userId: 'u1',
-        username: 'CryptoKing99',
-        type: 'trade',
-        content: 'Just closed my NVDA position for +32%! AI thesis playing out perfectly. 🚀',
-        sharedTrade: {
-            symbol: 'NVDA',
-            direction: 'long',
-            entryPrice: 650,
-            currentPrice: 858,
-            pnl: 10400,
-            pnlPercent: 32,
-            isOpen: false
-        },
-        likes: 24,
-        comments: 8,
-        timestamp: new Date(Date.now() - 1000 * 60 * 30),
-        isFollowing: true
-    },
-    {
-        id: '2',
-        userId: 'u2',
-        username: 'MacroMaven',
-        type: 'insight',
-        content: 'Fed cutting in 2024 will be the catalyst for the next leg up. Bond yields already pricing it in. Watch TLT.',
-        likes: 45,
-        comments: 12,
-        timestamp: new Date(Date.now() - 1000 * 60 * 90),
-        isFollowing: false
-    },
-    {
-        id: '3',
-        userId: 'u3',
-        username: 'QuantTrader',
-        type: 'trade',
-        content: 'Opening a SPY short here. RSI divergence + resistance confluence. Tight stop above 485.',
-        sharedTrade: {
-            symbol: 'SPY',
-            direction: 'short',
-            entryPrice: 480,
-            isOpen: true
-        },
-        likes: 18,
-        comments: 5,
-        timestamp: new Date(Date.now() - 1000 * 60 * 120),
-        isFollowing: true
-    }
-];
+// Initial state with no posts
+const DEMO_POSTS: CommunityPost[] = [];
 
 type FeedFilter = 'all' | 'following' | 'trades' | 'insights';
 
@@ -119,7 +71,7 @@ export default function CommunityFeedEnhanced() {
     const [showFilters, setShowFilters] = useState(false);
     const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
-    const isPremium = session?.user ? isPremiumUser(session.user) : false;
+    const isPremium = isPremiumUser();
 
     // Filter posts
     const filteredPosts = posts.filter(post => {
@@ -454,8 +406,8 @@ export default function CommunityFeedEnhanced() {
                             {/* Shared Trade Card */}
                             {post.sharedTrade && (
                                 <div className={`p-3 rounded-lg mb-4 border ${post.sharedTrade.direction === 'long'
-                                        ? 'bg-emerald-950/30 border-emerald-800'
-                                        : 'bg-red-950/30 border-red-800'
+                                    ? 'bg-emerald-950/30 border-emerald-800'
+                                    : 'bg-red-950/30 border-red-800'
                                     }`}>
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
@@ -466,14 +418,14 @@ export default function CommunityFeedEnhanced() {
                                             )}
                                             <span className="font-bold text-white">{post.sharedTrade.symbol}</span>
                                             <span className={`text-xs px-2 py-0.5 rounded ${post.sharedTrade.direction === 'long'
-                                                    ? 'bg-emerald-600/30 text-emerald-400'
-                                                    : 'bg-red-600/30 text-red-400'
+                                                ? 'bg-emerald-600/30 text-emerald-400'
+                                                : 'bg-red-600/30 text-red-400'
                                                 }`}>
                                                 {post.sharedTrade.direction.toUpperCase()}
                                             </span>
                                             <span className={`text-xs px-2 py-0.5 rounded ${post.sharedTrade.isOpen
-                                                    ? 'bg-blue-600/30 text-blue-400'
-                                                    : 'bg-gray-700 text-gray-400'
+                                                ? 'bg-blue-600/30 text-blue-400'
+                                                : 'bg-gray-700 text-gray-400'
                                                 }`}>
                                                 {post.sharedTrade.isOpen ? 'OPEN' : 'CLOSED'}
                                             </span>

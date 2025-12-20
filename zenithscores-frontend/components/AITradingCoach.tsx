@@ -53,7 +53,7 @@ export default function AITradingCoach({
     const [quotaRemaining, setQuotaRemaining] = useState(5);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const isPremium = session?.user ? isPremiumUser(session.user) : false;
+    const isPremium = isPremiumUser();
     const maxQuota = isPremium ? 50 : 5;
 
     // Initial greeting
@@ -77,7 +77,7 @@ export default function AITradingCoach({
 
     function getPersonalizedGreeting(ctx?: CoachContext): string {
         if (!ctx) {
-            return "👋 Hey trader! I'm your AI Trading Coach. Ask me about your trades, risk management, or market analysis. I'm here to keep you disciplined and profitable.";
+            return "👋 Hey trader! I'm your AI Trading Coach. \n\nI can help you with:\n• Analyzing your recent trades for mistakes\n• Checking your risk management\n• Providing real-time market outlooks\n• Keeping your psychology in check\n\nAsk me anything or use the quick prompts below to get started!";
         }
 
         if (ctx.winStreak && ctx.winStreak >= 3) {
@@ -246,12 +246,12 @@ export default function AITradingCoach({
                         className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                         <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${msg.role === 'user'
-                                ? 'bg-purple-600 text-white rounded-br-none'
-                                : msg.type === 'warning'
-                                    ? 'bg-red-600/20 border border-red-600/30 text-red-200 rounded-bl-none'
-                                    : msg.type === 'praise'
-                                        ? 'bg-emerald-600/20 border border-emerald-600/30 text-emerald-200 rounded-bl-none'
-                                        : 'bg-gray-800 text-gray-200 rounded-bl-none'
+                            ? 'bg-purple-600 text-white rounded-br-none'
+                            : msg.type === 'warning'
+                                ? 'bg-red-600/20 border border-red-600/30 text-red-200 rounded-bl-none'
+                                : msg.type === 'praise'
+                                    ? 'bg-emerald-600/20 border border-emerald-600/30 text-emerald-200 rounded-bl-none'
+                                    : 'bg-gray-800 text-gray-200 rounded-bl-none'
                             }`}>
                             <p className="text-sm leading-relaxed">{msg.content}</p>
                         </div>

@@ -2,10 +2,14 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, TrendingUp, TrendingDown, Clock, Target, Shield, ArrowRight, BarChart2, X, Info } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, Clock, Target, Shield, ArrowRight, BarChart2, X, Info, Zap } from 'lucide-react';
 import { generateSignalExplanation, getQuickStats, type SignalData } from '@/lib/signals/transparency-engine';
 
-export default function SignalsTable() {
+interface SignalsTableProps {
+    onTrade?: (symbol: string, direction: 'buy' | 'sell') => void;
+}
+
+export default function SignalsTable({ onTrade }: SignalsTableProps) {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [selectedSignal, setSelectedSignal] = useState<typeof signals[0] | null>(null);
     const [showMathModal, setShowMathModal] = useState(false);
@@ -206,16 +210,30 @@ export default function SignalsTable() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleShowMath(signal);
-                                            }}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 rounded-lg text-xs font-medium transition-colors"
-                                        >
-                                            <BarChart2 size={14} />
-                                            Show Math
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleShowMath(signal);
+                                                }}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 rounded-lg text-xs font-medium transition-colors border border-cyan-500/20"
+                                            >
+                                                <BarChart2 size={14} />
+                                                See Math
+                                            </button>
+                                            <button
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-lg text-xs font-medium transition-colors border border-emerald-500/20"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (onTrade) {
+                                                        onTrade(signal.symbol, signal.signal === 'BUY' ? 'buy' : 'sell');
+                                                    }
+                                                }}
+                                            >
+                                                <Zap size={14} />
+                                                Trade Now
+                                            </button>
+                                        </div>
                                     </td>
                                 </motion.tr>
                             ))}

@@ -54,10 +54,12 @@ export default function RootLayout({
 
           {/* 🔧 NUCLEAR FIX: Suspense wraps children for instant navigation */}
           <Suspense fallback={<div className="min-h-screen bg-[#0a0a12]" />}>
-            <main>
-              {children}
+            <main className="min-h-screen flex flex-col pt-16 md:pt-20">
+              <div className="flex-grow">
+                {children}
+              </div>
               {/* Global Financial Disclaimer Footer */}
-              <div className="bg-black/50 border-t border-white/5 py-8 mt-12 px-6">
+              <div className="bg-black/80 backdrop-blur-md border-t border-white/5 py-12 px-6 mt-12">
                 <div className="container mx-auto max-w-4xl text-center">
                   <p className="text-[10px] text-gray-500 leading-relaxed uppercase tracking-widest mb-4">
                     Financial Disclaimer & Regulatory Disclosure

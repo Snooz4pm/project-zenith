@@ -828,7 +828,26 @@ export default function TradingPage() {
                     {activeTab === 'signals' && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="md:col-span-3">
-                                <SignalsTable />
+                                <SignalsTable
+                                    onTrade={(symbol, direction) => {
+                                        const asset = assets.find(a => a.symbol === symbol);
+                                        // Construct a minimal asset object if not found in the main list
+                                        const tradeAsset = asset || {
+                                            symbol: symbol,
+                                            name: symbol,
+                                            current_price: 0,
+                                            price_change_24h: 0,
+                                            asset_type: 'stock',
+                                            max_leverage: 5
+                                        } as any;
+
+                                        // Open the modal with the asset and direction
+                                        openTradeModal(tradeAsset, direction);
+
+                                        // If we created a temporary asset, we might want to fetch its real price
+                                        // But the modal likely handles fetching or the user will see 0 until updated
+                                    }}
+                                />
                             </div>
                         </div>
                     )}

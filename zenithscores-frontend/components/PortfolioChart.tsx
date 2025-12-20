@@ -128,14 +128,12 @@ export default function PortfolioChart({ sessionId, currentValue, totalPnl, onTi
                 ];
                 setHistory(historyWithCurrent);
             } else {
-                // Generate mock data for visualization
-                const mockHistory = generateMockHistory(currentValue, totalPnl, timeRange);
-                setHistory(mockHistory);
+                // No data available
+                setHistory([]);
             }
         } catch (e) {
             console.error('Failed to load portfolio history:', e);
-            const mockHistory = generateMockHistory(currentValue, totalPnl, timeRange);
-            setHistory(mockHistory);
+            setHistory([]);
         } finally {
             setLoading(false);
             setTimeout(() => setIsAnimating(false), 2000);
@@ -244,8 +242,8 @@ export default function PortfolioChart({ sessionId, currentValue, totalPnl, onTi
                             key={option.value}
                             onClick={() => handleTimeRangeChange(option.value)}
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${timeRange === option.value
-                                    ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg'
-                                    : 'text-gray-500 hover:text-white hover:bg-white/5'
+                                ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg'
+                                : 'text-gray-500 hover:text-white hover:bg-white/5'
                                 }`}
                         >
                             {option.label}

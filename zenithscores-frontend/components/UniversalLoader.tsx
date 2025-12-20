@@ -38,12 +38,6 @@ export default function UniversalLoader({
                     animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.1, 0.3] }}
                     transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                 />
-                {/* Middle ring - spinning */}
-                <motion.div
-                    className="absolute inset-1 border-2 border-transparent border-t-cyan-400 border-r-purple-500 rounded-full"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                />
                 {/* Inner dot - pulsing */}
                 <motion.div
                     className="absolute inset-3 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-full"

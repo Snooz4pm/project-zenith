@@ -31,14 +31,7 @@ export default function AssetPicker({ assets: externalAssets, onSelect }: AssetP
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilter, setActiveFilter] = useState<'all' | 'favorites' | 'trending'>('all');
 
-    const defaultAssets: DisplayAsset[] = [
-        { symbol: 'BTC', name: 'Bitcoin', price: 43250.00, change: 2.4, icon: '₿', color: 'bg-[#f7931a]/20 text-[#f7931a]', original: { symbol: 'BTC', name: 'Bitcoin', current_price: 43250.00, price_change_24h: 2.4, asset_type: 'crypto', max_leverage: 10 } },
-        { symbol: 'ETH', name: 'Ethereum', price: 2285.50, change: 3.1, icon: 'Ξ', color: 'bg-[#627eea]/20 text-[#627eea]', original: { symbol: 'ETH', name: 'Ethereum', current_price: 2285.50, price_change_24h: 3.1, asset_type: 'crypto', max_leverage: 10 } },
-        { symbol: 'SOL', name: 'Solana', price: 98.45, change: -1.2, icon: '◎', color: 'bg-[#14f195]/20 text-[#14f195]', original: { symbol: 'SOL', name: 'Solana', current_price: 98.45, price_change_24h: -1.2, asset_type: 'crypto', max_leverage: 5 } },
-        { symbol: 'BNB', name: 'Binance Coin', price: 312.80, change: 0.8, icon: 'B', color: 'bg-[#f3ba2f]/20 text-[#f3ba2f]', original: { symbol: 'BNB', name: 'Binance Coin', current_price: 312.80, price_change_24h: 0.8, asset_type: 'crypto', max_leverage: 5 } },
-        { symbol: 'XRP', name: 'Ripple', price: 0.6245, change: 5.3, icon: 'X', color: 'bg-[#23a8db]/20 text-[#23a8db]', original: { symbol: 'XRP', name: 'Ripple', current_price: 0.6245, price_change_24h: 5.3, asset_type: 'crypto', max_leverage: 5 } },
-        { symbol: 'ADA', name: 'Cardano', price: 0.5832, change: -0.5, icon: '₳', color: 'bg-[#0033ad]/20 text-[#0033ad]', original: { symbol: 'ADA', name: 'Cardano', current_price: 0.5832, price_change_24h: -0.5, asset_type: 'crypto', max_leverage: 5 } },
-    ];
+    const defaultAssets: DisplayAsset[] = [];
 
     const displayAssets: DisplayAsset[] = externalAssets
         ? externalAssets.map(a => ({
@@ -105,29 +98,44 @@ export default function AssetPicker({ assets: externalAssets, onSelect }: AssetP
 
             {/* Asset List */}
             <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {filteredAssets.map((asset) => (
-                    <div
-                        key={asset.symbol}
-                        onClick={() => onSelect && asset.original && onSelect(asset.original)}
-                        className="group flex items-center justify-between p-3 rounded-lg bg-[#141829] border border-[#1a1f3a] hover:border-[#2a3150] hover:translate-x-1 transition-all cursor-pointer"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${asset.color}`}>
-                                {asset.icon}
-                            </div>
-                            <div>
-                                <div className="font-semibold text-white text-sm">{asset.name}</div>
-                                <div className="text-xs text-gray-500">{asset.symbol}</div>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                            <div className="font-mono text-white text-sm">${asset.price.toLocaleString()}</div>
-                            <div className={`text-xs font-semibold ${asset.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                {asset.change > 0 ? '+' : ''}{asset.change}%
-                            </div>
-                        </div>
+                {filteredAssets.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                        <TrendingUp className="mx-auto mb-2 opacity-50" size={24} />
+                        <p className="text-sm">No assets available.</p>
+                        {activeFilter !== 'all' && (
+                            <button
+                                onClick={() => setActiveFilter('all')}
+                                className="text-xs text-cyan-400 hover:underline mt-1"
+                            >
+                                Clear filters
+                            </button>
+                        )}
                     </div>
-                ))}
+                ) : (
+                    filteredAssets.map((asset) => (
+                        <div
+                            key={asset.symbol}
+                            onClick={() => onSelect && asset.original && onSelect(asset.original)}
+                            className="group flex items-center justify-between p-3 rounded-lg bg-[#141829] border border-[#1a1f3a] hover:border-[#2a3150] hover:translate-x-1 transition-all cursor-pointer"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${asset.color}`}>
+                                    {asset.icon}
+                                </div>
+                                <div>
+                                    <div className="font-semibold text-white text-sm">{asset.name}</div>
+                                    <div className="text-xs text-gray-500">{asset.symbol}</div>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <div className="font-mono text-white text-sm">${asset.price.toLocaleString()}</div>
+                                <div className={`text-xs font-semibold ${asset.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {asset.change > 0 ? '+' : ''}{asset.change}%
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
         </div>
     );

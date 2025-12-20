@@ -69,41 +69,9 @@ export default function CoachPage() {
         setHasSession(!!sessionId);
     }, []);
 
-    // If already premium with a session, redirect to coach dashboard
-    if (premium && hasSession) {
-        return (
-            <div className="min-h-screen bg-[#0a0a12] text-white flex items-center justify-center">
-                <div className="text-center">
-                    <Check className="w-16 h-16 text-green-400 mx-auto mb-4" />
-                    <h1 className="text-2xl font-bold mb-2">You're Already Premium!</h1>
-                    <p className="text-gray-400 mb-6">Your coach is ready and waiting.</p>
-                    <Link
-                        href="/trading/coach"
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg font-bold"
-                    >
-                        Enter Coach Dashboard <ChevronRight size={18} />
-                    </Link>
-                </div>
-            </div>
-        );
-    }
-
-    // If premium but no session, show empty state to start trading
-    if (premium && !hasSession) {
-        return (
-            <div className="min-h-screen bg-[#0a0a12] text-white pt-20 md:pt-24">
-                <div className="container mx-auto px-4 md:px-6 py-8">
-                    <TradingCoachEmptyState
-                        quota={{ used: 0, limit: 5, remaining: 5, isPremium: true }}
-                    />
-                </div>
-            </div>
-        );
-    }
-
-    // Non-premium: Show landing page with features and pricing
+    // Coach is now always visible as we don't have a paywall yet
     return (
-        <div className="min-h-screen bg-[#0a0a12] text-white pt-16 md:pt-20">
+        <div className="min-h-screen bg-[#0a0a12] text-white pt-16 md:pt-20 flex flex-col">
             {/* Hero Section */}
             <div className="relative overflow-hidden">
                 {/* Background Glow */}
@@ -271,14 +239,6 @@ export default function CoachPage() {
                 </div>
             </div>
 
-            {/* Footer */}
-            <div className="border-t border-white/5 py-8">
-                <div className="container mx-auto px-6 text-center text-gray-500 text-sm">
-                    <Link href="/" className="hover:text-white transition-colors">
-                        ← Back to ZenithScores
-                    </Link>
-                </div>
-            </div>
         </div>
     );
 }

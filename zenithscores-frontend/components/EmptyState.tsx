@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { TrendingUp, BarChart2, Activity, Package } from 'lucide-react';
+import { TrendingUp, BarChart2, Activity, Package, RefreshCw } from 'lucide-react';
 
 interface EmptyStateProps {
     type: 'no-sessions' | 'no-signals' | 'no-notifications' | 'no-data' | 'loading';
@@ -40,7 +40,7 @@ export default function EmptyState({ type, title, description, action }: EmptySt
             gradient: 'from-orange-500/20 to-red-500/20'
         },
         'loading': {
-            icon: <Activity className="w-12 h-12 animate-spin" />,
+            icon: <RefreshCw className="w-12 h-12 animate-spin" />,
             defaultTitle: 'Loading...',
             defaultDescription: 'Fetching the latest market data.',
             gradient: 'from-cyan-500/20 to-blue-500/20'

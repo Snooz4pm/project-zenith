@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ExternalLink, Bookmark, BookmarkCheck, Clock, TrendingUp, MessageCircle, Bell } from 'lucide-react';
+import { ExternalLink, Bookmark, BookmarkCheck, Clock, TrendingUp, MessageCircle, Bell, Share2 } from 'lucide-react';
 import type { Article } from '@/lib/news-types';
 import { formatRelativeTime, getCategoryBySlug, CATEGORIES } from '@/lib/news-api';
 
@@ -270,14 +270,6 @@ export default function ArticleCard({ article, isTopStory = false }: ArticleCard
                     <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs text-gray-400 hover:text-white transition-colors">
                         <MessageCircle size={14} />
                         Discuss
-                    </button>
-                    <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-cyan-500/20 rounded-lg text-xs text-gray-400 hover:text-cyan-400 transition-colors">
-                        <TrendingUp size={14} />
-                        Trade
-                    </button>
-                    <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-yellow-500/20 rounded-lg text-xs text-gray-400 hover:text-yellow-400 transition-colors">
-                        <Bell size={14} />
-                        Alert
                     </button>
                 </div>
 
