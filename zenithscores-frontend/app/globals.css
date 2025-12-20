@@ -1484,3 +1484,504 @@ body {
     transform: translateY(0);
   }
 }
+
+/* ========================================
+   🎯 TRADINGVIEW-STYLE SKELETON LAYOUT
+   ======================================== */
+
+/* LAYOUT GRID SYSTEM */
+.app-layout {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  /* Header | Ticker | Content | Footer */
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ===== 1. HEADER BAR ===== */
+.header-bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  /* Logo | Nav Links | Actions */
+  align-items: center;
+  gap: 1rem;
+  padding: 0 1.5rem;
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(10, 14, 26, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header-logo {
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+.header-nav {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.header-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+/* ===== 2. TICKER STRIP ===== */
+.ticker-strip {
+  display: flex;
+  gap: 2rem;
+  padding: 0.5rem 1.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  white-space: nowrap;
+  background: rgba(15, 20, 25, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ticker-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* ===== 3. MAIN CONTENT (3-Column) ===== */
+.content-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr 300px;
+  /* Left Sidebar | Chart Area | Right Panel */
+  height: calc(100vh - 120px);
+  overflow: hidden;
+}
+
+/* LEFT SIDEBAR */
+.left-sidebar {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 20, 30, 0.5);
+}
+
+.sidebar-section {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-tab {
+  flex: 1;
+  padding: 0.75rem;
+  text-align: center;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 0.2s ease;
+}
+
+.sidebar-tab:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-tab.active {
+  color: #00f0ff;
+  border-bottom: 2px solid #00f0ff;
+}
+
+/* CENTER - Chart/Data Display */
+.chart-area {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  /* Toolbar | Chart | Bottom Panel */
+  overflow: hidden;
+  background: rgba(10, 14, 26, 0.8);
+}
+
+.chart-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chart-toolbar-left,
+.chart-toolbar-right {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.chart-bottom-panel {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* RIGHT PANEL */
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 20, 30, 0.5);
+}
+
+.panel-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.panel-tab {
+  flex: 1;
+  padding: 0.75rem;
+  text-align: center;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 0.2s ease;
+}
+
+.panel-tab:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.panel-tab.active {
+  color: #00f0ff;
+  border-bottom: 2px solid #00f0ff;
+}
+
+.panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+/* ===== 4. FOOTER BAR ===== */
+.footer-bar {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(15, 20, 25, 0.9);
+}
+
+/* ===== RESPONSIVE BREAKPOINTS ===== */
+
+/* Tablet: Hide right panel, show as overlay */
+@media (max-width: 1024px) {
+  .content-grid {
+    grid-template-columns: 250px 1fr;
+  }
+
+  .right-panel {
+    position: fixed;
+    right: -300px;
+    top: 120px;
+    bottom: 0;
+    width: 300px;
+    z-index: 50;
+    transition: right 0.3s ease;
+    background: rgba(15, 20, 30, 0.98);
+  }
+
+  .right-panel.open {
+    right: 0;
+  }
+}
+
+/* Mobile: Stack everything */
+@media (max-width: 768px) {
+  .app-layout {
+    grid-template-rows: auto auto 1fr;
+  }
+
+  .header-bar {
+    grid-template-columns: auto 1fr auto;
+    padding: 0 1rem;
+    height: 50px;
+  }
+
+  .header-nav {
+    display: none;
+  }
+
+  .ticker-strip {
+    padding: 0.5rem 1rem;
+    gap: 1rem;
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr;
+    height: calc(100vh - 90px);
+  }
+
+  .left-sidebar {
+    position: fixed;
+    left: -280px;
+    top: 90px;
+    bottom: 0;
+    width: 280px;
+    z-index: 50;
+    transition: left 0.3s ease;
+    background: rgba(15, 20, 30, 0.98);
+  }
+
+  .left-sidebar.open {
+    left: 0;
+  }
+
+  .right-panel {
+    position: fixed;
+    bottom: -100%;
+    left: 0;
+    right: 0;
+    height: 60vh;
+    z-index: 50;
+    transition: bottom 0.3s ease;
+    border-radius: 24px 24px 0 0;
+    background: rgba(15, 20, 30, 0.98);
+  }
+
+  .right-panel.open {
+    bottom: 0;
+  }
+
+  .chart-toolbar {
+    flex-wrap: wrap;
+    padding: 0.5rem;
+  }
+
+  .footer-bar {
+    display: none;
+  }
+}
+
+/* ===== UTILITY: Toggle Buttons ===== */
+.toggle-sidebar-btn,
+.toggle-panel-btn {
+  display: none;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-sidebar-btn:hover,
+.toggle-panel-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+@media (max-width: 1024px) {
+  .toggle-panel-btn {
+    display: block;
+  }
+}
+
+@media (max-width: 768px) {
+
+  .toggle-sidebar-btn,
+  .toggle-panel-btn {
+    display: block;
+  }
+}
+
+/* ===== UTILITY: Collapsible Sections ===== */
+.collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 0.75rem;
+}
+
+.collapsible-content {
+  max-height: 1000px;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.collapsible-content.collapsed {
+  max-height: 0;
+}
+
+/* ===== UTILITY: Tabs System ===== */
+.tab-list {
+  display: flex;
+  gap: 0;
+}
+
+.tab-button {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
+}
+
+.tab-button:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-button.active {
+  color: #00f0ff;
+  border-bottom: 2px solid #00f0ff;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* ===== UTILITY: Resizable Panels ===== */
+.resizable-divider {
+  width: 4px;
+  cursor: col-resize;
+  position: relative;
+  background: transparent;
+}
+
+.resizable-divider:hover {
+  background: rgba(0, 240, 255, 0.5);
+}
+
+/* ===== COMPONENT: Data Table ===== */
+.table-wrapper {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 100%;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(15, 20, 30, 0.95);
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.data-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.data-table tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+@media (max-width: 768px) {
+
+  .data-table th,
+  .data-table td {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* ===== COMPONENT: Time Range Selector ===== */
+.time-selector {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+@media (max-width: 768px) {
+  .time-selector {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}
+
+/* ===== OVERLAY BACKDROP ===== */
+.sidebar-overlay,
+.panel-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 40;
+}
+
+.sidebar-overlay.visible,
+.panel-overlay.visible {
+  display: block;
+}
+
+/* ===== STATUS INDICATOR ===== */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.status-dot.warning {
+  background: #f59e0b;
+}
+
+.status-dot.error {
+  background: #ef4444;
+}
+
+.system-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #10b981;
+}
