@@ -1,11 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { RefreshCw, TrendingUp, TrendingDown, Clock, Target, Shield, ArrowRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { RefreshCw, TrendingUp, TrendingDown, Clock, Target, Shield, ArrowRight, BarChart2, X, Info } from 'lucide-react';
+import { generateSignalExplanation, getQuickStats, type SignalData } from '@/lib/signals/transparency-engine';
 
 export default function SignalsTable() {
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [selectedSignal, setSelectedSignal] = useState<typeof signals[0] | null>(null);
+    const [showMathModal, setShowMathModal] = useState(false);
 
     const handleRefresh = () => {
         setIsRefreshing(true);
@@ -22,6 +25,7 @@ export default function SignalsTable() {
             price: 43250.00,
             score: 85,
             signal: 'BUY',
+            signalType: 'momentum-breakout',
             timeframe: '4H',
             entry: 42800,
             target: 45000,
@@ -36,6 +40,7 @@ export default function SignalsTable() {
             price: 2285.50,
             score: 78,
             signal: 'BUY',
+            signalType: 'mean-reversion',
             timeframe: '1H',
             entry: 2270,
             target: 2380,
@@ -50,6 +55,7 @@ export default function SignalsTable() {
             price: 98.45,
             score: 65,
             signal: 'SELL',
+            signalType: 'trend-following',
             timeframe: '15M',
             entry: 99.20,
             target: 95.50,
@@ -64,6 +70,7 @@ export default function SignalsTable() {
             price: 312.80,
             score: 72,
             signal: 'BUY',
+            signalType: 'support-resistance',
             timeframe: '1D',
             entry: 310.00,
             target: 325.00,
@@ -78,12 +85,33 @@ export default function SignalsTable() {
             price: 0.6245,
             score: 58,
             signal: 'BUY',
+            signalType: 'volatility-breakout',
             timeframe: '4H',
             entry: 0.6180,
             target: 0.6450,
             stopLoss: 0.6050
         }
     ];
+
+    const handleShowMath = (signal: typeof signals[0]) => {
+        setSelectedSignal(signal);
+        setShowMathModal(true);
+    };
+
+    const getSignalExplanation = (signal: typeof signals[0]) => {
+        const signalData: SignalData = {
+            id: signal.id.toString(),
+            symbol: signal.symbol,
+            direction: signal.signal === 'BUY' ? 'long' : 'short',
+            type: signal.signalType,
+            strength: signal.score,
+            timeframe: signal.timeframe,
+            entryPrice: signal.entry,
+            targetPrice: signal.target,
+            stopLoss: signal.stopLoss
+        };
+        return generateSignalExplanation(signalData);
+    };
 
     return (
         <div className="md:col-span-2">
@@ -111,6 +139,7 @@ export default function SignalsTable() {
                                 <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Score</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Signal</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Targets</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Analysis</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#1a1f3a]">
@@ -176,6 +205,18 @@ export default function SignalsTable() {
                                             </div>
                                         </div>
                                     </td>
+                                    <td className="px-6 py-4">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleShowMath(signal);
+                                            }}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 rounded-lg text-xs font-medium transition-colors"
+                                        >
+                                            <BarChart2 size={14} />
+                                            Show Math
+                                        </button>
+                                    </td>
                                 </motion.tr>
                             ))}
                         </tbody>
@@ -189,6 +230,99 @@ export default function SignalsTable() {
                     </button>
                 </div>
             </div>
+
+            {/* Transparency Modal */}
+            <AnimatePresence>
+                {showMathModal && selectedSignal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+                        onClick={() => setShowMathModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-[#141829] border border-[#1a1f3a] rounded-2xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-bold flex items-center gap-2">
+                                    <BarChart2 className="text-cyan-400" />
+                                    Signal Transparency: {selectedSignal.symbol}
+                                </h2>
+                                <button
+                                    onClick={() => setShowMathModal(false)}
+                                    className="text-gray-500 hover:text-white"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            {(() => {
+                                const explanation = getSignalExplanation(selectedSignal);
+                                return (
+                                    <div className="space-y-4">
+                                        {/* Stats Grid */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                            <div className="bg-white/5 rounded-lg p-3 text-center">
+                                                <div className="text-xs text-gray-500 uppercase">Historical Signals</div>
+                                                <div className="text-xl font-bold text-white">{explanation.statistics.historicalOccurrences.toLocaleString()}</div>
+                                            </div>
+                                            <div className="bg-white/5 rounded-lg p-3 text-center">
+                                                <div className="text-xs text-gray-500 uppercase">Win Rate</div>
+                                                <div className="text-xl font-bold text-emerald-400">{explanation.statistics.winRate}%</div>
+                                            </div>
+                                            <div className="bg-white/5 rounded-lg p-3 text-center">
+                                                <div className="text-xs text-gray-500 uppercase">Avg Profit</div>
+                                                <div className="text-xl font-bold text-green-400">+{explanation.statistics.avgProfit}%</div>
+                                            </div>
+                                            <div className="bg-white/5 rounded-lg p-3 text-center">
+                                                <div className="text-xs text-gray-500 uppercase">Max Drawdown</div>
+                                                <div className="text-xl font-bold text-red-400">-{explanation.statistics.maxDrawdown}%</div>
+                                            </div>
+                                            <div className="bg-white/5 rounded-lg p-3 text-center">
+                                                <div className="text-xs text-gray-500 uppercase">Sharpe Ratio</div>
+                                                <div className="text-xl font-bold text-cyan-400">{explanation.statistics.sharpeRatio}</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Edge Source */}
+                                        <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-4">
+                                            <div className="flex items-center gap-2 text-cyan-400 font-semibold mb-2">
+                                                <Info size={16} />
+                                                Edge Source
+                                            </div>
+                                            <p className="text-gray-300 text-sm">{explanation.edgeSource}</p>
+                                        </div>
+
+                                        {/* Technical Rationale */}
+                                        <div className="bg-white/5 rounded-lg p-4">
+                                            <div className="font-semibold text-white mb-2">Technical Rationale</div>
+                                            <p className="text-gray-400 text-sm">{explanation.technicalRationale}</p>
+                                        </div>
+
+                                        {/* Risk Warning */}
+                                        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+                                            <p className="text-yellow-400 text-sm">{explanation.riskWarning}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            <button
+                                onClick={() => setShowMathModal(false)}
+                                className="w-full mt-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors"
+                            >
+                                Close
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
+
