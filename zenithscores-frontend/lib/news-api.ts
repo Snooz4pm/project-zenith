@@ -12,7 +12,7 @@ import type {
 } from './news-types';
 
 
-const API_BASE_URL = ''; // Use relative path to avoid CORS and ensure correct routing
+const API_BASE_URL = ''; // Use relative path for Next.js API routes
 
 class NewsAPI {
     private baseUrl: string;
@@ -53,7 +53,7 @@ class NewsAPI {
         if (options?.sortBy) params.append('sort_by', options.sortBy);
 
         const query = params.toString();
-        const endpoint = `/api/v1/news/articles/${category}${query ? `?${query}` : ''}`;
+        const endpoint = `/api/news/articles/${category}${query ? `?${query}` : ''}`;
 
         return this.fetchAPI<ArticlesResponse>(endpoint);
     }
@@ -62,7 +62,7 @@ class NewsAPI {
      * Get article by ID
      */
     async getArticleById(id: number): Promise<Article> {
-        return this.fetchAPI<Article>(`/api/v1/news/articles/id/${id}`);
+        return this.fetchAPI<Article>(`/api/news/articles/id/${id}`);
     }
 
     /**
@@ -79,14 +79,14 @@ class NewsAPI {
         if (options?.minConfidence) params.append('min_confidence', options.minConfidence.toString());
 
         const query = params.toString();
-        return this.fetchAPI(`/api/v1/news/top-articles${query ? `?${query}` : ''}`);
+        return this.fetchAPI(`/api/news/top-articles${query ? `?${query}` : ''}`);
     }
 
     /**
      * Get all categories with statistics
      */
     async getCategories(): Promise<CategoriesResponse> {
-        return this.fetchAPI<CategoriesResponse>('/api/v1/news/categories');
+        return this.fetchAPI<CategoriesResponse>('/api/news/categories');
     }
 
     /**
@@ -94,21 +94,21 @@ class NewsAPI {
      */
     async searchArticles(query: string, limit: number = 20): Promise<SearchResponse> {
         const params = new URLSearchParams({ q: query, limit: limit.toString() });
-        return this.fetchAPI<SearchResponse>(`/api/v1/news/search?${params.toString()}`);
+        return this.fetchAPI<SearchResponse>(`/api/news/search?${params.toString()}`);
     }
 
     /**
      * Get overall statistics
      */
     async getStats(): Promise<StatsResponse> {
-        return this.fetchAPI<StatsResponse>('/api/v1/news/stats');
+        return this.fetchAPI<StatsResponse>('/api/news/stats');
     }
 
     /**
      * Health check
      */
     async healthCheck(): Promise<{ status: string; total_articles: number }> {
-        return this.fetchAPI('/');
+        return this.fetchAPI('/api/news/stats');
     }
 }
 
