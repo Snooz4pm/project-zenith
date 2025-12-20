@@ -339,3 +339,83 @@ model UserPathScore {
   @@unique([user_id, path_id])
   @@index([user_id], map: "idx_user_path_scores_user")
 }
+
+// ========================
+// PHASE 2: COMMUNITY ENHANCEMENTS
+// ========================
+
+model community_follows {
+  id           Int       @id @default(autoincrement())
+  follower_id  String    @db.VarChar(255)
+  following_id String    @db.VarChar(255)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+
+  @@unique([follower_id, following_id])
+  @@index([follower_id], map: "idx_follows_follower")
+  @@index([following_id], map: "idx_follows_following")
+}
+
+model shared_trades {
+  id               Int       @id @default(autoincrement())
+  user_id          String    @db.VarChar(255)
+  trade_id         Int
+  symbol           String    @db.VarChar(20)
+  trade_type       String    @db.VarChar(10)
+  entry_price      Decimal   @db.Decimal(20, 8)
+  exit_price       Decimal?  @db.Decimal(20, 8)
+  pnl              Decimal?  @db.Decimal(20, 2)
+  pnl_percent      Decimal?  @db.Decimal(10, 4)
+  caption          String?
+  likes_count      Int       @default(0)
+  comments_count   Int       @default(0)
+  is_open          Boolean   @default(true)
+  shared_at        DateTime? @default(now()) @db.Timestamp(6)
+  closed_at        DateTime? @db.Timestamp(6)
+
+  @@index([user_id], map: "idx_shared_trades_user")
+  @@index([shared_at(sort: Desc)], map: "idx_shared_trades_time")
+}
+
+// ========================
+// PHASE 3: BADGE SYSTEM
+// ========================
+
+model badges {
+  id          String   @id @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String
+  icon        String   @db.VarChar(10)
+  category    String   @db.VarChar(50)
+  rarity      String   @default("common") @db.VarChar(20)
+  requirement String?
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+}
+
+model user_badges {
+  id         Int       @id @default(autoincrement())
+  user_id    String    @db.VarChar(255)
+  badge_id   String    @db.VarChar(50)
+  earned_at  DateTime  @default(now()) @db.Timestamp(6)
+  is_pinned  Boolean   @default(false)
+  
+  @@unique([user_id, badge_id])
+  @@index([user_id], map: "idx_user_badges_user")
+}
+
+model user_profiles {
+  id              Int       @id @default(autoincrement())
+  user_id         String    @unique @db.VarChar(255)
+  display_name    String?   @db.VarChar(100)
+  bio             String?
+  career_path     String?   @db.VarChar(50)
+  experience_level String?  @default("beginner") @db.VarChar(20)
+  twitter_handle  String?   @db.VarChar(50)
+  discord_handle  String?   @db.VarChar(50)
+  is_public       Boolean   @default(true)
+  show_trades     Boolean   @default(true)
+  show_badges     Boolean   @default(true)
+  created_at      DateTime  @default(now()) @db.Timestamp(6)
+  updated_at      DateTime  @default(now()) @db.Timestamp(6)
+  
+  @@index([career_path], map: "idx_profiles_path")
+}
