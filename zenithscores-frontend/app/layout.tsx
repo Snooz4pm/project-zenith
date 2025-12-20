@@ -17,6 +17,12 @@ const TermsAcceptanceModal = dynamic(
   { ssr: false }
 );
 
+// 🎯 Layout animations for smooth page transitions (client-only)
+const AnimatedLayoutWrapper = dynamic(
+  () => import("@/components/AnimatedLayout").then(mod => ({ default: mod.AnimatedLayout })),
+  { ssr: false, loading: () => null }
+);
+
 // AuthProvider must wrap everything but can stay server-side
 import AuthProvider from "@/components/AuthProvider";
 
@@ -56,7 +62,10 @@ export default function RootLayout({
           <Suspense fallback={<div className="min-h-screen bg-[#0a0a12]" />}>
             <main className="min-h-screen flex flex-col pt-16 md:pt-20">
               <div className="flex-grow">
-                {children}
+                {/* 🎯 Animated page transitions - doesn't affect internal page animations */}
+                <AnimatedLayoutWrapper>
+                  {children}
+                </AnimatedLayoutWrapper>
               </div>
               {/* Global Financial Disclaimer Footer */}
               <div className="bg-black/80 backdrop-blur-md border-t border-white/5 py-12 px-6 mt-12">
