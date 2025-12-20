@@ -68,23 +68,37 @@ export default function CommunityFeed() {
     const [activePostComments, setActivePostComments] = useState<string | null>(null);
     const [commentText, setCommentText] = useState('');
 
+    const [error, setError] = useState<string | null>(null);
+
     const fetchPosts = async () => {
+        setError(null);
         try {
             const baseUrl = 'https://project-zenith-zexd.vercel.app'; // Fallback for local dev
             const session_id = session?.user?.email || 'guest';
             const url = `${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/community/posts?session_id=${session_id}`;
-            const res = await fetch(url);
+            const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+
+            if (!res.ok) {
+                throw new Error(`API returned ${res.status}`);
+            }
+
             const data = await res.json();
-            if (data.status === 'success') {
+            if (data.status === 'success' && data.data?.length > 0) {
                 const formattedPosts = data.data.map((p: CommunityPost) => ({
                     ...p,
                     timestamp: new Date(p.timestamp),
                     replies: p.replies?.map((r: Comment) => ({ ...r, timestamp: new Date(r.timestamp) })) || []
                 }));
                 setPosts(formattedPosts);
+            } else {
+                // Use demo posts if no real data
+                setPosts(DEMO_POSTS);
             }
-        } catch (error) {
-            console.error('Fetch posts failed:', error);
+        } catch (err) {
+            console.error('Fetch posts failed:', err);
+            setError('Unable to load live feed');
+            // Fallback to demo posts
+            setPosts(DEMO_POSTS);
         } finally {
             setLoading(false);
         }

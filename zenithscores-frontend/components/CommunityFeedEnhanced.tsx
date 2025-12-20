@@ -191,17 +191,24 @@ export default function CommunityFeedEnhanced() {
     };
 
     // Load posts
+    const [error, setError] = useState<string | null>(null);
+
     const loadPosts = async () => {
         setLoading(true);
+        setError(null);
         try {
             const res = await fetch('/api/community/posts');
+            if (!res.ok) {
+                throw new Error(`API error: ${res.status}`);
+            }
             const data = await res.json();
             if (Array.isArray(data)) {
                 // Convert timestamp strings to Date objects
                 setPosts(data.map(p => ({ ...p, timestamp: new Date(p.timestamp) })));
             }
-        } catch (error) {
-            console.error('Error loading posts:', error);
+        } catch (err) {
+            console.error('Error loading posts:', err);
+            setError('Unable to load community posts. Please try again later.');
         } finally {
             setLoading(false);
         }
@@ -352,9 +359,27 @@ export default function CommunityFeedEnhanced() {
                 )}
             </AnimatePresence>
 
+            {/* Error State */}
+            {error && (
+                <div className="mb-4 p-4 bg-red-900/20 border border-red-800 rounded-xl text-center">
+                    <p className="text-red-400 mb-2">{error}</p>
+                    <button
+                        onClick={loadPosts}
+                        className="px-4 py-2 bg-red-600/30 text-red-300 rounded-lg hover:bg-red-600/50 transition-colors text-sm"
+                    >
+                        Try Again
+                    </button>
+                </div>
+            )}
+
             {/* Posts Feed */}
             <div className="space-y-4">
-                {filteredPosts.length === 0 ? (
+                {loading ? (
+                    <div className="text-center py-12 text-gray-500">
+                        <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                        <p>Loading community...</p>
+                    </div>
+                ) : filteredPosts.length === 0 && !error ? (
                     <div className="text-center py-12 text-gray-500">
                         <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
                         <p>No posts found.</p>
