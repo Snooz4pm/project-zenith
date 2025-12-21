@@ -93,7 +93,14 @@ export default function CardNav({ className = '', ease = 'power3.out' }: CardNav
     if (!containerRef.current || !navRef.current) return;
 
     if (!isCollapsed) {
-      // Collapse - animate to left pill
+      // Close expanded menu first if open
+      if (isExpanded) {
+        setIsHamburgerOpen(false);
+        setIsExpanded(false);
+        tlRef.current?.progress(0);
+      }
+
+      // Collapse - animate to left circle
       gsap.to(containerRef.current, {
         left: '1rem',
         transform: 'translateX(0)',
@@ -104,6 +111,7 @@ export default function CardNav({ className = '', ease = 'power3.out' }: CardNav
       gsap.to(navRef.current, {
         borderRadius: '50%',
         width: '60px',
+        height: '60px',
         duration: 0.4,
         ease: 'power3.out'
       });
@@ -120,6 +128,7 @@ export default function CardNav({ className = '', ease = 'power3.out' }: CardNav
       gsap.to(navRef.current, {
         borderRadius: '1rem',
         width: '100%',
+        height: '60px', // Reset to default height
         duration: 0.4,
         ease: 'power3.out'
       });
