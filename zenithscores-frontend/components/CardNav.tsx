@@ -388,28 +388,11 @@ export default function CardNav({ className = '', ease = 'power3.out' }: CardNav
       {/* Inline Styles */}
       <style jsx>{`
         .card-nav-container {
-          position: fixed;
-          top: 1rem;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 94%;
-          max-width: 900px;
-          z-index: 1000;
+          /* Positioning handled by inline styles */
         }
 
         .card-nav {
-          display: block;
-          height: 60px;
-          background: rgba(10, 10, 18, 0.95);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 1rem;
-          box-shadow: 
-            0 4px 30px rgba(0, 0, 0, 0.3),
-            0 0 40px rgba(0, 240, 255, 0.05);
-          position: relative;
-          overflow: hidden;
-          will-change: height;
+          /* Base styles handled by inline styles */
         }
 
         .card-nav-top {
