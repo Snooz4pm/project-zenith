@@ -21,6 +21,7 @@ model User {
   // NextAuth relations
   accounts      Account[]
   sessions      Session[]
+  tradingNotes  TradingNote[]
 }
 
 // Required by NextAuth PrismaAdapter for OAuth
@@ -418,4 +419,27 @@ model user_profiles {
   updated_at      DateTime  @default(now()) @db.Timestamp(6)
   
   @@index([career_path], map: "idx_profiles_path")
+}
+
+// ========================
+// PHASE 5: TRADING NOTES
+// ========================
+
+model TradingNote {
+  id           Int      @id @default(autoincrement())
+  userId       String   @db.VarChar(255)
+  content      String   @db.Text
+  sentiment    String?  @db.VarChar(20)  // Bullish, Bearish, Neutral
+  phase        String?  @db.VarChar(20)  // Pre-market, Entry, etc.
+  asset        String?  @db.VarChar(20)  // Ticker symbol
+  stressLevel  Int?     @default(3)      // 1-5 scale
+  mood         String?  @db.VarChar(10)  // Emoji
+  snapshotUrl  String?  @db.Text         // Image link or base64
+  createdAt    DateTime @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime @default(now()) @updatedAt @db.Timestamp(6)
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_trading_notes_user")
+  @@index([createdAt(sort: Desc)], map: "idx_trading_notes_time")
 }

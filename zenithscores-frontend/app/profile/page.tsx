@@ -8,7 +8,7 @@ import {
     ArrowLeft, User, Mail, Calendar, Trophy, TrendingUp, TrendingDown,
     Edit2, Save, X, Shield, Activity, DollarSign, BarChart3, LogOut,
     CheckCircle, History, Zap, Bell, Heart, MessageCircle, FileText,
-    BookOpen, Settings, Users
+    BookOpen, Settings, Users, ArrowUpRight, Clock, LineChart
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
@@ -24,10 +24,15 @@ interface CommunityEngagement {
 }
 
 interface Note {
-    id: string;
+    id: number;
     content: string;
-    createdAt: Date;
-    symbol?: string;
+    sentiment?: string;
+    phase?: string;
+    asset?: string;
+    stressLevel?: number;
+    mood?: string;
+    snapshotUrl?: string;
+    createdAt: Date | string;
 }
 
 const formatCurrency = (value: number) => {
@@ -44,6 +49,15 @@ const formatDate = (dateString: string) => {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
+    });
+};
+
+const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
     });
 };
 
@@ -65,11 +79,20 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [notes, setNotes] = useState<Note[]>([]);
     const [newNote, setNewNote] = useState('');
+    const [noteSentiment, setNoteSentiment] = useState<'Bullish' | 'Bearish' | 'Neutral' | null>(null);
+    const [notePhase, setNotePhase] = useState<string | null>(null);
+    const [noteAsset, setNoteAsset] = useState('');
+    const [noteStress, setNoteStress] = useState(3);
+    const [noteMood, setNoteMood] = useState('😐');
+    const [noteSnapshot, setNoteSnapshot] = useState('');
+    const [showAdvancedNotes, setShowAdvancedNotes] = useState(false);
+
     const [engagements, setEngagements] = useState<CommunityEngagement[]>([]);
     const [portfolioValue, setPortfolioValue] = useState(10000);
     const [totalPnL, setTotalPnL] = useState(0);
     const [totalTrades, setTotalTrades] = useState(0);
     const [learningProgress, setLearningProgress] = useState(0);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Load data
     useEffect(() => {
@@ -82,17 +105,18 @@ export default function ProfilePage() {
 
     const loadProfileData = async () => {
         try {
-            // Load community engagements (likes/comments on my posts)
+            // Load community engagements
             const engagementRes = await fetch('/api/community/my-engagements');
             if (engagementRes.ok) {
                 const data = await engagementRes.json();
                 setEngagements(data.engagements || []);
             }
 
-            // Load saved notes from localStorage
-            const savedNotes = localStorage.getItem('zenith_notes');
-            if (savedNotes) {
-                setNotes(JSON.parse(savedNotes));
+            // Load saved notes from Neon DB
+            const notesRes = await fetch('/api/notes');
+            if (notesRes.ok) {
+                const data = await notesRes.json();
+                setNotes(data.notes || []);
             }
 
             // Load trading stats
@@ -121,23 +145,62 @@ export default function ProfilePage() {
         }
     };
 
-    const addNote = () => {
+    const addNote = async () => {
         if (!newNote.trim()) return;
-        const note: Note = {
-            id: Date.now().toString(),
-            content: newNote,
-            createdAt: new Date(),
-        };
-        const updatedNotes = [note, ...notes];
-        setNotes(updatedNotes);
-        localStorage.setItem('zenith_notes', JSON.stringify(updatedNotes));
-        setNewNote('');
+        setIsSaving(true);
+        try {
+            const res = await fetch('/api/notes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: newNote,
+                    sentiment: noteSentiment,
+                    phase: notePhase,
+                    asset: noteAsset,
+                    stressLevel: noteStress,
+                    mood: noteMood,
+                    snapshotUrl: noteSnapshot
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setNotes([data.note, ...notes]);
+                setNewNote('');
+                setNoteSentiment(null);
+                setNotePhase(null);
+                setNoteAsset('');
+                setNoteStress(3);
+                setNoteMood('😐');
+                setNoteSnapshot('');
+                setShowAdvancedNotes(false);
+            }
+        } catch (e) {
+            console.error('Failed to add note:', e);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    const deleteNote = (id: string) => {
-        const updatedNotes = notes.filter(n => n.id !== id);
-        setNotes(updatedNotes);
-        localStorage.setItem('zenith_notes', JSON.stringify(updatedNotes));
+    const deleteNote = async (id: number) => {
+        try {
+            const res = await fetch(`/api/notes/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setNotes(notes.filter(n => n.id !== id));
+            }
+        } catch (e) {
+            console.error('Failed to delete note:', e);
+        }
+    };
+
+    const applyTemplate = (type: 'setup' | 'risk' | 'lesson') => {
+        let template = '';
+        if (type === 'setup') template = "I'm entering because: \n- Setup: \n- Target: \n- Conviction: ";
+        if (type === 'risk') template = "My stop loss is at X because: \n- Risk Amount: \n- Invalidated if: ";
+        if (type === 'lesson') template = "I messed up today by: \n- Mistake: \n- What I'll do next time: ";
+
+        setNewNote(template + "\n" + newNote);
+        setShowAdvancedNotes(true);
     };
 
     // Not authenticated
@@ -317,58 +380,209 @@ export default function ProfilePage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.25 }}
-                        className="md:col-span-2 lg:col-span-2 md:row-span-2 bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-white/10 rounded-2xl p-5 backdrop-blur-xl"
+                        className="md:col-span-2 lg:col-span-2 md:row-span-3 bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-white/10 rounded-2xl p-5 backdrop-blur-xl flex flex-col"
                     >
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-bold flex items-center gap-2">
                                 <FileText className="text-amber-400" size={20} />
-                                Trading Notes
+                                Trading Journal
                             </h3>
-                            <span className="text-xs text-gray-500">{notes.length} notes</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500">{notes.length} entries</span>
+                            </div>
                         </div>
 
-                        {/* Add Note */}
-                        <div className="flex gap-2 mb-4">
-                            <textarea
-                                value={newNote}
-                                onChange={(e) => setNewNote(e.target.value)}
-                                placeholder="Write a trading note, market observation, or reminder..."
-                                className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 resize-none"
-                                rows={2}
-                            />
-                            <button
-                                onClick={addNote}
-                                disabled={!newNote.trim()}
-                                className="px-4 py-2 bg-cyan-500/20 text-cyan-400 rounded-lg hover:bg-cyan-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <Save size={18} />
+                        {/* Templates */}
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            <button onClick={() => applyTemplate('setup')} className="text-xs px-3 py-1.5 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors flex items-center gap-1.5">
+                                <Zap size={12} className="text-yellow-400" /> The Setup
+                            </button>
+                            <button onClick={() => applyTemplate('risk')} className="text-xs px-3 py-1.5 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors flex items-center gap-1.5">
+                                <Shield size={12} className="text-red-400" /> The Risk
+                            </button>
+                            <button onClick={() => applyTemplate('lesson')} className="text-xs px-3 py-1.5 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors flex items-center gap-1.5">
+                                <Trophy size={12} className="text-emerald-400" /> The Lesson
                             </button>
                         </div>
 
+                        {/* Add Note */}
+                        <div className="bg-black/20 border border-white/5 rounded-xl p-4 mb-4">
+                            <textarea
+                                value={newNote}
+                                onChange={(e) => setNewNote(e.target.value)}
+                                placeholder="What's your market observation today?"
+                                className="w-full bg-transparent border-none text-white placeholder-gray-500 focus:outline-none focus:ring-0 resize-none mb-2"
+                                rows={3}
+                            />
+
+                            <AnimatePresence>
+                                {showAdvancedNotes && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden border-t border-white/5 pt-4 mt-2 space-y-4"
+                                    >
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Sentiment</label>
+                                                <div className="flex gap-2">
+                                                    {['Bullish', 'Bearish', 'Neutral'].map(s => (
+                                                        <button
+                                                            key={s}
+                                                            onClick={() => setNoteSentiment(s as any)}
+                                                            className={`text-[10px] px-2 py-1 rounded border transition-all ${noteSentiment === s ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400' : 'bg-white/5 border-white/10 text-gray-400'}`}
+                                                        >
+                                                            {s}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Trade Phase</label>
+                                                <select
+                                                    value={notePhase || ''}
+                                                    onChange={e => setNotePhase(e.target.value)}
+                                                    className="w-full text-xs bg-white/5 border border-white/10 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-cyan-500"
+                                                >
+                                                    <option value="" disabled>Select Phase</option>
+                                                    <option value="Pre-market">Pre-market</option>
+                                                    <option value="Entry">Entry</option>
+                                                    <option value="Management">Management</option>
+                                                    <option value="Post-Mortem">Post-Mortem</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Asset Link</label>
+                                                <input
+                                                    type="text"
+                                                    value={noteAsset}
+                                                    onChange={e => setNoteAsset(e.target.value)}
+                                                    placeholder="$BTC, $AAPL..."
+                                                    className="w-full text-xs bg-white/5 border border-white/10 rounded px-2 py-1 text-white placeholder-gray-600 focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] uppercase text-gray-500 font-bold mb-2 block">Psychology / Mood</label>
+                                                <div className="flex gap-1">
+                                                    {['🎯', '😐', '😤', '😨', '🚀'].map(m => (
+                                                        <button
+                                                            key={m}
+                                                            onClick={() => setNoteMood(m)}
+                                                            className={`p-1 rounded transition-all ${noteMood === m ? 'bg-white/10 scale-110' : 'opacity-40 hover:opacity-100'}`}
+                                                        >
+                                                            {m}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-[10px] uppercase text-gray-500 font-bold">Stress Meter</label>
+                                                <span className="text-[10px] text-cyan-400 font-mono">Level {noteStress}</span>
+                                            </div>
+                                            <input
+                                                type="range" min="1" max="5" step="1"
+                                                value={noteStress}
+                                                onChange={e => setNoteStress(parseInt(e.target.value))}
+                                                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                                            />
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            <div className="flex items-center justify-between mt-4 border-t border-white/5 pt-3">
+                                <button
+                                    onClick={() => setShowAdvancedNotes(!showAdvancedNotes)}
+                                    className="text-[10px] text-gray-500 hover:text-cyan-400 flex items-center gap-1 transition-colors"
+                                >
+                                    <Settings size={12} />
+                                    {showAdvancedNotes ? 'Hide Details' : 'Advanced Tracking'}
+                                </button>
+                                <button
+                                    onClick={addNote}
+                                    disabled={!newNote.trim() || isSaving}
+                                    className="px-4 py-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs font-bold rounded-lg hover:shadow-lg hover:shadow-cyan-500/20 transition-all flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    {isSaving ? <Activity className="animate-spin" size={12} /> : <Save size={12} />}
+                                    Save Note
+                                </button>
+                            </div>
+                        </div>
+
                         {/* Notes List */}
-                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                        <div className="space-y-3 overflow-y-auto pr-2 flex-1 scrollbar-hide" style={{ maxHeight: '420px' }}>
                             {notes.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <FileText className="mx-auto mb-2 text-gray-600" size={32} />
-                                    <p className="text-gray-500 text-sm">No notes yet</p>
-                                    <p className="text-gray-600 text-xs">Start taking notes about your trades and observations</p>
+                                <div className="text-center py-12 bg-white/5 rounded-2xl border border-dashed border-white/10">
+                                    <BookOpen className="mx-auto mb-3 text-gray-600" size={40} />
+                                    <p className="text-gray-400 text-sm font-medium">Your journal is empty</p>
+                                    <p className="text-gray-500 text-xs mt-1">Institutional traders keep meticulous notes.</p>
                                 </div>
                             ) : (
                                 notes.map((note) => (
-                                    <div key={note.id} className="p-3 bg-white/5 rounded-lg group">
-                                        <div className="flex items-start justify-between">
-                                            <p className="text-sm text-gray-300 whitespace-pre-wrap">{note.content}</p>
-                                            <button
-                                                onClick={() => deleteNote(note.id)}
-                                                className="opacity-0 group-hover:opacity-100 ml-2 p-1 text-gray-500 hover:text-red-400 transition-all"
-                                            >
-                                                <X size={14} />
-                                            </button>
+                                    <motion.div
+                                        layout
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        key={note.id}
+                                        className="p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-all group relative"
+                                    >
+                                        <button
+                                            onClick={() => deleteNote(note.id)}
+                                            className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-1.5 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-all"
+                                        >
+                                            <X size={12} />
+                                        </button>
+
+                                        <div className="flex flex-wrap gap-2 mb-3">
+                                            {note.mood && (
+                                                <span className="px-2 py-0.5 bg-white/5 rounded text-xs">{note.mood}</span>
+                                            )}
+                                            {note.sentiment && (
+                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${note.sentiment === 'Bullish' ? 'bg-emerald-500/10 text-emerald-400' :
+                                                    note.sentiment === 'Bearish' ? 'bg-red-500/10 text-red-400' :
+                                                        'bg-white/10 text-gray-400'
+                                                    }`}>
+                                                    {note.sentiment}
+                                                </span>
+                                            )}
+                                            {note.asset && (
+                                                <span className="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded text-[10px] font-mono">
+                                                    {note.asset.startsWith('$') ? note.asset : `$${note.asset}`}
+                                                </span>
+                                            )}
+                                            {note.phase && (
+                                                <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded text-[10px]">
+                                                    {note.phase}
+                                                </span>
+                                            )}
+                                            {note.stressLevel && (
+                                                <span className={`px-2 py-0.5 rounded text-[10px] ${note.stressLevel > 3 ? 'bg-orange-500/10 text-orange-400' : 'bg-white/5 text-gray-500'
+                                                    }`}>
+                                                    Stress: {note.stressLevel}/5
+                                                </span>
+                                            )}
                                         </div>
-                                        <p className="text-xs text-gray-600 mt-1">
-                                            {formatTimeAgo(new Date(note.createdAt))}
-                                        </p>
-                                    </div>
+
+                                        <p className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">{note.content}</p>
+
+                                        <div className="flex items-center justify-between mt-4 text-[10px] text-gray-500">
+                                            <div className="flex items-center gap-1.5">
+                                                <Calendar size={10} />
+                                                {formatDateTime(note.createdAt.toString())}
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <Zap size={10} className="text-amber-500/50" />
+                                                Zenith Persistence
+                                            </div>
+                                        </div>
+                                    </motion.div>
                                 ))
                             )}
                         </div>
