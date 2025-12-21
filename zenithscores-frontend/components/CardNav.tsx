@@ -330,7 +330,7 @@ export default function CardNav({ className = '', ease = 'power3.out' }: CardNav
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       style={{
-        position: 'fixed',
+        position: 'absolute',
         top: '1rem',
         left: '50%',
         transform: 'translateX(-50%)',
