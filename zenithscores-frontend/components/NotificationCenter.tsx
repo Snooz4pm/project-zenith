@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Bell, BellOff, Settings, X, Check, Zap, Trophy, Target,
-    GraduationCap, Flame, Award, ChevronRight, ExternalLink
+    Flame, Award, ChevronRight, ExternalLink
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -74,7 +74,6 @@ export default function NotificationCenter() {
             case 'pulse': return <Zap size={14} className="text-cyan-400" />;
             case 'arena': return <Trophy size={14} className="text-yellow-400" />;
             case 'prediction': return <Target size={14} className="text-purple-400" />;
-            case 'coach': return <GraduationCap size={14} className="text-green-400" />;
             case 'streak': return <Flame size={14} className="text-orange-400" />;
             case 'achievement': return <Award size={14} className="text-pink-400" />;
             case 'signal': return <Zap size={14} className="text-emerald-400" />;
@@ -200,7 +199,6 @@ export default function NotificationCenter() {
                                             { key: 'pulseReminders' as const, label: '3-Hour Pulse', icon: Zap },
                                             { key: 'arenaUpdates' as const, label: 'Arena Updates', icon: Trophy },
                                             { key: 'predictionResults' as const, label: 'Prediction Results', icon: Target },
-                                            { key: 'coachAlerts' as const, label: 'Coach Alerts', icon: GraduationCap },
                                             { key: 'streakWarnings' as const, label: 'Streak Warnings', icon: Flame },
                                         ].map(({ key, label, icon: Icon }) => (
                                             <div key={key} className="flex items-center justify-between py-1">

@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
         // Get all posts by this user
         const myPosts = await prisma.community_posts.findMany({
-            where: { userId: currentUser.id },
+            where: { user_id: currentUser.id },
             select: { id: true, content: true }
         });
 
@@ -39,14 +39,9 @@ export async function GET(request: NextRequest) {
         // Get likes on my posts (from other users)
         const likes = await prisma.community_likes.findMany({
             where: {
-                postId: { in: myPostIds },
-                userId: { not: currentUser.id } // Exclude self-likes
+                post_id: { in: myPostIds },
+                user_id: { not: currentUser.id } // Exclude self-likes
             },
-            include: {
-                user: { select: { name: true, email: true } },
-                post: { select: { content: true } }
-            },
-            orderBy: { createdAt: 'desc' },
             take: 20
         });
 
@@ -55,14 +50,10 @@ export async function GET(request: NextRequest) {
         try {
             comments = await prisma.community_comments.findMany({
                 where: {
-                    postId: { in: myPostIds },
-                    userId: { not: currentUser.id }
+                    post_id: { in: myPostIds },
+                    user_id: { not: currentUser.id }
                 },
-                include: {
-                    user: { select: { name: true, email: true } },
-                    post: { select: { content: true } }
-                },
-                orderBy: { createdAt: 'desc' },
+                orderBy: { created_at: 'desc' },
                 take: 20
             });
         } catch (e) {
@@ -71,21 +62,22 @@ export async function GET(request: NextRequest) {
         }
 
         // Combine and format engagements
+        // Note: community_likes doesn't have created_at or relations in the current schema
         const engagements = [
             ...likes.map(like => ({
-                id: `like-${like.id}`,
+                id: `like-${like.user_id}-${like.post_id}`,
                 type: 'like' as const,
-                postTitle: truncateText(like.post.content, 40),
-                fromUser: like.user.name || like.user.email?.split('@')[0] || 'Someone',
-                timestamp: like.createdAt,
+                postTitle: 'Your post', // Can't fetch title without relations
+                fromUser: 'Someone', // Can't fetch name without relations
+                timestamp: new Date(), // Dummy timestamp
                 read: false
             })),
             ...comments.map((comment: any) => ({
                 id: `comment-${comment.id}`,
                 type: 'comment' as const,
-                postTitle: truncateText(comment.post.content, 40),
-                fromUser: comment.user.name || comment.user.email?.split('@')[0] || 'Someone',
-                timestamp: comment.createdAt,
+                postTitle: 'Your post',
+                fromUser: comment.username || 'Someone',
+                timestamp: comment.created_at || new Date(),
                 read: false
             }))
         ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())

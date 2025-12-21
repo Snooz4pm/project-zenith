@@ -9,12 +9,6 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
-// AI Persona Options
-const AI_PERSONAS = [
-    { id: 'analytic', name: 'Analytic', icon: <Brain size={18} />, description: 'Data-driven, logical analysis', color: 'from-blue-500 to-cyan-500' },
-    { id: 'mentor', name: 'Mentor', icon: <Shield size={18} />, description: 'Supportive, educational tone', color: 'from-emerald-500 to-green-500' },
-    { id: 'aggressive', name: 'Brutal', icon: <Flame size={18} />, description: 'No sugarcoating, direct roasts', color: 'from-orange-500 to-red-500' },
-];
 
 // Achievement Definitions
 const ACHIEVEMENTS = [
@@ -46,7 +40,6 @@ interface ProfileEnhancementsProps {
 
 export default function ProfileEnhancements({ userId, sessionId, onAccountDeleted }: ProfileEnhancementsProps) {
     // State
-    const [aiPersona, setAiPersona] = useState('mentor');
     const [weeklyDigest, setWeeklyDigest] = useState(true);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteConfirmation, setDeleteConfirmation] = useState('');
@@ -80,40 +73,6 @@ export default function ProfileEnhancements({ userId, sessionId, onAccountDelete
 
     return (
         <div className="space-y-6">
-            {/* AI Persona Settings */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-gray-900/80 to-black border border-white/10 rounded-2xl p-6"
-            >
-                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <Bot className="text-purple-400" size={20} />
-                    Assistant Persona
-                </h3>
-                <p className="text-sm text-gray-400 mb-4">Choose your preferred communication style</p>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {AI_PERSONAS.map(persona => (
-                        <button
-                            key={persona.id}
-                            onClick={() => setAiPersona(persona.id)}
-                            className={`relative p-4 rounded-xl border transition-all text-left ${aiPersona === persona.id
-                                ? 'border-purple-500/50 bg-purple-500/10 shadow-lg shadow-purple-500/10'
-                                : 'border-white/10 hover:border-white/20 bg-black/20'
-                                }`}
-                        >
-                            {aiPersona === persona.id && (
-                                <div className="absolute top-2 right-2 w-3 h-3 bg-purple-500 rounded-full animate-pulse" />
-                            )}
-                            <div className={`inline-flex p-2 rounded-lg bg-gradient-to-br ${persona.color} bg-opacity-20 mb-2`}>
-                                {persona.icon}
-                            </div>
-                            <div className="font-medium text-white">{persona.name}</div>
-                            <div className="text-xs text-gray-500 mt-1">{persona.description}</div>
-                        </button>
-                    ))}
-                </div>
-            </motion.div>
 
             {/* Achievement Gallery */}
             <motion.div
@@ -229,9 +188,7 @@ export default function ProfileEnhancements({ userId, sessionId, onAccountDelete
                             <Trash2 size={16} />
                             Delete Account & All Data
                         </button>
-                        <p className="text-[10px] text-gray-600 mt-1">
-                            This permanently removes all your data including watchlists, trade history, and chat history.
-                        </p>
+                        This permanently removes all your data including watchlists and trade history.
                     </div>
                 </div>
             </motion.div>
@@ -276,7 +233,6 @@ export default function ProfileEnhancements({ userId, sessionId, onAccountDelete
                                 <ul className="text-xs text-gray-500 mt-2 space-y-1">
                                     <li>• Paper Trading history & portfolio</li>
                                     <li>• Watchlists & saved assets</li>
-                                    <li>• Coach chat history</li>
                                     <li>• Learning progress & achievements</li>
                                 </ul>
                             </div>

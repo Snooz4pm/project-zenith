@@ -49,7 +49,7 @@ const DEMO_POSTS: CommunityPost[] = [
         userId: 'u2',
         username: 'TradingMaster',
         type: 'insight',
-        content: 'Market pulse showing risk-on but volume is thin. Be careful with leveraged positions today. Coach just warned me about overtrading.',
+        content: 'Market pulse showing risk-on but volume is thin. Be careful with leveraged positions today.',
         likes: 18,
         comments: 5,
         timestamp: new Date(Date.now() - 1000 * 60 * 120),

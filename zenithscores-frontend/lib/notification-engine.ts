@@ -8,13 +8,12 @@ export interface NotificationConfig {
     pulseReminders: boolean;
     arenaUpdates: boolean;
     predictionResults: boolean;
-    coachAlerts: boolean;
     streakWarnings: boolean;
 }
 
 export interface PushNotification {
     id: string;
-    type: 'pulse' | 'arena' | 'prediction' | 'coach' | 'streak' | 'achievement' | 'signal';
+    type: 'pulse' | 'arena' | 'prediction' | 'streak' | 'achievement' | 'signal';
     title: string;
     body: string;
     icon?: string;
@@ -33,7 +32,6 @@ export function getDefaultConfig(): NotificationConfig {
         pulseReminders: true,
         arenaUpdates: true,
         predictionResults: true,
-        coachAlerts: true,
         streakWarnings: true,
     };
 }
@@ -120,12 +118,6 @@ export const NotificationFactory = {
         '/dashboard'
     ),
 
-    coachFeedback: (symbol: string, result: 'win' | 'loss') => createNotification(
-        'coach',
-        result === 'win' ? '✅ Trade Reviewed' : '📊 Coach Feedback Ready',
-        `Your ${symbol} trade has been analyzed. View coaching insights.`,
-        '/trading/coach'
-    ),
 
     achievementUnlocked: (title: string, icon: string) => createNotification(
         'achievement',

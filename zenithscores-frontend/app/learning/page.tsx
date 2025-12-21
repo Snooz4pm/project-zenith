@@ -469,15 +469,6 @@ export default function LearningHubPage() {
                                         <div className="text-xs text-gray-500">Practice risk-free</div>
                                     </div>
                                 </Link>
-                                <Link href="/coach" className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                                    <div className="p-2 rounded-lg bg-purple-500/20">
-                                        <Zap size={16} className="text-purple-400" />
-                                    </div>
-                                    <div>
-                                        <div className="text-sm font-medium text-white">AI Coach</div>
-                                        <div className="text-xs text-gray-500">Get trade analysis</div>
-                                    </div>
-                                </Link>
                             </div>
                         </div>
                     </div>

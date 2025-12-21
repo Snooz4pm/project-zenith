@@ -11,7 +11,7 @@ const PortfolioChart = dynamic(() => import('@/components/PortfolioChart'), { ss
 const AnalyticsDashboard = dynamic(() => import('@/components/AnalyticsDashboard').then(mod => ({ default: mod.AnalyticsDashboard })), { ssr: false });
 const OnboardingTour = dynamic(() => import('@/components/OnboardingTour').then(mod => ({ default: mod.OnboardingTour })), { ssr: false });
 const AssetPicker = dynamic(() => import('@/components/AssetPicker'), { ssr: false });
-const SignalsTable = dynamic(() => import('@/components/SignalsTable'), { ssr: false });
+
 const CommunityFeed = dynamic(() => import('@/components/CommunityFeed'), { ssr: false });
 
 import {
@@ -131,7 +131,7 @@ export default function TradingPage() {
     const [executing, setExecuting] = useState(false);
 
     // View
-    const [activeTab, setActiveTab] = useState<'portfolio' | 'trade' | 'history' | 'leaderboard' | 'analytics' | 'community' | 'signals'>('portfolio');
+    const [activeTab, setActiveTab] = useState<'portfolio' | 'trade' | 'history' | 'leaderboard' | 'analytics' | 'community'>('portfolio');
 
     // WebSocket connections
     const wsRef = useRef<WebSocket | null>(null);
@@ -620,7 +620,6 @@ export default function TradingPage() {
                         {[
                             { id: 'portfolio', label: 'Portfolio', icon: Wallet },
                             { id: 'trade', label: 'Trade', icon: BarChart3 },
-                            { id: 'signals', label: 'Signals', icon: Zap },
                             { id: 'history', label: 'History', icon: History },
                             { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
                             { id: 'analytics', label: 'Analytics', icon: Activity },
@@ -639,16 +638,6 @@ export default function TradingPage() {
                                 <span className="sm:hidden">{tab.label.length > 6 ? tab.label.slice(0, 4) : tab.label}</span>
                             </button>
                         ))}
-                        {/* Coach Tab - Links to separate page */}
-                        <Link
-                            href="/trading/coach"
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors whitespace-nowrap flex-shrink-0 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30"
-                        >
-                            <GraduationCap size={16} />
-                            <span className="hidden sm:inline">Coach</span>
-                            <span className="sm:hidden">Coach</span>
-                            <span className="text-[10px] px-1.5 py-0.5 bg-purple-500/30 rounded-full">Pro</span>
-                        </Link>
                     </div>
                 </div>
 
@@ -824,33 +813,6 @@ export default function TradingPage() {
                         </div>
                     )}
 
-                    {/* Signals Tab */}
-                    {activeTab === 'signals' && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="md:col-span-3">
-                                <SignalsTable
-                                    onTrade={(symbol, direction) => {
-                                        const asset = assets.find(a => a.symbol === symbol);
-                                        // Construct a minimal asset object if not found in the main list
-                                        const tradeAsset = asset || {
-                                            symbol: symbol,
-                                            name: symbol,
-                                            current_price: 0,
-                                            price_change_24h: 0,
-                                            asset_type: 'stock',
-                                            max_leverage: 5
-                                        } as any;
-
-                                        // Open the modal with the asset and direction
-                                        openTradeModal(tradeAsset, direction);
-
-                                        // If we created a temporary asset, we might want to fetch its real price
-                                        // But the modal likely handles fetching or the user will see 0 until updated
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    )}
 
                     {/* History Tab */}
                     {activeTab === 'history' && (
