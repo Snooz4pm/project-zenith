@@ -4,11 +4,15 @@ import { useLayoutEffect, useRef, useState, useEffect } from 'react';
 import { gsap } from 'gsap';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import {
   ArrowUpRight, TrendingUp, Bitcoin, Newspaper,
   GraduationCap, BarChart3, User, Home, Zap,
   ChevronLeft, ChevronRight
 } from 'lucide-react';
+
+// Dynamic import ShapeBlur to avoid SSR issues with Three.js
+const ShapeBlur = dynamic(() => import('@/components/ShapeBlur'), { ssr: false });
 
 /**
  * CardNav - GSAP-powered animated navigation with Zenith theme
@@ -45,7 +49,7 @@ const ZENITH_NAV_ITEMS: NavItem[] = [
     links: [
       { label: "Stocks", href: "/stocks", ariaLabel: "Stock Market", icon: <TrendingUp size={14} /> },
       { label: "Crypto", href: "/crypto", ariaLabel: "Cryptocurrency", icon: <Bitcoin size={14} /> },
-      { label: "Signals", href: "/trading", ariaLabel: "Trading Signals", icon: <Zap size={14} /> },
+      { label: "Signals", href: "/signals", ariaLabel: "Trading Signals", icon: <Zap size={14} /> },
     ]
   },
   {
@@ -55,8 +59,8 @@ const ZENITH_NAV_ITEMS: NavItem[] = [
     icon: <BarChart3 size={20} />,
     links: [
       { label: "Paper Trading", href: "/trading", ariaLabel: "Paper Trading", icon: <BarChart3 size={14} /> },
-      { label: "Dashboard", href: "/dashboard", ariaLabel: "Dashboard", icon: <Home size={14} /> },
       { label: "Portfolio", href: "/trading?tab=portfolio", ariaLabel: "Portfolio", icon: <TrendingUp size={14} /> },
+      { label: "Community", href: "/trading?tab=community", ariaLabel: "Community", icon: <User size={14} /> },
     ]
   },
   {
@@ -219,6 +223,29 @@ export default function CardNav({ className = '', ease = 'power3.out' }: CardNav
     }
   }, [pathname]);
 
+  // Hover handlers - only close on mouse leave (users click to open)
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    // Clear any pending close timeout when mouse enters
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (isCollapsed) return;
+    // Delay close to prevent accidental closures
+    hoverTimeoutRef.current = setTimeout(() => {
+      if (isExpanded && tlRef.current) {
+        setIsHamburgerOpen(false);
+        tlRef.current.eventCallback('onReverseComplete', () => setIsExpanded(false));
+        tlRef.current.reverse();
+      }
+    }, 500); // 500ms delay before closing
+  };
+
   const toggleMenu = () => {
     const tl = tlRef.current;
     if (!tl) return;
@@ -246,6 +273,8 @@ export default function CardNav({ className = '', ease = 'power3.out' }: CardNav
     <div
       ref={containerRef}
       className={`card-nav-container ${className}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       style={{
         position: 'fixed',
         top: '1rem',
@@ -346,40 +375,62 @@ export default function CardNav({ className = '', ease = 'power3.out' }: CardNav
 
             {/* Navigation Cards */}
             <div className="card-nav-content" aria-hidden={!isExpanded}>
-              {ZENITH_NAV_ITEMS.map((item, idx) => (
-                <div
-                  key={`${item.label}-${idx}`}
-                  className="nav-card"
-                  ref={setCardRef(idx)}
-                  style={{
-                    backgroundColor: item.bgColor,
-                    borderColor: item.textColor
-                  }}
-                >
-                  <div className="nav-card-label" style={{ color: item.textColor }}>
-                    {item.icon}
-                    {item.label}
+              {ZENITH_NAV_ITEMS.map((item, idx) => {
+                // Determine market state based on nav section
+                const getMarketState = () => {
+                  if (item.label === 'Markets') return 'up'; // Default to up for demo
+                  if (item.label === 'Trading') return 'neutral';
+                  return 'neutral'; // Learn section
+                };
+
+                return (
+                  <div
+                    key={`${item.label}-${idx}`}
+                    className="nav-card"
+                    ref={setCardRef(idx)}
+                    style={{
+                      backgroundColor: item.bgColor,
+                      borderColor: item.textColor,
+                      position: 'relative',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {/* ShapeBlur Background Effect */}
+                    <ShapeBlur
+                      variation={0}
+                      shapeSize={0.8}
+                      roundness={0.5}
+                      borderSize={0.03}
+                      circleSize={0.4}
+                      circleEdge={0.8}
+                      marketState={getMarketState()}
+                    />
+
+                    <div className="nav-card-label" style={{ color: item.textColor, position: 'relative', zIndex: 1 }}>
+                      {item.icon}
+                      {item.label}
+                    </div>
+                    <div className="nav-card-links" style={{ position: 'relative', zIndex: 1 }}>
+                      {item.links.map((lnk, i) => (
+                        <Link
+                          key={`${lnk.label}-${i}`}
+                          className="nav-card-link"
+                          href={lnk.href}
+                          aria-label={lnk.ariaLabel}
+                          style={{ color: item.textColor }}
+                          onClick={() => {
+                            setIsHamburgerOpen(false);
+                            tlRef.current?.reverse();
+                          }}
+                        >
+                          <ArrowUpRight size={14} className="nav-card-link-icon" />
+                          {lnk.label}
+                        </Link>
+                      ))}
+                    </div>
                   </div>
-                  <div className="nav-card-links">
-                    {item.links.map((lnk, i) => (
-                      <Link
-                        key={`${lnk.label}-${i}`}
-                        className="nav-card-link"
-                        href={lnk.href}
-                        aria-label={lnk.ariaLabel}
-                        style={{ color: item.textColor }}
-                        onClick={() => {
-                          setIsHamburgerOpen(false);
-                          tlRef.current?.reverse();
-                        }}
-                      >
-                        <ArrowUpRight size={14} className="nav-card-link-icon" />
-                        {lnk.label}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}

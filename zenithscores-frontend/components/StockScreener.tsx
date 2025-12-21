@@ -8,7 +8,7 @@ import dynamic from 'next/dynamic';
 import { isPremiumUser, FREE_STOCK_LIMIT } from '@/lib/premium';
 
 // 🔧 Dynamic import to prevent CSR hydration blocking
-const PremiumWall = dynamic(() => import('@/components/PremiumWall'), { ssr: false });
+// PremiumWall removed
 const UniversalLoader = dynamic(() => import('@/components/UniversalLoader'), { ssr: false });
 
 interface Stock {
@@ -347,20 +347,7 @@ export default function StockScreener({ initialSector }: StockScreenerProps) {
                     )}
 
                     {/* Premium Wall - Show after free limit */}
-                    {!premium && filteredStocks.length > FREE_STOCK_LIMIT && (
-                        <div className="mt-6">
-                            <div className="mb-4 flex items-center justify-center gap-2 text-gray-500">
-                                <Lock size={16} />
-                                <span className="text-sm">
-                                    +{filteredStocks.length - FREE_STOCK_LIMIT} more stocks locked
-                                </span>
-                            </div>
-                            <PremiumWall
-                                stocksLocked={filteredStocks.length - FREE_STOCK_LIMIT}
-                                onUnlock={() => setPremium(true)}
-                            />
-                        </div>
-                    )}
+                    {/* Full access - no premium wall */}
                 </div>
             </div>
         </div>

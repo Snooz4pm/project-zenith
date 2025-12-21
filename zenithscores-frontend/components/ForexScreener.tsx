@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowUp, ArrowDown, RefreshCw, TrendingUp, Globe, DollarSign, Clock, Zap } from 'lucide-react';
 import { isPremiumUser, FREE_STOCK_LIMIT } from '@/lib/premium';
-import PremiumWall from '@/components/PremiumWall';
+// PremiumWall removed
 import QuickTradePrompt from '@/components/QuickTradePrompt';
 import { useRouter } from 'next/navigation';
 
@@ -276,15 +276,7 @@ export default function ForexScreener() {
                 </AnimatePresence>
             </div>
 
-            {/* Premium Wall - Zenith Theme */}
-            {!premium && pairs.length > FREE_STOCK_LIMIT && (
-                <div className="mt-8">
-                    <PremiumWall
-                        stocksLocked={pairs.length - FREE_STOCK_LIMIT}
-                        onUnlock={() => setPremium(true)}
-                    />
-                </div>
-            )}
+            {/* Full access - no premium wall */}
 
             {/* Quick Trade Prompt */}
             <QuickTradePrompt

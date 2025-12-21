@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowUp, ArrowDown, RefreshCw, Flame, Droplets, Zap, Clock } from 'lucide-react';
 import { isPremiumUser, FREE_STOCK_LIMIT } from '@/lib/premium';
-import PremiumWall from '@/components/PremiumWall';
+// PremiumWall removed
 
 interface Commodity {
     symbol: string;
@@ -212,15 +212,7 @@ export default function CommoditiesScreener() {
                 </AnimatePresence>
             </div>
 
-            {/* Premium Wall */}
-            {!premium && filteredCommodities.length > FREE_STOCK_LIMIT && (
-                <div className="mt-8">
-                    <PremiumWall
-                        stocksLocked={filteredCommodities.length - FREE_STOCK_LIMIT}
-                        onUnlock={() => setPremium(true)}
-                    />
-                </div>
-            )}
+            {/* Full access - no premium wall */}
         </div>
     );
 }
