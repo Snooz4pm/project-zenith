@@ -45,7 +45,7 @@ const ZENITH_NAV_ITEMS: NavItem[] = [
     links: [
       { label: "Stocks", href: "/stocks", ariaLabel: "Stock Market", icon: <TrendingUp size={14} /> },
       { label: "Crypto", href: "/crypto", ariaLabel: "Cryptocurrency", icon: <Bitcoin size={14} /> },
-      { label: "Signals", href: "/signals", ariaLabel: "Trading Signals", icon: <Zap size={14} /> },
+      { label: "Forex", href: "/forex", ariaLabel: "Forex Trading", icon: <TrendingUp size={14} /> },
     ]
   },
   {
@@ -54,7 +54,7 @@ const ZENITH_NAV_ITEMS: NavItem[] = [
     textColor: "#a855f7",
     icon: <BarChart3 size={20} />,
     links: [
-      { label: "Paper Trading", href: "/trading", ariaLabel: "Paper Trading", icon: <BarChart3 size={14} /> },
+      { label: "Signals", href: "/signals", ariaLabel: "Trading Signals", icon: <Zap size={14} /> },
       { label: "Portfolio", href: "/trading?tab=portfolio", ariaLabel: "Portfolio", icon: <TrendingUp size={14} /> },
       { label: "Community", href: "/trading?tab=community", ariaLabel: "Community", icon: <User size={14} /> },
     ]
