@@ -4,15 +4,11 @@ import { useLayoutEffect, useRef, useState, useEffect } from 'react';
 import { gsap } from 'gsap';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import dynamic from 'next/dynamic';
 import {
   ArrowUpRight, TrendingUp, Bitcoin, Newspaper,
   GraduationCap, BarChart3, User, Home, Zap,
   ChevronLeft, ChevronRight
 } from 'lucide-react';
-
-// Dynamic import ShapeBlur to avoid SSR issues with Three.js
-const ShapeBlur = dynamic(() => import('@/components/ShapeBlur'), { ssr: false });
 
 /**
  * CardNav - GSAP-powered animated navigation with Zenith theme
@@ -88,8 +84,66 @@ export default function CardNav({ className = '', ease = 'power3.out' }: CardNav
   const tlRef = useRef<gsap.core.Timeline | null>(null);
   const collapseTlRef = useRef<gsap.core.Timeline | null>(null);
 
+  // Market data state for dynamic indicators
+  const [marketState, setMarketState] = useState<{
+    stocks: 'up' | 'down' | 'neutral';
+    crypto: 'up' | 'down' | 'neutral';
+    portfolio: 'up' | 'down' | 'neutral';
+  }>({ stocks: 'neutral', crypto: 'neutral', portfolio: 'neutral' });
+
   useEffect(() => {
     setMounted(true);
+
+    // Fetch market data to determine colors
+    const fetchMarketData = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
+
+        // Fetch stocks data
+        const stocksRes = await fetch(`${apiUrl}/api/v1/stocks/top?limit=5`);
+        const stocksData = await stocksRes.json();
+
+        // Fetch crypto data
+        const cryptoRes = await fetch(`${apiUrl}/api/v1/crypto/top?limit=5`);
+        const cryptoData = await cryptoRes.json();
+
+        // Calculate average market movement for stocks
+        if (stocksData?.data?.length) {
+          const avgChange = stocksData.data.reduce((sum: number, s: { price_change_24h?: number }) =>
+            sum + (s.price_change_24h || 0), 0) / stocksData.data.length;
+          setMarketState(prev => ({
+            ...prev,
+            stocks: avgChange > 0.5 ? 'up' : avgChange < -0.5 ? 'down' : 'neutral'
+          }));
+        }
+
+        // Calculate average market movement for crypto
+        if (cryptoData?.data?.length) {
+          const avgChange = cryptoData.data.reduce((sum: number, c: { price_change_24h?: number }) =>
+            sum + (c.price_change_24h || 0), 0) / cryptoData.data.length;
+          setMarketState(prev => ({
+            ...prev,
+            crypto: avgChange > 1 ? 'up' : avgChange < -1 ? 'down' : 'neutral'
+          }));
+        }
+
+        // Portfolio defaults to combined sentiment
+        setMarketState(prev => ({
+          ...prev,
+          portfolio: prev.stocks === 'up' && prev.crypto === 'up' ? 'up'
+            : prev.stocks === 'down' && prev.crypto === 'down' ? 'down'
+              : 'neutral'
+        }));
+
+      } catch (error) {
+        console.log('Market data fetch error, using defaults');
+      }
+    };
+
+    fetchMarketData();
+    // Refresh every 5 minutes
+    const interval = setInterval(fetchMarketData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Collapse/Expand animation
@@ -376,13 +430,6 @@ export default function CardNav({ className = '', ease = 'power3.out' }: CardNav
             {/* Navigation Cards */}
             <div className="card-nav-content" aria-hidden={!isExpanded}>
               {ZENITH_NAV_ITEMS.map((item, idx) => {
-                // Determine market state based on nav section
-                const getMarketState = () => {
-                  if (item.label === 'Markets') return 'up'; // Default to up for demo
-                  if (item.label === 'Trading') return 'neutral';
-                  return 'neutral'; // Learn section
-                };
-
                 return (
                   <div
                     key={`${item.label}-${idx}`}
@@ -391,42 +438,76 @@ export default function CardNav({ className = '', ease = 'power3.out' }: CardNav
                     style={{
                       backgroundColor: item.bgColor,
                       borderColor: item.textColor,
-                      position: 'relative',
-                      overflow: 'hidden',
                     }}
                   >
-                    {/* ShapeBlur Background Effect */}
-                    <ShapeBlur
-                      variation={0}
-                      shapeSize={0.8}
-                      roundness={0.5}
-                      borderSize={0.03}
-                      circleSize={0.4}
-                      circleEdge={0.8}
-                      marketState={getMarketState()}
-                    />
-
-                    <div className="nav-card-label" style={{ color: item.textColor, position: 'relative', zIndex: 1 }}>
+                    <div className="nav-card-label" style={{ color: item.textColor }}>
                       {item.icon}
                       {item.label}
                     </div>
-                    <div className="nav-card-links" style={{ position: 'relative', zIndex: 1 }}>
-                      {item.links.map((lnk, i) => (
-                        <Link
-                          key={`${lnk.label}-${i}`}
-                          className="nav-card-link"
-                          href={lnk.href}
-                          aria-label={lnk.ariaLabel}
-                          style={{ color: item.textColor }}
-                          onClick={() => {
-                            setIsHamburgerOpen(false);
-                            tlRef.current?.reverse();
-                          }}
-                        >
-                          <ArrowUpRight size={14} className="nav-card-link-icon" />
-                          {lnk.label}
-                        </Link>
-                      ))}
+                    <div className="nav-card-links">
+                      {item.links.map((lnk, i) => {
+                        // Determine market indicator for specific links
+                        const getIndicator = () => {
+                          if (lnk.label === 'Stocks') {
+                            const state = marketState.stocks;
+                            return state !== 'neutral' ? (
+                              <span
+                                className="market-indicator"
+                                style={{
+                                  backgroundColor: state === 'up' ? '#10b981' : '#ef4444',
+                                  boxShadow: `0 0 8px ${state === 'up' ? '#10b981' : '#ef4444'}`,
+                                }}
+                                title={`Market ${state === 'up' ? '↑ Up' : '↓ Down'}`}
+                              />
+                            ) : null;
+                          }
+                          if (lnk.label === 'Crypto') {
+                            const state = marketState.crypto;
+                            return state !== 'neutral' ? (
+                              <span
+                                className="market-indicator"
+                                style={{
+                                  backgroundColor: state === 'up' ? '#10b981' : '#ef4444',
+                                  boxShadow: `0 0 8px ${state === 'up' ? '#10b981' : '#ef4444'}`,
+                                }}
+                                title={`Market ${state === 'up' ? '↑ Up' : '↓ Down'}`}
+                              />
+                            ) : null;
+                          }
+                          if (lnk.label === 'Portfolio') {
+                            const state = marketState.portfolio;
+                            return state !== 'neutral' ? (
+                              <span
+                                className="market-indicator"
+                                style={{
+                                  backgroundColor: state === 'up' ? '#10b981' : '#ef4444',
+                                  boxShadow: `0 0 8px ${state === 'up' ? '#10b981' : '#ef4444'}`,
+                                }}
+                                title={`Portfolio ${state === 'up' ? '↑ Up' : '↓ Down'}`}
+                              />
+                            ) : null;
+                          }
+                          return null;
+                        };
+
+                        return (
+                          <Link
+                            key={`${lnk.label}-${i}`}
+                            className="nav-card-link"
+                            href={lnk.href}
+                            aria-label={lnk.ariaLabel}
+                            style={{ color: item.textColor }}
+                            onClick={() => {
+                              setIsHamburgerOpen(false);
+                              tlRef.current?.reverse();
+                            }}
+                          >
+                            <ArrowUpRight size={14} className="nav-card-link-icon" />
+                            {lnk.label}
+                            {getIndicator()}
+                          </Link>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -611,6 +692,20 @@ export default function CardNav({ className = '', ease = 'power3.out' }: CardNav
 
         .nav-card-link:hover {
           opacity: 1;
+        }
+
+        .market-indicator {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          margin-left: 6px;
+          display: inline-block;
+          animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(1.1); }
         }
 
         @media (max-width: 768px) {

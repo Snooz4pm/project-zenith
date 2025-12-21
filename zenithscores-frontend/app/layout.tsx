@@ -58,7 +58,32 @@ export default function RootLayout({
           <CardNav />
 
           {/* 🔧 NUCLEAR FIX: Suspense wraps children for instant navigation */}
-          <Suspense fallback={<div className="min-h-screen bg-[#0a0a12]" />}>
+          <Suspense fallback={
+            <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-4xl font-bold mb-4">
+                  <span style={{
+                    color: '#b5b5b5a4',
+                    background: 'linear-gradient(120deg, rgba(255,255,255,0) 40%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0) 60%)',
+                    backgroundSize: '200% 100%',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    display: 'inline-block',
+                    animation: 'shine 3s linear infinite',
+                  }}>
+                    ZENITHSCORES
+                  </span>
+                </div>
+                <p className="text-gray-500 text-sm">Loading...</p>
+              </div>
+              <style>{`
+                @keyframes shine {
+                  0% { background-position: 100%; }
+                  100% { background-position: -100%; }
+                }
+              `}</style>
+            </div>
+          }>
             {/* pt-20 accounts for floating CardNav height */}
             <main className="min-h-screen flex flex-col pt-20 md:pt-24">
               <div className="flex-grow">
