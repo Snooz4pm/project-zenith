@@ -29,7 +29,7 @@ export default function LoginPage() {
             if (res?.error) {
                 setError("Invalid email or password")
             } else {
-                router.push("/dashboard") // Access dashboard after login
+                router.push("/command-center") // Go to Command Center after login
             }
         } catch (err) {
             setError("An error occurred. Please try again.")
@@ -39,7 +39,7 @@ export default function LoginPage() {
     }
 
     const handleGoogleLogin = () => {
-        signIn("google", { callbackUrl: "/dashboard" })
+        signIn("google", { callbackUrl: "/command-center" })
     }
 
     return (
