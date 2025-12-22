@@ -555,13 +555,12 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <MagneticButton
-                  variant="primary"
-                  size="lg"
-                  onClick={() => window.location.href = '/stocks/NVDA'}
+                <Link
+                  href="/stocks/NVDA"
+                  className="group inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-bold rounded-xl hover:from-cyan-500 hover:to-purple-500 transition-all shadow-[0_0_30px_rgba(0,240,255,0.3)] transform hover:-translate-y-1 duration-300"
                 >
-                  Unlock Full Analysis <ArrowRight size={20} />
-                </MagneticButton>
+                  Unlock Full Analysis <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                </Link>
               </div>
 
               {/* Right: Visual Score */}
