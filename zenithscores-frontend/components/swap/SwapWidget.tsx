@@ -231,8 +231,8 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                                             key={val}
                                             onClick={() => setSlippage(val)}
                                             className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-all ${slippage === val
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700/50'
+                                                ? 'bg-blue-600 text-white'
+                                                : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700/50'
                                                 }`}
                                         >
                                             {val}%
@@ -266,13 +266,13 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                                             {balance && (
                                                 <button
                                                     onClick={handleMaxBalance}
-                                                    className="text-xs text-gray-500 hover:text-gray-300"
+                                                    className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
                                                 >
                                                     Balance: {parseFloat(formatTokenAmount(balance.value.toString(), fromToken.decimals)).toFixed(4)}
                                                 </button>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-4">
+                                        <div className="flex items-center justify-between gap-3">
                                             <TokenSelector
                                                 selectedToken={fromToken}
                                                 onSelectToken={setFromToken}
@@ -305,7 +305,7 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                                             <span className="text-sm text-gray-400">To</span>
                                             {loading && <Loader size={14} className="text-blue-400 animate-spin" />}
                                         </div>
-                                        <div className="flex items-center gap-4">
+                                        <div className="flex items-center justify-between gap-3">
                                             <TokenSelector
                                                 selectedToken={toToken}
                                                 onSelectToken={setToToken}
@@ -335,8 +335,8 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                                         onClick={handleSwap}
                                         disabled={!quote || loading || txStatus === 'pending'}
                                         className={`w-full py-4 rounded-xl font-bold text-white transition-all mt-4 ${!quote || loading || txStatus === 'pending'
-                                                ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
-                                                : 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600'
+                                            ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
+                                            : 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600'
                                             }`}
                                     >
                                         {txStatus === 'pending' ? (
