@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -12,6 +12,8 @@ import { getZenithSignal, generateInsight } from '@/lib/zenith';
 import { getCryptoMetadata, CryptoMetadata } from '@/lib/crypto-data';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import ZenithRealtimeChart, { ChartRef } from '@/components/ZenithRealtimeChart';
+import { useMarketData } from '@/hooks/useMarketData';
 
 // Dynamic import for swap widget
 const SwapWidget = dynamic(() => import('@/components/swap/SwapWidget'), { ssr: false });
@@ -35,6 +37,94 @@ const generateHistory = (currentPrice: number, score: number) => {
         });
     }
     return data;
+};
+
+// Crypto Chart Section Component with Real-time Updates
+const CryptoChartSection = ({ symbol, initialPrice, zenithScore, compareMode, setCompareMode }: any) => {
+    const { currentPrice, history, lastTick } = useMarketData({
+        initialPrice,
+        volatility: 0.08, // Higher volatility for crypto
+        intervalMs: 2000, // Update every 2 seconds for smooth, realistic feel
+        symbol
+    });
+
+    const chartRef = useRef<ChartRef>(null);
+
+    // Sync live ticks
+    useEffect(() => {
+        if (lastTick && chartRef.current) {
+            chartRef.current.update(lastTick);
+        }
+    }, [lastTick]);
+
+    // Initial load
+    useEffect(() => {
+        if (history.length > 0 && chartRef.current) {
+            chartRef.current.setData(history);
+        }
+    }, [history.length]);
+
+    const isPositive = currentPrice >= initialPrice;
+
+    return (
+        <div className="glass-panel rounded-2xl p-6 h-[500px] flex flex-col">
+            {/* Live Header */}
+            <div className="flex justify-between items-start mb-6">
+                <div>
+                    <motion.div
+                        initial={{ opacity: 0.8 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                        key={currentPrice}
+                        className="text-4xl font-bold text-white font-mono tracking-tight"
+                    >
+                        ${currentPrice < 1 ? currentPrice.toFixed(6) : currentPrice.toFixed(2)}
+                    </motion.div>
+                    <div className={`text-sm font-bold flex items-center gap-1 mt-1 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                        {isPositive ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
+                        {Math.abs(((currentPrice - initialPrice) / initialPrice) * 100).toFixed(2)}%
+                        <span className="text-gray-500 font-normal ml-2 text-xs uppercase tracking-wide flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Live Market
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex gap-2">
+                    <button className="px-3 py-1.5 text-xs font-bold rounded border bg-blue-500/10 border-blue-500/30 text-blue-400">
+                        ZENITH: {zenithScore}
+                    </button>
+                    <div className="bg-gray-800 rounded-lg p-1 flex gap-1">
+                        {['1D', '1W', '1M', '3M', '1Y'].map(tf => (
+                            <button key={tf} className={`px-2 py-1 text-xs font-bold rounded ${tf === '3M' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+                                {tf}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* The Chart */}
+            <div className="flex-1 w-full relative">
+                <ZenithRealtimeChart
+                    ref={chartRef}
+                    data={history}
+                    height={380}
+                    colors={{
+                        backgroundColor: 'transparent',
+                        lineColor: '#10B981',
+                        areaTopColor: 'rgba(16, 185, 129, 0.2)',
+                        areaBottomColor: 'rgba(16, 185, 129, 0.0)',
+                        textColor: '#6B7280'
+                    }}
+                />
+            </div>
+
+            <div className="mt-2 flex justify-between text-[10px] text-gray-500 font-mono uppercase">
+                <span>Real-time Data Stream</span>
+                <span>Volatility: High</span>
+            </div>
+        </div>
+    );
 };
 
 export default function AssetPage() {
