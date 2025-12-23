@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount, useBalance } from 'wagmi';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { PublicKey } from '@solana/web3.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowDown, Settings, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import { ConnectWalletButton } from '../wallet/ConnectWalletButton';
@@ -219,7 +220,7 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
 
     const handleMaxBalance = () => {
         if (balance) {
-            const maxAmount = formatTokenAmount(balance.value.toString(), fromToken.decimals);
+            const maxAmount = formatTokenAmount(balance.toString(), fromToken.decimals);
             setFromAmount(maxAmount);
         }
     };
@@ -319,7 +320,7 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                                                     onClick={handleMaxBalance}
                                                     className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
                                                 >
-                                                    Balance: {parseFloat(formatTokenAmount(balance.value.toString(), fromToken.decimals)).toFixed(4)}
+                                                    Balance: {parseFloat(formatTokenAmount(balance.toString(), fromToken.decimals)).toFixed(4)}
                                                 </button>
                                             )}
                                         </div>
