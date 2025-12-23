@@ -150,26 +150,87 @@ export async function getBatchQuotes(symbols: string[]): Promise<Record<string, 
     return quotes;
 }
 
-// Popular stock symbols
+// ===== COMPREHENSIVE STOCK LISTS BY SECTOR =====
+
+// Technology
+export const TECH_STOCKS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'AMD', 'INTC', 'CRM', 'ORCL', 'ADBE', 'CSCO', 'QCOM', 'TXN', 'AVGO', 'IBM', 'NOW', 'SNOW', 'PLTR', 'NET'];
+
+// Financials
+export const FINANCIAL_STOCKS = ['JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'USB', 'PNC', 'AXP', 'V', 'MA', 'BLK', 'SCHW', 'SPGI', 'CME'];
+
+// Healthcare
+export const HEALTHCARE_STOCKS = ['JNJ', 'UNH', 'PFE', 'ABBV', 'MRK', 'LLY', 'TMO', 'ABT', 'DHR', 'BMY', 'AMGN', 'GILD', 'CVS', 'CI', 'HUM'];
+
+// Consumer
+export const CONSUMER_STOCKS = ['WMT', 'COST', 'HD', 'MCD', 'NKE', 'SBUX', 'TGT', 'LOW', 'TJX', 'KO', 'PEP', 'PG', 'DIS', 'NFLX', 'TSLA'];
+
+// Industrial
+export const INDUSTRIAL_STOCKS = ['BA', 'CAT', 'HON', 'UPS', 'RTX', 'LMT', 'GE', 'MMM', 'DE', 'UNP', 'FDX', 'EMR', 'NSC', 'CSX', 'WM'];
+
+// Energy
+export const ENERGY_STOCKS = ['XOM', 'CVX', 'COP', 'SLB', 'EOG', 'MPC', 'PSX', 'VLO', 'OXY', 'HAL', 'KMI', 'WMB', 'BKR', 'DVN', 'HES'];
+
+// Combined popular (top 35)
 export const POPULAR_STOCKS = [
-    'AAPL',  // Apple
-    'MSFT',  // Microsoft
-    'GOOGL', // Google
-    'AMZN',  // Amazon
-    'TSLA',  // Tesla
-    'META',  // Meta
-    'NVDA',  // NVIDIA
-    'AMD',   // AMD
-    'NFLX',  // Netflix
-    'DIS',   // Disney
+    ...TECH_STOCKS.slice(0, 10),
+    ...FINANCIAL_STOCKS.slice(0, 5),
+    ...HEALTHCARE_STOCKS.slice(0, 5),
+    ...CONSUMER_STOCKS.slice(0, 10),
+    ...ENERGY_STOCKS.slice(0, 5),
 ];
 
-// Major forex pairs
+// All stocks
+export const ALL_STOCKS = [...TECH_STOCKS, ...FINANCIAL_STOCKS, ...HEALTHCARE_STOCKS, ...CONSUMER_STOCKS, ...INDUSTRIAL_STOCKS, ...ENERGY_STOCKS];
+
+// ===== COMPREHENSIVE FOREX PAIRS =====
+
+// Major Pairs
 export const MAJOR_FOREX_PAIRS = {
-    'EUR/USD': { base: 'EUR', quote: 'USD' },
-    'GBP/USD': { base: 'GBP', quote: 'USD' },
-    'USD/JPY': { base: 'USD', quote: 'JPY' },
-    'USD/CHF': { base: 'USD', quote: 'CHF' },
-    'AUD/USD': { base: 'AUD', quote: 'USD' },
-    'USD/CAD': { base: 'USD', quote: 'CAD' },
+    'EUR/USD': { base: 'EUR', quote: 'USD', name: 'Euro / US Dollar' },
+    'GBP/USD': { base: 'GBP', quote: 'USD', name: 'British Pound / US Dollar' },
+    'USD/JPY': { base: 'USD', quote: 'JPY', name: 'US Dollar / Japanese Yen' },
+    'USD/CHF': { base: 'USD', quote: 'CHF', name: 'US Dollar / Swiss Franc' },
+    'AUD/USD': { base: 'AUD', quote: 'USD', name: 'Australian Dollar / US Dollar' },
+    'USD/CAD': { base: 'USD', quote: 'CAD', name: 'US Dollar / Canadian Dollar' },
+    'NZD/USD': { base: 'NZD', quote: 'USD', name: 'New Zealand Dollar / US Dollar' },
 };
+
+// Minor/Cross Pairs
+export const MINOR_FOREX_PAIRS = {
+    'EUR/GBP': { base: 'EUR', quote: 'GBP', name: 'Euro / British Pound' },
+    'EUR/JPY': { base: 'EUR', quote: 'JPY', name: 'Euro / Japanese Yen' },
+    'EUR/CHF': { base: 'EUR', quote: 'CHF', name: 'Euro / Swiss Franc' },
+    'EUR/AUD': { base: 'EUR', quote: 'AUD', name: 'Euro / Australian Dollar' },
+    'EUR/CAD': { base: 'EUR', quote: 'CAD', name: 'Euro / Canadian Dollar' },
+    'GBP/JPY': { base: 'GBP', quote: 'JPY', name: 'British Pound / Japanese Yen' },
+    'GBP/CHF': { base: 'GBP', quote: 'CHF', name: 'British Pound / Swiss Franc' },
+    'GBP/AUD': { base: 'GBP', quote: 'AUD', name: 'British Pound / Australian Dollar' },
+    'AUD/JPY': { base: 'AUD', quote: 'JPY', name: 'Australian Dollar / Japanese Yen' },
+    'AUD/CAD': { base: 'AUD', quote: 'CAD', name: 'Australian Dollar / Canadian Dollar' },
+    'CAD/JPY': { base: 'CAD', quote: 'JPY', name: 'Canadian Dollar / Japanese Yen' },
+    'CHF/JPY': { base: 'CHF', quote: 'JPY', name: 'Swiss Franc / Japanese Yen' },
+    'NZD/JPY': { base: 'NZD', quote: 'JPY', name: 'New Zealand Dollar / Japanese Yen' },
+};
+
+// Exotic Pairs
+export const EXOTIC_FOREX_PAIRS = {
+    'USD/MXN': { base: 'USD', quote: 'MXN', name: 'US Dollar / Mexican Peso' },
+    'USD/ZAR': { base: 'USD', quote: 'ZAR', name: 'US Dollar / South African Rand' },
+    'USD/SGD': { base: 'USD', quote: 'SGD', name: 'US Dollar / Singapore Dollar' },
+    'USD/HKD': { base: 'USD', quote: 'HKD', name: 'US Dollar / Hong Kong Dollar' },
+    'USD/NOK': { base: 'USD', quote: 'NOK', name: 'US Dollar / Norwegian Krone' },
+    'USD/SEK': { base: 'USD', quote: 'SEK', name: 'US Dollar / Swedish Krona' },
+    'USD/TRY': { base: 'USD', quote: 'TRY', name: 'US Dollar / Turkish Lira' },
+    'USD/PLN': { base: 'USD', quote: 'PLN', name: 'US Dollar / Polish Zloty' },
+    'USD/INR': { base: 'USD', quote: 'INR', name: 'US Dollar / Indian Rupee' },
+    'USD/CNY': { base: 'USD', quote: 'CNY', name: 'US Dollar / Chinese Yuan' },
+    'USD/BRL': { base: 'USD', quote: 'BRL', name: 'US Dollar / Brazilian Real' },
+    'EUR/TRY': { base: 'EUR', quote: 'TRY', name: 'Euro / Turkish Lira' },
+    'EUR/PLN': { base: 'EUR', quote: 'PLN', name: 'Euro / Polish Zloty' },
+    'EUR/NOK': { base: 'EUR', quote: 'NOK', name: 'Euro / Norwegian Krone' },
+    'EUR/SEK': { base: 'EUR', quote: 'SEK', name: 'Euro / Swedish Krona' },
+};
+
+// All forex pairs combined (40+ pairs)
+export const ALL_FOREX_PAIRS = { ...MAJOR_FOREX_PAIRS, ...MINOR_FOREX_PAIRS, ...EXOTIC_FOREX_PAIRS };
+
