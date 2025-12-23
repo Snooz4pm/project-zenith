@@ -472,7 +472,7 @@ class TradingEngine:
             """, (float(new_qty), float(new_margin), holding['id']))
         
         # Release margin and add proceeds + P&L to wallet
-        self._update_user_wallet(user_id, margin_to_release + (quantity * current_price) + realized_pnl)
+        self._update_user_wallet(user_id, margin_to_release + realized_pnl)
         self._update_user_margin(user_id, margin_to_release, add=False)
         self._update_user_pnl(user_id, realized_pnl)
         
