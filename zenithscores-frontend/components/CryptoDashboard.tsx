@@ -11,7 +11,6 @@ const AssetGrid = dynamic(() => import('@/components/AssetGrid'), { ssr: false }
 const CryptoHeatmap = dynamic(() => import('@/components/CryptoHeatmap'), { ssr: false });
 const AlertsFeed = dynamic(() => import('@/components/AlertsFeed'), { ssr: false });
 const MarketPulse = dynamic(() => import('@/components/MarketPulse'), { ssr: false });
-const QuickTradePrompt = dynamic(() => import('@/components/QuickTradePrompt'), { ssr: false });
 const UniversalLoader = dynamic(() => import('@/components/UniversalLoader'), { ssr: false });
 
 // Categories for filters
@@ -39,9 +38,7 @@ export default function CryptoDashboard() {
     const [selectedChain, setSelectedChain] = useState<string | null>(null);
     const [selectedSector, setSelectedSector] = useState<string | null>(null);
 
-    // Quick Trade State
-    const [selectedToken, setSelectedToken] = useState<any>(null);
-    const [showQuickTrade, setShowQuickTrade] = useState(false);
+
     const router = useRouter();
 
     // Sector Scores (calculated from tokens)
@@ -105,16 +102,12 @@ export default function CryptoDashboard() {
         localStorage.setItem('zenith_crypto_watchlist', JSON.stringify(Array.from(newWatchlist)));
     };
 
-    // Handle token click for quick trade
+    // Handle token click - navigate to detail page
     const handleTokenClick = (token: any) => {
-        setSelectedToken(token);
-        setShowQuickTrade(true);
+        router.push(`/crypto/${token.symbol}`);
     };
 
-    const handleTrade = () => {
-        setShowQuickTrade(false);
-        router.push('/trading');
-    };
+
 
     // Derived Data
     const filteredTokens = tokens.filter(t => {
@@ -316,21 +309,7 @@ export default function CryptoDashboard() {
 
             </div>
 
-            {/* Quick Trade Prompt */}
-            <QuickTradePrompt
-                asset={selectedToken ? {
-                    symbol: selectedToken.symbol,
-                    name: selectedToken.name || selectedToken.symbol,
-                    current_price: selectedToken.price_usd || 0,
-                    price_change_24h: selectedToken.price_change_24h || 0,
-                    asset_type: 'crypto',
-                    max_leverage: 5,
-                    image: selectedToken.image
-                } : null}
-                isOpen={showQuickTrade}
-                onClose={() => setShowQuickTrade(false)}
-                onTrade={handleTrade}
-            />
+
         </div>
     );
 }

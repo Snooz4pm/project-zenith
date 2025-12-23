@@ -11,6 +11,10 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceD
 import { getZenithSignal, generateInsight } from '@/lib/zenith';
 import { getCryptoMetadata, CryptoMetadata } from '@/lib/crypto-data';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+// Dynamic import for swap widget
+const SwapWidget = dynamic(() => import('@/components/swap/SwapWidget'), { ssr: false });
 
 // Mock History Data Generator (Preserved)
 const generateHistory = (currentPrice: number, score: number) => {
@@ -44,6 +48,7 @@ export default function AssetPage() {
     const [activeStep, setActiveStep] = useState<number | null>(0);
     const [copied, setCopied] = useState(false);
     const [compareMode, setCompareMode] = useState(false);
+    const [showSwapWidget, setShowSwapWidget] = useState(false);
 
     // New Features State
     const [subScores, setSubScores] = useState({ momentum: 0, volume: 0, social: 0 });
@@ -451,7 +456,10 @@ export default function AssetPage() {
                                     </div>
                                 </div>
 
-                                <button className={`w-full py-4 rounded-xl font-bold bg-white text-black hover:bg-gray-200 transition-colors shadow-lg shadow-white/10 flex items-center justify-center gap-2`}>
+                                <button
+                                    onClick={() => setShowSwapWidget(true)}
+                                    className={`w-full py-4 rounded-xl font-bold bg-white text-black hover:bg-gray-200 transition-colors shadow-lg shadow-white/10 flex items-center justify-center gap-2`}
+                                >
                                     Trade {token.symbol} Now <ArrowUp className="rotate-45" size={18} />
                                 </button>
                             </div>
@@ -505,6 +513,17 @@ export default function AssetPage() {
                 </div>
 
             </main>
+
+            {/* Swap Widget */}
+            <SwapWidget
+                isOpen={showSwapWidget}
+                onClose={() => setShowSwapWidget(false)}
+                defaultFromToken={{
+                    address: token?.address || '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+                    symbol: token?.symbol || 'ETH',
+                    decimals: 18
+                }}
+            />
         </div>
     );
 }
