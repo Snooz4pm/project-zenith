@@ -336,7 +336,7 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                                                 value={fromAmount}
                                                 onChange={(e) => setFromAmount(e.target.value)}
                                                 placeholder="0.00"
-                                                className="flex-1 bg-transparent text-right text-3xl font-semibold text-white outline-none placeholder-gray-600"
+                                                className="flex-1 bg-transparent text-right text-3xl font-semibold text-white outline-none placeholder-gray-600 pointer-events-auto"
                                             />
                                         </div>
                                     </div>
@@ -420,4 +420,4 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
     );
 }
 
-export default SwapWidget;
+
