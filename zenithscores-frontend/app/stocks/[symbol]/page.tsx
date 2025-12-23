@@ -77,7 +77,7 @@ const StockChartSection = ({ symbol, initialPrice, zenithScore, isPositive, chan
     const { currentPrice, history, lastTick } = useMarketData({
         initialPrice,
         volatility: 0.05,
-        intervalMs: 200, // Fast update for live feel
+        intervalMs: 2000, // Update every 2 seconds for smooth, realistic feel
         symbol
     });
 
@@ -103,8 +103,9 @@ const StockChartSection = ({ symbol, initialPrice, zenithScore, isPositive, chan
             <div className="flex justify-between items-start mb-6">
                 <div>
                     <motion.div
-                        initial={{ opacity: 0.5 }}
+                        initial={{ opacity: 0.8 }}
                         animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
                         key={currentPrice}
                         className="text-4xl font-bold text-gray-900 font-mono tracking-tighter"
                     >

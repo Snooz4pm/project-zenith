@@ -50,7 +50,7 @@ const ForexChartSection = ({ pair, initialRate, zenithScore, isPositive, change2
     const { currentPrice, history, lastTick } = useMarketData({
         initialPrice: initialRate,
         volatility: 0.02, // Lower volatility for forex
-        intervalMs: 200,
+        intervalMs: 2000, // Update every 2 seconds for smooth, realistic feel
         symbol: pair
     });
 
@@ -75,8 +75,9 @@ const ForexChartSection = ({ pair, initialRate, zenithScore, isPositive, change2
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <motion.div
-                        initial={{ opacity: 0.5 }}
+                        initial={{ opacity: 0.8 }}
                         animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
                         key={currentPrice}
                         className="text-3xl font-bold text-white font-mono tracking-tight"
                     >
