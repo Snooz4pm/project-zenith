@@ -2,11 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUp, ArrowDown, RefreshCw, TrendingUp, Globe, DollarSign, Clock, Zap } from 'lucide-react';
+import { ArrowUp, ArrowDown, RefreshCw, Globe, Clock } from 'lucide-react';
 import { isPremiumUser, FREE_STOCK_LIMIT } from '@/lib/premium';
-// PremiumWall removed
-import QuickTradePrompt from '@/components/QuickTradePrompt';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface ForexPair {
     from: string;
@@ -80,7 +78,7 @@ const EXOTIC_PAIRS = [
 ];
 
 // Combined for "All" view
-const ALL_FOREX_PAIRS = [...MAJOR_PAIRS, ...MINOR_PAIRS, ...EXOTIC_PAIRS];
+const ALL_PAIRS = [...MAJOR_PAIRS, ...MINOR_PAIRS, ...EXOTIC_PAIRS];
 
 export default function ForexScreener() {
     const [pairs, setPairs] = useState<ForexPair[]>([]);
@@ -88,19 +86,6 @@ export default function ForexScreener() {
     const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
     const [premium, setPremium] = useState(false);
     const [activeTab, setActiveTab] = useState<'all' | 'majors' | 'minors' | 'exotics'>('all');
-    const [selectedPair, setSelectedPair] = useState<ForexPair | null>(null);
-    const [showQuickTrade, setShowQuickTrade] = useState(false);
-    const router = useRouter();
-
-    const handlePairClick = (pair: ForexPair) => {
-        setSelectedPair(pair);
-        setShowQuickTrade(true);
-    };
-
-    const handleTrade = () => {
-        setShowQuickTrade(false);
-        router.push('/trading');
-    };
 
     useEffect(() => {
         setPremium(isPremiumUser());
@@ -129,7 +114,7 @@ export default function ForexScreener() {
     };
 
     const generateMockData = () => {
-        const currentPairsList = activeTab === 'all' ? ALL_FOREX_PAIRS :
+        const currentPairsList = activeTab === 'all' ? ALL_PAIRS :
             activeTab === 'majors' ? MAJOR_PAIRS :
                 activeTab === 'minors' ? MINOR_PAIRS : EXOTIC_PAIRS;
 
@@ -155,7 +140,7 @@ export default function ForexScreener() {
         generateMockData();
     }, [activeTab]);
 
-    const currentPairs = activeTab === 'all' ? ALL_FOREX_PAIRS :
+    const currentPairs = activeTab === 'all' ? ALL_PAIRS :
         activeTab === 'majors' ? MAJOR_PAIRS :
             activeTab === 'minors' ? MINOR_PAIRS : EXOTIC_PAIRS;
     const displayPairs = premium ? pairs : pairs.slice(0, FREE_STOCK_LIMIT);
@@ -175,7 +160,7 @@ export default function ForexScreener() {
             {/* Category Tabs - Zenith Theme */}
             <div className="flex flex-wrap gap-2 bg-black/40 p-1.5 rounded-xl border border-white/10">
                 {[
-                    { id: 'all' as const, label: 'All Pairs', count: ALL_FOREX_PAIRS.length },
+                    { id: 'all' as const, label: 'All Pairs', count: ALL_PAIRS.length },
                     { id: 'majors' as const, label: 'Majors', count: MAJOR_PAIRS.length },
                     { id: 'minors' as const, label: 'Minors', count: MINOR_PAIRS.length },
                     { id: 'exotics' as const, label: 'Exotics', count: EXOTIC_PAIRS.length },
@@ -218,80 +203,69 @@ export default function ForexScreener() {
                 <AnimatePresence>
                     {displayPairs.map((pair, i) => {
                         const pairInfo = currentPairs.find((p: { from: string; to: string }) => p.from === pair.from && p.to === pair.to);
+                        const pairUrl = `/forex/${pair.from}-${pair.to}`.toLowerCase();
 
                         return (
-                            <motion.div
+                            <Link
                                 key={`${pair.from}/${pair.to}`}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.03 }}
-                                onClick={() => handlePairClick(pair)}
-                                className="bg-gradient-to-br from-gray-900/80 to-black border border-white/10 rounded-xl p-4 hover:border-cyan-500/50 hover:shadow-[0_0_20px_rgba(0,240,255,0.1)] transition-all group cursor-pointer"
+                                href={pairUrl}
                             >
-                                <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-2xl">{pairInfo?.flag}</span>
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: i * 0.03 }}
+                                    className="bg-gradient-to-br from-gray-900/80 to-black border border-white/10 rounded-xl p-4 hover:border-cyan-500/50 hover:shadow-[0_0_20px_rgba(0,240,255,0.1)] transition-all group cursor-pointer"
+                                >
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-2xl">{pairInfo?.flag}</span>
+                                            <div>
+                                                <h3 className="font-bold text-white">
+                                                    {pair.from}/{pair.to}
+                                                </h3>
+                                                <p className="text-xs text-gray-500">{pairInfo?.name}</p>
+                                            </div>
+                                        </div>
+                                        <div className={`flex items-center gap-1 text-sm font-bold ${pair.change >= 0 ? 'text-emerald-400' : 'text-red-400'
+                                            }`}>
+                                            {pair.change >= 0 ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                                            {Math.abs(pair.change).toFixed(2)}%
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-end justify-between">
                                         <div>
-                                            <h3 className="font-bold text-white">
-                                                {pair.from}/{pair.to}
-                                            </h3>
-                                            <p className="text-xs text-gray-500">{pairInfo?.name}</p>
+                                            <p className="text-2xl font-bold text-white font-mono">
+                                                {pair.rate.toFixed(pair.to === 'JPY' ? 2 : 4)}
+                                            </p>
                                         </div>
-                                    </div>
-                                    <div className={`flex items-center gap-1 text-sm font-bold ${pair.change >= 0 ? 'text-emerald-400' : 'text-red-400'
-                                        }`}>
-                                        {pair.change >= 0 ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
-                                        {Math.abs(pair.change).toFixed(2)}%
-                                    </div>
-                                </div>
 
-                                <div className="flex items-end justify-between">
-                                    <div>
-                                        <p className="text-2xl font-bold text-white font-mono">
-                                            {pair.rate.toFixed(pair.to === 'JPY' ? 2 : 4)}
-                                        </p>
-                                    </div>
-
-                                    <div className="w-24">
-                                        <div className="flex justify-between text-xs mb-1">
-                                            <span className="text-gray-500">Zenith</span>
-                                            <span className={`font-bold ${pair.zenithScore >= 70 ? 'text-emerald-400' :
-                                                pair.zenithScore >= 50 ? 'text-cyan-400' : 'text-red-400'
-                                                }`}>{pair.zenithScore}</span>
-                                        </div>
-                                        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full ${pair.zenithScore >= 70 ? 'bg-gradient-to-r from-emerald-500 to-green-400' :
-                                                    pair.zenithScore >= 50 ? 'bg-gradient-to-r from-cyan-500 to-blue-400' :
-                                                        'bg-gradient-to-r from-red-500 to-orange-400'
-                                                    }`}
-                                                style={{ width: `${pair.zenithScore}%` }}
-                                            />
+                                        <div className="w-24">
+                                            <div className="flex justify-between text-xs mb-1">
+                                                <span className="text-gray-500">Zen</span>
+                                                <span className={`font-bold ${pair.zenithScore >= 70 ? 'text-emerald-400' :
+                                                    pair.zenithScore >= 50 ? 'text-cyan-400' : 'text-red-400'
+                                                    }`}>{pair.zenithScore}</span>
+                                            </div>
+                                            <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full ${pair.zenithScore >= 70 ? 'bg-gradient-to-r from-emerald-500 to-green-400' :
+                                                        pair.zenithScore >= 50 ? 'bg-gradient-to-r from-cyan-500 to-blue-400' :
+                                                            'bg-gradient-to-r from-red-500 to-orange-400'
+                                                        }`}
+                                                    style={{ width: `${pair.zenithScore}%` }}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </motion.div>
+                                </motion.div>
+                            </Link>
                         );
                     })}
                 </AnimatePresence>
             </div>
 
             {/* Full access - no premium wall */}
-
-            {/* Quick Trade Prompt */}
-            <QuickTradePrompt
-                asset={selectedPair ? {
-                    symbol: `${selectedPair.from}/${selectedPair.to}`,
-                    name: currentPairs.find((p: { from: string; to: string }) => p.from === selectedPair.from && p.to === selectedPair.to)?.name || '',
-                    current_price: selectedPair.rate,
-                    price_change_24h: selectedPair.change,
-                    asset_type: 'forex',
-                    max_leverage: 50
-                } : null}
-                isOpen={showQuickTrade}
-                onClose={() => setShowQuickTrade(false)}
-                onTrade={handleTrade}
-            />
         </div>
     );
 }
