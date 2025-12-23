@@ -37,10 +37,10 @@ export function TokenSelector({ selectedToken, onSelectToken, tokenList, label }
 
     return (
         <div className="relative">
-            {/* Trigger Button - Compact */}
+            {/* Trigger Button - Compact with max width */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors max-w-[120px]"
             >
                 {selectedToken.logoURI && (
                     <img
@@ -49,7 +49,7 @@ export function TokenSelector({ selectedToken, onSelectToken, tokenList, label }
                         className="w-5 h-5 rounded-full flex-shrink-0"
                     />
                 )}
-                <span className="font-bold text-white text-sm whitespace-nowrap">{selectedToken.symbol}</span>
+                <span className="font-bold text-white text-sm truncate">{selectedToken.symbol}</span>
                 <ChevronDown size={14} className="text-gray-400 flex-shrink-0" />
             </button>
 
