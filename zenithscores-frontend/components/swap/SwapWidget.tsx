@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount, useBalance } from 'wagmi';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowDown, Settings, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import { ConnectWalletButton } from '../wallet/ConnectWalletButton';
@@ -10,7 +10,6 @@ import TokenSelector from './TokenSelector';
 import { getSwapQuote, buildSwapTransaction, getSupportedTokens, parseTokenAmount, formatTokenAmount } from '@/lib/1inch';
 import { getJupiterTokens, SOLANA_TOKENS } from '@/lib/jupiter';
 import { getChainInfo } from '@/lib/web3-config';
-import { PublicKey } from '@solana/web3.js';
 
 interface Token {
     address: string;
@@ -336,7 +335,7 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                                                 value={fromAmount}
                                                 onChange={(e) => setFromAmount(e.target.value)}
                                                 placeholder="0.00"
-                                                className="flex-1 bg-transparent text-right text-3xl font-semibold text-white outline-none placeholder-gray-600 pointer-events-auto"
+                                                className="flex-1 bg-transparent text-right text-3xl font-semibold text-white outline-none placeholder-gray-600"
                                             />
                                         </div>
                                     </div>
