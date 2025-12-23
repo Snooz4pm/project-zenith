@@ -10,7 +10,7 @@ import {
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Area } from 'recharts';
 import { getZenithSignal } from '@/lib/zenith';
 import Link from 'next/link';
-import { getForexRates, getForexCandles, ALL_FOREX_PAIRS } from '@/lib/finnhub';
+import { getForexRates, getForexCandles, getTimeRange, ALL_FOREX_PAIRS } from '@/lib/finnhub';
 
 interface ForexData {
     pair: string;
@@ -93,9 +93,16 @@ export default function ForexDetailPage() {
             setForex(forexData);
 
             // Fetch real historical candle data based on timeframe
-            const candleData = await getForexCandles(pair, chartTimeframe);
-            const transformedData = transformCandleData(candleData);
-            setHistory(transformedData);
+            const timeRange = getTimeRange(chartTimeframe);
+            const candleData = await getForexCandles(pair, timeRange.resolution, timeRange.from, timeRange.to);
+
+            if (candleData) {
+                const transformedData = transformCandleData(candleData);
+                setHistory(transformedData);
+            } else {
+                console.warn('No forex candle data available');
+                setHistory([]);
+            }
 
             setLastUpdate(new Date());
         } catch (error) {
