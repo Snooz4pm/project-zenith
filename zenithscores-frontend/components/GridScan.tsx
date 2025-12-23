@@ -93,81 +93,81 @@ void main() {
 `;
 
 interface GridScanProps {
-  gridColor?: [number, number, number]; // Default: cyan
-  scanColor?: [number, number, number]; // Default: purple
-  gridSize?: number;
-  scanSpeed?: number;
-  className?: string;
+    gridColor?: [number, number, number]; // Default: cyan
+    scanColor?: [number, number, number]; // Default: purple
+    gridSize?: number;
+    scanSpeed?: number;
+    className?: string;
 }
 
 export default function GridScan({
-  gridColor = [0, 0.94, 1], // Zenith Cyan
-  scanColor = [0.66, 0.33, 0.97], // Zenith Purple
-  gridSize = 10,
-  scanSpeed = 0.15,
-  className = ''
+    gridColor = [0, 0.94, 1], // Zenith Cyan
+    scanColor = [0.66, 0.33, 0.97], // Zenith Purple
+    gridSize = 10,
+    scanSpeed = 0.15,
+    className = ''
 }: GridScanProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const animationFrameId = useRef<number>();
+    const containerRef = useRef<HTMLDivElement>(null);
+    const animationFrameId = useRef<number>();
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const container = containerRef.current;
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const container = containerRef.current;
 
-    const renderer = new Renderer({ alpha: true });
-    const gl = renderer.gl;
-    gl.clearColor(0, 0, 0, 0);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    container.appendChild(gl.canvas);
+        const renderer = new Renderer({ alpha: true });
+        const gl = renderer.gl;
+        gl.clearColor(0, 0, 0, 0);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        container.appendChild(gl.canvas);
 
-    const geometry = new Triangle(gl);
-    const program = new Program(gl, {
-      vertex: vertexShader,
-      fragment: fragmentShader,
-      uniforms: {
-        iTime: { value: 0 },
-        iResolution: {
-          value: new Color(gl.canvas.width, gl.canvas.height, 1)
-        },
-        uGridColor: { value: new Color(...gridColor) },
-        uScanColor: { value: new Color(...scanColor) },
-        uGridSize: { value: gridSize },
-        uScanSpeed: { value: scanSpeed }
-      }
-    });
+        const geometry = new Triangle(gl);
+        const program = new Program(gl, {
+            vertex: vertexShader,
+            fragment: fragmentShader,
+            uniforms: {
+                iTime: { value: 0 },
+                iResolution: {
+                    value: new Color(gl.canvas.width, gl.canvas.height, 1)
+                },
+                uGridColor: { value: new Color(...gridColor) },
+                uScanColor: { value: new Color(...scanColor) },
+                uGridSize: { value: gridSize },
+                uScanSpeed: { value: scanSpeed }
+            }
+        });
 
-    const mesh = new Mesh(gl, { geometry, program });
+        const mesh = new Mesh(gl, { geometry, program });
 
-    function resize() {
-      const { clientWidth, clientHeight } = container;
-      renderer.setSize(clientWidth, clientHeight);
-      program.uniforms.iResolution.value.r = clientWidth;
-      program.uniforms.iResolution.value.g = clientHeight;
-    }
-    window.addEventListener('resize', resize);
-    resize();
+        function resize() {
+            const { clientWidth, clientHeight } = container;
+            renderer.setSize(clientWidth, clientHeight);
+            program.uniforms.iResolution.value.r = clientWidth;
+            program.uniforms.iResolution.value.g = clientHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
 
-    function update(t: number) {
-      program.uniforms.iTime.value = t * 0.001;
-      renderer.render({ scene: mesh });
-      animationFrameId.current = requestAnimationFrame(update);
-    }
-    animationFrameId.current = requestAnimationFrame(update);
+        function update(t: number) {
+            program.uniforms.iTime.value = t * 0.001;
+            renderer.render({ scene: mesh });
+            animationFrameId.current = requestAnimationFrame(update);
+        }
+        animationFrameId.current = requestAnimationFrame(update);
 
-    return () => {
-      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
-      window.removeEventListener('resize', resize);
-      if (container.contains(gl.canvas)) container.removeChild(gl.canvas);
-      gl.getExtension('WEBGL_lose_context')?.loseContext();
-    };
-  }, [gridColor, scanColor, gridSize, scanSpeed]);
+        return () => {
+            if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+            window.removeEventListener('resize', resize);
+            if (container.contains(gl.canvas)) container.removeChild(gl.canvas);
+            gl.getExtension('WEBGL_lose_context')?.loseContext();
+        };
+    }, [gridColor, scanColor, gridSize, scanSpeed]);
 
-  return (
-    <div 
-      ref={containerRef} 
-      className={`absolute inset-0 pointer-events-none ${className}`}
-      style={{ zIndex: 0 }}
-    />
-  );
+    return (
+        <div
+            ref={containerRef}
+            className={`absolute inset-0 pointer-events-none ${className}`}
+            style={{ zIndex: 0 }}
+        />
+    );
 }
