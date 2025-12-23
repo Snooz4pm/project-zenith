@@ -3,7 +3,7 @@ import time
 import random
 import concurrent.futures
 
-API_URL = "https://defioracleworkerapi.vercel.app/api/v1/trading"
+API_URL = "http://localhost:8000/api/v1/trading"
 
 def run_stress_test(num_trades=50):
     print(f"🚀 Starting Stress Test: {num_trades} trades...")

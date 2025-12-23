@@ -75,7 +75,8 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                 if (isSolana) {
                     // Fetch Solana tokens from Jupiter
                     const tokens = await getJupiterTokens();
-                    setAvailableTokens(tokens.slice(0, 100)); // Limit to top 100
+                    // Load top 500 popular tokens for better selection
+                    setAvailableTokens(tokens.slice(0, 500));
                 } else {
                     // Fetch EVM tokens from 1inch
                     const tokens = await getSupportedTokens(chainId);
@@ -86,7 +87,8 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                         decimals: data.decimals,
                         logoURI: data.logoURI,
                     }));
-                    setAvailableTokens(tokenList.slice(0, 100)); // Limit to top 100
+                    // Load top 500 popular tokens for better selection
+                    setAvailableTokens(tokenList.slice(0, 500));
                 }
             } catch (err) {
                 console.error('Failed to fetch tokens:', err);

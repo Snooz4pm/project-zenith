@@ -29,7 +29,7 @@ const SKILLS = [
     { name: 'Zenith Scoring', value: 30, color: '#10b981' },
     { name: 'Psychology', value: 25, color: '#ef4444' },
     { name: 'Market Timing', value: 55, color: '#3b82f6' },
-    { name: 'Portfolio Mgmt', value: 40, color: '#ec4899' },
+    { name: 'Portfolio Mgmt', value: 40, color: '#ad3a73ff' },
 ];
 
 interface ProfileEnhancementsProps {
