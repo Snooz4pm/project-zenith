@@ -1,16 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useBalance, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useBalance } from 'wagmi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowDown, Settings, AlertCircle, CheckCircle, Loader, RefreshCw } from 'lucide-react';
+import { X, ArrowDown, Settings, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import { ConnectWalletButton } from '../wallet/ConnectWalletButton';
 import TokenSelector from './TokenSelector';
-import { getSwapQuote, buildSwapTransaction, getSupportedTokens, ONEINCH_CHAIN_IDS, parseTokenAmount, formatTokenAmount } from '@/lib/1inch';
-import { getJupiterQuote, getJupiterSwapInstructions, getJupiterTokens, parseSolanaAmount, formatSolanaAmount, SOLANA_TOKENS } from '@/lib/jupiter';
+import { getSwapQuote, buildSwapTransaction, getSupportedTokens, parseTokenAmount, formatTokenAmount } from '@/lib/1inch';
+import { getJupiterTokens, SOLANA_TOKENS } from '@/lib/jupiter';
 import { getChainInfo } from '@/lib/web3-config';
-
-// Note: This widget supports both EVM chains (via 1inch) and Solana (via Jupiter)
 
 interface Token {
     address: string;
@@ -44,7 +42,6 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
     const chainInfo = getChainInfo(chainId);
     const isSolana = chain?.name?.toLowerCase().includes('solana');
 
-    // Default tokens (ETH -> USDC for EVM, SOL -> USDC for Solana)
     const [fromToken, setFromToken] = useState<Token>({
         address: defaultFromToken?.address || (isSolana ? SOLANA_TOKENS.SOL : '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'),
         symbol: defaultFromToken?.symbol || (isSolana ? 'SOL' : 'ETH'),
@@ -61,24 +58,19 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
         logoURI: defaultToToken?.logoURI,
     });
 
-    // Get user balance
     const { data: balance } = useBalance({
         address: address,
         token: fromToken.address === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' ? undefined : fromToken.address as `0x${string}`,
     });
 
-    // Fetch available tokens when chain changes
     useEffect(() => {
         const fetchTokens = async () => {
             setLoadingTokens(true);
             try {
                 if (isSolana) {
-                    // Fetch Solana tokens from Jupiter
                     const tokens = await getJupiterTokens();
-                    // Load top 500 popular tokens for better selection
                     setAvailableTokens(tokens.slice(0, 500));
                 } else {
-                    // Fetch EVM tokens from 1inch
                     const tokens = await getSupportedTokens(chainId);
                     const tokenList = Object.entries(tokens || {}).map(([address, data]: [string, any]) => ({
                         address,
@@ -87,12 +79,10 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                         decimals: data.decimals,
                         logoURI: data.logoURI,
                     }));
-                    // Load top 500 popular tokens for better selection
                     setAvailableTokens(tokenList.slice(0, 500));
                 }
             } catch (err) {
                 console.error('Failed to fetch tokens:', err);
-                // Set default tokens if fetch fails
                 setAvailableTokens([fromToken, toToken]);
             } finally {
                 setLoadingTokens(false);
@@ -104,7 +94,6 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
         }
     }, [chainId, isConnected, isSolana]);
 
-    // Fetch quote when amount changes
     useEffect(() => {
         if (!fromAmount || parseFloat(fromAmount) <= 0 || !isConnected) {
             setQuote(null);
@@ -132,7 +121,7 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                     const toAmountFormatted = formatTokenAmount(quoteData.toAmount, toToken.decimals);
                     setToAmount(toAmountFormatted);
                 } else {
-                    setError('Failed to get quote. Try again.');
+                    setError('Failed to get quote');
                 }
             } catch (err: any) {
                 setError(err.message || 'Quote failed');
@@ -147,7 +136,6 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
 
     const handleSwap = async () => {
         if (!address || !quote) return;
-
         setTxStatus('signing');
         setError(null);
 
@@ -162,14 +150,9 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                 slippage
             );
 
-            if (!tx) {
-                throw new Error('Failed to build transaction');
-            }
+            if (!tx) throw new Error('Failed to build transaction');
 
-            // Send transaction
             setTxStatus('pending');
-            // Note: Transaction sending logic would go here
-            // For now, simulating success
             setTimeout(() => {
                 setTxStatus('success');
                 setFromAmount('');
@@ -202,52 +185,43 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
         <AnimatePresence>
             {isOpen && (
                 <>
-                    {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
                     />
 
-                    {/* Swap Widget - Enhanced Design */}
                     <motion.div
-                        initial={{ opacity: 0, y: 50, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 50, scale: 0.95 }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="fixed bottom-8 right-8 w-[450px] min-w-[450px] bg-gradient-to-br from-gray-900 via-gray-900 to-black border border-gray-700/50 rounded-2xl shadow-2xl backdrop-blur-xl z-50 overflow-hidden"
-                        style={{ maxHeight: '90vh' }}
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] bg-[#1a1d2e] rounded-3xl shadow-2xl z-50 overflow-hidden border border-gray-800/50"
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between p-4 border-b border-gray-800">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
-                                    <RefreshCw size={16} className="text-white" />
-                                </div>
-                                <h3 className="text-lg font-bold text-white">Swap Tokens</h3>
-                            </div>
+                        <div className="flex items-center justify-between p-6 border-b border-gray-800/50">
+                            <h2 className="text-xl font-bold text-white">Swap</h2>
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => setShowSettings(!showSettings)}
-                                    className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                                    className="p-2 hover:bg-gray-800/50 rounded-lg transition-colors"
                                 >
-                                    <Settings size={18} className="text-gray-400" />
+                                    <Settings size={20} className="text-gray-400" />
                                 </button>
                                 <button
                                     onClick={onClose}
-                                    className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                                    className="p-2 hover:bg-gray-800/50 rounded-lg transition-colors"
                                 >
-                                    <X size={18} className="text-gray-400" />
+                                    <X size={20} className="text-gray-400" />
                                 </button>
                             </div>
                         </div>
 
-                        {/* Settings Panel */}
+                        {/* Settings */}
                         {showSettings && (
-                            <div className="p-4 bg-gray-900/50 border-b border-gray-800">
-                                <div className="flex items-center justify-between mb-2">
+                            <div className="p-6 border-b border-gray-800/50 bg-[#14161f]">
+                                <div className="flex items-center justify-between mb-3">
                                     <span className="text-sm text-gray-400">Slippage Tolerance</span>
                                     <span className="text-sm font-mono text-white">{slippage}%</span>
                                 </div>
@@ -256,9 +230,9 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                                         <button
                                             key={val}
                                             onClick={() => setSlippage(val)}
-                                            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${slippage === val
-                                                ? 'bg-blue-600 text-white'
-                                                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                                            className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-all ${slippage === val
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700/50'
                                                 }`}
                                         >
                                             {val}%
@@ -268,119 +242,91 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                             </div>
                         )}
 
-                        {/* Main Content */}
-                        <div className="p-4 space-y-3">
+                        {/* Content */}
+                        <div className="p-6">
                             {!isConnected ? (
-                                <div className="text-center py-8">
-                                    <p className="text-gray-400 mb-4">Connect your wallet to start swapping</p>
+                                <div className="text-center py-12">
+                                    <p className="text-gray-400 mb-4">Connect wallet to swap tokens</p>
                                     <ConnectWalletButton />
                                 </div>
                             ) : (
-                                <>
-                                    {/* Token Loading Status */}
+                                <div className="space-y-1">
+                                    {/* Status */}
                                     {loadingTokens && (
-                                        <div className="bg-blue-900/10 border border-blue-500/20 rounded-xl p-3 text-xs text-blue-400 flex items-center gap-2 mb-3">
+                                        <div className="flex items-center gap-2 p-3 bg-blue-500/10 rounded-xl text-xs text-blue-400 mb-4">
                                             <Loader size={14} className="animate-spin" />
-                                            Loading {isSolana ? 'Jupiter' : '1inch'} token list...
+                                            Loading tokens...
                                         </div>
                                     )}
-                                    {!loadingTokens && availableTokens.length > 0 && (
-                                        <div className="bg-green-900/10 border border-green-500/20 rounded-xl p-2 text-xs text-green-400 flex items-center justify-between mb-3">
-                                            <span className="flex items-center gap-2">
-                                                <CheckCircle size={12} />
-                                                {availableTokens.length} tokens ready
-                                            </span>
-                                            <span className="text-gray-500 font-mono text-[10px]">{chainInfo?.name || 'Unknown'}</span>
-                                        </div>
-                                    )}
-                                    {!loadingTokens && availableTokens.length === 0 && (
-                                        <div className="bg-yellow-900/10 border border-yellow-500/20 rounded-xl p-3 text-xs text-yellow-400 flex items-center gap-2 mb-3">
-                                            <AlertCircle size={14} />
-                                            <span>Failed to load tokens. Using defaults.</span>
-                                        </div>
-                                    )}
-                                    {/* From Token - Enhanced Design */}
-                                    <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/50 rounded-xl p-4 border border-gray-700/50 backdrop-blur-sm hover:border-gray-600/50 transition-all">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-xs text-gray-500">From</span>
+
+                                    {/* From */}
+                                    <div className="bg-[#252838] rounded-2xl p-5">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="text-sm text-gray-400">From</span>
                                             {balance && (
                                                 <button
                                                     onClick={handleMaxBalance}
-                                                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                                                    className="text-xs text-gray-500 hover:text-gray-300"
                                                 >
-                                                    Balance: {parseFloat(formatTokenAmount(balance.value.toString(), fromToken.decimals)).toFixed(4)} {fromToken.symbol}
+                                                    Balance: {parseFloat(formatTokenAmount(balance.value.toString(), fromToken.decimals)).toFixed(4)}
                                                 </button>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <input
-                                                type="number"
-                                                value={fromAmount}
-                                                onChange={(e) => setFromAmount(e.target.value)}
-                                                placeholder="0.0"
-                                                className="flex-1 bg-transparent text-2xl font-bold text-white outline-none placeholder-gray-600"
-                                            />
+                                        <div className="flex items-center gap-4">
                                             <TokenSelector
                                                 selectedToken={fromToken}
                                                 onSelectToken={setFromToken}
                                                 tokenList={availableTokens}
                                                 label="From"
                                             />
+                                            <input
+                                                type="number"
+                                                value={fromAmount}
+                                                onChange={(e) => setFromAmount(e.target.value)}
+                                                placeholder="0.00"
+                                                className="flex-1 bg-transparent text-right text-3xl font-semibold text-white outline-none placeholder-gray-600"
+                                            />
                                         </div>
                                     </div>
 
-                                    {/* Swap Button */}
-                                    <div className="flex justify-center -my-2 relative z-10">
+                                    {/* Swap Arrow */}
+                                    <div className="flex justify-center -my-3 relative z-10">
                                         <button
                                             onClick={swapTokens}
-                                            className="p-2 bg-gray-800 hover:bg-gray-700 border-4 border-gray-900 rounded-xl transition-colors"
+                                            className="p-2.5 bg-[#1a1d2e] hover:bg-gray-800/50 border-4 border-[#1a1d2e] rounded-xl transition-all hover:rotate-180 duration-300"
                                         >
-                                            <ArrowDown size={20} className="text-gray-400" />
+                                            <ArrowDown size={20} className="text-blue-400" />
                                         </button>
                                     </div>
 
-                                    {/* To Token - Enhanced Design */}
-                                    <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/50 rounded-xl p-4 border border-gray-700/50 backdrop-blur-sm hover:border-gray-600/50 transition-all">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-xs text-gray-500">To</span>
-                                            {loading && <Loader size={12} className="text-blue-400 animate-spin" />}
+                                    {/* To */}
+                                    <div className="bg-[#252838] rounded-2xl p-5">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="text-sm text-gray-400">To</span>
+                                            {loading && <Loader size={14} className="text-blue-400 animate-spin" />}
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <input
-                                                type="text"
-                                                value={toAmount}
-                                                readOnly
-                                                placeholder="0.0"
-                                                className="flex-1 bg-transparent text-2xl font-bold text-white outline-none placeholder-gray-600"
-                                            />
+                                        <div className="flex items-center gap-4">
                                             <TokenSelector
                                                 selectedToken={toToken}
                                                 onSelectToken={setToToken}
                                                 tokenList={availableTokens}
                                                 label="To"
                                             />
+                                            <input
+                                                type="text"
+                                                value={toAmount}
+                                                readOnly
+                                                placeholder="0.00"
+                                                className="flex-1 bg-transparent text-right text-3xl font-semibold text-white outline-none placeholder-gray-600"
+                                            />
                                         </div>
                                     </div>
 
-                                    {/* Quote Info */}
-                                    {quote && !loading && (
-                                        <div className="bg-blue-900/10 border border-blue-500/20 rounded-xl p-3 text-xs space-y-1">
-                                            <div className="flex justify-between text-gray-400">
-                                                <span>Estimated Gas</span>
-                                                <span className="text-white font-mono">{quote.estimatedGas || 'N/A'}</span>
-                                            </div>
-                                            <div className="flex justify-between text-gray-400">
-                                                <span>Network</span>
-                                                <span className="text-white">{chainInfo?.name || 'Unknown'}</span>
-                                            </div>
-                                        </div>
-                                    )}
-
                                     {/* Error */}
                                     {error && (
-                                        <div className="flex items-center gap-2 p-3 bg-red-900/20 border border-red-500/30 rounded-xl text-sm text-red-400">
+                                        <div className="flex items-center gap-2 p-3 bg-red-500/10 rounded-xl text-sm text-red-400 mt-4">
                                             <AlertCircle size={16} />
-                                            <span>{error}</span>
+                                            {error}
                                         </div>
                                     )}
 
@@ -388,9 +334,9 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                                     <button
                                         onClick={handleSwap}
                                         disabled={!quote || loading || txStatus === 'pending'}
-                                        className={`w-full py-4 rounded-xl font-bold text-white transition-all ${!quote || loading || txStatus === 'pending'
-                                            ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                                            : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg'
+                                        className={`w-full py-4 rounded-xl font-bold text-white transition-all mt-4 ${!quote || loading || txStatus === 'pending'
+                                                ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
+                                                : 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600'
                                             }`}
                                     >
                                         {txStatus === 'pending' ? (
@@ -401,21 +347,19 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                                         ) : txStatus === 'success' ? (
                                             <span className="flex items-center justify-center gap-2">
                                                 <CheckCircle size={18} />
-                                                Swap Successful!
+                                                Success!
                                             </span>
                                         ) : (
                                             'Swap'
                                         )}
                                     </button>
-                                </>
-                            )}
-                        </div>
 
-                        {/* Footer */}
-                        <div className="px-4 py-3 bg-gray-900/30 border-t border-gray-800">
-                            <p className="text-xs text-gray-500 text-center">
-                                Powered by 1inch (EVM) & Jupiter (Solana) • Trades execute on-chain
-                            </p>
+                                    {/* Footer Info */}
+                                    <p className="text-center text-xs text-gray-500 mt-4">
+                                        Powered by 1inch & Jupiter
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 </>
