@@ -10,7 +10,7 @@ import {
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Area } from 'recharts';
 import { getZenithSignal } from '@/lib/zenith';
 import Link from 'next/link';
-import { getForexRates, ALL_FOREX_PAIRS } from '@/lib/finnhub';
+import { getForexRates, getForexCandles, ALL_FOREX_PAIRS } from '@/lib/finnhub';
 
 interface ForexData {
     pair: string;
@@ -25,21 +25,22 @@ interface ForexData {
     volume: number;
 }
 
-// Generate mock history for chart
-const generateHistory = (currentRate: number) => {
-    const data = [];
-    let rate = currentRate * 0.98;
-    for (let i = 0; i < 90; i++) {
-        const volatility = (Math.random() - 0.5) * 0.01;
-        rate = rate * (1 + volatility);
-        if (i === 89) rate = currentRate;
-        data.push({
-            date: `D-${90 - i}`,
-            rate: rate,
-            score: Math.floor(50 + Math.random() * 30)
-        });
-    }
-    return data;
+// Transform Finnhub candle data for chart
+const transformCandleData = (candles: any) => {
+    if (!candles || !candles.t || candles.t.length === 0) return [];
+
+    return candles.t.map((timestamp: number, index: number) => {
+        const date = new Date(timestamp * 1000);
+        return {
+            date: date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            rate: candles.c[index], // close price
+            high: candles.h[index],
+            low: candles.l[index],
+            open: candles.o[index],
+            volume: candles.v[index],
+            score: Math.floor(50 + Math.random() * 30) // Mock Zenith score for now
+        };
+    });
 };
 
 export default function ForexDetailPage() {
@@ -90,7 +91,12 @@ export default function ForexDetailPage() {
             };
 
             setForex(forexData);
-            setHistory(generateHistory(rate));
+
+            // Fetch real historical candle data based on timeframe
+            const candleData = await getForexCandles(pair, chartTimeframe);
+            const transformedData = transformCandleData(candleData);
+            setHistory(transformedData);
+
             setLastUpdate(new Date());
         } catch (error) {
             console.error('Failed to fetch forex data:', error);
@@ -102,10 +108,18 @@ export default function ForexDetailPage() {
     useEffect(() => {
         fetchData();
 
-        // Auto-refresh every minute
-        const interval = setInterval(fetchData, 60000);
-        return () => clearInterval(interval);
-    }, [pair]);
+        // Auto-refresh for live data (every minute for short timeframes)
+        const shouldAutoRefresh = ['1m', '5m', '15m', '30m', '1h'].includes(chartTimeframe);
+        let refreshInterval: NodeJS.Timeout | null = null;
+
+        if (shouldAutoRefresh) {
+            refreshInterval = setInterval(fetchData, 60000); // Refresh every minute
+        }
+
+        return () => {
+            if (refreshInterval) clearInterval(refreshInterval);
+        };
+    }, [pair, chartTimeframe]);
 
     if (loading) return (
         <div className="min-h-screen bg-[#0D0D12] flex items-center justify-center text-gray-500 animate-pulse">
@@ -258,12 +272,12 @@ export default function ForexDetailPage() {
                                     >
                                         ZENITH
                                     </button>
-                                    <div className="bg-gray-800 rounded-lg p-1 flex">
-                                        {['1D', '1W', '1M', '3M', '1Y'].map(tf => (
+                                    <div className="bg-gray-800 rounded-lg p-1 flex flex-wrap gap-1">
+                                        {['1m', '5m', '15m', '30m', '1h', '1D', '1W', '1M', '3M', '1Y'].map(tf => (
                                             <button
                                                 key={tf}
                                                 onClick={() => setChartTimeframe(tf)}
-                                                className={`px-3 py-1 text-xs font-bold rounded ${chartTimeframe === tf ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                                className={`px-2 py-1 text-xs font-bold rounded ${chartTimeframe === tf ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}
                                             >
                                                 {tf}
                                             </button>
