@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount, useBalance } from 'wagmi';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowDown, Settings, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import { ConnectWalletButton } from '../wallet/ConnectWalletButton';
@@ -9,6 +10,7 @@ import TokenSelector from './TokenSelector';
 import { getSwapQuote, buildSwapTransaction, getSupportedTokens, parseTokenAmount, formatTokenAmount } from '@/lib/1inch';
 import { getJupiterTokens, SOLANA_TOKENS } from '@/lib/jupiter';
 import { getChainInfo } from '@/lib/web3-config';
+import { PublicKey } from '@solana/web3.js';
 
 interface Token {
     address: string;
@@ -26,7 +28,17 @@ interface SwapWidgetProps {
 }
 
 export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }: SwapWidgetProps) {
-    const { address, isConnected, chain } = useAccount();
+    // EVM wallet
+    const { address: evmAddress, isConnected: evmConnected, chain } = useAccount();
+
+    // Solana wallet
+    const { connection } = useConnection();
+    const { publicKey: solanaPublicKey, connected: solanaConnected } = useWallet();
+
+    // Determine which wallet is connected
+    const isConnected = evmConnected || solanaConnected;
+    const address = evmConnected ? evmAddress : solanaPublicKey?.toString();
+
     const [fromAmount, setFromAmount] = useState('');
     const [toAmount, setToAmount] = useState('');
     const [slippage, setSlippage] = useState(1);
@@ -37,10 +49,11 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
     const [txStatus, setTxStatus] = useState<'idle' | 'signing' | 'pending' | 'success' | 'error'>('idle');
     const [availableTokens, setAvailableTokens] = useState<Token[]>([]);
     const [loadingTokens, setLoadingTokens] = useState(false);
+    const [solanaBalance, setSolanaBalance] = useState<number | null>(null);
 
     const chainId = chain?.id || 1;
     const chainInfo = getChainInfo(chainId);
-    const isSolana = chain?.name?.toLowerCase().includes('solana');
+    const isSolana = solanaConnected || chain?.name?.toLowerCase().includes('solana');
 
     const [fromToken, setFromToken] = useState<Token>({
         address: defaultFromToken?.address || (isSolana ? SOLANA_TOKENS.SOL : '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'),
@@ -58,10 +71,49 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
         logoURI: defaultToToken?.logoURI,
     });
 
-    const { data: balance } = useBalance({
-        address: address,
+    // EVM balance
+    const { data: evmBalance } = useBalance({
+        address: evmAddress,
         token: fromToken.address === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' ? undefined : fromToken.address as `0x${string}`,
     });
+
+    // Fetch Solana balance
+    useEffect(() => {
+        const fetchSolanaBalance = async () => {
+            if (solanaConnected && solanaPublicKey && connection) {
+                try {
+                    if (fromToken.address === SOLANA_TOKENS.SOL) {
+                        // Get SOL balance
+                        const balance = await connection.getBalance(solanaPublicKey);
+                        setSolanaBalance(balance / 1e9); // Convert lamports to SOL
+                    } else {
+                        // Get SPL token balance
+                        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
+                            solanaPublicKey,
+                            { mint: new PublicKey(fromToken.address) }
+                        );
+
+                        if (tokenAccounts.value.length > 0) {
+                            const balance = tokenAccounts.value[0].account.data.parsed.info.tokenAmount.uiAmount;
+                            setSolanaBalance(balance);
+                        } else {
+                            setSolanaBalance(0);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching Solana balance:', err);
+                    setSolanaBalance(0);
+                }
+            }
+        };
+
+        if (isSolana) {
+            fetchSolanaBalance();
+        }
+    }, [solanaConnected, solanaPublicKey, fromToken, connection, isSolana]);
+
+    // Get the appropriate balance
+    const balance = isSolana ? solanaBalance : (evmBalance ? parseFloat(evmBalance.formatted) : null);
 
     useEffect(() => {
         const fetchTokens = async () => {
