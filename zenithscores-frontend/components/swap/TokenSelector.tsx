@@ -37,23 +37,20 @@ export function TokenSelector({ selectedToken, onSelectToken, tokenList, label }
 
     return (
         <div className="relative">
-            {/* Trigger Button */}
+            {/* Trigger Button - Compact */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
             >
                 {selectedToken.logoURI && (
                     <img
                         src={selectedToken.logoURI}
                         alt={selectedToken.symbol}
-                        className="w-6 h-6 rounded-full"
+                        className="w-5 h-5 rounded-full flex-shrink-0"
                     />
                 )}
-                <div className="flex flex-col items-start">
-                    <span className="font-bold text-white text-sm">{selectedToken.symbol}</span>
-                    <span className="text-[10px] text-gray-500">{selectedToken.name}</span>
-                </div>
-                <ChevronDown size={16} className="text-gray-400" />
+                <span className="font-bold text-white text-sm whitespace-nowrap">{selectedToken.symbol}</span>
+                <ChevronDown size={14} className="text-gray-400 flex-shrink-0" />
             </button>
 
             {/* Dropdown Modal */}
@@ -66,12 +63,12 @@ export function TokenSelector({ selectedToken, onSelectToken, tokenList, label }
                             onClick={() => setIsOpen(false)}
                         />
 
-                        {/* Modal */}
+                        {/* Modal - Fixed positioning */}
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: -10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                            className="absolute top-full mt-2 left-0 w-80 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden"
+                            className="fixed left-1/2 -translate-x-1/2 top-24 w-[90vw] max-w-md md:absolute md:left-auto md:right-0 md:translate-x-0 md:top-full md:mt-2 md:w-96 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden"
                         >
                             {/* Header */}
                             <div className="p-4 border-b border-gray-800">
