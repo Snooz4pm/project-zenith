@@ -215,23 +215,45 @@ export async function getForexCandles(
  */
 export function getTimeRange(timeframe: string): { from: number; to: number; resolution: Resolution } {
     const now = Math.floor(Date.now() / 1000);
+    const minute = 60;
+    const hour = 60 * 60;
     const day = 24 * 60 * 60;
 
     switch (timeframe) {
-        case '1D':
-            return { from: now - day, to: now, resolution: '5' }; // 5-min candles
-        case '1W':
-            return { from: now - (7 * day), to: now, resolution: '30' }; // 30-min candles
+        // Minute intervals (live trading)
+        case '1m':
         case '1M':
-            return { from: now - (30 * day), to: now, resolution: '60' }; // 1-hour candles
+            return { from: now - hour, to: now, resolution: '1' }; // Last hour with 1-min candles
+        case '5m':
+        case '5M':
+            return { from: now - (4 * hour), to: now, resolution: '5' }; // Last 4 hours with 5-min candles
+        case '15m':
+        case '15M':
+            return { from: now - (12 * hour), to: now, resolution: '15' }; // Last 12 hours with 15-min candles
+        case '30m':
+        case '30M':
+            return { from: now - day, to: now, resolution: '30' }; // Last 24 hours with 30-min candles
+
+        // Hour intervals
+        case '1h':
+        case '1H':
+            return { from: now - (2 * day), to: now, resolution: '60' }; // Last 2 days with 1-hour candles
+
+        // Day/Week/Month intervals
+        case '1D':
+            return { from: now - day, to: now, resolution: '5' }; // 1 day with 5-min candles
+        case '1W':
+            return { from: now - (7 * day), to: now, resolution: '30' }; // 1 week with 30-min candles
+        case '1M':
+            return { from: now - (30 * day), to: now, resolution: '60' }; // 1 month with 1-hour candles
         case '3M':
-            return { from: now - (90 * day), to: now, resolution: 'D' }; // Daily
+            return { from: now - (90 * day), to: now, resolution: 'D' }; // 3 months daily
         case '1Y':
-            return { from: now - (365 * day), to: now, resolution: 'D' }; // Daily
+            return { from: now - (365 * day), to: now, resolution: 'D' }; // 1 year daily
         case '5Y':
-            return { from: now - (5 * 365 * day), to: now, resolution: 'W' }; // Weekly
+            return { from: now - (5 * 365 * day), to: now, resolution: 'W' }; // 5 years weekly
         default:
-            return { from: now - (90 * day), to: now, resolution: 'D' };
+            return { from: now - day, to: now, resolution: '5' }; // Default: 1 day
     }
 }
 

@@ -12,6 +12,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceD
 import { getZenithSignal } from '@/lib/zenith';
 import Link from 'next/link';
 import PredictiveSearch from '@/components/PredictiveSearch';
+import { getStockCandles, getTimeRange } from '@/lib/finnhub';
 
 // Types for Stock Data
 interface StockData {
@@ -28,7 +29,21 @@ interface StockData {
     name?: string;
 }
 
-// Mock History Generator
+// Transform Finnhub candle data to chart format
+const transformCandleData = (candles: any, currentScore: number) => {
+    if (!candles || !candles.t || candles.t.length === 0) return [];
+
+    return candles.t.map((timestamp: number, i: number) => ({
+        date: new Date(timestamp * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        price: candles.c[i],
+        score: Math.min(100, Math.max(0, currentScore + (Math.random() * 20 - 10))),
+        volume: candles.v[i] || 0,
+        high: candles.h[i],
+        low: candles.l[i],
+    }));
+};
+
+// Mock History Generator (fallback)
 const generateHistory = (currentPrice: number, score: number) => {
     const data = [];
     let price = currentPrice * 0.9;
@@ -115,7 +130,17 @@ export default function StockDetailPage() {
                 }
 
                 setStock(stockInfo);
-                setHistory(generateHistory(stockInfo.price_usd, stockInfo.zenith_score));
+
+                // Fetch real historical data based on timeframe
+                const timeRange = getTimeRange(chartTimeframe);
+                const candles = await getStockCandles(symbol.toUpperCase(), timeRange.resolution, timeRange.from, timeRange.to);
+
+                if (candles) {
+                    setHistory(transformCandleData(candles, stockInfo.zenith_score));
+                } else {
+                    // Fallback to mock data
+                    setHistory(generateHistory(stockInfo.price_usd, stockInfo.zenith_score));
+                }
 
                 // 2. Fetch real peers from new endpoint
                 const peersRes = await fetch(`${apiUrl}/api/v1/stocks/${symbol}/peers`);
@@ -131,7 +156,19 @@ export default function StockDetailPage() {
         };
 
         fetchData();
-    }, [symbol]);
+
+        // Auto-refresh for live data (every minute for short timeframes)
+        const shouldAutoRefresh = ['1m', '5m', '15m', '30m', '1h'].includes(chartTimeframe);
+        let refreshInterval: NodeJS.Timeout | null = null;
+
+        if (shouldAutoRefresh) {
+            refreshInterval = setInterval(fetchData, 60000); // Refresh every minute
+        }
+
+        return () => {
+            if (refreshInterval) clearInterval(refreshInterval);
+        };
+    }, [symbol, chartTimeframe]); // Re-fetch when timeframe changes
 
     if (loading) return (
         <div className="min-h-screen bg-[var(--background-dark)] flex items-center justify-center text-gray-500 animate-pulse">
@@ -304,12 +341,12 @@ export default function StockDetailPage() {
                                     >
                                         ZENITH SCORE
                                     </button>
-                                    <div className="bg-gray-100 rounded-lg p-1 flex">
-                                        {['1D', '1W', '1M', '3M', '1Y'].map(tf => (
+                                    <div className="bg-gray-100 rounded-lg p-1 flex flex-wrap gap-1">
+                                        {['1m', '5m', '15m', '30m', '1h', '1D', '1W', '1M', '3M', '1Y'].map(tf => (
                                             <button
                                                 key={tf}
                                                 onClick={() => setChartTimeframe(tf)}
-                                                className={`px-3 py-1 text-xs font-bold rounded ${chartTimeframe === tf ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+                                                className={`px-2 py-1 text-xs font-bold rounded ${chartTimeframe === tf ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
                                             >
                                                 {tf}
                                             </button>
