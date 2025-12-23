@@ -11,7 +11,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     try {
         const { category } = params;
         const { searchParams } = new URL(req.url);
-        const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 100);
+        const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 1000);
         const minConfidence = parseFloat(searchParams.get('min_confidence') || '0');
         const sortBy = searchParams.get('sort_by') || 'confidence';
 

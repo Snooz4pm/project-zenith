@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
-        const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
+        const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 1000);
         const hours = parseInt(searchParams.get('hours') || '168');
         const minConfidence = parseFloat(searchParams.get('min_confidence') || '0.1');
 

@@ -83,7 +83,7 @@ export default function CryptoDashboard() {
             }
         };
 
-        const savedWatchlist = localStorage.getItem('zenith_crypto_watchlist');
+        const savedWatchlist = typeof window !== 'undefined' ? localStorage.getItem('zenith_crypto_watchlist') : null;
         if (savedWatchlist) {
             setWatchlist(new Set(JSON.parse(savedWatchlist)));
         }
