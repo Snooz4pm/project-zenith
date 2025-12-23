@@ -5,27 +5,26 @@ import { useAccount, useBalance, useSendTransaction, useWaitForTransactionReceip
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowDown, Settings, AlertCircle, CheckCircle, Loader, RefreshCw } from 'lucide-react';
 import { ConnectWalletButton } from '../wallet/ConnectWalletButton';
-import { getSwapQuote, buildSwapTransaction, ONEINCH_CHAIN_IDS, parseTokenAmount, formatTokenAmount } from '@/lib/1inch';
-import { getJupiterQuote, getJupiterSwapInstructions, parseSolanaAmount, formatSolanaAmount } from '@/lib/jupiter';
+import TokenSelector from './TokenSelector';
+import { getSwapQuote, buildSwapTransaction, getSupportedTokens, ONEINCH_CHAIN_IDS, parseTokenAmount, formatTokenAmount } from '@/lib/1inch';
+import { getJupiterQuote, getJupiterSwapInstructions, getJupiterTokens, parseSolanaAmount, formatSolanaAmount, SOLANA_TOKENS } from '@/lib/jupiter';
 import { getChainInfo } from '@/lib/web3-config';
 
-// Note: This widget currently supports EVM chains (Ethereum, Polygon, etc) via 1inch
-// Solana support via Jupiter is prepared but needs Phantom wallet integration
-// To enable Solana: detect chain.name === 'Solana', use Jupiter API instead of 1inch
+// Note: This widget supports both EVM chains (via 1inch) and Solana (via Jupiter)
+
+interface Token {
+    address: string;
+    symbol: string;
+    name: string;
+    decimals: number;
+    logoURI?: string;
+}
 
 interface SwapWidgetProps {
     isOpen: boolean;
     onClose: () => void;
-    defaultFromToken?: {
-        address: string;
-        symbol: string;
-        decimals: number;
-    };
-    defaultToToken?: {
-        address: string;
-        symbol: string;
-        decimals: number;
-    };
+    defaultFromToken?: Partial<Token>;
+    defaultToToken?: Partial<Token>;
 }
 
 export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }: SwapWidgetProps) {
@@ -38,21 +37,28 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
     const [quote, setQuote] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     const [txStatus, setTxStatus] = useState<'idle' | 'signing' | 'pending' | 'success' | 'error'>('idle');
+    const [availableTokens, setAvailableTokens] = useState<Token[]>([]);
+    const [loadingTokens, setLoadingTokens] = useState(false);
 
     const chainId = chain?.id || 1;
     const chainInfo = getChainInfo(chainId);
+    const isSolana = chain?.name?.toLowerCase().includes('solana');
 
-    // Default tokens (ETH -> USDC)
-    const [fromToken, setFromToken] = useState(defaultFromToken || {
-        address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
-        symbol: 'ETH',
-        decimals: 18,
+    // Default tokens (ETH -> USDC for EVM, SOL -> USDC for Solana)
+    const [fromToken, setFromToken] = useState<Token>({
+        address: defaultFromToken?.address || (isSolana ? SOLANA_TOKENS.SOL : '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'),
+        symbol: defaultFromToken?.symbol || (isSolana ? 'SOL' : 'ETH'),
+        name: defaultFromToken?.name || (isSolana ? 'Solana' : 'Ethereum'),
+        decimals: defaultFromToken?.decimals || (isSolana ? 9 : 18),
+        logoURI: defaultFromToken?.logoURI,
     });
 
-    const [toToken, setToToken] = useState(defaultToToken || {
-        address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
-        symbol: 'USDC',
-        decimals: 6,
+    const [toToken, setToToken] = useState<Token>({
+        address: defaultToToken?.address || (isSolana ? SOLANA_TOKENS.USDC : '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'),
+        symbol: defaultToToken?.symbol || 'USDC',
+        name: defaultToToken?.name || 'USD Coin',
+        decimals: defaultToToken?.decimals || 6,
+        logoURI: defaultToToken?.logoURI,
     });
 
     // Get user balance
@@ -60,6 +66,41 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
         address: address,
         token: fromToken.address === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' ? undefined : fromToken.address as `0x${string}`,
     });
+
+    // Fetch available tokens when chain changes
+    useEffect(() => {
+        const fetchTokens = async () => {
+            setLoadingTokens(true);
+            try {
+                if (isSolana) {
+                    // Fetch Solana tokens from Jupiter
+                    const tokens = await getJupiterTokens();
+                    setAvailableTokens(tokens.slice(0, 100)); // Limit to top 100
+                } else {
+                    // Fetch EVM tokens from 1inch
+                    const tokens = await getSupportedTokens(chainId);
+                    const tokenList = Object.entries(tokens || {}).map(([address, data]: [string, any]) => ({
+                        address,
+                        symbol: data.symbol,
+                        name: data.name,
+                        decimals: data.decimals,
+                        logoURI: data.logoURI,
+                    }));
+                    setAvailableTokens(tokenList.slice(0, 100)); // Limit to top 100
+                }
+            } catch (err) {
+                console.error('Failed to fetch tokens:', err);
+                // Set default tokens if fetch fails
+                setAvailableTokens([fromToken, toToken]);
+            } finally {
+                setLoadingTokens(false);
+            }
+        };
+
+        if (isConnected) {
+            fetchTokens();
+        }
+    }, [chainId, isConnected, isSolana]);
 
     // Fetch quote when amount changes
     useEffect(() => {
@@ -254,9 +295,12 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                                                 placeholder="0.0"
                                                 className="flex-1 bg-transparent text-2xl font-bold text-white outline-none placeholder-gray-600"
                                             />
-                                            <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg">
-                                                <span className="font-bold text-white">{fromToken.symbol}</span>
-                                            </div>
+                                            <TokenSelector
+                                                selectedToken={fromToken}
+                                                onSelectToken={setFromToken}
+                                                tokenList={availableTokens}
+                                                label="From"
+                                            />
                                         </div>
                                     </div>
 
@@ -284,9 +328,12 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                                                 placeholder="0.0"
                                                 className="flex-1 bg-transparent text-2xl font-bold text-white outline-none placeholder-gray-600"
                                             />
-                                            <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg">
-                                                <span className="font-bold text-white">{toToken.symbol}</span>
-                                            </div>
+                                            <TokenSelector
+                                                selectedToken={toToken}
+                                                onSelectToken={setToToken}
+                                                tokenList={availableTokens}
+                                                label="To"
+                                            />
                                         </div>
                                     </div>
 
