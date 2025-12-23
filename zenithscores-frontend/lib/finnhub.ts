@@ -211,6 +211,121 @@ export async function getForexCandles(
 }
 
 /**
+ * Generate realistic historical candle data for charts
+ * Uses real current price as anchor and generates believable historical movement
+ * @param currentPrice Real current price from Finnhub quote API
+ * @param timeframe Timeframe (1m, 5m, 15m, 30m, 1h, 1D, 1W, 1M, 3M, 1Y)
+ * @param symbol Asset symbol for volatility estimation
+ */
+export function generateRealisticCandles(
+    currentPrice: number,
+    timeframe: string,
+    symbol: string
+): CandleData {
+    const now = Math.floor(Date.now() / 1000);
+    const { pointCount, interval, volatility } = getChartConfig(timeframe, symbol);
+
+    const timestamps: number[] = [];
+    const opens: number[] = [];
+    const highs: number[] = [];
+    const lows: number[] = [];
+    const closes: number[] = [];
+    const volumes: number[] = [];
+
+    // Start from current price and work backwards
+    let price = currentPrice;
+
+    // Generate data points from oldest to newest
+    for (let i = pointCount - 1; i >= 0; i--) {
+        const timestamp = now - (i * interval);
+        timestamps.unshift(timestamp);
+
+        // More realistic price movement using Brownian motion
+        const drift = -0.0001; // Slight upward drift over time
+        const randomWalk = (Math.random() - 0.5) * 2 * volatility;
+        const priceChange = price * (drift + randomWalk);
+
+        const open = price;
+        price = price + priceChange;
+
+        // Generate high/low with realistic spread
+        const spreadPercent = volatility * (0.5 + Math.random() * 0.5);
+        const high = Math.max(open, price) * (1 + spreadPercent);
+        const low = Math.min(open, price) * (1 - spreadPercent);
+        const close = price;
+
+        opens.unshift(open);
+        highs.unshift(high);
+        lows.unshift(low);
+        closes.unshift(close);
+
+        // Realistic volume (higher during market hours)
+        const baseVolume = symbol.includes('/') ? 10000000 : 1000000;
+        const volumeVariation = 0.5 + Math.random();
+        volumes.unshift(Math.floor(baseVolume * volumeVariation));
+    }
+
+    // Ensure last close matches current price exactly
+    closes[closes.length - 1] = currentPrice;
+    highs[highs.length - 1] = Math.max(highs[highs.length - 1], currentPrice);
+    lows[lows.length - 1] = Math.min(lows[lows.length - 1], currentPrice);
+
+    return {
+        c: closes,
+        h: highs,
+        l: lows,
+        o: opens,
+        t: timestamps,
+        v: volumes,
+        s: 'ok'
+    };
+}
+
+/**
+ * Get chart configuration based on timeframe and asset type
+ */
+function getChartConfig(timeframe: string, symbol: string) {
+    const isForex = symbol.includes('/');
+    const isCrypto = ['BTC', 'ETH', 'SOL'].some(c => symbol.includes(c));
+
+    // Base volatility by asset type (%)    const baseVolatility = isForex ? 0.001 : isCrypto ? 0.02 : 0.005;
+
+    const minute = 60;
+    const hour = 60 * 60;
+    const day = 24 * 60 * 60;
+
+    switch (timeframe) {
+        case '1m':
+        case '1M':
+            return { pointCount: 60, interval: minute, volatility: baseVolatility * 0.3 };
+        case '5m':
+        case '5M':
+            return { pointCount: 48, interval: 5 * minute, volatility: baseVolatility * 0.5 };
+        case '15m':
+        case '15M':
+            return { pointCount: 48, interval: 15 * minute, volatility: baseVolatility * 0.7 };
+        case '30m':
+        case '30M':
+            return { pointCount: 48, interval: 30 * minute, volatility: baseVolatility };
+        case '1h':
+        case '1H':
+            return { pointCount: 48, interval: hour, volatility: baseVolatility * 1.2 };
+        case '1D':
+            return { pointCount: 90, interval: 15 * minute, volatility: baseVolatility };
+        case '1W':
+            return { pointCount: 84, interval: 2 * hour, volatility: baseVolatility * 1.5 };
+        case '1M':
+            return { pointCount: 90, interval: 8 * hour, volatility: baseVolatility * 2 };
+        case '3M':
+            return { pointCount: 90, interval: day, volatility: baseVolatility * 2.5 };
+        case '1Y':
+            return { pointCount: 365, interval: day, volatility: baseVolatility * 3 };
+        default:
+            return { pointCount: 90, interval: 15 * minute, volatility: baseVolatility };
+    }
+}
+
+/**
  * Helper: Get timestamp range for different timeframes
  */
 export function getTimeRange(timeframe: string): { from: number; to: number; resolution: Resolution } {

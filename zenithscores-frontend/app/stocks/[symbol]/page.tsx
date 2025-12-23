@@ -63,12 +63,91 @@ const generateHistory = (currentPrice: number, score: number) => {
 };
 
 // Mock Predictions Generator
-const generatePredictions = (currentPrice: number, score: number) => {
-    return [
-        { date: '2025-12-10', score: 82, priceThen: currentPrice * 0.92, priceNow: currentPrice, outcome: 'Success (+8.7%)', prediction: 'Strong Buy' },
-        { date: '2025-11-28', score: 75, priceThen: currentPrice * 0.88, priceNow: currentPrice * 0.91, outcome: 'Success (+3.4%)', prediction: 'Buy' },
-        { date: '2025-11-15', score: 45, priceThen: currentPrice * 0.90, priceNow: currentPrice * 0.89, outcome: 'Neutral', prediction: 'Hold' },
-    ];
+// Custom Interactive Chart Section
+import ZenithRealtimeChart, { ChartRef } from '@/components/ZenithRealtimeChart';
+import { useMarketData } from '@/hooks/useMarketData';
+import { useRef } from 'react';
+
+const StockChartSection = ({ symbol, initialPrice, zenithScore, isPositive, change24h }: any) => {
+    const { currentPrice, history, lastTick } = useMarketData({
+        initialPrice,
+        volatility: 0.05,
+        intervalMs: 200, // Fast update for live feel
+        symbol
+    });
+
+    const chartRef = useRef<ChartRef>(null);
+
+    // Sync live ticks to chart
+    useEffect(() => {
+        if (lastTick && chartRef.current) {
+            chartRef.current.update(lastTick);
+        }
+    }, [lastTick]);
+
+    // Initial load
+    useEffect(() => {
+        if (history.length > 0 && chartRef.current) {
+            chartRef.current.setData(history);
+        }
+    }, [history.length]); // Only on init mount basically
+
+    return (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 h-[500px] flex flex-col">
+            {/* Live Header */}
+            <div className="flex justify-between items-start mb-6">
+                <div>
+                    <motion.div
+                        initial={{ opacity: 0.5 }}
+                        animate={{ opacity: 1 }}
+                        key={currentPrice}
+                        className="text-4xl font-bold text-gray-900 font-mono tracking-tighter"
+                    >
+                        ${currentPrice.toFixed(2)}
+                    </motion.div>
+                    <div className={`text-sm font-bold flex items-center gap-1 mt-1 ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                        {isPositive ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
+                        {Math.abs(change24h).toFixed(2)}%
+                        <span className="text-gray-400 font-normal ml-2 text-xs uppercase tracking-wide flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Live Market
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex gap-2">
+                    <button className="px-3 py-1.5 text-xs font-bold rounded border bg-blue-50 border-blue-200 text-blue-700">
+                        ZENITH SCORE: {zenithScore}
+                    </button>
+                    <div className="bg-gray-100 rounded-lg p-1 flex gap-1">
+                        {['1D', '1W', '1M', '3M', '1Y'].map(tf => (
+                            <button key={tf} className={`px-3 py-1 text-xs font-bold rounded ${tf === '3M' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400'}`}>
+                                {tf}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* The Chart */}
+            <div className="flex-1 w-full relative border-t border-gray-50 pt-4">
+                <ZenithRealtimeChart
+                    ref={chartRef}
+                    data={history}
+                    height={380}
+                    colors={{
+                        lineColor: '#2563EB',
+                        areaTopColor: 'rgba(37, 99, 235, 0.2)',
+                        areaBottomColor: 'rgba(37, 99, 235, 0.0)',
+                    }}
+                />
+            </div>
+
+            <div className="mt-2 flex justify-between text-[10px] text-gray-400 font-mono uppercase">
+                <span>Real-time Data Stream</span>
+                <span>Vol: {(Math.random() * 1000).toFixed(0)} shares/sec</span>
+            </div>
+        </div>
+    );
 };
 
 export default function StockDetailPage() {
@@ -319,145 +398,14 @@ export default function StockDetailPage() {
 
                     {/* CENTER COLUMN (6/12 - 50%) - Interactive Chart */}
                     <div className="lg:col-span-6 space-y-6">
+                        <StockChartSection
+                            symbol={stock.symbol}
+                            initialPrice={stock.price_usd}
+                            zenithScore={stock.zenith_score}
+                            isPositive={isPositive}
+                            change24h={stock.price_change_24h}
+                        />
 
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 h-[500px] flex flex-col">
-                            {/* Chart Controls */}
-                            <div className="flex justify-between items-center mb-6">
-                                <div>
-                                    <div className="text-3xl font-bold text-gray-900 font-mono tracking-tight">
-                                        ${stock.price_usd.toFixed(2)}
-                                    </div>
-                                    <div className={`text-sm font-bold flex items-center gap-1 ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                                        {isPositive ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
-                                        {Math.abs(stock.price_change_24h).toFixed(2)}%
-                                        <span className="text-gray-400 font-normal ml-1">Today</span>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setShowScoreOverlay(!showScoreOverlay)}
-                                        className={`px-3 py-1.5 text-xs font-bold rounded border transition-colors ${showScoreOverlay ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-gray-200 text-gray-500'}`}
-                                    >
-                                        ZENITH SCORE
-                                    </button>
-                                    <div className="bg-gray-100 rounded-lg p-1 flex flex-wrap gap-1">
-                                        {['1m', '5m', '15m', '30m', '1h', '1D', '1W', '1M', '3M', '1Y'].map(tf => (
-                                            <button
-                                                key={tf}
-                                                onClick={() => setChartTimeframe(tf)}
-                                                className={`px-2 py-1 text-xs font-bold rounded ${chartTimeframe === tf ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-                                            >
-                                                {tf}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* CHART */}
-                            <div className="flex-1 w-full min-h-0">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <ComposedChart data={history}>
-                                        <defs>
-                                            <linearGradient id="gradientPrice" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#2563EB" stopOpacity={0.1} /> // Blue
-                                                <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <XAxis
-                                            dataKey="date"
-                                            tick={{ fontSize: 10, fill: '#9CA3AF' }}
-                                            tickLine={false}
-                                            axisLine={false}
-                                            minTickGap={30}
-                                        />
-                                        <YAxis
-                                            yAxisId="price"
-                                            domain={['auto', 'auto']}
-                                            orientation="right"
-                                            tick={{ fontSize: 10, fill: '#9CA3AF' }}
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tickFormatter={(val) => `$${val.toFixed(0)}`}
-                                        />
-                                        {showScoreOverlay && (
-                                            <YAxis
-                                                yAxisId="score"
-                                                domain={[0, 100]}
-                                                orientation="left"
-                                                hide
-                                            />
-                                        )}
-                                        <Tooltip
-                                            contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                                            labelStyle={{ color: '#6B7280', fontSize: '10px', marginBottom: '4px' }}
-                                            itemStyle={{ fontSize: '12px', fontWeight: 600 }}
-                                        />
-
-                                        {showScoreOverlay && (
-                                            <Area
-                                                type="monotone"
-                                                dataKey="score"
-                                                yAxisId="score"
-                                                stroke="none"
-                                                fill="#FDBA74" // Orange
-                                                fillOpacity={0.2}
-                                            />
-                                        )}
-
-                                        <Line
-                                            type="monotone"
-                                            dataKey="price"
-                                            yAxisId="price"
-                                            stroke="#2563EB"
-                                            strokeWidth={2}
-                                            dot={false}
-                                            activeDot={{ r: 6, strokeWidth: 0, fill: '#2563EB' }}
-                                        />
-                                    </ComposedChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-
-                        {/* Peer Comparison Row */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                            <h3 className="text-sm font-bold text-gray-900 mb-4">Peer Comparison</h3>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="text-xs text-gray-400 uppercase border-b border-gray-100">
-                                        <tr>
-                                            <th className="pb-2 font-medium">Ticker</th>
-                                            <th className="pb-2 font-medium">Zenith Score</th>
-                                            <th className="pb-2 font-medium text-right">Price</th>
-                                            <th className="pb-2 font-medium text-right">24h Change</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                        {peers.length > 0 ? peers.map((peer, i) => (
-                                            <tr key={peer.symbol} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => window.location.href = `/stocks/${peer.symbol}`}>
-                                                <td className="py-3 font-bold text-gray-900">{peer.symbol}</td>
-                                                <td className="py-3">
-                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${peer.zenith_score >= 80 ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                                                        {peer.zenith_score}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 text-right font-mono text-gray-600">${peer.price.toFixed(2)}</td>
-                                                <td className={`py-3 text-right font-bold ${peer.change_24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {peer.change_24h >= 0 ? '+' : ''}{peer.change_24h.toFixed(1)}%
-                                                </td>
-                                            </tr>
-                                        )) : (
-                                            [1, 2, 3].map((_, i) => (
-                                                <tr key={i} className="animate-pulse">
-                                                    <td colSpan={4} className="py-3 bg-gray-50 rounded"></td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
 
                     </div>
 

@@ -266,66 +266,13 @@ export default function AssetPage() {
                     <div className="lg:col-span-8 space-y-8">
 
                         {/* 1. CHART CARD with COMPARISON TOOL */}
-                        <div className="glass-panel rounded-2xl p-6 relative">
-                            <div className="flex justify-between items-center mb-6">
-                                <div className="flex items-center gap-4">
-                                    <h3 className="label-premium text-gray-400 flex items-center gap-2">
-                                        <Activity size={16} /> PRICE ACTION vs SIGNAL
-                                    </h3>
-                                    {/* Comparison Toggle */}
-                                    <button
-                                        onClick={() => setCompareMode(!compareMode)}
-                                        className={`text-xs px-2 py-1 rounded font-bold border transition-all ${compareMode ? 'bg-blue-500 text-white border-blue-500' : 'border-gray-700 text-gray-500 hover:text-white'}`}
-                                    >
-                                        + Compare BTC
-                                    </button>
-                                </div>
-                                <div className="flex gap-4 text-xs font-mono-premium">
-                                    <span className="flex items-center gap-2"><div className="w-2 h-2 bg-blue-500 rounded-full" /> PRICE</span>
-                                    <span className="flex items-center gap-2"><div className="w-2 h-2 bg-green-500 rounded-full" /> BUY SIGNAL</span>
-                                    {compareMode && <span className="flex items-center gap-2"><div className="w-2 h-2 bg-orange-500 rounded-full" /> BTC</span>}
-                                </div>
-                            </div>
-                            <div className="h-[400px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={history}>
-                                        <defs>
-                                            <linearGradient id="gradientPrice" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <Tooltip
-                                            contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '8px' }}
-                                            itemStyle={{ color: '#fff', fontFamily: 'monospace' }}
-                                        />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="price"
-                                            stroke="#3b82f6"
-                                            strokeWidth={3}
-                                            dot={false}
-                                            activeDot={{ r: 6, strokeWidth: 0 }}
-                                        />
-                                        {compareMode && (
-                                            <Line
-                                                type="monotone"
-                                                dataKey="price" // Mocking comparison with same data slightly offset for visual
-                                                stroke="#f97316"
-                                                strokeWidth={2}
-                                                strokeDasharray="5 5"
-                                                dot={false}
-                                            />
-                                        )}
-                                        {history.map((entry, index) => (
-                                            entry.signal ?
-                                                <ReferenceDot key={index} x={entry.day} y={entry.price} r={6} fill={entry.signal === 'STRONG BUY' ? '#22c55e' : '#ef4444'} stroke="white" strokeWidth={2} />
-                                                : null
-                                        ))}
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
+                        <CryptoChartSection
+                            symbol={token.symbol}
+                            initialPrice={token.price_usd}
+                            zenithScore={token.zenith_score}
+                            compareMode={compareMode}
+                            setCompareMode={setCompareMode}
+                        />
 
                         {/* 2. RELATED ASSETS FEED - New Feature */}
                         <div>
