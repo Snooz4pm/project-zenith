@@ -356,7 +356,9 @@ class TradingEngine:
                     user_id, asset_id, request.symbol,
                     quantity, price, leverage
                 )
-                new_balance = wallet_balance + total_value + realized_pnl
+                # Wallet is already updated in _execute_sell, just retrieve current balance
+                self.cur.execute("SELECT wallet_balance FROM trading_users WHERE id = %s", (user_id,))
+                new_balance = Decimal(str(self.cur.fetchone()['wallet_balance']))
                 trade_id = self._insert_trade(
                     user_id, asset_id, request.symbol, "sell", "market",
                     quantity, leverage, price, total_value, Decimal("0"),
