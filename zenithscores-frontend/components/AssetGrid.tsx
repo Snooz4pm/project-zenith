@@ -3,11 +3,10 @@
 import { motion } from 'framer-motion';
 import { getZenithSignal } from '@/lib/zenith';
 import { formatNumber } from '@/lib/utils';
-import { ArrowUp, ArrowDown, ExternalLink, Star, Clock } from 'lucide-react';
+import { ArrowUp, ArrowDown, Star, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import MarketStatusBadge from './MarketStatusBadge';
-import { dataRefreshManager } from '@/lib/data-refresh';
 import { getMarketStatus } from '@/lib/market-hours';
 
 interface Token {
