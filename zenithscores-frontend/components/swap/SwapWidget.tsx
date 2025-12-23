@@ -211,13 +211,14 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
                     />
 
-                    {/* Swap Widget */}
+                    {/* Swap Widget - Enhanced Design */}
                     <motion.div
                         initial={{ opacity: 0, y: 50, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 50, scale: 0.95 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="fixed bottom-8 right-8 w-[420px] bg-gradient-to-br from-gray-900 to-black border border-gray-700 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                        className="fixed bottom-8 right-8 w-[450px] min-w-[450px] bg-gradient-to-br from-gray-900 via-gray-900 to-black border border-gray-700/50 rounded-2xl shadow-2xl backdrop-blur-xl z-50 overflow-hidden"
+                        style={{ maxHeight: '90vh' }}
                     >
                         {/* Header */}
                         <div className="flex items-center justify-between p-4 border-b border-gray-800">
@@ -276,8 +277,30 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                                 </div>
                             ) : (
                                 <>
-                                    {/* From Token */}
-                                    <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
+                                    {/* Token Loading Status */}
+                                    {loadingTokens && (
+                                        <div className="bg-blue-900/10 border border-blue-500/20 rounded-xl p-3 text-xs text-blue-400 flex items-center gap-2 mb-3">
+                                            <Loader size={14} className="animate-spin" />
+                                            Loading {isSolana ? 'Jupiter' : '1inch'} token list...
+                                        </div>
+                                    )}
+                                    {!loadingTokens && availableTokens.length > 0 && (
+                                        <div className="bg-green-900/10 border border-green-500/20 rounded-xl p-2 text-xs text-green-400 flex items-center justify-between mb-3">
+                                            <span className="flex items-center gap-2">
+                                                <CheckCircle size={12} />
+                                                {availableTokens.length} tokens ready
+                                            </span>
+                                            <span className="text-gray-500 font-mono text-[10px]">{chainInfo?.name || 'Unknown'}</span>
+                                        </div>
+                                    )}
+                                    {!loadingTokens && availableTokens.length === 0 && (
+                                        <div className="bg-yellow-900/10 border border-yellow-500/20 rounded-xl p-3 text-xs text-yellow-400 flex items-center gap-2 mb-3">
+                                            <AlertCircle size={14} />
+                                            <span>Failed to load tokens. Using defaults.</span>
+                                        </div>
+                                    )}
+                                    {/* From Token - Enhanced Design */}
+                                    <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/50 rounded-xl p-4 border border-gray-700/50 backdrop-blur-sm hover:border-gray-600/50 transition-all">
                                         <div className="flex items-center justify-between mb-2">
                                             <span className="text-xs text-gray-500">From</span>
                                             {balance && (
@@ -316,8 +339,8 @@ export function SwapWidget({ isOpen, onClose, defaultFromToken, defaultToToken }
                                         </button>
                                     </div>
 
-                                    {/* To Token */}
-                                    <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
+                                    {/* To Token - Enhanced Design */}
+                                    <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/50 rounded-xl p-4 border border-gray-700/50 backdrop-blur-sm hover:border-gray-600/50 transition-all">
                                         <div className="flex items-center justify-between mb-2">
                                             <span className="text-xs text-gray-500">To</span>
                                             {loading && <Loader size={12} className="text-blue-400 animate-spin" />}
