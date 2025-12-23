@@ -111,8 +111,3 @@ export default function AssetGrid({ tokens, onTokenClick, watchlist, onToggleWat
         </div>
     );
 }
-                );
-            })}
-        </div >
-    );
-}
