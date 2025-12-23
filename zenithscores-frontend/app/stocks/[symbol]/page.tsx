@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -13,6 +13,8 @@ import { getZenithSignal } from '@/lib/zenith';
 import Link from 'next/link';
 import PredictiveSearch from '@/components/PredictiveSearch';
 import { getStockCandles, getTimeRange } from '@/lib/finnhub';
+import ZenithRealtimeChart, { ChartRef } from '@/components/ZenithRealtimeChart';
+import { useMarketData } from '@/hooks/useMarketData';
 
 // Types for Stock Data
 interface StockData {
@@ -63,10 +65,13 @@ const generateHistory = (currentPrice: number, score: number) => {
 };
 
 // Mock Predictions Generator
-// Custom Interactive Chart Section
-import ZenithRealtimeChart, { ChartRef } from '@/components/ZenithRealtimeChart';
-import { useMarketData } from '@/hooks/useMarketData';
-import { useRef } from 'react';
+const generatePredictions = (currentPrice: number, score: number) => {
+    return [
+        { date: '1 week ago', score: 75, outcome: '✓ Success' },
+        { date: '2 weeks ago', score: 62, outcome: '✓ Success' },
+        { date: '3 weeks ago', score: 45, outcome: '✗ Failed' },
+    ];
+};
 
 const StockChartSection = ({ symbol, initialPrice, zenithScore, isPositive, change24h }: any) => {
     const { currentPrice, history, lastTick } = useMarketData({
