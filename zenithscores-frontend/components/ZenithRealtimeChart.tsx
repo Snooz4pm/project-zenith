@@ -37,6 +37,7 @@ const ZenithRealtimeChart = forwardRef<ChartRef, ChartProps>((props, ref) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const seriesRef = useRef<ISeriesApi<'Area'> | null>(null);
+    const dataRef = useRef<{ time: Time; value: number }[]>(data); // Track data internally
 
     useImperativeHandle(ref, () => ({
         update: (newData) => {
@@ -47,6 +48,7 @@ const ZenithRealtimeChart = forwardRef<ChartRef, ChartProps>((props, ref) => {
         setData: (newData) => {
             if (seriesRef.current) {
                 seriesRef.current.setData(newData);
+                dataRef.current = newData; // Track data internally
                 chartRef.current?.timeScale().fitContent();
             }
         }
@@ -128,9 +130,11 @@ const ZenithRealtimeChart = forwardRef<ChartRef, ChartProps>((props, ref) => {
     useEffect(() => {
         if (seriesRef.current && data.length > 0) {
             // Only reset if completely different data set to avoid jitter on small updates
-            const currentData = seriesRef.current.data();
+            // Use dataRef.current instead of the non-existent .data() method in lightweight-charts v4.2+
+            const currentData = dataRef.current;
             if (currentData.length === 0 || data[0].time !== currentData[0]?.time) {
                 seriesRef.current.setData(data);
+                dataRef.current = data; // Update tracked data
                 chartRef.current?.timeScale().fitContent();
             }
         }
