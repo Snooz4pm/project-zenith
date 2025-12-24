@@ -5,8 +5,9 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
     TrendingUp, TrendingDown, Zap, Filter, RefreshCw,
-    ArrowRight, Activity, Target, Clock
+    ArrowRight, Activity, Target, Clock, Eye, Sparkles, Lock, User
 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { getZenithSignal, getScoreColor } from '@/lib/zenith';
 import { getMarketStatus } from '@/lib/market-hours';
 import EmptyState from '@/components/EmptyState';
@@ -25,6 +26,9 @@ interface Signal {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
 export default function SignalsPage() {
+    const { data: session, status } = useSession();
+    const isLoggedIn = !!session?.user;
+
     const [signals, setSignals] = useState<Signal[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'crypto' | 'stock' | 'forex'>('all');
@@ -92,6 +96,53 @@ export default function SignalsPage() {
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white pt-20 md:pt-24">
             {/* Content */}
             <div className="container mx-auto px-4 py-6">
+                {/* Personalization Status Banner */}
+                {status !== 'loading' && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`mb-6 p-4 rounded-xl border ${isLoggedIn
+                            ? 'bg-cyan-500/10 border-cyan-500/20'
+                            : 'bg-gray-800/50 border-gray-700/50'
+                            }`}
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                {isLoggedIn ? (
+                                    <>
+                                        <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                                            <Sparkles size={16} className="text-cyan-400" />
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-semibold text-white">Personalized Signals</div>
+                                            <div className="text-xs text-gray-400">Ranked by your risk profile and trading style</div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+                                            <Eye size={16} className="text-gray-400" />
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-semibold text-white">Generic Signals</div>
+                                            <div className="text-xs text-gray-400">One-size-fits-all scores. Not calibrated to you.</div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            {!isLoggedIn && (
+                                <Link
+                                    href="/auth/login?callbackUrl=/signals"
+                                    className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold rounded-lg transition-colors"
+                                >
+                                    <User size={14} />
+                                    Personalize
+                                </Link>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+
                 {/* Inline Filters */}
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
