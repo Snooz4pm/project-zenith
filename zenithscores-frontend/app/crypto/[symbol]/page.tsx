@@ -15,8 +15,8 @@ import dynamic from 'next/dynamic';
 import ZenithRealtimeChart, { ChartRef } from '@/components/ZenithRealtimeChart';
 import { useMarketData } from '@/hooks/useMarketData';
 
-// Dynamic import for swap widget
-const SwapWidget = dynamic(() => import('@/components/swap/SwapWidget'), { ssr: false });
+// Dynamic import for swap widget - must use named export
+const SwapWidget = dynamic(() => import('@/components/swap/SwapWidget').then(mod => mod.SwapWidget), { ssr: false });
 
 // Mock History Data Generator (Preserved)
 const generateHistory = (currentPrice: number, score: number) => {
