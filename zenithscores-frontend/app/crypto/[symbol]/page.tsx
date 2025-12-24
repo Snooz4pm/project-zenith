@@ -39,13 +39,26 @@ const generateHistory = (currentPrice: number, score: number) => {
     return data;
 };
 
+// Timeframe configurations
+const TIMEFRAME_CONFIG: Record<string, number> = {
+    '1D': 1,
+    '1W': 7,
+    '1M': 30,
+    '3M': 90,
+    '1Y': 365
+};
+
 // Crypto Chart Section Component with Real-time Updates
 const CryptoChartSection = ({ symbol, initialPrice, zenithScore, compareMode, setCompareMode }: any) => {
+    const [selectedTimeframe, setSelectedTimeframe] = useState('3M');
+    const days = TIMEFRAME_CONFIG[selectedTimeframe] || 90;
+
     const { currentPrice, history, lastTick } = useMarketData({
         initialPrice,
         volatility: 0.08, // Higher volatility for crypto
         intervalMs: 2000, // Update every 2 seconds for smooth, realistic feel
-        symbol
+        symbol,
+        days
     });
 
     const chartRef = useRef<ChartRef>(null);
@@ -62,7 +75,7 @@ const CryptoChartSection = ({ symbol, initialPrice, zenithScore, compareMode, se
         if (history.length > 0 && chartRef.current) {
             chartRef.current.setData(history);
         }
-    }, [history.length]);
+    }, [history.length, selectedTimeframe]);
 
     const isPositive = currentPrice >= initialPrice;
 
@@ -94,8 +107,15 @@ const CryptoChartSection = ({ symbol, initialPrice, zenithScore, compareMode, se
                         ZENITH: {zenithScore}
                     </button>
                     <div className="bg-gray-800 rounded-lg p-1 flex gap-1">
-                        {['1D', '1W', '1M', '3M', '1Y'].map(tf => (
-                            <button key={tf} className={`px-2 py-1 text-xs font-bold rounded ${tf === '3M' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+                        {Object.keys(TIMEFRAME_CONFIG).map(tf => (
+                            <button
+                                key={tf}
+                                onClick={() => setSelectedTimeframe(tf)}
+                                className={`px-2 py-1 text-xs font-bold rounded transition-all ${tf === selectedTimeframe
+                                        ? 'bg-gray-700 text-white'
+                                        : 'text-gray-500 hover:text-gray-300'
+                                    }`}
+                            >
                                 {tf}
                             </button>
                         ))}
@@ -121,7 +141,7 @@ const CryptoChartSection = ({ symbol, initialPrice, zenithScore, compareMode, se
 
             <div className="mt-2 flex justify-between text-[10px] text-gray-500 font-mono uppercase">
                 <span>Real-time Data Stream</span>
-                <span>Volatility: High</span>
+                <span>Timeframe: {selectedTimeframe}</span>
             </div>
         </div>
     );

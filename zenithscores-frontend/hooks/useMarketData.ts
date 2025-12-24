@@ -11,41 +11,46 @@ interface UseMarketDataParams {
     volatility?: number; // 0.0 to 1.0 (percent variance)
     intervalMs?: number; // update speed
     symbol?: string;
+    days?: number; // Number of days of history to generate
 }
 
 export const useMarketData = ({
     initialPrice,
     volatility = 0.002, // 0.2% volatility
     intervalMs = 200, // Very fast updates for "live" feel
-    symbol
+    symbol,
+    days = 90 // Default to 3 months
 }: UseMarketDataParams) => {
     const [currentPrice, setCurrentPrice] = useState(initialPrice);
     const [lastTick, setLastTick] = useState<TickData | null>(null);
     const priceRef = useRef(initialPrice);
 
     // Generate initial history
-    const generateHistory = useCallback((days = 90) => {
+    const generateHistory = useCallback(() => {
         const data: TickData[] = [];
         let price = initialPrice * 0.9;
         const now = Math.floor(Date.now() / 1000);
 
-        for (let i = days * 24; i > 0; i--) { // Hourly bars for history
-            const time = (now - (i * 3600)) as Time;
-            const change = (Math.random() - 0.5) * (price * volatility * 2); // More volatility for history
+        // Use hourly bars for longer periods, 15-min bars for shorter
+        const barsPerDay = days <= 7 ? 96 : 24; // 15-min bars for 1D/1W, hourly for longer
+        const totalBars = days * barsPerDay;
+        const secondsPerBar = (days * 24 * 3600) / totalBars;
+
+        for (let i = totalBars; i > 0; i--) {
+            const time = (now - (i * secondsPerBar)) as Time;
+            const change = (Math.random() - 0.5) * (price * volatility * 2);
             price += change;
 
-            // Keep price positive
             if (price < 0.01) price = 0.01;
 
             data.push({ time, value: price });
         }
 
-        // Ensure the last point connects to current price
         priceRef.current = price;
         setCurrentPrice(price);
 
         return data;
-    }, [initialPrice, volatility]);
+    }, [initialPrice, volatility, days]);
 
     const [history, setHistory] = useState<TickData[]>([]);
 
