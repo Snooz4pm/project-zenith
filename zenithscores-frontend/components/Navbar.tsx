@@ -3,14 +3,18 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Eye, Sparkles } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import UserMenu from './UserMenu';
 import ScoreAlerts from './ScoreAlerts';
 import LoadingOverlay from './LoadingOverlay';
 
 export default function Navbar() {
     const pathname = usePathname();
+    const { data: session, status } = useSession();
     const [isNavigating, setIsNavigating] = useState(false);
+    const isLoggedIn = !!session?.user;
 
     const isActive = (path: string) => {
         if (path === '/') return pathname === '/';
@@ -117,8 +121,41 @@ export default function Navbar() {
                         ))}
                     </div>
 
-                    {/* Right Side - Alerts + UserMenu */}
+                    {/* Right Side - Generic Mode Badge + Alerts + UserMenu */}
                     <div className="flex items-center gap-3 relative z-10">
+                        {/* Generic Mode Badge - Shows for anonymous users */}
+                        <AnimatePresence>
+                            {!isLoggedIn && status !== 'loading' && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: 10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: 10 }}
+                                    className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-800/80 border border-gray-700/50"
+                                >
+                                    <Eye size={14} className="text-gray-400" />
+                                    <span className="text-xs text-gray-400 font-medium">Generic Mode</span>
+                                    <Link
+                                        href="/auth/login"
+                                        className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold transition-colors"
+                                    >
+                                        Personalize
+                                    </Link>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        {/* Personalized badge for logged-in users */}
+                        {isLoggedIn && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20"
+                            >
+                                <Sparkles size={12} className="text-cyan-400" />
+                                <span className="text-[10px] text-cyan-400 font-medium uppercase tracking-wide">Personalized</span>
+                            </motion.div>
+                        )}
+
                         <ScoreAlerts />
                         <UserMenu />
                     </div>

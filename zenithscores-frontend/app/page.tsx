@@ -15,6 +15,7 @@ import InteractiveCard from '@/components/InteractiveCard';
 import GlowingBorder from '@/components/GlowingBorder';
 import LiveIndicator from '@/components/LiveIndicator';
 import AnimatedProgress from '@/components/AnimatedProgress';
+import { RecentlyViewed } from '@/components/RecentlyViewed';
 
 // Threads background removed
 
@@ -232,6 +233,11 @@ export default function LandingPage() {
                   </Link>
                 </div>
               </InteractiveCard>
+            </motion.div>
+
+            {/* RECENTLY VIEWED WIDGET - Memory Feature */}
+            <motion.div variants={fadeUpItem} className="w-full max-w-lg">
+              <RecentlyViewed />
             </motion.div>
 
             {/* Auth CTA - Login or Get Started */}
