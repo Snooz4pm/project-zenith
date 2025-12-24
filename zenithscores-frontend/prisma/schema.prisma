@@ -22,6 +22,12 @@ model User {
   accounts      Account[]
   sessions      Session[]
   tradingNotes  TradingNote[]
+  
+  // Personalization relations
+  preferences           UserPreferences?       @relation("UserPreferences")
+  assetViews            UserAssetView[]        @relation("UserAssetViews")
+  watchlists            UserWatchlist[]        @relation("UserWatchlists")
+  signalInteractions    UserSignalInteraction[] @relation("UserSignalInteractions")
 }
 
 // Required by NextAuth PrismaAdapter for OAuth
@@ -442,4 +448,92 @@ model TradingNote {
 
   @@index([userId], map: "idx_trading_notes_user")
   @@index([createdAt(sort: Desc)], map: "idx_trading_notes_time")
+}
+
+// ========================
+// CONVERSION STRATEGY: PERSONALIZATION TABLES
+// ========================
+
+model UserPreferences {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation("UserPreferences", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Calibration data
+  riskTolerance    Int?     @default(5) // 1-10 scale
+  timeHorizon      String?  // "short", "medium", "long"
+  analysisStyle    String?  // "technical", "fundamental", "both"
+  patienceLevel    Int?     // 1-10 scale
+  learningBias     Int?     // 1-10 scale (action vs learning)
+  userArchetype    String?  // "conservative", "moderate", "aggressive"
+  
+  // Preferences
+  defaultView      String?  @default("market")
+  notifications    Json?    @default("{}")
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+model UserAssetView {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation("UserAssetViews", fields: [userId], references: [id], onDelete: Cascade)
+  
+  assetType        String   // "crypto", "stocks", "forex"
+  symbol           String   // "BTC", "AAPL", "EURUSD"
+  name             String?
+  
+  // Tracking data
+  viewCount        Int      @default(1)
+  lastViewed       DateTime @default(now())
+  firstViewed      DateTime @default(now())
+  
+  // Performance tracking (for "Your Edge")
+  notes            String?
+  userRating       Int?     // 1-5 stars
+  winLoss          Boolean? // true = win, false = loss
+  
+  @@unique([userId, assetType, symbol])
+  @@index([userId, lastViewed])
+  @@index([assetType, symbol])
+}
+
+model UserWatchlist {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation("UserWatchlists", fields: [userId], references: [id], onDelete: Cascade)
+  
+  assetType        String   // "crypto", "stocks", "forex"
+  symbol           String
+  name             String?
+  addedAt          DateTime @default(now())
+  notes            String?
+  
+  @@unique([userId, assetType, symbol])
+  @@index([userId, addedAt])
+}
+
+model UserSignalInteraction {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation("UserSignalInteractions", fields: [userId], references: [id], onDelete: Cascade)
+  
+  signalId         String
+  assetType        String
+  symbol           String
+  
+  // Interaction data
+  viewed           Boolean  @default(true)
+  saved            Boolean  @default(false)
+  actedUpon        Boolean? // Did they trade this?
+  profitLoss       Float?   // If actedUpon, result
+  confidence       Int?     // 1-10 how confident they were
+  
+  interactedAt     DateTime @default(now())
+  
+  @@index([userId, interactedAt])
+  @@index([signalId])
 }

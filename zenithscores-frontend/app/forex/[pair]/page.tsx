@@ -45,26 +45,13 @@ const transformCandleData = (candles: any) => {
     });
 };
 
-// Timeframe configurations for forex (shorter timeframes for intraday trading)
-const FOREX_TIMEFRAME_CONFIG: Record<string, number> = {
-    '1D': 1,
-    '1W': 7,
-    '1M': 30,
-    '3M': 90,
-    '1Y': 365
-};
-
 // Custom Forex Chart Section Component
 const ForexChartSection = ({ pair, initialRate, zenithScore, isPositive, change24h }: any) => {
-    const [selectedTimeframe, setSelectedTimeframe] = useState('1M');
-    const days = FOREX_TIMEFRAME_CONFIG[selectedTimeframe] || 30;
-
     const { currentPrice, history, lastTick } = useMarketData({
         initialPrice: initialRate,
         volatility: 0.02, // Lower volatility for forex
-        intervalMs: 2000,
-        symbol: pair,
-        days
+        intervalMs: 2000, // Update every 2 seconds for smooth, realistic feel
+        symbol: pair
     });
 
     const chartRef = useRef<ChartRef>(null);
@@ -76,12 +63,12 @@ const ForexChartSection = ({ pair, initialRate, zenithScore, isPositive, change2
         }
     }, [lastTick]);
 
-    // Initial load and timeframe changes
+    // Initial load
     useEffect(() => {
         if (history.length > 0 && chartRef.current) {
             chartRef.current.setData(history);
         }
-    }, [history.length, selectedTimeframe]);
+    }, [history.length]);
 
     return (
         <div className="bg-[#1A1A22] rounded-xl border border-gray-800 p-6 h-[500px] flex flex-col">
@@ -110,15 +97,8 @@ const ForexChartSection = ({ pair, initialRate, zenithScore, isPositive, change2
                         ZENITH: {zenithScore}
                     </button>
                     <div className="bg-gray-800 rounded-lg p-1 flex gap-1">
-                        {Object.keys(FOREX_TIMEFRAME_CONFIG).map(tf => (
-                            <button
-                                key={tf}
-                                onClick={() => setSelectedTimeframe(tf)}
-                                className={`px-2 py-1 text-xs font-bold rounded transition-all ${tf === selectedTimeframe
-                                        ? 'bg-gray-700 text-white'
-                                        : 'text-gray-500 hover:text-gray-300'
-                                    }`}
-                            >
+                        {['1m', '5m', '1h', '1D'].map(tf => (
+                            <button key={tf} className={`px-2 py-1 text-xs font-bold rounded ${tf === '1h' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
                                 {tf}
                             </button>
                         ))}
@@ -139,11 +119,6 @@ const ForexChartSection = ({ pair, initialRate, zenithScore, isPositive, change2
                         textColor: '#6B7280'
                     }}
                 />
-            </div>
-
-            <div className="mt-2 flex justify-between text-[10px] text-gray-500 font-mono uppercase">
-                <span>Real-time Data</span>
-                <span>Timeframe: {selectedTimeframe}</span>
             </div>
         </div>
     );

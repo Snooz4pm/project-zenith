@@ -104,29 +104,41 @@ export default function LandingPage() {
               </span>
             </motion.div>
 
-            {/* Main Headline with Shimmer */}
+            {/* Main Headline with NEW VALUE PROPOSITION */}
             <motion.h1
               variants={fadeUpItem}
-              className="text-3xl md:text-5xl lg:text-7xl font-heading mb-6 md:mb-8 leading-[1.1]"
+              className="text-3xl md:text-5xl lg:text-6xl font-heading mb-4 leading-[1.15]"
             >
-              <span className="text-white">Live Market Scores for </span>
-              <br />
+              <span className="text-white block mb-2">ZenithScore isn't a screener.</span>
               <ShimmerText
                 colors={['#00f0ff', '#a855f7', '#f72585', '#a855f7', '#00f0ff']}
                 speed={4}
-                className="font-heading"
+                className="font-heading block"
               >
-                Stocks & Crypto.
+                It's a system that learns how you trade.
               </ShimmerText>
-              <br />
-              <span className="text-emerald-400">Free Forever.</span>
             </motion.h1>
+
+            {/* Value Comparison - Anonymous vs Logged In */}
+            <motion.div
+              variants={fadeUpItem}
+              className="mb-8 grid grid-cols-2 gap-4 max-w-lg"
+            >
+              <div className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
+                <p className="text-sm font-bold text-gray-400 mb-1">Anonymous users</p>
+                <p className="text-xs text-gray-500">See the market</p>
+              </div>
+              <div className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur-sm rounded-xl p-4 border border-blue-500/30">
+                <p className="text-sm font-bold text-blue-400 mb-1">Logged-in users</p>
+                <p className="text-xs text-blue-300">See their edge</p>
+              </div>
+            </motion.div>
 
             <motion.p
               variants={fadeUpItem}
-              className="text-xl text-gray-400 max-w-lg leading-relaxed mb-12"
+              className="text-lg text-gray-400 max-w-lg leading-relaxed mb-12"
             >
-              Real-time algorithmically-driven scores. No sign-up required.
+              Real-time scores calibrated to your risk tolerance and trading style.
             </motion.p>
 
             {/* Live Search Bar */}
