@@ -73,12 +73,25 @@ const generatePredictions = (currentPrice: number, score: number) => {
     ];
 };
 
+// Timeframe configurations for stocks
+const STOCK_TIMEFRAME_CONFIG: Record<string, number> = {
+    '1D': 1,
+    '1W': 7,
+    '1M': 30,
+    '3M': 90,
+    '1Y': 365
+};
+
 const StockChartSection = ({ symbol, initialPrice, zenithScore, isPositive, change24h }: any) => {
+    const [selectedTimeframe, setSelectedTimeframe] = useState('3M');
+    const days = STOCK_TIMEFRAME_CONFIG[selectedTimeframe] || 90;
+
     const { currentPrice, history, lastTick } = useMarketData({
         initialPrice,
         volatility: 0.05,
-        intervalMs: 2000, // Update every 2 seconds for smooth, realistic feel
-        symbol
+        intervalMs: 2000,
+        symbol,
+        days
     });
 
     const chartRef = useRef<ChartRef>(null);
@@ -90,12 +103,12 @@ const StockChartSection = ({ symbol, initialPrice, zenithScore, isPositive, chan
         }
     }, [lastTick]);
 
-    // Initial load
+    // Initial load and timeframe changes
     useEffect(() => {
         if (history.length > 0 && chartRef.current) {
             chartRef.current.setData(history);
         }
-    }, [history.length]); // Only on init mount basically
+    }, [history.length, selectedTimeframe]);
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 h-[500px] flex flex-col">
@@ -125,8 +138,15 @@ const StockChartSection = ({ symbol, initialPrice, zenithScore, isPositive, chan
                         ZENITH SCORE: {zenithScore}
                     </button>
                     <div className="bg-gray-100 rounded-lg p-1 flex gap-1">
-                        {['1D', '1W', '1M', '3M', '1Y'].map(tf => (
-                            <button key={tf} className={`px-3 py-1 text-xs font-bold rounded ${tf === '3M' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400'}`}>
+                        {Object.keys(STOCK_TIMEFRAME_CONFIG).map(tf => (
+                            <button
+                                key={tf}
+                                onClick={() => setSelectedTimeframe(tf)}
+                                className={`px-3 py-1 text-xs font-bold rounded transition-all ${tf === selectedTimeframe
+                                        ? 'bg-white shadow-sm text-gray-900'
+                                        : 'text-gray-400 hover:text-gray-600'
+                                    }`}
+                            >
                                 {tf}
                             </button>
                         ))}
@@ -150,7 +170,7 @@ const StockChartSection = ({ symbol, initialPrice, zenithScore, isPositive, chan
 
             <div className="mt-2 flex justify-between text-[10px] text-gray-400 font-mono uppercase">
                 <span>Real-time Data Stream</span>
-                <span>Vol: {(Math.random() * 1000).toFixed(0)} shares/sec</span>
+                <span>Timeframe: {selectedTimeframe}</span>
             </div>
         </div>
     );
