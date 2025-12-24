@@ -1,16 +1,29 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/nextauth';
-import { prisma } from '@/lib/prisma';
+import { authOptions } from '@/lib/auth';
+import prisma from '@/lib/prisma';
 
 export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session?.user?.id) {
+        if (!session?.user?.email) {
             return NextResponse.json(
                 { error: 'Unauthorized' },
                 { status: 401 }
+            );
+        }
+
+        // Get user ID from email
+        const user = await prisma.user.findUnique({
+            where: { email: session.user.email },
+            select: { id: true }
+        });
+
+        if (!user) {
+            return NextResponse.json(
+                { error: 'User not found' },
+                { status: 404 }
             );
         }
 
@@ -50,7 +63,7 @@ export async function POST(req: Request) {
 
         // Upsert preferences
         const preferences = await prisma.userPreferences.upsert({
-            where: { userId: session.user.id },
+            where: { userId: user.id },
             update: {
                 riskTolerance,
                 timeHorizon,
@@ -61,7 +74,7 @@ export async function POST(req: Request) {
                 updatedAt: new Date()
             },
             create: {
-                userId: session.user.id,
+                userId: user.id,
                 riskTolerance,
                 timeHorizon,
                 analysisStyle,
@@ -93,7 +106,20 @@ export async function GET(req: Request) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session?.user?.id) {
+        if (!session?.user?.email) {
+            return NextResponse.json({
+                preferences: null,
+                isCalibrated: false
+            });
+        }
+
+        // Get user ID from email
+        const user = await prisma.user.findUnique({
+            where: { email: session.user.email },
+            select: { id: true }
+        });
+
+        if (!user) {
             return NextResponse.json({
                 preferences: null,
                 isCalibrated: false
@@ -101,7 +127,7 @@ export async function GET(req: Request) {
         }
 
         const preferences = await prisma.userPreferences.findUnique({
-            where: { userId: session.user.id },
+            where: { userId: user.id },
             select: {
                 riskTolerance: true,
                 timeHorizon: true,

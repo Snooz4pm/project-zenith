@@ -1,17 +1,30 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/nextauth';
-import { prisma } from '@/lib/prisma';
+import { authOptions } from '@/lib/auth';
+import prisma from '@/lib/prisma';
 
 export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions);
 
         // If not logged in, return success (tracking happens client-side in localStorage)
-        if (!session?.user?.id) {
+        if (!session?.user?.email) {
             return NextResponse.json({
                 success: true,
                 message: 'Anonymous tracking handled client-side'
+            });
+        }
+
+        // Get user ID from email
+        const user = await prisma.user.findUnique({
+            where: { email: session.user.email },
+            select: { id: true }
+        });
+
+        if (!user) {
+            return NextResponse.json({
+                success: true,
+                message: 'User not found, tracking skipped'
             });
         }
 
@@ -37,7 +50,7 @@ export async function POST(req: Request) {
         const view = await prisma.userAssetView.upsert({
             where: {
                 userId_assetType_symbol: {
-                    userId: session.user.id,
+                    userId: user.id,
                     assetType,
                     symbol
                 }
@@ -45,10 +58,10 @@ export async function POST(req: Request) {
             update: {
                 viewCount: { increment: 1 },
                 lastViewed: new Date(),
-                name: name || undefined // Update name if provided
+                name: name || undefined
             },
             create: {
-                userId: session.user.id,
+                userId: user.id,
                 assetType,
                 symbol,
                 name,

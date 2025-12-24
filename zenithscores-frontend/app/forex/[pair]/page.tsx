@@ -13,6 +13,8 @@ import Link from 'next/link';
 import { getForexRates, getForexCandles, getTimeRange, ALL_FOREX_PAIRS } from '@/lib/finnhub';
 import ZenithRealtimeChart, { ChartRef } from '@/components/ZenithRealtimeChart';
 import { useMarketData } from '@/hooks/useMarketData';
+import { useTrackView } from '@/hooks/useTrackView';
+import { useSession } from 'next-auth/react';
 
 interface ForexData {
     pair: string;
@@ -135,6 +137,16 @@ export default function ForexDetailPage() {
     const [chartTimeframe, setChartTimeframe] = useState('3M');
     const [showScoreOverlay, setShowScoreOverlay] = useState(true);
     const [lastUpdate, setLastUpdate] = useState(new Date());
+    const { data: session } = useSession();
+    const isLoggedIn = !!session?.user;
+
+    // Track this view for personalization
+    useTrackView({
+        assetType: 'forex',
+        symbol: pair,
+        name: forex?.name || pair,
+        enabled: !!pair && !loading
+    });
 
     const fetchData = async () => {
         try {

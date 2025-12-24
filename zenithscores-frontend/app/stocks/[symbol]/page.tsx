@@ -15,6 +15,8 @@ import PredictiveSearch from '@/components/PredictiveSearch';
 import { getStockCandles, getTimeRange } from '@/lib/finnhub';
 import ZenithRealtimeChart, { ChartRef } from '@/components/ZenithRealtimeChart';
 import { useMarketData } from '@/hooks/useMarketData';
+import { useTrackView } from '@/hooks/useTrackView';
+import { useSession } from 'next-auth/react';
 
 // Types for Stock Data
 interface StockData {
@@ -143,8 +145,8 @@ const StockChartSection = ({ symbol, initialPrice, zenithScore, isPositive, chan
                                 key={tf}
                                 onClick={() => setSelectedTimeframe(tf)}
                                 className={`px-3 py-1 text-xs font-bold rounded transition-all ${tf === selectedTimeframe
-                                        ? 'bg-white shadow-sm text-gray-900'
-                                        : 'text-gray-400 hover:text-gray-600'
+                                    ? 'bg-white shadow-sm text-gray-900'
+                                    : 'text-gray-400 hover:text-gray-600'
                                     }`}
                             >
                                 {tf}
@@ -179,6 +181,8 @@ const StockChartSection = ({ symbol, initialPrice, zenithScore, isPositive, chan
 export default function StockDetailPage() {
     const params = useParams();
     const symbol = typeof params.symbol === 'string' ? params.symbol : 'AAPL';
+    const { data: session } = useSession();
+    const isLoggedIn = !!session?.user;
 
     const [stock, setStock] = useState<StockData | null>(null);
     const [history, setHistory] = useState<any[]>([]);
@@ -186,6 +190,14 @@ export default function StockDetailPage() {
     const [loading, setLoading] = useState(true);
     const [chartTimeframe, setChartTimeframe] = useState('3M');
     const [showScoreOverlay, setShowScoreOverlay] = useState(true);
+
+    // Track this view for personalization
+    useTrackView({
+        assetType: 'stocks',
+        symbol: symbol.toUpperCase(),
+        name: stock?.name || stock?.description || symbol.toUpperCase(),
+        enabled: !!symbol && !loading
+    });
 
     useEffect(() => {
         const fetchData = async () => {

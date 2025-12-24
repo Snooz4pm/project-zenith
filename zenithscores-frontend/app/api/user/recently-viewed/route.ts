@@ -1,24 +1,34 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/nextauth';
-import { prisma } from '@/lib/prisma';
+import { authOptions } from '@/lib/auth';
+import prisma from '@/lib/prisma';
 
 export async function GET(req: Request) {
     try {
         const session = await getServerSession(authOptions);
 
         // Return empty array for anonymous users
-        if (!session?.user?.id) {
+        if (!session?.user?.email) {
+            return NextResponse.json({ items: [] });
+        }
+
+        // Get user ID from email
+        const user = await prisma.user.findUnique({
+            where: { email: session.user.email },
+            select: { id: true }
+        });
+
+        if (!user) {
             return NextResponse.json({ items: [] });
         }
 
         // Get query parameters
         const { searchParams } = new URL(req.url);
         const limit = parseInt(searchParams.get('limit') || '10');
-        const assetType = searchParams.get('assetType'); // Optional filter
+        const assetType = searchParams.get('assetType');
 
         // Build where clause
-        const where: any = { userId: session.user.id };
+        const where: any = { userId: user.id };
         if (assetType && ['crypto', 'stocks', 'forex'].includes(assetType)) {
             where.assetType = assetType;
         }
@@ -27,7 +37,7 @@ export async function GET(req: Request) {
         const recentViews = await prisma.userAssetView.findMany({
             where,
             orderBy: { lastViewed: 'desc' },
-            take: Math.min(limit, 50), // Cap at 50
+            take: Math.min(limit, 50),
             select: {
                 assetType: true,
                 symbol: true,

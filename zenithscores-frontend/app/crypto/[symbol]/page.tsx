@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft, ArrowUp, ArrowDown, Activity, Zap, TrendingUp, Info,
-    Copy, ExternalLink, Shield, Wallet, CheckCircle, ChevronDown, ChevronUp, AlertTriangle
+    Copy, ExternalLink, Shield, Wallet, CheckCircle, ChevronDown, ChevronUp, AlertTriangle, Lock
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceDot } from 'recharts';
 import { getZenithSignal, generateInsight } from '@/lib/zenith';
@@ -14,6 +14,10 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import ZenithRealtimeChart, { ChartRef } from '@/components/ZenithRealtimeChart';
 import { useMarketData } from '@/hooks/useMarketData';
+import { useTrackView } from '@/hooks/useTrackView';
+import { useSession } from 'next-auth/react';
+import { PersonalizationLock } from '@/components/PersonalizationLock';
+import { GhostBadge } from '@/components/GhostFeature';
 
 // Dynamic import for swap widget - must use named export
 const SwapWidget = dynamic(() => import('@/components/swap/SwapWidget').then(mod => mod.SwapWidget), { ssr: false });
@@ -112,8 +116,8 @@ const CryptoChartSection = ({ symbol, initialPrice, zenithScore, compareMode, se
                                 key={tf}
                                 onClick={() => setSelectedTimeframe(tf)}
                                 className={`px-2 py-1 text-xs font-bold rounded transition-all ${tf === selectedTimeframe
-                                        ? 'bg-gray-700 text-white'
-                                        : 'text-gray-500 hover:text-gray-300'
+                                    ? 'bg-gray-700 text-white'
+                                    : 'text-gray-500 hover:text-gray-300'
                                     }`}
                             >
                                 {tf}
@@ -150,6 +154,8 @@ const CryptoChartSection = ({ symbol, initialPrice, zenithScore, compareMode, se
 export default function AssetPage() {
     const params = useParams();
     const symbol = typeof params.symbol === 'string' ? params.symbol : '';
+    const { data: session } = useSession();
+    const isLoggedIn = !!session?.user;
 
     const [token, setToken] = useState<any>(null);
     const [meta, setMeta] = useState<CryptoMetadata | null>(null);
@@ -159,10 +165,19 @@ export default function AssetPage() {
     const [copied, setCopied] = useState(false);
     const [compareMode, setCompareMode] = useState(false);
     const [showSwapWidget, setShowSwapWidget] = useState(false);
+    const [showLoginModal, setShowLoginModal] = useState(false);
 
     // New Features State
     const [subScores, setSubScores] = useState({ momentum: 0, volume: 0, social: 0 });
     const [relatedAssets, setRelatedAssets] = useState<any[]>([]);
+
+    // Track this view for personalization
+    useTrackView({
+        assetType: 'crypto',
+        symbol: symbol.toUpperCase(),
+        name: token?.name || symbol.toUpperCase(),
+        enabled: !!symbol && !loading
+    });
 
     useEffect(() => {
         if (!symbol) return;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'use';
+import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 
 interface UseTrackViewOptions {

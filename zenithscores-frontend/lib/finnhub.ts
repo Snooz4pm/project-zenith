@@ -288,7 +288,8 @@ function getChartConfig(timeframe: string, symbol: string) {
     const isForex = symbol.includes('/');
     const isCrypto = ['BTC', 'ETH', 'SOL'].some(c => symbol.includes(c));
 
-    // Base volatility by asset type (%)    const baseVolatility = isForex ? 0.001 : isCrypto ? 0.02 : 0.005;
+    // Base volatility by asset type (%)
+    const baseVolatility = isForex ? 0.001 : isCrypto ? 0.02 : 0.005;
 
     const minute = 60;
     const hour = 60 * 60;
