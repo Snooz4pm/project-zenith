@@ -126,14 +126,24 @@ export default function CalibrationPage() {
                 })
             });
 
-            if (response.ok) {
-                setIsComplete(true);
-                setTimeout(() => {
-                    router.push('/command-center');
-                }, 2500);
+            // Always show complete and redirect, even if API has issues
+            setIsComplete(true);
+
+            if (!response.ok) {
+                console.warn('Calibration API returned non-ok, but proceeding with redirect');
             }
+
+            // Force redirect after delay
+            setTimeout(() => {
+                window.location.href = '/command-center';
+            }, 2000);
         } catch (error) {
             console.error('Calibration failed:', error);
+            // Still redirect even on error - don't trap user
+            setIsComplete(true);
+            setTimeout(() => {
+                window.location.href = '/command-center';
+            }, 2000);
         } finally {
             setIsSubmitting(false);
         }
@@ -203,7 +213,7 @@ export default function CalibrationPage() {
                     </p>
                     <div className="flex items-center justify-center gap-2 text-sm text-cyan-400">
                         <Sparkles size={16} />
-                        Redirecting to your dashboard...
+                        Redirecting to Command Center...
                     </div>
                 </motion.div>
             </div>
