@@ -126,24 +126,26 @@ export default function CalibrationPage() {
                 })
             });
 
-            // Always show complete and redirect, even if API has issues
+            // Show completion regardless
             setIsComplete(true);
 
-            if (!response.ok) {
-                console.warn('Calibration API returned non-ok, but proceeding with redirect');
+            if (response.ok) {
+                console.log('Calibration saved successfully');
+            } else {
+                console.warn('Calibration API returned non-ok:', await response.text());
             }
 
-            // Force redirect after delay
+            // Force a full page navigation to refresh the session
             setTimeout(() => {
                 window.location.href = '/command-center';
-            }, 2000);
+            }, 1500);
         } catch (error) {
             console.error('Calibration failed:', error);
             // Still redirect even on error - don't trap user
             setIsComplete(true);
             setTimeout(() => {
                 window.location.href = '/command-center';
-            }, 2000);
+            }, 1500);
         } finally {
             setIsSubmitting(false);
         }

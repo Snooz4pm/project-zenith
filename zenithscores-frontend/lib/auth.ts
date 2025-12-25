@@ -14,10 +14,12 @@ declare module "next-auth" {
             name?: string | null
             image?: string | null
             calibrationCompleted: boolean
+            tradingStyle?: any
         }
     }
     interface User {
         calibrationCompleted?: boolean
+        tradingStyle?: any
     }
 }
 
@@ -25,6 +27,7 @@ declare module "next-auth/jwt" {
     interface JWT {
         id: string
         calibrationCompleted: boolean
+        tradingStyle?: any
     }
 }
 
@@ -77,6 +80,7 @@ export const authOptions: NextAuthOptions = {
                     name: user.name,
                     image: user.image,
                     calibrationCompleted: user.calibrationCompleted,
+                    tradingStyle: user.tradingStyle,
                 }
             }
         })
@@ -101,24 +105,58 @@ export const authOptions: NextAuthOptions = {
             if (url.startsWith("/")) return `${baseUrl}${url}`
             // Same origin - allow
             if (new URL(url).origin === baseUrl) return url
-            // Default to command-center (not dashboard)
+            // Default to command-center
             return `${baseUrl}/command-center`
         },
-        async jwt({ token, user, trigger }) {
-            // Initial sign in - attach user data
-            if (user) {
+        async jwt({ token, user, trigger, account }) {
+            // Initial sign in - ALWAYS fetch fresh from database
+            if (user && user.id) {
                 token.id = user.id
-                token.calibrationCompleted = user.calibrationCompleted ?? false
+
+                // Fetch calibration status from database (critical for OAuth users)
+                try {
+                    const dbUser = await prisma.user.findUnique({
+                        where: { id: user.id },
+                        select: { calibrationCompleted: true, tradingStyle: true }
+                    })
+                    token.calibrationCompleted = dbUser?.calibrationCompleted ?? false
+                    token.tradingStyle = dbUser?.tradingStyle ?? null
+                } catch (e) {
+                    console.error("Failed to fetch calibration status:", e)
+                    token.calibrationCompleted = false
+                }
             }
 
-            // Refresh calibration status on session update
+            // Also handle case where user signed in via OAuth and we need to fetch by email
+            if (!token.id && token.email) {
+                try {
+                    const dbUser = await prisma.user.findUnique({
+                        where: { email: token.email as string },
+                        select: { id: true, calibrationCompleted: true, tradingStyle: true }
+                    })
+                    if (dbUser) {
+                        token.id = dbUser.id
+                        token.calibrationCompleted = dbUser.calibrationCompleted ?? false
+                        token.tradingStyle = dbUser.tradingStyle ?? null
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch user by email:", e)
+                }
+            }
+
+            // Refresh calibration status on session update trigger
             if (trigger === "update" && token.id) {
-                const dbUser = await prisma.user.findUnique({
-                    where: { id: token.id as string },
-                    select: { calibrationCompleted: true }
-                })
-                if (dbUser) {
-                    token.calibrationCompleted = dbUser.calibrationCompleted
+                try {
+                    const dbUser = await prisma.user.findUnique({
+                        where: { id: token.id as string },
+                        select: { calibrationCompleted: true, tradingStyle: true }
+                    })
+                    if (dbUser) {
+                        token.calibrationCompleted = dbUser.calibrationCompleted
+                        token.tradingStyle = dbUser.tradingStyle
+                    }
+                } catch (e) {
+                    console.error("Failed to refresh calibration status:", e)
                 }
             }
 
@@ -128,6 +166,7 @@ export const authOptions: NextAuthOptions = {
             if (token && session.user) {
                 session.user.id = token.id as string
                 session.user.calibrationCompleted = token.calibrationCompleted as boolean
+                session.user.tradingStyle = token.tradingStyle
             }
             return session
         }
@@ -135,10 +174,14 @@ export const authOptions: NextAuthOptions = {
     events: {
         async createUser({ user }) {
             // New user created via OAuth - mark as uncalibrated
-            await prisma.user.update({
-                where: { id: user.id },
-                data: { calibrationCompleted: false }
-            })
+            try {
+                await prisma.user.update({
+                    where: { id: user.id },
+                    data: { calibrationCompleted: false }
+                })
+            } catch (e) {
+                console.error("Failed to set calibrationCompleted for new user:", e)
+            }
         }
     },
     debug: process.env.NODE_ENV === "development",
