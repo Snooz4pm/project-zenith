@@ -135,16 +135,16 @@ export default function CalibrationPage() {
                 console.warn('Calibration API returned non-ok:', await response.text());
             }
 
-            // Force a full page navigation to refresh the session
+            // Redirect with bypass param to avoid middleware blocking with stale JWT
             setTimeout(() => {
-                window.location.href = '/command-center';
+                window.location.href = '/command-center?calibrated=true';
             }, 1500);
         } catch (error) {
             console.error('Calibration failed:', error);
             // Still redirect even on error - don't trap user
             setIsComplete(true);
             setTimeout(() => {
-                window.location.href = '/command-center';
+                window.location.href = '/command-center?calibrated=true';
             }, 1500);
         } finally {
             setIsSubmitting(false);

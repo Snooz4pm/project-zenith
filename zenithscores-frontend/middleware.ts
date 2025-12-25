@@ -32,7 +32,7 @@ const PROTECTED_ROUTES = [
 const CALIBRATION_ROUTE = '/auth/calibration'
 
 export async function middleware(request: NextRequest) {
-    const { pathname } = request.nextUrl
+    const { pathname, searchParams } = request.nextUrl
 
     // Skip static files and API routes
     if (
@@ -50,7 +50,11 @@ export async function middleware(request: NextRequest) {
     })
 
     const isLoggedIn = !!token
-    const isCalibrated = token?.calibrationCompleted === true
+
+    // Check calibration from token OR from query param (fresh calibration bypass)
+    // This handles the case where JWT hasn't refreshed yet after calibration
+    const justCalibrated = searchParams.get('calibrated') === 'true'
+    const isCalibrated = token?.calibrationCompleted === true || justCalibrated
 
     // Check route types
     const isPublicRoute = PUBLIC_ROUTES.some(route =>
@@ -101,11 +105,18 @@ export async function middleware(request: NextRequest) {
         }
 
         // Logged in but not calibrated - force calibration
-        if (!isCalibrated) {
+        // BUT skip this check if they just completed calibration (bypass param)
+        if (!isCalibrated && !justCalibrated) {
             return NextResponse.redirect(new URL(CALIBRATION_ROUTE, request.url))
         }
 
-        // Logged in and calibrated - allow access
+        // Logged in and calibrated (or just calibrated) - allow access
+        // Clean up the bypass param by redirecting without it
+        if (justCalibrated && searchParams.has('calibrated')) {
+            const cleanUrl = new URL(pathname, request.url)
+            return NextResponse.redirect(cleanUrl)
+        }
+
         return NextResponse.next()
     }
 
