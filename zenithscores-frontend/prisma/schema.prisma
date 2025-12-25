@@ -18,10 +18,16 @@ model User {
   created_at    DateTime  @default(now())
   last_login    DateTime?
   
+  // Launch-critical fields
+  calibrationCompleted Boolean  @default(false)
+  tier                 String   @default("free")
+  tradingStyle         Json?
+  
   // NextAuth relations
   accounts      Account[]
   sessions      Session[]
   tradingNotes  TradingNote[]
+  activities    Activity[]    @relation("UserActivities")
   
   // Personalization relations
   preferences           UserPreferences?       @relation("UserPreferences")
@@ -536,4 +542,24 @@ model UserSignalInteraction {
   
   @@index([userId, interactedAt])
   @@index([signalId])
+}
+
+// ========================
+// LAUNCH CORE: ACTIVITY TRACKING
+// ========================
+
+model Activity {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("UserActivities", fields: [userId], references: [id], onDelete: Cascade)
+  
+  type       String   // view, note, watchlist, lesson, trade_mock
+  targetId   String?  // asset symbol, note id, etc.
+  targetType String?  // asset, note, lesson
+  metadata   Json?
+  
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type])
 }

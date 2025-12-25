@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 
 /**
  * GET /api/notes
@@ -10,25 +10,24 @@ import { prisma } from '@/lib/prisma';
 export async function GET(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session?.user?.email) {
+        if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
-            select: { id: true }
-        });
-
-        if (!user) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
-        }
+        const { searchParams } = new URL(request.url);
+        const asset = searchParams.get('asset');
+        const limit = parseInt(searchParams.get('limit') || '50');
 
         const notes = await prisma.tradingNote.findMany({
-            where: { userId: user.id },
-            orderBy: { createdAt: 'desc' }
+            where: {
+                userId: session.user.id,
+                ...(asset && { asset }),
+            },
+            orderBy: { createdAt: 'desc' },
+            take: Math.min(limit, 100),
         });
 
-        return NextResponse.json({ notes });
+        return NextResponse.json({ status: 'success', data: notes });
     } catch (error) {
         console.error('Error fetching notes:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -42,17 +41,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session?.user?.email) {
+        if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
-            select: { id: true }
-        });
-
-        if (!user) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
         const body = await request.json();
@@ -66,14 +56,14 @@ export async function POST(request: NextRequest) {
             snapshotUrl
         } = body;
 
-        if (!content) {
+        if (!content || content.trim().length === 0) {
             return NextResponse.json({ error: 'Content is required' }, { status: 400 });
         }
 
         const note = await prisma.tradingNote.create({
             data: {
-                userId: user.id,
-                content,
+                userId: session.user.id,
+                content: content.trim(),
                 sentiment,
                 phase,
                 asset,
@@ -83,9 +73,115 @@ export async function POST(request: NextRequest) {
             }
         });
 
-        return NextResponse.json({ note });
+        // Log activity
+        await prisma.activity.create({
+            data: {
+                userId: session.user.id,
+                type: 'note',
+                targetId: note.id.toString(),
+                targetType: 'note',
+                metadata: { action: 'create' },
+            }
+        });
+
+        return NextResponse.json({ status: 'success', data: note });
     } catch (error) {
         console.error('Error creating note:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}
+
+/**
+ * DELETE /api/notes?id=X
+ * Delete own note only
+ */
+export async function DELETE(request: NextRequest) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id) {
+            return NextResponse.json({ error: 'Note id is required' }, { status: 400 });
+        }
+
+        // Verify ownership
+        const note = await prisma.tradingNote.findFirst({
+            where: {
+                id: parseInt(id),
+                userId: session.user.id,
+            }
+        });
+
+        if (!note) {
+            return NextResponse.json(
+                { error: 'Note not found or access denied' },
+                { status: 404 }
+            );
+        }
+
+        await prisma.tradingNote.delete({
+            where: { id: parseInt(id) }
+        });
+
+        return NextResponse.json({ status: 'success', message: 'Note deleted' });
+    } catch (error) {
+        console.error('Notes DELETE error:', error);
+        return NextResponse.json({ error: 'Failed to delete note' }, { status: 500 });
+    }
+}
+
+/**
+ * PATCH /api/notes
+ * Update own note - manual save
+ */
+export async function PATCH(request: NextRequest) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const body = await request.json();
+        const { id, content, sentiment, phase, mood, stressLevel } = body;
+
+        if (!id) {
+            return NextResponse.json({ error: 'Note id is required' }, { status: 400 });
+        }
+
+        // Verify ownership
+        const note = await prisma.tradingNote.findFirst({
+            where: {
+                id: parseInt(id),
+                userId: session.user.id,
+            }
+        });
+
+        if (!note) {
+            return NextResponse.json(
+                { error: 'Note not found or access denied' },
+                { status: 404 }
+            );
+        }
+
+        const updated = await prisma.tradingNote.update({
+            where: { id: parseInt(id) },
+            data: {
+                ...(content !== undefined && { content: content.trim() }),
+                ...(sentiment !== undefined && { sentiment }),
+                ...(phase !== undefined && { phase }),
+                ...(mood !== undefined && { mood }),
+                ...(stressLevel !== undefined && { stressLevel }),
+            }
+        });
+
+        return NextResponse.json({ status: 'success', data: updated });
+    } catch (error) {
+        console.error('Notes PATCH error:', error);
+        return NextResponse.json({ error: 'Failed to update note' }, { status: 500 });
     }
 }

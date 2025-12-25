@@ -5,10 +5,34 @@ import prisma from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { NextAuthOptions } from "next-auth"
 
+// Extend NextAuth types for calibrationCompleted
+declare module "next-auth" {
+    interface Session {
+        user: {
+            id: string
+            email: string
+            name?: string | null
+            image?: string | null
+            calibrationCompleted: boolean
+        }
+    }
+    interface User {
+        calibrationCompleted?: boolean
+    }
+}
+
+declare module "next-auth/jwt" {
+    interface JWT {
+        id: string
+        calibrationCompleted: boolean
+    }
+}
+
 export const authOptions: NextAuthOptions = {
-    adapter: PrismaAdapter(prisma) as any, // Type assertion for v4 compatibility
+    adapter: PrismaAdapter(prisma) as any,
     session: {
         strategy: "jwt",
+        maxAge: 30 * 24 * 60 * 60, // 30 days
     },
     pages: {
         signIn: '/auth/login',
@@ -31,9 +55,7 @@ export const authOptions: NextAuthOptions = {
                 }
 
                 const user = await prisma.user.findUnique({
-                    where: {
-                        email: credentials.email
-                    }
+                    where: { email: credentials.email }
                 })
 
                 if (!user || !user.password_hash) {
@@ -54,62 +76,71 @@ export const authOptions: NextAuthOptions = {
                     email: user.email,
                     name: user.name,
                     image: user.image,
+                    calibrationCompleted: user.calibrationCompleted,
                 }
             }
         })
     ],
     callbacks: {
-        async signIn({ user, account, profile }) {
-            try {
-                console.log('SIGNIN CALLBACK:', {
-                    userId: user?.id,
-                    email: user?.email,
-                    provider: account?.provider,
-                    providerAccountId: account?.providerAccountId
-                })
-                // For Google, always allow - PrismaAdapter handles user creation
-                if (account?.provider === "google") {
-                    return true
+        async signIn({ user, account }) {
+            // For Google OAuth, update last_login
+            if (account?.provider === "google" && user.email) {
+                try {
+                    await prisma.user.update({
+                        where: { email: user.email },
+                        data: { last_login: new Date() }
+                    })
+                } catch {
+                    // User might not exist yet, PrismaAdapter will create
                 }
-                return true
-            } catch (error) {
-                console.error('SIGNIN CALLBACK ERROR:', error)
-                return false
             }
+            return true
         },
         async redirect({ url, baseUrl }) {
-            // If the url is relative, prepend the base url
+            // Relative URLs - prepend base
             if (url.startsWith("/")) return `${baseUrl}${url}`
-            // If the url is on the same origin, allow it
-            else if (new URL(url).origin === baseUrl) return url
-            // Default to dashboard
-            return `${baseUrl}/dashboard`
+            // Same origin - allow
+            if (new URL(url).origin === baseUrl) return url
+            // Default to command-center (not dashboard)
+            return `${baseUrl}/command-center`
+        },
+        async jwt({ token, user, trigger }) {
+            // Initial sign in - attach user data
+            if (user) {
+                token.id = user.id
+                token.calibrationCompleted = user.calibrationCompleted ?? false
+            }
+
+            // Refresh calibration status on session update
+            if (trigger === "update" && token.id) {
+                const dbUser = await prisma.user.findUnique({
+                    where: { id: token.id as string },
+                    select: { calibrationCompleted: true }
+                })
+                if (dbUser) {
+                    token.calibrationCompleted = dbUser.calibrationCompleted
+                }
+            }
+
+            return token
         },
         async session({ session, token }) {
             if (token && session.user) {
-                // session.user.id = token.sub
+                session.user.id = token.id as string
+                session.user.calibrationCompleted = token.calibrationCompleted as boolean
             }
             return session
-        },
-        async jwt({ token, user }) {
-            if (user) {
-                token.id = user.id
-            }
-            return token
         }
     },
-    debug: true,
-    secret: process.env.NEXTAUTH_SECRET,
-    logger: {
-        error(code, metadata) {
-            console.error('NEXTAUTH ERROR:', code, JSON.stringify(metadata, null, 2))
-        },
-        warn(code) {
-            console.warn('NEXTAUTH WARN:', code)
-        },
-        debug(code, metadata) {
-            console.log('NEXTAUTH DEBUG:', code, metadata)
+    events: {
+        async createUser({ user }) {
+            // New user created via OAuth - mark as uncalibrated
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { calibrationCompleted: false }
+            })
         }
-    }
+    },
+    debug: process.env.NODE_ENV === "development",
+    secret: process.env.NEXTAUTH_SECRET,
 }
-

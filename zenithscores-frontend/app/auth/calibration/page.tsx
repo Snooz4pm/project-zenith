@@ -115,19 +115,21 @@ export default function CalibrationPage() {
 
         setIsSubmitting(true);
         try {
-            const response = await fetch('/api/user/calibration', {
+            const response = await fetch('/api/calibration/complete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    ...answers,
-                    userArchetype: selectedArchetype
+                    tradingStyle: {
+                        ...answers,
+                        userArchetype: selectedArchetype
+                    }
                 })
             });
 
             if (response.ok) {
                 setIsComplete(true);
                 setTimeout(() => {
-                    router.push('/dashboard');
+                    router.push('/command-center');
                 }, 2500);
             }
         } catch (error) {
@@ -258,8 +260,8 @@ export default function CalibrationPage() {
                                             key={option.value}
                                             onClick={() => handleAnswer(currentQuestion.id, option.value)}
                                             className={`w-full p-4 rounded-xl text-left transition-all border ${answers[currentQuestion.id] === option.value
-                                                    ? 'bg-cyan-500/20 border-cyan-500/50'
-                                                    : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600'
+                                                ? 'bg-cyan-500/20 border-cyan-500/50'
+                                                : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600'
                                                 }`}
                                         >
                                             <div className="font-semibold">{option.label}</div>
@@ -287,8 +289,8 @@ export default function CalibrationPage() {
                                             key={archetype.name}
                                             onClick={() => setSelectedArchetype(archetype.name)}
                                             className={`p-6 rounded-xl text-center transition-all border ${selectedArchetype === archetype.name
-                                                    ? 'bg-cyan-500/20 border-cyan-500/50'
-                                                    : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600'
+                                                ? 'bg-cyan-500/20 border-cyan-500/50'
+                                                : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600'
                                                 }`}
                                         >
                                             <div className="text-3xl mb-2">{archetype.icon}</div>
@@ -308,8 +310,8 @@ export default function CalibrationPage() {
                         onClick={handleBack}
                         disabled={currentStep === 0}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${currentStep === 0
-                                ? 'text-gray-600 cursor-not-allowed'
-                                : 'text-gray-400 hover:text-white'
+                            ? 'text-gray-600 cursor-not-allowed'
+                            : 'text-gray-400 hover:text-white'
                             }`}
                     >
                         <ArrowLeft size={16} />
@@ -321,8 +323,8 @@ export default function CalibrationPage() {
                             onClick={handleSubmit}
                             disabled={!canProceed || isSubmitting}
                             className={`flex items-center gap-2 px-8 py-3 rounded-xl font-semibold transition-all ${canProceed && !isSubmitting
-                                    ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:opacity-90'
-                                    : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                                ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:opacity-90'
+                                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
                                 }`}
                         >
                             {isSubmitting ? 'Saving...' : 'Complete Calibration'}
@@ -333,8 +335,8 @@ export default function CalibrationPage() {
                             onClick={handleNext}
                             disabled={!canProceed}
                             className={`flex items-center gap-2 px-8 py-3 rounded-xl font-semibold transition-all ${canProceed
-                                    ? 'bg-white text-black hover:bg-gray-200'
-                                    : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                                ? 'bg-white text-black hover:bg-gray-200'
+                                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
                                 }`}
                         >
                             Next
