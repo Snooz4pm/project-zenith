@@ -6,7 +6,7 @@ import { Search, TrendingUp, Building2, Ticket } from 'lucide-react'; // Icons
 import { searchAssets, SearchResult } from '@/lib/search-index';
 
 interface PredictiveSearchProps {
-    mode: 'all' | 'crypto' | 'stock';
+    mode: 'all' | 'crypto' | 'stock' | 'forex';
     behavior: 'navigate' | 'filter'; // navigate = go to asset page, filter = update url query
     placeholder?: string;
     className?: string; // For custom width/styling
@@ -183,7 +183,7 @@ export default function PredictiveSearch({ mode, behavior, placeholder, classNam
                                 {/* Score Badge */}
                                 <div className="text-right">
                                     <div className={`text-lg font-mono font-bold ${result.score >= 70 ? 'text-green-400' :
-                                            result.score >= 50 ? 'text-yellow-400' : 'text-red-400'
+                                        result.score >= 50 ? 'text-yellow-400' : 'text-red-400'
                                         }`}>
                                         {result.score}
                                     </div>
