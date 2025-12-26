@@ -5,8 +5,8 @@ import dynamic from 'next/dynamic';
 import type { OHLCV, RegimeType } from '@/lib/types/market';
 import { getRegimeDisplay } from '@/lib/analysis/regime';
 
-// Dynamic import to avoid SSR issues with lightweight-charts
-const CandlestickChart = dynamic(() => import('./CandlestickChart'), { ssr: false });
+// Dynamic import for our custom ZenithChart (100% custom, no TradingView)
+const ZenithChart = dynamic(() => import('./ZenithChart'), { ssr: false });
 
 interface MiniChartProps {
     symbol: string;
@@ -67,8 +67,8 @@ export default function MiniChart({
                 <div className="flex items-center gap-2">
                     {convictionScore !== undefined && (
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded ${convictionScore >= 80 ? 'bg-emerald-500/20 text-emerald-400' :
-                                convictionScore >= 70 ? 'bg-blue-500/20 text-blue-400' :
-                                    'bg-zinc-700/50 text-zinc-400'
+                            convictionScore >= 70 ? 'bg-blue-500/20 text-blue-400' :
+                                'bg-zinc-700/50 text-zinc-400'
                             }`}>
                             {convictionScore}
                         </span>
@@ -88,10 +88,15 @@ export default function MiniChart({
 
             {/* Chart */}
             <div className="relative z-10 h-[100px] -mx-1">
-                <CandlestickChart
-                    data={chartData}
+                <ZenithChart
+                    data={chartData as any}
                     regime={regime}
                     height={100}
+                    showVolume={false}
+                    showEMA={false}
+                    showGrid={false}
+                    showCrosshair={false}
+                    showWatermark={false}
                 />
             </div>
 
