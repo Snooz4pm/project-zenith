@@ -6,7 +6,7 @@ import { Search, TrendingUp, Building2, Ticket } from 'lucide-react'; // Icons
 import { searchAssets, SearchResult } from '@/lib/search-index';
 
 interface PredictiveSearchProps {
-    mode: 'all' | 'crypto' | 'stock' | 'forex';
+    mode: 'all' | 'crypto' | 'stock';
     behavior: 'navigate' | 'filter'; // navigate = go to asset page, filter = update url query
     placeholder?: string;
     className?: string; // For custom width/styling

@@ -40,7 +40,7 @@ const ASSET_DATABASE: SearchResult[] = [
     { symbol: 'COIN', name: 'Coinbase Global', type: 'STOCK', score: 83, url: '/stocks/COIN' },
 ];
 
-export async function searchAssets(query: string, mode: 'all' | 'crypto' | 'stock' | 'forex'): Promise<SearchResult[]> {
+export async function searchAssets(query: string, mode: 'all' | 'crypto' | 'stock'): Promise<SearchResult[]> {
     if (!query || query.length < 1) return [];
 
     const normalizedQuery = query.toLowerCase();

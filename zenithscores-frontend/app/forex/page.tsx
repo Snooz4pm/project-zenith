@@ -60,7 +60,7 @@ export default function ForexPortal() {
 
                 {/* Search */}
                 <div className="mb-8">
-                    <PredictiveSearch mode="forex" behavior="filter" className="w-full max-w-xl" />
+                    <PredictiveSearch mode="all" behavior="filter" className="w-full max-w-xl" />
                 </div>
 
                 {/* Mode Toggle */}
