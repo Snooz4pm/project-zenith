@@ -5,19 +5,18 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { ArrowRight, Activity, Cpu, ShieldCheck, History, Zap, TrendingUp, ChevronDown } from 'lucide-react';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
-// Background removed
 import PredictiveSearch from '@/components/PredictiveSearch';
 import MarketPulse from '@/components/MarketPulse';
 import ShimmerText from '@/components/ShimmerText';
 import AnimatedCounter from '@/components/AnimatedCounter';
 import InteractiveCard from '@/components/InteractiveCard';
-// MagneticButton removed
 import GlowingBorder from '@/components/GlowingBorder';
 import LiveIndicator from '@/components/LiveIndicator';
 import AnimatedProgress from '@/components/AnimatedProgress';
 import { RecentlyViewed } from '@/components/RecentlyViewed';
 
-// Threads background removed
+// Dynamic imports for v2 components
+const MarketGlitch = dynamic(() => import('@/components/effects/MarketGlitch'), { ssr: false });
 
 // Animation variants
 const staggerContainer = {
@@ -79,10 +78,17 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white font-sans selection:bg-cyan-500/30 overflow-x-hidden">
 
-      {/* Background removed */}
-
       {/* HERO SECTION */}
       <div className="relative pt-16 md:pt-24 border-b border-white/5">
+        {/* MarketGlitch Background */}
+        <div className="absolute inset-0 h-[600px] overflow-hidden">
+          <MarketGlitch
+            glitchColors={['#00f0ff', '#a855f7', '#22c55e', '#f59e0b']}
+            glitchSpeed={60}
+            outerVignette={true}
+            smooth={true}
+          />
+        </div>
 
 
         <div className="container mx-auto px-4 md:px-6 py-12 md:py-24 lg:py-32 relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-center">
