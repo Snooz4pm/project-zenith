@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, Time } from 'lightweight-charts';
+import { createChart, ColorType, IChartApi, CandlestickData, LineData, Time } from 'lightweight-charts';
 import type { OHLCV, RegimeType } from '@/lib/types/market';
 
 interface CandlestickChartProps {
@@ -9,20 +9,51 @@ interface CandlestickChartProps {
     regime?: RegimeType;
     height?: number;
     showVolume?: boolean;
+    showEMA?: boolean;
     className?: string;
 }
 
 /**
  * Convert OHLCV to lightweight-charts format
+ * Supports both 'time' (canonical) and 'timestamp' (legacy) fields
  */
 function formatCandleData(data: OHLCV[]): CandlestickData[] {
-    return data.map(d => ({
-        time: (d.timestamp / 1000) as Time, // Convert ms to seconds
-        open: d.open,
-        high: d.high,
-        low: d.low,
-        close: d.close,
-    }));
+    return data.map(d => {
+        const time = ((d as any).time || (d as any).timestamp / 1000) as Time;
+        return {
+            time,
+            open: d.open,
+            high: d.high,
+            low: d.low,
+            close: d.close,
+        };
+    });
+}
+
+/**
+ * Calculate EMA (Exponential Moving Average)
+ */
+function calculateEMA(data: OHLCV[], period: number): LineData[] {
+    const result: LineData[] = [];
+    const multiplier = 2 / (period + 1);
+    let ema = 0;
+
+    for (let i = 0; i < data.length; i++) {
+        const d = data[i];
+        const time = ((d as any).time || (d as any).timestamp / 1000) as Time;
+
+        if (i === 0) {
+            ema = d.close;
+        } else {
+            ema = (d.close - ema) * multiplier + ema;
+        }
+
+        if (i >= period - 1) {
+            result.push({ time, value: ema });
+        }
+    }
+
+    return result;
 }
 
 /**
@@ -48,15 +79,14 @@ export default function CandlestickChart({
     regime,
     height = 300,
     showVolume = false,
+    showEMA = true,
     className = ''
 }: CandlestickChartProps) {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
-    const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-    const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
 
     useEffect(() => {
-        if (!chartContainerRef.current) return;
+        if (!chartContainerRef.current || !data || data.length === 0) return;
 
         const colors = getRegimeColors(regime);
 
@@ -106,33 +136,50 @@ export default function CandlestickChart({
         });
 
         candleSeries.setData(formatCandleData(data));
-        candleSeriesRef.current = candleSeries;
+
+        // Add EMA overlays if enabled and enough data
+        if (showEMA && data.length >= 50) {
+            // EMA 20 - faster (cyan)
+            const ema20Series = chart.addLineSeries({
+                color: '#00d4ff',
+                lineWidth: 1,
+                priceLineVisible: false,
+                lastValueVisible: false,
+            });
+            ema20Series.setData(calculateEMA(data, 20));
+
+            // EMA 50 - slower (orange)
+            const ema50Series = chart.addLineSeries({
+                color: '#ff6b35',
+                lineWidth: 1,
+                priceLineVisible: false,
+                lastValueVisible: false,
+            });
+            ema50Series.setData(calculateEMA(data, 50));
+        }
 
         // Add volume if enabled
         if (showVolume) {
             const volumeSeries = chart.addHistogramSeries({
                 color: 'rgba(59, 130, 246, 0.3)',
-                priceFormat: {
-                    type: 'volume',
-                },
+                priceFormat: { type: 'volume' },
                 priceScaleId: '',
             });
 
             volumeSeries.priceScale().applyOptions({
-                scaleMargins: {
-                    top: 0.8,
-                    bottom: 0,
-                },
+                scaleMargins: { top: 0.8, bottom: 0 },
             });
 
-            const volumeData = data.map(d => ({
-                time: (d.timestamp / 1000) as Time,
-                value: d.volume,
-                color: d.close >= d.open ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)',
-            }));
+            const volumeData = data.map(d => {
+                const time = ((d as any).time || (d as any).timestamp / 1000) as Time;
+                return {
+                    time,
+                    value: d.volume,
+                    color: d.close >= d.open ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)',
+                };
+            });
 
             volumeSeries.setData(volumeData);
-            volumeSeriesRef.current = volumeSeries;
         }
 
         // Fit content
@@ -151,7 +198,7 @@ export default function CandlestickChart({
             window.removeEventListener('resize', handleResize);
             chart.remove();
         };
-    }, [data, regime, height, showVolume]);
+    }, [data, regime, height, showVolume, showEMA]);
 
     return (
         <div
@@ -161,3 +208,4 @@ export default function CandlestickChart({
         />
     );
 }
+
