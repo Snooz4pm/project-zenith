@@ -207,6 +207,3 @@ export default function StocksPortal() {
         </div>
     );
 }
-/ /   v 2   d e p l o y m e n t   t i m e s t a m p :   1 7 6 6 7 2 0 7 2 6  
- / /   D e p l o y   t r i g g e r :   2 0 2 5 - 1 2 - 2 6   0 4 : 5 0 : 0 8  
- 
