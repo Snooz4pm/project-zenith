@@ -29,7 +29,8 @@ export default function LoginPage() {
             if (res?.error) {
                 setError("Invalid email or password")
             } else {
-                router.push("/command-center") // Go to Command Center after login
+                // Redirect to command-center - middleware will handle calibration check
+                window.location.href = "/command-center"
             }
         } catch (err) {
             setError("An error occurred. Please try again.")
@@ -39,6 +40,8 @@ export default function LoginPage() {
     }
 
     const handleGoogleLogin = () => {
+        // After Google auth, let middleware handle where to go
+        // Middleware will check calibrationCompleted and redirect appropriately
         signIn("google", { callbackUrl: "/command-center" })
     }
 
@@ -91,53 +94,65 @@ export default function LoginPage() {
 
                 <div className="relative">
                     <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t border-zinc-800" />
+                        <div className="w-full border-t border-zinc-700" />
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-zinc-950 px-2 text-zinc-500">Or continue with email</span>
+                        <span className="bg-zinc-900 px-2 text-zinc-500">Or</span>
                     </div>
                 </div>
 
-                {/* Credentials Form */}
+                {/* Email/Password Form */}
                 <form onSubmit={handleCredentialsLogin} className="space-y-4">
                     <div className="space-y-2">
+                        <label className="text-sm font-medium text-zinc-300">Email address</label>
                         <div className="relative">
-                            <Mail className="absolute left-3 top-3 w-5 h-5 text-zinc-500" />
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                             <input
                                 type="email"
-                                placeholder="Email address"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
+                                placeholder="you@example.com"
+                                className="w-full pl-10 pr-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 required
-                                className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-10 py-3 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
                             />
                         </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-zinc-300">Password</label>
                         <div className="relative">
-                            <Lock className="absolute left-3 top-3 w-5 h-5 text-zinc-500" />
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                             <input
                                 type="password"
-                                placeholder="Password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
+                                placeholder="••••••••"
+                                className="w-full pl-10 pr-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 required
-                                className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-10 py-3 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
                             />
                         </div>
                     </div>
 
                     {error && (
-                        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm"
+                        >
                             {error}
-                        </div>
+                        </motion.div>
                     )}
 
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-medium py-3 rounded-xl transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-500 hover:to-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {isLoading ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Signing in...
+                            </>
                         ) : (
                             "Sign In"
                         )}
@@ -146,7 +161,7 @@ export default function LoginPage() {
 
                 <p className="text-center text-sm text-zinc-500">
                     Don't have an account?{" "}
-                    <Link href="/auth/register" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+                    <Link href="/auth/register" className="text-blue-400 hover:text-blue-300 font-medium">
                         Create one
                     </Link>
                 </p>
