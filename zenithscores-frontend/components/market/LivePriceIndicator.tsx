@@ -11,6 +11,28 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Wifi, WifiOff, Clock } from 'lucide-react';
 import { LiveStatus } from '@/lib/market/live/types';
 
+// Currency symbol helper
+function getCurrencySymbol(symbol: string): string {
+    const upperSymbol = symbol.toUpperCase();
+    // Extract quote currency (last 3 chars for USDJPY, or after / for EUR/USD)
+    let quoteCurrency = '';
+    if (upperSymbol.includes('/')) {
+        quoteCurrency = upperSymbol.split('/')[1];
+    } else if (upperSymbol.length === 6) {
+        quoteCurrency = upperSymbol.slice(3, 6);
+    }
+
+    if (quoteCurrency === 'JPY') return '¥';
+    if (quoteCurrency === 'EUR') return '€';
+    if (quoteCurrency === 'GBP') return '£';
+    if (quoteCurrency === 'CHF') return 'CHF ';
+    if (quoteCurrency === 'CAD') return 'C$';
+    if (quoteCurrency === 'AUD') return 'A$';
+    if (quoteCurrency === 'USD') return '$';
+
+    return '$';
+}
+
 interface LivePriceIndicatorProps {
     price: number;
     previousClose: number;
@@ -57,6 +79,7 @@ export default function LivePriceIndicator({
     const change = price - previousClose;
     const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
     const isPositive = change >= 0;
+    const currencySymbol = getCurrencySymbol(symbol);
 
     const config = statusConfig[status];
     const StatusIcon = config.icon;
@@ -74,7 +97,7 @@ export default function LivePriceIndicator({
                         exit={{ opacity: 0, y: 10 }}
                         className="text-3xl font-bold text-white tabular-nums"
                     >
-                        ${price.toLocaleString(undefined, {
+                        {currencySymbol}{price.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2
                         })}

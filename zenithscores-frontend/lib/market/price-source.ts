@@ -15,16 +15,8 @@ export interface PriceResponse {
     timestamp: number;
 }
 
-// LAUNCH ALLOWLIST - Only these cryptos are supported
-export const SUPPORTED_CRYPTOS = [
-    'BTC', 'ETH', 'USDT', 'USDC',
-    'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOGE',
-    'LINK', 'MATIC', 'DOT', 'ATOM', 'LTC',
-    'UNI', 'AAVE', 'ARB', 'OP', 'TON'
-];
-
-// These coins use Coinbase API (accurate, real-time)
-const COINBASE_SUPPORTED = ['BTC', 'ETH', 'USDT', 'USDC', 'SOL', 'DOGE', 'LTC', 'LINK', 'UNI', 'AVAX', 'ATOM', 'DOT', 'XRP', 'ADA', 'MATIC'];
+// Re-export SUPPORTED_CRYPTOS from centralized engine
+export { SUPPORTED_CRYPTOS } from '@/lib/market/crypto-engine';
 
 export async function fetchAssetPrice(
     symbol: string,
@@ -125,68 +117,16 @@ export async function fetchAssetPrice(
         }
 
         if (market === 'crypto') {
-            const upperSymbol = symbol.toUpperCase();
-
-            // REJECT UNSUPPORTED CRYPTOS
-            if (!SUPPORTED_CRYPTOS.includes(upperSymbol)) {
-                console.warn(`[PriceFetch] Crypto ${upperSymbol} not in allowlist`);
-                return null;
-            }
-
-            // TRY COINBASE FIRST (accurate for majors)
-            if (COINBASE_SUPPORTED.includes(upperSymbol)) {
-                try {
-                    const cbRes = await fetch(`https://api.coinbase.com/v2/prices/${upperSymbol}-USD/spot`, { cache: 'no-store' });
-                    const cbData = await cbRes.json();
-                    const price = Number(cbData?.data?.amount);
-                    if (!isNaN(price) && price > 0) {
-                        return { price, changePercent: 0, source: 'coinbase', timestamp: Date.now() };
-                    }
-                } catch (e) {
-                    console.warn(`[PriceFetch] Coinbase ${upperSymbol} failed, trying DexScreener`);
-                }
-            }
-
-            // FALLBACK: DexScreener for tokens not on Coinbase (ARB, OP, TON, BNB, AAVE)
-            const query = symbol.replace('/', '');
-            const res = await fetch(
-                `https://api.dexscreener.com/latest/dex/search?q=${query}&t=${Date.now()}`,
-                { cache: 'no-store' }
-            );
-            const data = await res.json();
-
-            if (data?.pairs && Array.isArray(data.pairs)) {
-                // Pre-filter for main chains
-                let candidates = data.pairs.filter((p: any) =>
-                    ['ethereum', 'bsc', 'solana', 'base', 'arbitrum', 'optimism'].includes(p.chainId)
-                );
-
-                // Filter by Symbol
-                candidates = candidates.filter((p: any) =>
-                    p.baseToken.symbol.toUpperCase() === upperSymbol ||
-                    p.baseToken.symbol.toUpperCase() === 'W' + upperSymbol
-                );
-
-                // Sort by Liquidity
-                candidates.sort((a: any, b: any) => Number(b.liquidity?.usd || 0) - Number(a.liquidity?.usd || 0));
-
-                // Find first "Healthy" pair
-                const bestPair = candidates.find((p: any) =>
-                    Number(p.liquidity?.usd || 0) > 50000 &&
-                    Number(p.volume?.h24 || 0) > 10000
-                );
-
-                if (!bestPair) {
-                    console.warn(`[PriceFetch] No healthy pair found for ${symbol}`);
-                    return null;
-                }
-
-                const price = Number(bestPair.priceUsd);
-                const changePercent = Number(bestPair.priceChange?.h24 || 0);
-
-                if (!isNaN(price) && price > 0) {
-                    return { price, changePercent, source: `dexscreener:${bestPair.chainId}`, timestamp: Date.now() };
-                }
+            // LAUNCH VERSION: Use crypto-engine (Coinbase/CoinGecko only, no DexScreener)
+            const { fetchCryptoPrice } = await import('@/lib/market/crypto-engine');
+            const result = await fetchCryptoPrice(symbol);
+            if (result) {
+                return {
+                    price: result.price,
+                    changePercent: result.changePercent,
+                    source: result.source,
+                    timestamp: result.timestamp
+                };
             }
         }
     } catch (error) {

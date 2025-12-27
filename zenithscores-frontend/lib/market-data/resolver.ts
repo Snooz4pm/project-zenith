@@ -201,62 +201,27 @@ async function fetchStockOHLCV(
 
 /**
  * Fetch crypto OHLCV
- * Uses Coinbase for majors (BTC/ETH) + DexScreener fallback + synthetic history
+ * Uses crypto-engine for accurate prices (Coinbase/CoinGecko only)
  */
 async function fetchCryptoOHLCV(
     symbol: string,
     timeframe: Timeframe,
     range: DataRange
 ): Promise<OHLCV[]> {
-    const upperSymbol = symbol.toUpperCase().replace('/', '');
+    // Import centralized crypto engine
+    const { fetchCryptoPrice } = await import('@/lib/market/crypto-engine');
 
-    // COINBASE PRIORITY for BTC/ETH (accurate pricing)
-    const COINBASE_MAJORS = ['BTC', 'ETH', 'SOL', 'DOGE', 'LTC', 'LINK', 'UNI', 'AVAX', 'ATOM', 'DOT', 'XRP', 'ADA', 'MATIC'];
+    const result = await fetchCryptoPrice(symbol);
 
-    if (COINBASE_MAJORS.includes(upperSymbol)) {
-        try {
-            const cbRes = await fetch(`https://api.coinbase.com/v2/prices/${upperSymbol}-USD/spot`, { cache: 'no-store' });
-            const cbData = await cbRes.json();
-            const price = Number(cbData?.data?.amount);
-            if (!isNaN(price) && price > 0) {
-                const volatility = upperSymbol === 'BTC' ? 0.02 : upperSymbol === 'ETH' ? 0.03 : 0.05;
-                const count = range === '1D' ? 1440 : range === '1W' ? 2000 : 1000;
-                console.log(`[Resolver] ${upperSymbol} from Coinbase: $${price}`);
-                return generateSyntheticOHLCV(price, count, getTimeframeMinutes(timeframe), volatility);
-            }
-        } catch (e) {
-            console.warn(`[Resolver] Coinbase ${upperSymbol} failed, trying DexScreener`);
-        }
-    }
-
-    // FALLBACK: DexScreener for other tokens
-    const query = symbol.replace('/', '');
-    const pairs = await searchPairs(query);
-
-    // RULE ZERO: Selection Logic
-    const validPairs = pairs
-        .filter((p: any) =>
-            ['ethereum', 'bsc', 'solana', 'base', 'arbitrum', 'optimism'].includes(p.chainId)
-        )
-        .filter((p: any) =>
-            Number(p.liquidity?.usd || 0) > 50000 &&
-            Number(p.volume?.h24 || 0) > 10000
-        )
-        .filter((p: any) =>
-            p.baseToken.symbol.toUpperCase() === upperSymbol ||
-            p.baseToken.symbol.toUpperCase() === 'W' + upperSymbol
-        )
-        .sort((a: any, b: any) => Number(b.liquidity?.usd || 0) - Number(a.liquidity?.usd || 0));
-
-    const pair = validPairs[0];
-
-    if (pair && pair.priceUsd) {
-        let currentPrice = parseFloat(pair.priceUsd);
-        const volatility = Math.abs(pair.priceChange?.h24 || 5) / 100;
+    if (result && result.price > 0) {
+        const upperSymbol = symbol.toUpperCase();
+        const volatility = upperSymbol === 'BTC' ? 0.02 : upperSymbol === 'ETH' ? 0.03 : 0.05;
         const count = range === '1D' ? 1440 : range === '1W' ? 2000 : 1000;
-        return generateSyntheticOHLCV(currentPrice, count, getTimeframeMinutes(timeframe), volatility);
+        console.log(`[Resolver] ${upperSymbol} OHLCV from ${result.source}: $${result.price}`);
+        return generateSyntheticOHLCV(result.price, count, getTimeframeMinutes(timeframe), volatility);
     }
 
+    console.warn(`[Resolver] No price data for ${symbol}`);
     return [];
 }
 
