@@ -11,21 +11,29 @@
 
 import { LivePriceResult, DELAY_THRESHOLD_MS } from './types';
 
-const FINNHUB_API_KEY = process.env.NEXT_PUBLIC_FINNHUB_API_KEY;
 const BASE_URL = 'https://finnhub.io/api/v1';
+
+/**
+ * Get Finnhub API key - reads dynamically to work on both client and server
+ */
+function getApiKey(): string | undefined {
+    // Try server-side first (without NEXT_PUBLIC prefix)
+    return process.env.FINNHUB_API_KEY || process.env.NEXT_PUBLIC_FINNHUB_API_KEY;
+}
 
 /**
  * Fetch LIVE stock price snapshot from Finnhub
  * @param symbol Stock ticker (e.g., 'AAPL', 'MSFT')
  */
 export async function fetchLiveStockPrice(symbol: string): Promise<LivePriceResult | null> {
-    if (!FINNHUB_API_KEY) {
-        console.error('[LIVE] Finnhub API key not configured');
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        console.error('[LIVE] Finnhub API key not configured (check FINNHUB_API_KEY or NEXT_PUBLIC_FINNHUB_API_KEY)');
         return null;
     }
 
     try {
-        const url = `${BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}&token=${FINNHUB_API_KEY}`;
+        const url = `${BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}&token=${apiKey}`;
 
         const response = await fetch(url, {
             cache: 'no-store',  // CRITICAL: Never cache LIVE data
@@ -77,7 +85,8 @@ export async function fetchLiveStockPrice(symbol: string): Promise<LivePriceResu
  * @param pair Forex pair (e.g., 'EUR/USD' or 'EURUSD')
  */
 export async function fetchLiveForexPrice(pair: string): Promise<LivePriceResult | null> {
-    if (!FINNHUB_API_KEY) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
         console.error('[LIVE] Finnhub API key not configured');
         return null;
     }
@@ -88,7 +97,7 @@ export async function fetchLiveForexPrice(pair: string): Promise<LivePriceResult
         const base = normalized.slice(0, 3);
         const quote = normalized.slice(3, 6) || 'USD';
 
-        const url = `${BASE_URL}/forex/rates?base=${base}&token=${FINNHUB_API_KEY}`;
+        const url = `${BASE_URL}/forex/rates?base=${base}&token=${apiKey}`;
 
         const response = await fetch(url, {
             cache: 'no-store',
