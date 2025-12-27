@@ -11,7 +11,6 @@ import MarketMovers from '@/components/terminal/MarketMovers';
 import type { Timeframe, DataRange, AssetType, OHLCV } from '@/lib/market-data/types';
 import { calculateFactors } from '@/lib/intelligence/calculator';
 import { generateScenarios, generateKeyLevels } from '@/lib/intelligence/scenarios';
-import { useRealTimePrice } from '@/hooks/useRealTimePrice';
 import { detectConsolidationZones } from '@/lib/analysis/zoneDetection';
 import { zoneToDrawing } from '@/lib/analysis/zoneToDrawing';
 import { Drawing } from '@/components/chart-engine/engine/types';
@@ -23,6 +22,7 @@ import { backtestZoneReliability } from '@/lib/analysis/backtest';
 import { useMarketContext } from '@/hooks/useMarketContext';
 import DeepDiveModal from '@/components/terminal/DeepDiveModal';
 import JournalModal from '@/components/journal/JournalModal';
+import ChartPriceDisplay from '@/components/market/ChartPriceDisplay';
 
 // Dynamic import for chart to avoid SSR issues
 const ZenithChartPro = dynamic(() => import('@/components/chart-engine/ZenithChartPro'), { ssr: false });
@@ -77,7 +77,8 @@ export default function TerminalView({
         isLoading: liveLoading,
         error,
         provider,
-        fetchedAt
+        fetchedAt,
+        refetch
     } = useOHLCV({
         symbol,
         timeframe,
@@ -88,13 +89,6 @@ export default function TerminalView({
 
     const latestPrice = useMemo(() => getLatestPrice(liveOHLCV), [liveOHLCV]);
     const { change, changePercent } = useMemo(() => getPriceChange(liveOHLCV), [liveOHLCV]);
-
-    // Live Price Hook
-    const { price: verifiedPrice, direction } = useRealTimePrice({
-        symbol,
-        assetType,
-        initialPrice: latestPrice
-    });
 
     // --- 2. REPLAY ENGINE ---
     const replayEngine = useRef<ReplayEngine | null>(null);
@@ -218,8 +212,8 @@ export default function TerminalView({
         return `Current market structure is undefined. Wait for volatility contraction or trend alignment.`;
     }, [regime, entryZone, invalidation]);
 
-    const displayPrice = verifiedPrice || latestPrice;
-    const priceColor = direction === 'up' ? 'text-emerald-400' : direction === 'down' ? 'text-red-400' : 'text-white';
+    // Display Price derived from Chart Data (Single Source of Truth)
+    const displayPrice = latestPrice;
 
     // --- DEEP DIVE & JOURNAL STATE ---
     const [showDeepDive, setShowDeepDive] = useState(false);
@@ -286,22 +280,19 @@ export default function TerminalView({
                         </div>
 
                         <div className="flex items-center gap-6">
-                            {/* Price */}
-                            <div className="text-right">
-                                <motion.div
-                                    key={displayPrice}
-                                    initial={{ opacity: 0.8, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className={`text-2xl font-bold font-mono ${priceColor}`}
-                                >
-                                    ${displayPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </motion.div>
-                                <div className={`text-sm font-mono ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
-                                </div>
-                            </div>
-                            {/* Timeframe Selector */}
-                            <div className="flex gap-1 bg-white/[0.03] rounded-lg p-1">
+                            {/* Synced Price (One Truth) */}
+                            <ChartPriceDisplay
+                                symbol={symbol}
+                                price={displayPrice}
+                                changePercent={changePercent}
+                                isLoading={liveLoading}
+                                onRefresh={refetch}
+                                provider={provider}
+                                fetchedAt={fetchedAt}
+                            />
+
+                            {/* Timeframe Selector (Controls Chart Only) */}
+                            <div className="flex gap-1 bg-white/[0.03] rounded-lg p-1 h-fit self-center">
                                 {TIMEFRAMES.map((tf, idx) => (
                                     <button
                                         key={tf.label}

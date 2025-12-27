@@ -1,128 +1,96 @@
 /**
- * SYMBOL VALIDATION
+ * BATTLE-TESTED SYMBOL LISTS
  * 
- * Validates symbol availability before display.
- * Only show supported symbols - no placeholders.
+ * Safe for deployment.
+ * Stocks: Alpha Vantage GLOBAL_QUOTE
+ * Forex: Alpha Vantage CURRENCY_EXCHANGE_RATE
+ * Crypto: Dexscreener Search
  */
 
 // ============================================
-// FINNHUB SUPPORTED STOCKS (LIVE)
-// Major US stocks confirmed working
+// STOCKS (Alpha Vantage Safe)
 // ============================================
 
-export const FINNHUB_STOCKS = [
-    // Technology
-    'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'NVDA', 'AMD', 'INTC',
-    'CRM', 'ORCL', 'ADBE', 'CSCO', 'QCOM', 'TXN', 'AVGO', 'IBM', 'NOW',
+export const SUPPORTED_STOCKS = [
+    // Big Tech & Growth
+    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'AMD', 'NFLX', 'INTC',
 
-    // Financial
-    'JPM', 'BAC', 'WFC', 'GS', 'MS', 'BLK', 'C', 'AXP', 'V', 'MA',
+    // Finance
+    'JPM', 'BAC', 'GS', 'MS', 'V', 'MA', 'PYPL',
 
-    // Healthcare
-    'JNJ', 'UNH', 'PFE', 'MRK', 'ABBV', 'LLY', 'TMO', 'ABT', 'DHR', 'BMY',
+    // Consumer / Industrial
+    'WMT', 'COST', 'KO', 'PEP', 'DIS', 'MCD', 'NKE', 'SBUX',
 
-    // Consumer
-    'TSLA', 'HD', 'NKE', 'MCD', 'SBUX', 'DIS', 'NFLX', 'COST', 'WMT', 'TGT',
-
-    // Industrial
-    'BA', 'CAT', 'GE', 'MMM', 'UPS', 'HON', 'LMT', 'RTX', 'DE', 'UNP',
-
-    // Energy
-    'XOM', 'CVX', 'COP', 'SLB', 'EOG', 'MPC', 'VLO', 'PSX', 'OXY', 'HAL',
+    // Energy / Others
+    'XOM', 'CVX', 'IBM', 'ORCL',
 ] as const;
 
-export type FinnhubStock = typeof FINNHUB_STOCKS[number];
+export type SupportedStock = typeof SUPPORTED_STOCKS[number];
 
 // ============================================
-// FINNHUB SUPPORTED FOREX (LIVE)
-// Major and cross pairs
+// FOREX (Alpha Vantage Safe)
 // ============================================
 
-export const FINNHUB_FOREX = [
-    // Major Pairs
+export const SUPPORTED_FOREX = [
+    // Majors
     'EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'USD/CAD', 'NZD/USD',
 
-    // Cross Pairs
-    'EUR/GBP', 'EUR/JPY', 'GBP/JPY', 'AUD/JPY', 'CAD/JPY', 'CHF/JPY', 'NZD/JPY',
-    'EUR/CHF', 'GBP/CHF', 'EUR/AUD', 'GBP/AUD', 'EUR/CAD', 'GBP/CAD',
+    // Crosses
+    'EUR/GBP', 'EUR/JPY', 'EUR/CHF', 'GBP/JPY', 'AUD/JPY', 'CHF/JPY',
+
+    // USD Crosses
+    'EUR/AUD', 'EUR/CAD', 'GBP/AUD', 'GBP/CAD', 'AUD/CAD',
 ] as const;
 
-export type FinnhubForex = typeof FINNHUB_FOREX[number];
+export type SupportedForex = typeof SUPPORTED_FOREX[number];
 
 // ============================================
-// ALPHA VANTAGE COVERAGE (REPLAY)
-// Most US stocks have historical data
+// CRYPTO (Dexscreener Safe)
 // ============================================
 
-export const ALPHA_VANTAGE_COVERAGE = {
-    stocks: true,  // Most US tickers supported
-    forex: true,   // Major pairs supported
-    crypto: false, // Not using AV for crypto
-} as const;
+export const SUPPORTED_CRYPTO = [
+    // Majors
+    'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'TRX',
+
+    // Layer 1 / Layer 2
+    'AVAX', 'MATIC', 'ARB', 'OP', 'NEAR', 'ATOM', 'FTM',
+
+    // DeFi / Infra
+    'LINK', 'UNI', 'AAVE', 'MKR', 'SUSHI',
+
+    // Popular / Liquidity-safe
+    'LTC', 'BCH', 'ICP', 'FIL', 'INJ',
+] as const;
+
+export type SupportedCrypto = typeof SUPPORTED_CRYPTO[number];
 
 // ============================================
-// VALIDATION FUNCTIONS
+// HELPERS
 // ============================================
 
-/**
- * Check if stock is supported for LIVE mode
- */
-export function isStockSupportedLive(symbol: string): boolean {
-    return FINNHUB_STOCKS.includes(symbol.toUpperCase() as FinnhubStock);
+// Legacy alias to prevent immediate breakage, but explicit about content
+export const FINNHUB_STOCKS = SUPPORTED_STOCKS;
+export const FINNHUB_FOREX = SUPPORTED_FOREX;
+
+export function getAllSupportedSymbols(assetType: 'stock' | 'forex' | 'crypto'): string[] {
+    if (assetType === 'stock') return [...SUPPORTED_STOCKS];
+    if (assetType === 'forex') return [...SUPPORTED_FOREX];
+    if (assetType === 'crypto') return [...SUPPORTED_CRYPTO];
+    return [];
 }
 
-/**
- * Check if forex pair is supported for LIVE mode
- */
-export function isForexSupportedLive(pair: string): boolean {
-    const normalized = pair.includes('/') ? pair.toUpperCase() :
-        `${pair.slice(0, 3).toUpperCase()}/${pair.slice(3).toUpperCase()}`;
-    return FINNHUB_FOREX.includes(normalized as FinnhubForex);
+export function isSymbolSupported(symbol: string): boolean {
+    const s = symbol.toUpperCase();
+    return (
+        SUPPORTED_STOCKS.includes(s as any) ||
+        SUPPORTED_FOREX.includes(s as any) ||
+        SUPPORTED_CRYPTO.includes(s as any)
+    );
 }
 
-/**
- * Check if symbol is supported for REPLAY mode
- */
-export function isSymbolSupportedReplay(symbol: string, assetType: 'stock' | 'forex'): boolean {
-    // Alpha Vantage supports most standard symbols
-    // Only reject obviously invalid ones
-    if (!symbol || symbol.length < 1) return false;
-    if (symbol.length > 10) return false; // Too long
-    return true;
-}
-
-/**
- * Unified support checker
- */
-export function isSymbolSupported(
-    symbol: string,
-    assetType: 'stock' | 'forex',
-    mode: 'LIVE' | 'REPLAY'
-): boolean {
-    if (mode === 'LIVE') {
-        return assetType === 'stock'
-            ? isStockSupportedLive(symbol)
-            : isForexSupportedLive(symbol);
-    }
-    return isSymbolSupportedReplay(symbol, assetType);
-}
-
-/**
- * Get default symbols for quick access
- */
-export function getDefaultSymbols(assetType: 'stock' | 'forex'): string[] {
-    if (assetType === 'forex') {
-        return ['EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CAD'];
-    }
-    return ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA'];
-}
-
-/**
- * Get all supported symbols
- */
-export function getAllSupportedSymbols(assetType: 'stock' | 'forex'): string[] {
-    if (assetType === 'forex') {
-        return [...FINNHUB_FOREX];
-    }
-    return [...FINNHUB_STOCKS];
+export function getDefaultSymbols(assetType: 'stock' | 'forex' | 'crypto'): string[] {
+    if (assetType === 'stock') return ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN'];
+    if (assetType === 'forex') return ['EUR/USD', 'GBP/USD', 'USD/JPY'];
+    if (assetType === 'crypto') return ['BTC', 'ETH', 'SOL', 'BNB'];
+    return [];
 }
