@@ -1,5 +1,5 @@
 /**
- * THE TRUTH GATE IMPLEMENTATION
+ * THE TRUTH GATE IMPLEMENTATION 
  * 
  * Shared logic for price fetching.
  * Used by:
