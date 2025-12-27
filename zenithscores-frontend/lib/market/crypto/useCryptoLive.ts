@@ -1,24 +1,29 @@
 /**
  * useCryptoLive Hook
  * 
- * CRYPTO LIVE MODE - Polls Dexscreener for on-chain DEX prices.
- * 
- * RULES:
- * - Poll every 12 seconds
- * - Show liquidity tier ALWAYS
- * - No fake price movement
- * - "Low Activity" when no trades
+ * CRYPTO LIVE MODE - Uses crypto-engine (Coinbase/CoinGecko).
+ * DexScreener REMOVED for launch.
  */
 
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import {
-    CryptoLiveState,
-    CryptoLiveStatus,
-    CRYPTO_POLL_INTERVAL_MS,
-} from '@/lib/market/crypto/types';
-import { fetchCryptoLive } from '@/lib/market/crypto/dexscreener-live';
+import { fetchCryptoPrice, SUPPORTED_CRYPTOS } from '@/lib/market/crypto-engine';
+
+export type CryptoLiveStatus = 'LIVE' | 'DELAYED' | 'DISCONNECTED';
+
+interface CryptoLiveState {
+    symbol: string;
+    priceUsd: number;
+    priceChange24h: number;
+    liquidityUsd: number;
+    liquidityTier: 'HIGH' | 'MEDIUM' | 'LOW';
+    volume24h: number;
+    txnsH1: number;
+    status: CryptoLiveStatus;
+    lastFetchedAt: number;
+    source?: string;
+}
 
 interface UseCryptoLiveOptions {
     symbol: string;
@@ -31,6 +36,8 @@ interface UseCryptoLiveReturn extends Partial<CryptoLiveState> {
     status: CryptoLiveStatus;
 }
 
+const CRYPTO_POLL_INTERVAL_MS = 15000; // 15 seconds
+
 export function useCryptoLive({
     symbol,
     enabled = true,
@@ -38,8 +45,9 @@ export function useCryptoLive({
     const [state, setState] = useState<Partial<CryptoLiveState>>({
         symbol,
         priceUsd: 0,
+        priceChange24h: 0,
         liquidityUsd: 0,
-        liquidityTier: 'LOW',
+        liquidityTier: 'HIGH', // Coinbase/CoinGecko = high quality
         volume24h: 0,
         txnsH1: 0,
         status: 'DISCONNECTED',
@@ -49,37 +57,45 @@ export function useCryptoLive({
     const [isLoading, setIsLoading] = useState(true);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
     const mountedRef = useRef(true);
-    const prevPriceRef = useRef<number | null>(null);
 
     const fetchData = useCallback(async () => {
         if (!enabled || !symbol) return;
 
+        // Reject unsupported cryptos
+        if (!SUPPORTED_CRYPTOS.includes(symbol.toUpperCase())) {
+            setState(prev => ({
+                ...prev,
+                status: 'DISCONNECTED',
+            }));
+            setIsLoading(false);
+            return;
+        }
+
         try {
-            const result = await fetchCryptoLive(symbol);
+            const result = await fetchCryptoPrice(symbol);
 
             if (!mountedRef.current) return;
 
-            if (result) {
-                // Check if price actually changed (trade happened)
-                const priceChanged = prevPriceRef.current !== null &&
-                    Math.abs(result.priceUsd - prevPriceRef.current) > 0.0000001;
-
-                if (priceChanged) {
-                    console.log(`[useCryptoLive] Trade detected: ${symbol} $${prevPriceRef.current} → $${result.priceUsd}`);
-                }
-
-                prevPriceRef.current = result.priceUsd;
-
+            if (result && result.price > 0) {
                 setState({
-                    ...result,
+                    symbol: result.symbol,
+                    priceUsd: result.price,
+                    priceChange24h: result.changePercent,
+                    liquidityUsd: 1000000, // CEX = high liquidity
+                    liquidityTier: 'HIGH',
+                    volume24h: 0,
+                    txnsH1: 0,
+                    status: 'LIVE',
+                    lastFetchedAt: result.timestamp,
+                    source: result.source,
                 });
-
                 setIsLoading(false);
             } else {
                 setState(prev => ({
                     ...prev,
                     status: 'DISCONNECTED',
                 }));
+                setIsLoading(false);
             }
         } catch (error) {
             console.error('[useCryptoLive] Error:', error);
@@ -88,6 +104,7 @@ export function useCryptoLive({
                     ...prev,
                     status: 'DISCONNECTED',
                 }));
+                setIsLoading(false);
             }
         }
     }, [symbol, enabled]);
@@ -107,7 +124,7 @@ export function useCryptoLive({
         // Initial fetch
         fetchData();
 
-        // Set up polling (12 seconds)
+        // Set up polling
         intervalRef.current = setInterval(fetchData, CRYPTO_POLL_INTERVAL_MS);
 
         return () => {
@@ -122,7 +139,6 @@ export function useCryptoLive({
     // Reset when symbol changes
     useEffect(() => {
         setIsLoading(true);
-        prevPriceRef.current = null;
         setState(prev => ({
             ...prev,
             symbol,
