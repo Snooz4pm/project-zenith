@@ -15,6 +15,17 @@ export interface PriceResponse {
     timestamp: number;
 }
 
+// LAUNCH ALLOWLIST - Only these cryptos are supported
+export const SUPPORTED_CRYPTOS = [
+    'BTC', 'ETH', 'USDT', 'USDC',
+    'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOGE',
+    'LINK', 'MATIC', 'DOT', 'ATOM', 'LTC',
+    'UNI', 'AAVE', 'ARB', 'OP', 'TON'
+];
+
+// These coins use Coinbase API (accurate, real-time)
+const COINBASE_SUPPORTED = ['BTC', 'ETH', 'USDT', 'USDC', 'SOL', 'DOGE', 'LTC', 'LINK', 'UNI', 'AVAX', 'ATOM', 'DOT', 'XRP', 'ADA', 'MATIC'];
+
 export async function fetchAssetPrice(
     symbol: string,
     market: 'stock' | 'forex' | 'crypto'
@@ -69,7 +80,6 @@ export async function fetchAssetPrice(
                 const fhSymbol = symbol.includes('/') ? `OANDA:${symbol.replace('/', '_')}` : symbol;
                 const fh = await fetchPriceFinnhub(fhSymbol);
                 if (fh && fh.price > 0) {
-                    // console.log(`[PriceFetch] Forex Finnhub Success: ${fhSymbol} $${fh.price}`);
                     return { price: fh.price, changePercent: fh.changePercent, source: 'finnhub', timestamp: Date.now() };
                 }
             } catch (e) {
@@ -94,7 +104,6 @@ export async function fetchAssetPrice(
                         console.warn("[PriceFetch] Alpha Vantage Rate Limited (Forex)");
                     } else {
                         const price = Number(data?.["Realtime Currency Exchange Rate"]?.["5. Exchange Rate"]);
-                        // Note: AV Forex endpoint doesn't return change percent in CURRENCY_EXCHANGE_RATE directly.
                         if (!isNaN(price) && price > 0) {
                             return { price, changePercent: 0, source: 'alpha_vantage', timestamp: Date.now() };
                         }
@@ -116,9 +125,30 @@ export async function fetchAssetPrice(
         }
 
         if (market === 'crypto') {
-            // RULE ZERO: DexScreener ONLY, strictly filtered for major chains/high-volume
+            const upperSymbol = symbol.toUpperCase();
+
+            // REJECT UNSUPPORTED CRYPTOS
+            if (!SUPPORTED_CRYPTOS.includes(upperSymbol)) {
+                console.warn(`[PriceFetch] Crypto ${upperSymbol} not in allowlist`);
+                return null;
+            }
+
+            // TRY COINBASE FIRST (accurate for majors)
+            if (COINBASE_SUPPORTED.includes(upperSymbol)) {
+                try {
+                    const cbRes = await fetch(`https://api.coinbase.com/v2/prices/${upperSymbol}-USD/spot`, { cache: 'no-store' });
+                    const cbData = await cbRes.json();
+                    const price = Number(cbData?.data?.amount);
+                    if (!isNaN(price) && price > 0) {
+                        return { price, changePercent: 0, source: 'coinbase', timestamp: Date.now() };
+                    }
+                } catch (e) {
+                    console.warn(`[PriceFetch] Coinbase ${upperSymbol} failed, trying DexScreener`);
+                }
+            }
+
+            // FALLBACK: DexScreener for tokens not on Coinbase (ARB, OP, TON, BNB, AAVE)
             const query = symbol.replace('/', '');
-            // Prevent cache completely
             const res = await fetch(
                 `https://api.dexscreener.com/latest/dex/search?q=${query}&t=${Date.now()}`,
                 { cache: 'no-store' }
@@ -128,45 +158,31 @@ export async function fetchAssetPrice(
             if (data?.pairs && Array.isArray(data.pairs)) {
                 // Pre-filter for main chains
                 let candidates = data.pairs.filter((p: any) =>
-                    ['ethereum', 'bsc', 'solana', 'base'].includes(p.chainId)
+                    ['ethereum', 'bsc', 'solana', 'base', 'arbitrum', 'optimism'].includes(p.chainId)
                 );
 
-                // Filter by Symbol (BTC or WBTC)
+                // Filter by Symbol
                 candidates = candidates.filter((p: any) =>
-                    p.baseToken.symbol.toUpperCase() === symbol.toUpperCase() ||
-                    p.baseToken.symbol.toUpperCase() === 'W' + symbol.toUpperCase()
+                    p.baseToken.symbol.toUpperCase() === upperSymbol ||
+                    p.baseToken.symbol.toUpperCase() === 'W' + upperSymbol
                 );
 
                 // Sort by Liquidity
                 candidates.sort((a: any, b: any) => Number(b.liquidity?.usd || 0) - Number(a.liquidity?.usd || 0));
 
                 // Find first "Healthy" pair
-                // Lowered thresholds for debugging/safety: Liq > 100k, Vol > 50k
                 const bestPair = candidates.find((p: any) =>
-                    Number(p.liquidity?.usd || 0) > 100000 &&
-                    Number(p.volume?.h24 || 0) > 50000
+                    Number(p.liquidity?.usd || 0) > 50000 &&
+                    Number(p.volume?.h24 || 0) > 10000
                 );
 
                 if (!bestPair) {
-                    console.warn(`[PriceFetch] No healthy pair found for ${symbol} (Checked ${candidates.length} candidates)`);
-                    // Debug log the first raw candidate if any
-                    if (candidates.length > 0) {
-                        console.warn(`Top Rejected Candidate: ${candidates[0].chainId} Liq:${candidates[0].liquidity?.usd}`);
-                    }
+                    console.warn(`[PriceFetch] No healthy pair found for ${symbol}`);
                     return null;
                 }
 
                 const price = Number(bestPair.priceUsd);
                 const changePercent = Number(bestPair.priceChange?.h24 || 0);
-
-                // BTC SANITY ANCHOR
-                if (symbol.toUpperCase() === 'BTC') {
-                    if (price < 10000 || price > 150000) {
-                        console.error(`[PriceFetch] INSANE BTC PRICE: ${price} - REJECTING`);
-                        console.error(`Rejected Pair: ${bestPair.chainId} ${bestPair.pairAddress}`);
-                        return null;
-                    }
-                }
 
                 if (!isNaN(price) && price > 0) {
                     return { price, changePercent, source: `dexscreener:${bestPair.chainId}`, timestamp: Date.now() };
