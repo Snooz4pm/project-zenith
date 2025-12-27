@@ -156,7 +156,9 @@ export async function fetchMarketAssets(market: MarketType): Promise<Asset[]> {
     let symbols: string[];
 
     if (market === 'crypto') {
-        symbols = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'LINK', 'MATIC'];
+        // Fetch top crypto dynamically from DexScreener
+        const { fetchTopCryptoSymbols } = await import('@/lib/market/crypto/dexscreener-live');
+        symbols = await fetchTopCryptoSymbols(30);
     } else if (market === 'stock') {
         const { FINNHUB_STOCKS } = await import('@/lib/market/symbols');
         symbols = [...FINNHUB_STOCKS].slice(0, 50);

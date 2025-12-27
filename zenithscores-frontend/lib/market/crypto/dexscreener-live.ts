@@ -187,3 +187,64 @@ export async function fetchCryptoLiveBatch(symbols: string[]): Promise<Record<st
 
     return results;
 }
+
+/**
+ * Fetch top crypto symbols from DexScreener
+ * Returns unique token symbols sorted by activity
+ */
+export async function fetchTopCryptoSymbols(limit: number = 50): Promise<string[]> {
+    try {
+        // Use the token-boosts/top endpoint for trending tokens
+        const url = 'https://api.dexscreener.com/token-boosts/top/v1';
+
+        console.log('[CRYPTO] Fetching top tokens from DexScreener...');
+
+        const response = await fetch(url, {
+            cache: 'no-store',
+            headers: { 'Accept': 'application/json' },
+        });
+
+        if (!response.ok) {
+            console.error(`[CRYPTO] DexScreener top tokens error: ${response.status}`);
+            // Fallback to default list
+            return getDefaultCryptoSymbols();
+        }
+
+        const data = await response.json();
+
+        // Extract unique symbols from the response
+        const symbols = new Set<string>();
+
+        if (Array.isArray(data)) {
+            for (const token of data) {
+                if (token.tokenAddress && token.chainId) {
+                    // Try to get symbol from token info
+                    const symbol = token.symbol || token.name?.split(' ')[0];
+                    if (symbol && symbol.length <= 10) {
+                        symbols.add(symbol.toUpperCase());
+                    }
+                }
+            }
+        }
+
+        const result = Array.from(symbols).slice(0, limit);
+        console.log(`[CRYPTO] Found ${result.length} top tokens`);
+
+        // If we got results, return them, otherwise fallback
+        return result.length > 5 ? result : getDefaultCryptoSymbols();
+    } catch (error) {
+        console.error('[CRYPTO] Error fetching top symbols:', error);
+        return getDefaultCryptoSymbols();
+    }
+}
+
+/**
+ * Default crypto symbols fallback
+ */
+function getDefaultCryptoSymbols(): string[] {
+    return [
+        'BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'LINK', 'MATIC',
+        'SHIB', 'LTC', 'UNI', 'ATOM', 'XLM', 'BCH', 'NEAR', 'FIL', 'APT', 'ARB',
+        'OP', 'INJ', 'RENDER', 'IMX', 'SUI', 'SEI', 'TIA', 'JUP', 'PYTH', 'WIF'
+    ];
+}
