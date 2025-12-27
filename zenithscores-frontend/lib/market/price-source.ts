@@ -24,6 +24,19 @@ export async function fetchAssetPrice(
 
     try {
         if (market === 'stock') {
+            // RULE ZERO: Stocks -> Finnhub (Primary) -> Alpha Vantage (Fallback)
+
+            // 1. Primary: Finnhub
+            try {
+                const fh = await fetchPriceFinnhub(symbol);
+                if (fh && fh.price > 0) {
+                    return { price: fh.price, changePercent: fh.changePercent, source: 'finnhub', timestamp: Date.now() };
+                }
+            } catch (e) {
+                console.warn(`[PriceFetch] Finnhub Stock failed for ${symbol}`, e);
+            }
+
+            // 2. Secondary: Alpha Vantage
             if (!ALPHA_KEY) throw new Error("Missing ALPHA_KEY");
 
             const res = await fetch(
@@ -35,9 +48,6 @@ export async function fetchAssetPrice(
             // RATE LIMIT GUARD
             if (data.Note || data.Information) {
                 console.warn("[PriceFetch] Alpha Vantage Rate Limited (Stock)");
-                // Fallback to Finnhub if AV fails
-                const fh = await fetchPriceFinnhub(symbol);
-                if (fh) return { price: fh.price, changePercent: fh.changePercent, source: 'finnhub', timestamp: Date.now() };
                 return null;
             }
 
@@ -146,8 +156,8 @@ export async function fetchAssetPrice(
                     return null;
                 }
 
-                const price = Number(bestPair?.priceUsd);
-                const changePercent = Number(bestPair?.priceChange?.h24 || 0);
+                const price = Number(bestPair.priceUsd);
+                const changePercent = Number(bestPair.priceChange?.h24 || 0);
 
                 // BTC SANITY ANCHOR
                 if (symbol.toUpperCase() === 'BTC') {
