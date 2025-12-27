@@ -43,6 +43,8 @@ export async function fetchAssetPrice(
                 to = symbol.slice(3, 6);
             }
 
+            // console.log(`[PriceFetch] Forex Request: ${from} -> ${to}`);
+
             const res = await fetch(
                 `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${from}&to_currency=${to}&apikey=${ALPHA_KEY}`,
                 { cache: 'no-store' }
@@ -56,15 +58,34 @@ export async function fetchAssetPrice(
         }
 
         if (market === 'crypto') {
+            // DexScreener often returns garbage first. We need to find the most liquid USD pair.
+            const query = symbol.replace('/', ''); // Ensure clean symbol like BTCUSDT not BTC/USDT
             const res = await fetch(
-                `https://api.dexscreener.com/latest/dex/search?q=${symbol}`,
+                `https://api.dexscreener.com/latest/dex/search?q=${query}`,
                 { cache: 'no-store' }
             );
             const data = await res.json();
-            const price = Number(data?.pairs?.[0]?.priceUsd);
 
-            if (!isNaN(price) && price > 0) {
-                return { price, source: 'dexscreener', timestamp: Date.now() };
+            if (data?.pairs && Array.isArray(data.pairs)) {
+                // Find best pair:
+                // 1. Match base token (BTC)
+                // 2. Quote is stable (USDT, USDC, USD, DAI)
+                // 3. Highest liquidity
+
+                const validPairs = data.pairs.filter((p: any) =>
+                    p.baseToken.symbol.toUpperCase() === symbol.toUpperCase() ||
+                    p.baseToken.symbol.toUpperCase() === 'W' + symbol.toUpperCase() // WBTC, WETH
+                );
+
+                // Sort by liquidity (descending)
+                validPairs.sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
+
+                const bestPair = validPairs[0];
+                const price = Number(bestPair?.priceUsd);
+
+                if (!isNaN(price) && price > 0) {
+                    return { price, source: 'dexscreener', timestamp: Date.now() };
+                }
             }
         }
     } catch (error) {
