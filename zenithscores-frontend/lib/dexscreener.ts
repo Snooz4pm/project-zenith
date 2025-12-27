@@ -62,7 +62,10 @@ export interface TokenProfile {
  */
 export async function searchPairs(query: string): Promise<DexPair[]> {
     try {
-        const response = await fetch(`${DEXSCREENER_BASE_URL}/dex/search?q=${encodeURIComponent(query)}`);
+        const response = await fetch(
+            `${DEXSCREENER_BASE_URL}/dex/search?q=${encodeURIComponent(query)}`,
+            { cache: 'no-store' }
+        );
         if (!response.ok) throw new Error(`DexScreener API error: ${response.status}`);
 
         const data = await response.json();
@@ -189,21 +192,52 @@ import { MarketPrice } from '@/lib/market-data/types';
 
 export async function fetchPriceDex(symbol: string): Promise<MarketPrice | null> {
     try {
-        // Search for the pair
-        const pairs = await searchPairs(symbol);
-        const pair = pairs[0];
+        const query = symbol.replace('/', '');
+        const pairs = await searchPairs(query);
 
-        if (!pair) return null;
+        // SECURE SELECTION LOGIC (Rule Zero)
+        const validPairs = pairs
+            .filter((p: DexPair) =>
+                ['ethereum', 'bsc', 'solana', 'base'].includes(p.chainId)
+            )
+            .filter((p: DexPair) =>
+                Number(p.liquidity?.usd || 0) > 500000 &&
+                Number(p.volume?.h24 || 0) > 1000000
+            )
+            .filter((p: DexPair) =>
+                p.baseToken.symbol.toUpperCase() === symbol.toUpperCase() ||
+                p.baseToken.symbol.toUpperCase() === 'W' + symbol.toUpperCase()
+            )
+            .sort((a: DexPair, b: DexPair) =>
+                Number(b.liquidity?.usd || 0) - Number(a.liquidity?.usd || 0)
+            );
+
+        const pair = validPairs[0];
+
+        if (!pair) {
+            console.warn(`[DexScreener] No liquid pair found for ${symbol}`);
+            return null;
+        }
+
+        const price = parseFloat(pair.priceUsd || '0');
+
+        // BTC SANITY ANCHOR
+        if (symbol.toUpperCase() === 'BTC') {
+            if (price < 10000 || price > 150000) {
+                console.error(`[DexScreener] INSANE BTC PRICE: ${price}`);
+                return null;
+            }
+        }
 
         return {
             symbol: pair.baseToken.symbol,
-            price: parseFloat(pair.priceUsd || '0'),
+            price: price,
             change: pair.priceChange.h24,
-            changePercent: pair.priceChange.h24, // Use 24h change as percent
+            changePercent: pair.priceChange.h24,
             volume: pair.volume.h24,
             timestamp: Date.now(),
-            source: 'dexscreener',
-            verificationStatus: 'verified' // Single source for crypto currently
+            source: `dexscreener:${pair.chainId}`,
+            verificationStatus: 'verified'
         };
     } catch (error) {
         console.error('FetchPriceDex Error:', error);

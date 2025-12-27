@@ -45,7 +45,7 @@ async function getRealPrice(symbol: string, market: MarketType): Promise<{ price
             // AlphaVantage Global Quote DOES return change.
             // I missed capturing 'change' in fetchAssetPrice. I should probably add it to fetchAssetPrice explicitly if easy.
             // But for now, let's just use the price.
-            return { price: data.price, change: 0 };
+            return { price: data.price, change: data.changePercent };
         }
     } catch (error) {
         console.error(`[zenith-adapter] Failed to get real price for ${symbol}:`, error);

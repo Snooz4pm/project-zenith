@@ -23,6 +23,7 @@ export async function GET(req: Request) {
             symbol,
             market,
             price: result.price,
+            changePercent: result.changePercent,
             source: result.source,
             timestamp: result.timestamp
         });

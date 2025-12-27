@@ -112,6 +112,6 @@ export type MarketPrice = {
     low24h?: number;
     volume?: number;
     timestamp: number;
-    source: 'dexscreener' | 'alpha_vantage' | 'finnhub' | 'verified_dual';
+    source: string; // e.g. 'dexscreener:solana', 'alpha_vantage', 'finnhub'
     verificationStatus?: 'verified' | 'discrepancy' | 'unverified';
 };

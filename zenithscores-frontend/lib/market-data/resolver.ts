@@ -208,16 +208,37 @@ async function fetchCryptoOHLCV(
     timeframe: Timeframe,
     range: DataRange
 ): Promise<OHLCV[]> {
-    // DexScreener doesn't provide historical OHLCV
-    // Search for the pair and use current price for synthetic data
-    const pairs = await searchPairs(symbol);
-    const pair = pairs.find(p =>
-        p.baseToken.symbol.toUpperCase() === symbol.toUpperCase() ||
-        p.baseToken.symbol.toUpperCase() === symbol.replace('USD', '').toUpperCase()
-    );
+    const query = symbol.replace('/', '');
+    const pairs = await searchPairs(query);
+
+    // RULE ZERO: Selection Logic
+    const validPairs = pairs
+        .filter((p: any) =>
+            ['ethereum', 'bsc', 'solana', 'base'].includes(p.chainId)
+        )
+        .filter((p: any) =>
+            Number(p.liquidity?.usd || 0) > 500000 &&
+            Number(p.volume?.h24 || 0) > 1000000
+        )
+        .filter((p: any) =>
+            p.baseToken.symbol.toUpperCase() === symbol.toUpperCase() ||
+            p.baseToken.symbol.toUpperCase() === 'W' + symbol.toUpperCase()
+        )
+        .sort((a: any, b: any) => Number(b.liquidity?.usd || 0) - Number(a.liquidity?.usd || 0));
+
+    const pair = validPairs[0];
 
     if (pair && pair.priceUsd) {
-        const currentPrice = parseFloat(pair.priceUsd);
+        let currentPrice = parseFloat(pair.priceUsd);
+
+        // BTC SANITY ANCHOR
+        if (symbol.toUpperCase() === 'BTC') {
+            if (currentPrice < 10000 || currentPrice > 150000) {
+                console.error(`[Resolver] INSANE BTC PRICE: ${currentPrice}`);
+                return [];
+            }
+        }
+
         const volatility = Math.abs(pair.priceChange?.h24 || 5) / 100;
         const count = range === '1D' ? 1440 : range === '1W' ? 2000 : 1000;
         return generateSyntheticOHLCV(currentPrice, count, getTimeframeMinutes(timeframe), volatility);
