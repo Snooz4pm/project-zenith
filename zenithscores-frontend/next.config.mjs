@@ -8,6 +8,14 @@ const nextConfig = {
     // Allow production builds even with type errors
     ignoreBuildErrors: true,
   },
+  webpack: (config, { isServer }) => {
+    // Ignore optional wagmi connector dependencies
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      'porto/internal': false,
+    };
+    return config;
+  },
   async rewrites() {
     return [
       {
