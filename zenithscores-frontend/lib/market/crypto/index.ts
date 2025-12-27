@@ -1,20 +1,19 @@
 /**
  * CRYPTO LIVE MODE - Barrel Export
  * 
- * All crypto LIVE mode exports.
- * Uses Dexscreener only. NO stocks/forex imports.
+ * LAUNCH VERSION: Uses crypto-engine (Coinbase/CoinGecko).
+ * DexScreener REMOVED for pricing.
  */
 
 // Types
 export * from './types';
 
-// Fetcher
-export {
-    fetchCryptoLive,
-    fetchCryptoLiveBatch,
-    searchTokenPair,
-    fetchPairByAddress
-} from './dexscreener-live';
+// Hook (uses crypto-engine internally)
+export { useCryptoLive, type CryptoLiveStatus } from './useCryptoLive';
 
-// Hook
-export { useCryptoLive } from './useCryptoLive';
+// Centralized engine re-exports
+export {
+    SUPPORTED_CRYPTOS,
+    fetchCryptoPrice,
+    fetchAllCryptoPrices
+} from '../crypto-engine';

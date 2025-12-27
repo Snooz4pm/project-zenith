@@ -25,13 +25,12 @@ import {
     getTimeRange,
     type CandleData
 } from '../finnhub';
-import { searchPairs, type DexPair } from '../dexscreener';
+import { SUPPORTED_CRYPTOS } from '../market/crypto-engine';
 
-// Known crypto symbols (expand as needed)
+// Use centralized crypto list
 const CRYPTO_SYMBOLS = new Set([
-    'BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'LINK', 'AVAX', 'MATIC',
-    'UNI', 'ATOM', 'LTC', 'BCH', 'NEAR', 'APT', 'ARB', 'OP', 'PEPE', 'SHIB',
-    'BTCUSD', 'ETHUSD', 'SOLUSD', 'XRPUSD', 'ADAUSD', 'DOGEUSD'
+    ...SUPPORTED_CRYPTOS,
+    ...SUPPORTED_CRYPTOS.map(s => s + 'USD')
 ]);
 
 // Known forex pairs
