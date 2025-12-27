@@ -7,18 +7,24 @@ import { useState, useEffect } from 'react';
 // Currency symbol helper
 function getCurrencySymbol(symbol: string): string {
     const upperSymbol = symbol.toUpperCase();
-    // For forex pairs like USD/JPY, the quote currency is second
-    if (upperSymbol.endsWith('JPY') || upperSymbol.includes('/JPY')) return '¥';
-    if (upperSymbol.endsWith('EUR') || upperSymbol.includes('/EUR')) return '€';
-    if (upperSymbol.endsWith('GBP') || upperSymbol.includes('/GBP')) return '£';
-    if (upperSymbol.endsWith('CHF') || upperSymbol.includes('/CHF')) return 'CHF ';
-    if (upperSymbol.endsWith('CAD') || upperSymbol.includes('/CAD')) return 'C$';
-    if (upperSymbol.endsWith('AUD') || upperSymbol.includes('/AUD')) return 'A$';
-    // For forex pairs like EUR/USD, GBP/USD, the quote is USD
-    if (upperSymbol.includes('/USD') || upperSymbol.endsWith('USD')) return '$';
-    // For crypto always use $
-    if (['BTC', 'ETH', 'SOL', 'DOGE', 'USDT'].some(c => upperSymbol.includes(c))) return '$';
-    // Default to $ for stocks
+    // Extract quote currency (last 3 chars for formats like USDJPY, or after / for EUR/USD)
+    let quoteCurrency = '';
+    if (upperSymbol.includes('/')) {
+        quoteCurrency = upperSymbol.split('/')[1];
+    } else if (upperSymbol.length === 6) {
+        quoteCurrency = upperSymbol.slice(3, 6);
+    }
+
+    // Return symbol based on quote currency
+    if (quoteCurrency === 'JPY') return '¥';
+    if (quoteCurrency === 'EUR') return '€';
+    if (quoteCurrency === 'GBP') return '£';
+    if (quoteCurrency === 'CHF') return 'CHF ';
+    if (quoteCurrency === 'CAD') return 'C$';
+    if (quoteCurrency === 'AUD') return 'A$';
+    if (quoteCurrency === 'USD') return '$';
+
+    // For crypto and stocks, use $
     return '$';
 }
 
