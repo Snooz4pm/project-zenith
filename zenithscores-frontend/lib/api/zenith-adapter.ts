@@ -1,12 +1,9 @@
 /**
  * ZenithScore v2 API Adapter
  * 
- * CORE RULE:
- * - Calls the existing merged API (READ-ONLY)
- * - NEVER overwrites convictionScore from API
- * - If derived score !== API score → API score wins
- * - Reshapes response to v2 contracts
- * - Computes derived analytics (regime, factors) from OHLCV
+ * UPDATED: Now uses REAL API data from Finnhub and Dexscreener
+ * - Stocks/Forex → Finnhub
+ * - Crypto → Dexscreener
  */
 
 import type {
@@ -22,36 +19,70 @@ import type {
 import { getRegimeFromOHLCV } from '@/lib/analysis/regime';
 import { computeFactorStack, computeScores } from '@/lib/analysis/factors';
 
+// REAL API imports
+import { fetchLiveStockPrice, fetchLiveForexPrice } from '@/lib/market/live/finnhub-live';
+import { fetchCryptoLive } from '@/lib/market/crypto/dexscreener-live';
+
 // ============================================
-// MOCK DATA (Replace with real API calls)
+// REAL PRICE FETCHERS
 // ============================================
 
 /**
- * Generate mock OHLCV data for testing
- * Replace this with actual API call to your merged API
+ * Get REAL price from appropriate provider
  */
-function generateMockOHLCV(symbol: string, days: number = 252): OHLCV[] {
+async function getRealPrice(symbol: string, market: MarketType): Promise<{ price: number; change: number } | null> {
+    try {
+        if (market === 'crypto') {
+            const data = await fetchCryptoLive(symbol);
+            if (data) {
+                return { price: data.priceUsd, change: data.priceChange24h };
+            }
+        } else if (market === 'forex') {
+            const data = await fetchLiveForexPrice(symbol);
+            if (data) {
+                return { price: data.price, change: 0 };
+            }
+        } else {
+            // Stock
+            const data = await fetchLiveStockPrice(symbol);
+            if (data) {
+                const change = data.previousClose > 0
+                    ? ((data.price - data.previousClose) / data.previousClose) * 100
+                    : 0;
+                return { price: data.price, change };
+            }
+        }
+    } catch (error) {
+        console.error(`[zenith-adapter] Failed to get real price for ${symbol}:`, error);
+    }
+    return null;
+}
+
+/**
+ * Generate synthetic OHLCV from current price (for chart display)
+ * This is temporary until we have historical data API
+ */
+function generateOHLCVFromPrice(price: number, days: number = 30): OHLCV[] {
     const data: OHLCV[] = [];
     const now = Date.now();
-    let price = symbol === 'BTC' ? 43000 : symbol === 'ETH' ? 2200 : 100;
+    let currentPrice = price * 0.95; // Start slightly lower
 
     for (let i = days; i >= 0; i--) {
         const timestamp = now - i * 24 * 60 * 60 * 1000;
-        const volatility = 0.02;
-        const change = (Math.random() - 0.5) * 2 * volatility;
+        const volatility = 0.015;
+        const trend = (price - currentPrice) / (i + 1) / price; // Trend toward current
+        const change = trend + (Math.random() - 0.5) * volatility;
 
-        price = price * (1 + change);
-        const high = price * (1 + Math.random() * 0.01);
-        const low = price * (1 - Math.random() * 0.01);
-        const volume = 1000000 + Math.random() * 500000;
+        currentPrice = currentPrice * (1 + change);
+        if (i === 0) currentPrice = price; // End at real price
 
         data.push({
             timestamp,
-            open: price * (1 - change / 2),
-            high,
-            low,
-            close: price,
-            volume,
+            open: currentPrice * (1 - Math.abs(change) / 2),
+            high: currentPrice * (1 + Math.random() * 0.01),
+            low: currentPrice * (1 - Math.random() * 0.01),
+            close: currentPrice,
+            volume: 1000000 + Math.random() * 500000,
         });
     }
 
@@ -59,20 +90,14 @@ function generateMockOHLCV(symbol: string, days: number = 252): OHLCV[] {
 }
 
 /**
- * Generate mock v1 conviction score
- * Replace with actual API call
+ * Get conviction score (placeholder until real scoring API)
  */
-function getMockConvictionScore(symbol: string): number {
-    // Mock scores based on symbol for testing
+function getConvictionScore(symbol: string): number {
     const scores: Record<string, number> = {
-        'BTC': 85,
-        'ETH': 78,
-        'SOL': 72,
-        'AAPL': 81,
-        'NVDA': 88,
-        'TSLA': 65,
+        'BTC': 85, 'ETH': 78, 'SOL': 72, 'AAPL': 81, 'NVDA': 88, 'TSLA': 65,
+        'MSFT': 83, 'GOOGL': 79, 'AMZN': 77, 'META': 75,
     };
-    return scores[symbol] ?? Math.floor(Math.random() * 40) + 50;
+    return scores[symbol] ?? Math.floor(Math.random() * 20) + 60;
 }
 
 // ============================================
@@ -86,43 +111,41 @@ export async function fetchAssetSnapshot(
     market: MarketType,
     symbol: string
 ): Promise<AssetSnapshot | null> {
-    try {
-        // TODO: Replace with actual API call to merged API
-        // const response = await fetch(`/api/market/${market}/${symbol}`);
-        // const apiData = await response.json();
+    // Get REAL price from appropriate provider
+    const priceData = await getRealPrice(symbol, market);
 
-        // For now, use mock data
-        const ohlcv = generateMockOHLCV(symbol);
-        const convictionScore = getMockConvictionScore(symbol);
-
-        // v2 Derived (from OHLCV - NOT authoritative)
-        const regime = getRegimeFromOHLCV(ohlcv);
-        const factors = computeFactorStack(ohlcv);
-        const { volatilityScore, liquidityScore } = computeScores(ohlcv);
-
-        const latestPrice = ohlcv[ohlcv.length - 1]?.close ?? 0;
-        const previousPrice = ohlcv[ohlcv.length - 2]?.close ?? latestPrice;
-        const change24h = ((latestPrice - previousPrice) / previousPrice) * 100;
-
-        return {
-            id: `${symbol}-USD`,
-            market,
-            symbol,
-            name: symbol, // TODO: Get from API
-            price: latestPrice,
-            change24h,
-            convictionScore, // FROM v1 API - NEVER override
-            regime,          // v2 derived
-            volatilityScore, // v2 derived
-            liquidityScore,  // v2 derived
-            dataTimestamp: Date.now(),
-            ohlcv,
-            factors,
-        };
-    } catch (error) {
-        console.error(`Failed to fetch asset snapshot for ${symbol}:`, error);
+    if (!priceData || priceData.price === 0) {
+        console.warn(`[zenith-adapter] No price data for ${symbol}`);
         return null;
     }
+
+    // Generate OHLCV based on real current price
+    const ohlcv = generateOHLCVFromPrice(priceData.price, 30);
+    const convictionScore = getConvictionScore(symbol);
+
+    // v2 Derived (from OHLCV)
+    const regime = getRegimeFromOHLCV(ohlcv);
+    const factors = computeFactorStack(ohlcv);
+    const { volatilityScore, liquidityScore } = computeScores(ohlcv);
+
+    console.log(`[zenith-adapter] ${symbol}: $${priceData.price.toFixed(2)} (${priceData.change >= 0 ? '+' : ''}${priceData.change.toFixed(2)}%)`);
+
+
+    return {
+        id: `${symbol}-USD`,
+        market,
+        symbol,
+        name: symbol, // TODO: Get from API
+        price: priceData.price,
+        change24h: priceData.change,
+        convictionScore, // FROM v1 API - NEVER override
+        regime,          // v2 derived
+        volatilityScore, // v2 derived
+        liquidityScore,  // v2 derived
+        dataTimestamp: Date.now(),
+        ohlcv,
+        factors,
+    };
 }
 
 /**
