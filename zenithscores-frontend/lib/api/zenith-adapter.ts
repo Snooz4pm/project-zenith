@@ -150,6 +150,7 @@ export async function fetchAssetSnapshot(
 
 /**
  * Fetch all assets for a market
+ * Uses parallel fetching with batching to avoid timeouts
  */
 export async function fetchMarketAssets(market: MarketType): Promise<Asset[]> {
     // Get full symbol lists from validated sources
@@ -161,23 +162,39 @@ export async function fetchMarketAssets(market: MarketType): Promise<Asset[]> {
         symbols = await fetchTopCryptoSymbols(30);
     } else if (market === 'stock') {
         const { FINNHUB_STOCKS } = await import('@/lib/market/symbols');
-        symbols = [...FINNHUB_STOCKS].slice(0, 50);
+        symbols = [...FINNHUB_STOCKS].slice(0, 30); // Reduced to 30 for speed
     } else {
         const { FINNHUB_FOREX } = await import('@/lib/market/symbols');
         symbols = [...FINNHUB_FOREX];
     }
 
+    console.log(`[zenith-adapter] Fetching ${symbols.length} ${market} assets...`);
+
+    // Fetch in parallel batches of 5 to avoid rate limits but speed up
+    const BATCH_SIZE = 5;
     const assets: Asset[] = [];
 
-    for (const symbol of symbols) {
-        const snapshot = await fetchAssetSnapshot(market, symbol);
-        if (snapshot) {
-            // Strip OHLCV and factors for list view
-            const { ohlcv, factors, ...asset } = snapshot;
-            assets.push(asset);
+    for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
+        const batch = symbols.slice(i, i + BATCH_SIZE);
+
+        const results = await Promise.allSettled(
+            batch.map(symbol => fetchAssetSnapshot(market, symbol))
+        );
+
+        for (const result of results) {
+            if (result.status === 'fulfilled' && result.value) {
+                const { ohlcv, factors, ...asset } = result.value;
+                assets.push(asset);
+            }
+        }
+
+        // Small delay between batches to respect rate limits
+        if (i + BATCH_SIZE < symbols.length) {
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
     }
 
+    console.log(`[zenith-adapter] Fetched ${assets.length}/${symbols.length} ${market} assets`);
     return assets;
 }
 
