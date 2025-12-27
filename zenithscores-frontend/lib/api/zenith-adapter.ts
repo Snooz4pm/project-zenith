@@ -152,12 +152,18 @@ export async function fetchAssetSnapshot(
  * Fetch all assets for a market
  */
 export async function fetchMarketAssets(market: MarketType): Promise<Asset[]> {
-    // TODO: Replace with actual API call
-    const symbols = market === 'crypto'
-        ? ['BTC', 'ETH', 'SOL', 'ADA', 'DOT', 'AVAX', 'MATIC', 'LINK']
-        : market === 'stock'
-            ? ['AAPL', 'NVDA', 'TSLA', 'MSFT', 'GOOGL', 'AMZN', 'META']
-            : ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD'];
+    // Get full symbol lists from validated sources
+    let symbols: string[];
+
+    if (market === 'crypto') {
+        symbols = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'LINK', 'MATIC'];
+    } else if (market === 'stock') {
+        const { FINNHUB_STOCKS } = await import('@/lib/market/symbols');
+        symbols = [...FINNHUB_STOCKS].slice(0, 50);
+    } else {
+        const { FINNHUB_FOREX } = await import('@/lib/market/symbols');
+        symbols = [...FINNHUB_FOREX];
+    }
 
     const assets: Asset[] = [];
 
