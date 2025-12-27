@@ -181,24 +181,22 @@ export async function fetchMarketAssets(market: MarketType): Promise<Asset[]> {
 
 /**
  * Fetch algorithm picks for a market
- * Only returns assets that pass v1 thresholds
+ * UPDATED: Returns ALL assets (no filtering by conviction score)
  */
 export async function fetchAlgorithmPicks(market: MarketType): Promise<AlgorithmPick[]> {
     const assets = await fetchMarketAssets(market);
     const picks: AlgorithmPick[] = [];
 
     for (const asset of assets) {
-        // v1 decides what is good
-        if (asset.convictionScore >= 70 && asset.regime !== 'chaos') {
-            const snapshot = await fetchAssetSnapshot(market, asset.symbol);
-            if (snapshot) {
-                picks.push({
-                    asset: snapshot,
-                    scenarios: generateScenarios(snapshot),
-                    tradeLogic: generateTradeLogic(snapshot),
-                    invalidations: generateInvalidations(snapshot),
-                });
-            }
+        // Show ALL assets - no filtering
+        const snapshot = await fetchAssetSnapshot(market, asset.symbol);
+        if (snapshot) {
+            picks.push({
+                asset: snapshot,
+                scenarios: generateScenarios(snapshot),
+                tradeLogic: generateTradeLogic(snapshot),
+                invalidations: generateInvalidations(snapshot),
+            });
         }
     }
 
@@ -216,11 +214,7 @@ export async function fetchAlgorithmResult(
 
     if (!snapshot) return null;
 
-    // Check if asset qualifies for analysis
-    if (snapshot.convictionScore < 70 || snapshot.regime === 'chaos') {
-        return null; // Guard: no analysis for non-algorithm assets
-    }
-
+    // All assets qualify for analysis now - no filtering
     return {
         assetId: snapshot.id,
         convictionScore: snapshot.convictionScore, // FROM v1 API
@@ -331,16 +325,16 @@ function generateInvalidations(snapshot: AssetSnapshot): string[] {
 
 /**
  * Check if an asset has algorithm-level analysis available
+ * UPDATED: All assets now have analysis available
  */
 export function hasAnalysisAvailable(asset: Asset): boolean {
-    return asset.convictionScore >= 70 && asset.regime !== 'chaos';
+    return true; // All assets have analysis
 }
 
 /**
  * Get analysis URL if available, null otherwise
  */
 export function getAnalysisUrl(asset: Asset): string | null {
-    if (!hasAnalysisAvailable(asset)) return null;
     return `/${asset.market}/${asset.symbol}/analysis`;
 }
 
