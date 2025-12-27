@@ -66,11 +66,20 @@ export function generateScenarios(data: MinimalCandle[]): ScenarioProbabilities 
 }
 
 export function generateKeyLevels(data: MinimalCandle[]): KeyLevels {
+    // Guard against empty data
+    if (!data || data.length === 0) {
+        return {
+            entryZone: { min: 0, max: 0 },
+            invalidation: { price: 0, reason: "No data" },
+            target: { price: 0, reason: "No data" }
+        };
+    }
+
     const currentPrice = data[data.length - 1].close;
     const atr = calculateATR(data, 14);
     const currentAtr = atr[atr.length - 1] || (currentPrice * 0.02);
     const ema20 = calculateEMA(data, 20);
-    const e20 = ema20[ema20.length - 1];
+    const e20 = ema20[ema20.length - 1] || currentPrice;
 
     // Simple Logic for Entry Zone: Pullback to EMA20 +/- 0.5 ATR
     const entryMin = e20 - (currentAtr * 0.2);

@@ -52,10 +52,16 @@ export function useMarketContext({
         const fetchAnalysis = async () => {
             setIsLoading(true);
             try {
-                // Formatting zones for text prompt
-                const zoneText = zones.slice(0, 3).map(z =>
-                    `[${z.min.toFixed(2)}-${z.max.toFixed(2)}]`
-                ).join(', ') || "None currently detected";
+                // Formatting zones for text prompt (zones are Drawing objects with points)
+                const zoneText = zones.slice(0, 3).map(z => {
+                    // Drawing objects have points array, not min/max directly
+                    if (z.points && z.points.length >= 2) {
+                        const minY = Math.min(z.points[0]?.y ?? 0, z.points[1]?.y ?? 0);
+                        const maxY = Math.max(z.points[0]?.y ?? 0, z.points[1]?.y ?? 0);
+                        return `[${minY.toFixed(2)}-${maxY.toFixed(2)}]`;
+                    }
+                    return '[unknown]';
+                }).join(', ') || "None currently detected";
 
                 const res = await fetch('/api/ai/context', {
                     method: 'POST',
