@@ -183,3 +183,66 @@ export function fillOHLCVGaps(data: OHLCV[], intervalSeconds: number): OHLCV[] {
 
     return result;
 }
+
+/**
+ * Normalize to unified MarketPrice shape
+ */
+export function normalizeToMarketPrice(
+    raw: any,
+    source: 'alpha_vantage' | 'finnhub' | 'dexscreener',
+    type: 'stock' | 'crypto' | 'forex'
+): import('./types').MarketPrice {
+    const now = Math.floor(Date.now() / 1000);
+
+    if (source === 'alpha_vantage') {
+        // Handle Global Quote
+        const quote = raw['Global Quote'];
+        if (quote) {
+            const price = parseFloat(quote['05. price']);
+            const change = parseFloat(quote['09. change']);
+            const pct = parseFloat(quote['10. change percent'].replace('%', ''));
+            return {
+                symbol: quote['01. symbol'],
+                price,
+                change,
+                changePercent: pct,
+                high24h: parseFloat(quote['03. high']),
+                low24h: parseFloat(quote['04. low']),
+                volume: parseFloat(quote['06. volume']),
+                timestamp: now,
+                source: 'alpha_vantage',
+                verificationStatus: 'unverified'
+            };
+        }
+    }
+
+    if (source === 'finnhub') {
+        return {
+            symbol: raw.symbol || 'UNKNOWN', // Finnhub often needs symbol passed in context
+            price: raw.c,
+            change: raw.d,
+            changePercent: raw.dp,
+            high24h: raw.h,
+            low24h: raw.l,
+            volume: 0, // Quote often lacks volume
+            timestamp: raw.t || now,
+            source: 'finnhub',
+            verificationStatus: 'unverified'
+        };
+    }
+
+    if (source === 'dexscreener') {
+        return {
+            symbol: raw.baseToken.symbol,
+            price: parseFloat(raw.priceUsd),
+            change: raw.priceChange?.h24 || 0, // Using 24h change as primary metric
+            changePercent: raw.priceChange?.h24 || 0,
+            volume: raw.volume?.h24 || 0,
+            timestamp: now,
+            source: 'dexscreener',
+            verificationStatus: 'unverified'
+        };
+    }
+
+    throw new Error(`Unknown source or format: ${source}`);
+}

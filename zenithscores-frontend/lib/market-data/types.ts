@@ -101,3 +101,17 @@ export const CACHE_TTL: Record<Timeframe, number> = {
     '1W': 60 * 60 * 24, // 24 hours
     '1M': 60 * 60 * 24, // 24 hours
 };
+
+// Unified Real-Time Price Shape
+export type MarketPrice = {
+    symbol: string;
+    price: number;
+    change: number;
+    changePercent: number;
+    high24h?: number;
+    low24h?: number;
+    volume?: number;
+    timestamp: number;
+    source: 'dexscreener' | 'alpha_vantage' | 'finnhub' | 'verified_dual';
+    verificationStatus?: 'verified' | 'discrepancy' | 'unverified';
+};

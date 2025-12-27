@@ -252,3 +252,142 @@ export function calculateVWAP(data: MinimalCandle[]): number[] {
 
     return result;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADX - Average Directional Index
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export function calculateADX(data: MinimalCandle[], period: number = 14): number[] {
+    const result: number[] = [];
+
+    // Arrays for True Range and Directional Movements
+    const tr: number[] = [];
+    const dmPlus: number[] = [];
+    const dmMinus: number[] = [];
+
+    // 1. Calculate TR, +DM, -DM
+    for (let i = 0; i < data.length; i++) {
+        const high = data[i].high || data[i].close;
+        const low = data[i].low || data[i].close;
+        const prevClose = i > 0 ? data[i - 1].close : data[i].close;
+
+        if (i === 0) {
+            tr.push(high - low);
+            dmPlus.push(0);
+            dmMinus.push(0);
+            continue;
+        }
+
+        const prevHigh = data[i - 1].high || data[i - 1].close;
+        const prevLow = data[i - 1].low || data[i - 1].close;
+
+        const currentTR = Math.max(
+            high - low,
+            Math.abs(high - prevClose),
+            Math.abs(low - prevClose)
+        );
+        tr.push(currentTR);
+
+        const upMove = high - prevHigh;
+        const downMove = prevLow - low;
+
+        if (upMove > downMove && upMove > 0) {
+            dmPlus.push(upMove);
+        } else {
+            dmPlus.push(0);
+        }
+
+        if (downMove > upMove && downMove > 0) {
+            dmMinus.push(downMove);
+        } else {
+            dmMinus.push(0);
+        }
+    }
+
+    // 2. Smoothed TR, +DM, -DM (Wilder's Smoothing)
+    // First period is simple sum
+    let smoothTR = tr.slice(0, period).reduce((a, b) => a + b, 0);
+    let smoothDMPlus = dmPlus.slice(0, period).reduce((a, b) => a + b, 0);
+    let smoothDMMinus = dmMinus.slice(0, period).reduce((a, b) => a + b, 0);
+
+    const diPlusArr: number[] = [];
+    const diMinusArr: number[] = [];
+    const dxArr: number[] = [];
+
+    for (let i = 0; i < data.length; i++) {
+        if (i < period - 1) {
+            result.push(NaN);
+            continue;
+        }
+
+        if (i >= period) {
+            // Wilder's Smoothing: Previous * (period - 1) + Current
+            smoothTR = smoothTR - (smoothTR / period) + tr[i];
+            smoothDMPlus = smoothDMPlus - (smoothDMPlus / period) + dmPlus[i];
+            smoothDMMinus = smoothDMMinus - (smoothDMMinus / period) + dmMinus[i];
+        }
+
+        const diPlus = (smoothDMPlus / smoothTR) * 100;
+        const diMinus = (smoothDMMinus / smoothTR) * 100;
+
+        diPlusArr.push(diPlus);
+        diMinusArr.push(diMinus);
+
+        const sumDI = diPlus + diMinus;
+        const dx = sumDI === 0 ? 0 : (Math.abs(diPlus - diMinus) / sumDI) * 100;
+        dxArr.push(dx);
+
+        if (i < (period * 2) - 1) {
+            result.push(NaN);
+        } else if (i === (period * 2) - 1) {
+            // First ADX is average of DX
+            const adx = dxArr.slice(0, period).reduce((a, b) => a + b, 0) / period;
+            result.push(adx);
+        } else {
+            // Subsequent ADX = ((Prior ADX * (period - 1)) + Current DX) / period
+            const prevADX = result[result.length - 1];
+            const adx = ((prevADX * (period - 1)) + dx) / period;
+            result.push(adx);
+        }
+    }
+
+    return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Anchored VWAP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export function calculateAnchoredVWAP(data: MinimalCandle[], anchorIndex: number): number[] {
+    const result: number[] = [];
+    let cumulativeTPV = 0;
+    let cumulativeVolume = 0;
+
+    for (let i = 0; i < data.length; i++) {
+        // Before anchor, no value
+        if (i < anchorIndex) {
+            result.push(NaN);
+            continue;
+        }
+
+        const candle = data[i];
+        // Use HLC3 if possible, else Close
+        const high = candle.high ?? candle.close;
+        const low = candle.low ?? candle.close;
+        const close = candle.close;
+
+        const typicalPrice = (high + low + close) / 3;
+        const volume = candle.volume || 0;
+
+        cumulativeTPV += typicalPrice * volume;
+        cumulativeVolume += volume;
+
+        if (cumulativeVolume === 0) {
+            result.push(typicalPrice);
+        } else {
+            result.push(cumulativeTPV / cumulativeVolume);
+        }
+    }
+
+    return result;
+}

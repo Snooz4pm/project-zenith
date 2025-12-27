@@ -180,3 +180,33 @@ export function getChainId(chain: string): string {
     };
     return chainMap[chain.toLowerCase()] || 'ethereum';
 }
+// ... existing code ...
+
+/**
+ * Unified Price Fetcher for DexScreener
+ */
+import { MarketPrice } from '@/lib/market-data/types';
+
+export async function fetchPriceDex(symbol: string): Promise<MarketPrice | null> {
+    try {
+        // Search for the pair
+        const pairs = await searchPairs(symbol);
+        const pair = pairs[0];
+
+        if (!pair) return null;
+
+        return {
+            symbol: pair.baseToken.symbol,
+            price: parseFloat(pair.priceUsd || '0'),
+            change: pair.priceChange.h24,
+            changePercent: pair.priceChange.h24, // Use 24h change as percent
+            volume: pair.volume.h24,
+            timestamp: Date.now(),
+            source: 'dexscreener',
+            verificationStatus: 'verified' // Single source for crypto currently
+        };
+    } catch (error) {
+        console.error('FetchPriceDex Error:', error);
+        return null;
+    }
+}

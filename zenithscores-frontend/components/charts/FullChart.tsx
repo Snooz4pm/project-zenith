@@ -8,7 +8,7 @@ import { getRegimeDisplay } from '@/lib/analysis/regime';
 import { Clock, TrendingUp, Activity, Target, XCircle } from 'lucide-react';
 
 // Dynamic imports
-const CandlestickChart = dynamic(() => import('./CandlestickChart'), { ssr: false });
+const ZenithChartPro = dynamic(() => import('@/components/chart-engine/ZenithChartPro'), { ssr: false });
 const VolumeChart = dynamic(() => import('./VolumeChart'), { ssr: false });
 
 interface FullChartProps {
@@ -94,8 +94,8 @@ export default function FullChart({
                             key={tf}
                             onClick={() => setTimeframe(tf)}
                             className={`px-3 py-1 text-xs font-medium rounded transition-all ${timeframe === tf
-                                    ? 'bg-blue-500 text-white'
-                                    : 'text-zinc-400 hover:text-white'
+                                ? 'bg-blue-500 text-white'
+                                : 'text-zinc-400 hover:text-white'
                                 }`}
                         >
                             {tf}
@@ -124,12 +124,18 @@ export default function FullChart({
 
             {/* Main Chart */}
             <div className="p-4">
-                <CandlestickChart
-                    data={chartData}
-                    regime={regime}
-                    height={350}
-                    showVolume={false}
-                />
+                <div className="h-[350px] w-full">
+                    <ZenithChartPro
+                        data={chartData.map(d => ({
+                            time: d.timestamp, // Map timestamp -> time
+                            open: d.open,
+                            high: d.high,
+                            low: d.low,
+                            close: d.close,
+                            volume: d.volume
+                        }))}
+                    />
+                </div>
             </div>
 
             {/* Volume Chart */}
@@ -149,8 +155,8 @@ export default function FullChart({
                     <button
                         onClick={() => setShowVolume(!showVolume)}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${showVolume
-                                ? 'bg-blue-500/20 text-blue-400'
-                                : 'bg-zinc-800 text-zinc-500 hover:text-white'
+                            ? 'bg-blue-500/20 text-blue-400'
+                            : 'bg-zinc-800 text-zinc-500 hover:text-white'
                             }`}
                     >
                         <Activity size={12} />

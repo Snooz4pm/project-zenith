@@ -92,76 +92,41 @@ export default function SignalsPage() {
         return `${sign}${value.toFixed(2)}%`;
     };
 
+
+    // ... inside component
+    const getStructureLabel = (signal: Signal) => {
+        // Infer structure from price action if API lacks explicit regime
+        const change = signal.price_change_24h;
+        if (change > 5) return { label: 'Breakout', color: 'text-blue-400', bg: 'bg-blue-400/10' };
+        if (change > 1) return { label: 'Trending', color: 'text-emerald-400', bg: 'bg-emerald-400/10' };
+        if (change < -5) return { label: 'Breakdown', color: 'text-red-400', bg: 'bg-red-400/10' };
+        if (change < -1) return { label: 'Correction', color: 'text-orange-400', bg: 'bg-orange-400/10' };
+        return { label: 'Range', color: 'text-gray-400', bg: 'bg-gray-400/10' };
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white pt-20 md:pt-24">
-            {/* Content */}
             <div className="container mx-auto px-4 py-6">
-                {/* Personalization Status Banner */}
-                {status !== 'loading' && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={`mb-6 p-4 rounded-xl border ${isLoggedIn
-                            ? 'bg-cyan-500/10 border-cyan-500/20'
-                            : 'bg-gray-800/50 border-gray-700/50'
-                            }`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                {isLoggedIn ? (
-                                    <>
-                                        <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center">
-                                            <Sparkles size={16} className="text-cyan-400" />
-                                        </div>
-                                        <div>
-                                            <div className="text-sm font-semibold text-white">Personalized Signals</div>
-                                            <div className="text-xs text-gray-400">Ranked by your risk profile and trading style</div>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
-                                            <Eye size={16} className="text-gray-400" />
-                                        </div>
-                                        <div>
-                                            <div className="text-sm font-semibold text-white">Generic Signals</div>
-                                            <div className="text-xs text-gray-400">One-size-fits-all scores. Not calibrated to you.</div>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                            {!isLoggedIn && (
-                                <Link
-                                    href="/auth/login?callbackUrl=/signals"
-                                    className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold rounded-lg transition-colors"
-                                >
-                                    <User size={14} />
-                                    Personalize
-                                </Link>
-                            )}
-                        </div>
-                    </motion.div>
-                )}
 
-                {/* Inline Filters */}
+                {/* Header Section */}
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-white mb-2">Algorithm Picks</h1>
+                    <p className="text-gray-400">
+                        AI-curated structural setups. Not signals.
+                    </p>
+
+                    {/* Disclaimer Banner (UX Guardrail) */}
+                    <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-start gap-3">
+                        <Info size={16} className="text-blue-400 mt-0.5" />
+                        <span className="text-sm text-blue-300">
+                            <strong>Note:</strong> Algorithm Picks highlight structural interest for your analysis — these are <u>not</u> trade recommendations. Always confirm with your own thesis.
+                        </span>
+                    </div>
+                </div>
+
+                {/* Filters Row */}
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
-                        {/* Score Filter */}
-                        <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
-                            <Target size={14} className="text-gray-500" />
-                            <select
-                                value={minScore}
-                                onChange={(e) => setMinScore(Number(e.target.value))}
-                                className="bg-transparent text-sm text-white outline-none"
-                            >
-                                <option value={50} className="bg-gray-900">Score ≥ 50</option>
-                                <option value={60} className="bg-gray-900">Score ≥ 60</option>
-                                <option value={70} className="bg-gray-900">Score ≥ 70</option>
-                                <option value={80} className="bg-gray-900">Score ≥ 80</option>
-                            </select>
-                        </div>
-
-                        {/* Asset Type Filter */}
                         <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
                             <Filter size={14} className="text-gray-500" />
                             <select
@@ -178,14 +143,12 @@ export default function SignalsPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        {/* Last Updated */}
                         {lastUpdated && (
                             <div className="hidden md:flex items-center gap-2 text-xs text-gray-500">
                                 <Clock size={12} />
-                                Updated {lastUpdated.toLocaleTimeString()}
+                                Evaluated {Math.floor((Date.now() - lastUpdated.getTime()) / 60000)} min ago
                             </div>
                         )}
-
                         <button
                             onClick={fetchSignals}
                             className="p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
@@ -194,75 +157,44 @@ export default function SignalsPage() {
                         </button>
                     </div>
                 </div>
+
                 {loading ? (
                     <EmptyState type="loading" />
                 ) : filteredSignals.length === 0 ? (
-                    <EmptyState
-                        type="no-signals"
-                        description={`No assets currently scoring above ${minScore}. Try lowering the threshold.`}
-                        action={{ label: 'Lower Threshold', onClick: () => setMinScore(60) }}
-                    />
+                    <EmptyState type="no-signals" />
                 ) : (
-                    <>
-                        {/* Stats Bar */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                            <div className="glass-panel rounded-xl p-4">
-                                <div className="text-xs text-gray-500 uppercase tracking-wider">Active Signals</div>
-                                <div className="text-2xl font-bold text-emerald-400">{filteredSignals.length}</div>
-                            </div>
-                            <div className="glass-panel rounded-xl p-4">
-                                <div className="text-xs text-gray-500 uppercase tracking-wider">Avg Score</div>
-                                <div className="text-2xl font-bold">
-                                    {Math.round(filteredSignals.reduce((a, b) => a + b.zenith_score, 0) / filteredSignals.length)}
-                                </div>
-                            </div>
-                            <div className="glass-panel rounded-xl p-4">
-                                <div className="text-xs text-gray-500 uppercase tracking-wider">Strong Bulls</div>
-                                <div className="text-2xl font-bold text-green-400">
-                                    {filteredSignals.filter(s => s.zenith_score >= 80).length}
-                                </div>
-                            </div>
-                            <div className="glass-panel rounded-xl p-4">
-                                <div className="text-xs text-gray-500 uppercase tracking-wider">Top Gainer</div>
-                                <div className="text-2xl font-bold text-cyan-400">
-                                    {filteredSignals[0]?.symbol || '-'}
-                                </div>
-                            </div>
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredSignals.map((signal, index) => {
+                            const structure = getStructureLabel(signal);
+                            const marketStatus = getMarketStatus(signal.asset_type);
+                            // Determine correct path
+                            const basePath = signal.asset_type === 'stock' ? '/stocks' : signal.asset_type === 'crypto' ? '/crypto' : '/forex';
+                            const detailLink = `${basePath}/${signal.symbol}`;
 
-                        {/* Signals Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {filteredSignals.map((signal, index) => {
-                                const scoreColors = getScoreColor(signal.zenith_score);
-                                const marketStatus = getMarketStatus(signal.asset_type);
-
-                                return (
+                            return (
+                                <Link href={detailLink} key={signal.symbol}>
                                     <motion.div
-                                        key={signal.symbol}
                                         initial={{ opacity: 0, y: 20 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: index * 0.05 }}
-                                        className={`glass-panel rounded-xl p-5 border ${scoreColors.border} hover:border-white/20 transition-all group`}
+                                        className="glass-panel rounded-xl p-5 border border-white/5 hover:border-white/20 transition-all group cursor-pointer hover:bg-white/[0.02]"
                                     >
-                                        {/* Header */}
                                         <div className="flex items-start justify-between mb-4">
                                             <div>
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-bold text-lg">{signal.symbol}</span>
                                                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${marketStatus.isOpen ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-400'}`}>
-                                                        {marketStatus.label}
+                                                        {signal.asset_type.toUpperCase()}
                                                     </span>
                                                 </div>
                                                 <div className="text-xs text-gray-500">{signal.name}</div>
                                             </div>
-                                            <div className={`px-3 py-1.5 rounded-lg ${scoreColors.bg}`}>
-                                                <span className={`text-xl font-bold font-mono ${scoreColors.text}`}>
-                                                    {signal.zenith_score}
-                                                </span>
+                                            {/* Timeframe Badge (Mocked as 4H/1D for now) */}
+                                            <div className="px-2 py-1 rounded bg-gray-800 border border-gray-700">
+                                                <span className="text-xs font-mono text-gray-400">1D</span>
                                             </div>
                                         </div>
 
-                                        {/* Price */}
                                         <div className="mb-4">
                                             <div className="text-2xl font-bold font-mono">{formatCurrency(signal.current_price)}</div>
                                             <div className={`flex items-center gap-1 text-sm ${signal.price_change_24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -271,23 +203,21 @@ export default function SignalsPage() {
                                             </div>
                                         </div>
 
-                                        {/* Signal Badge */}
-                                        <div className="flex items-center justify-between">
-                                            <span className={`text-xs font-bold uppercase tracking-wider ${scoreColors.text}`}>
-                                                {signal.signal}
-                                            </span>
-                                            <Link
-                                                href="/trading"
-                                                className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors group-hover:text-cyan-400"
-                                            >
-                                                Trade Now <ArrowRight size={12} />
-                                            </Link>
+                                        {/* Structure Badge (replaces Signal/Score) */}
+                                        <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                                            <div className={`px-2 py-1 rounded text-xs font-medium ${structure.bg} ${structure.color} flex items-center gap-1`}>
+                                                <Activity size={12} />
+                                                {structure.label} Structure
+                                            </div>
+                                            <div className="flex items-center gap-1 text-xs text-gray-500 group-hover:text-cyan-400 transition-colors">
+                                                Analyze <ArrowRight size={12} />
+                                            </div>
                                         </div>
                                     </motion.div>
-                                );
-                            })}
-                        </div>
-                    </>
+                                </Link>
+                            );
+                        })}
+                    </div>
                 )}
             </div>
         </div>

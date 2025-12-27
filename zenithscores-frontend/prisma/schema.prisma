@@ -586,3 +586,88 @@ model ChartCache {
   @@index([symbol])
   @@index([expiresAt])
 }
+
+// ========================
+// PHASE 7: REAL-TIME DATA FOUNDATION
+// ========================
+
+model PriceHistory {
+  id          Int      @id @default(autoincrement())
+  symbol      String   @db.VarChar(20)
+  assetType   String   @db.VarChar(10) // crypto, stock, forex
+  price       Decimal  @db.Decimal(20, 8)
+  volume      Decimal? @db.Decimal(20, 2)
+  timestamp   DateTime @default(now()) @db.Timestamp(6)
+  source      String   @db.VarChar(20) // 'alpha_vantage', 'dexscreener', 'finnhub', 'verified_dual'
+
+  @@index([symbol, timestamp(sort: Desc)], map: "idx_price_history_symbol_time")
+  @@index([assetType], map: "idx_price_history_type")
+  @@index([timestamp(sort: Desc)], map: "idx_price_history_time")
+}
+
+// ========================
+// PHASE 8: TRUE LIFETIME ZENITH SCORE
+// ========================
+
+model AssetLifetimeScore {
+  id            String   @id @default(cuid())
+  symbol        String   @unique
+  assetType     String   // 'stock', 'crypto', 'forex'
+  launchDate    DateTime // IPO date or token launch
+  firstPrice    Float    // First recorded price
+  
+  // Lifetime metrics (calculated once, updated periodically)
+  lifetimeReturn  Float    // Total return since launch
+  volatilityScore Float    // 0-100, lower volatility = higher score
+  consistencyScore Float   // 0-100, how consistent are gains
+  recoveryScore   Float    // 0-100, how well it recovers from drawdowns
+  volumeScore     Float    // 0-100, lifetime volume consistency
+  
+  // Timeframe-adjusted weights
+  weights         Json     // { daily: 0.2, weekly: 0.3, monthly: 0.5 }
+  
+  // Final scores
+  baseScore       Float    // 0-100, lifetime score
+  currentScore    Float    // 0-100, adjusted for current conditions
+  trendScore      Float    // -100 to +100, current trend strength
+  
+  updatedAt      DateTime @updatedAt
+  lastCalculated DateTime
+  
+  @@index([symbol])
+  @@index([baseScore])
+  @@index([currentScore])
+}
+
+model TimeframeAnalysis {
+  id        String   @id @default(cuid())
+  symbol    String
+  timeframe String   // '1D', '1W', '1M', '1Y', 'ALL'
+  data      Json     // OHLCV for this timeframe
+  metrics   Json     // Calculated metrics
+  score     Float    // Score for this timeframe only
+  weight    Float    // How much this timeframe contributes to total
+  
+  @@unique([symbol, timeframe])
+  @@index([symbol])
+}
+
+model MarketCandle {
+  id        String   @id @default(cuid())
+
+  symbol    String
+  timeframe String
+  timestamp DateTime
+
+  open      Decimal  @db.Decimal(20, 8)
+  high      Decimal  @db.Decimal(20, 8)
+  low       Decimal  @db.Decimal(20, 8)
+  close     Decimal  @db.Decimal(20, 8)
+  volume    Decimal  @db.Decimal(20, 2)
+
+  source    String   @db.VarChar(20) // 'alphavantage' | 'finnhub' | 'dexscreener'
+  createdAt DateTime @default(now())
+
+  @@unique([symbol, timeframe, timestamp])
+  @@index([symbol, timeframe, timestamp])
+}

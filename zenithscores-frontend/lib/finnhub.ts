@@ -487,4 +487,33 @@ export const EXOTIC_FOREX_PAIRS = {
 
 // All forex pairs combined (40+ pairs)
 export const ALL_FOREX_PAIRS = { ...MAJOR_FOREX_PAIRS, ...MINOR_FOREX_PAIRS, ...EXOTIC_FOREX_PAIRS };
+// ... existing code ...
 
+/**
+ * Unified Price Fetcher for Finnhub
+ */
+import { MarketPrice } from '@/lib/market-data/types';
+
+export async function fetchPriceFinnhub(symbol: string): Promise<MarketPrice | null> {
+    try {
+        // Finnhub handles standard tickers well
+        const quote = await getStockQuote(symbol);
+
+        if (!quote || quote.c === 0) return null; // Finnhub often returns 0s for invalid symbols
+
+        return {
+            symbol,
+            price: quote.c,
+            change: quote.d || 0,
+            changePercent: quote.dp || 0,
+            high24h: quote.h,
+            low24h: quote.l,
+            timestamp: quote.t ? quote.t * 1000 : Date.now(),
+            source: 'finnhub',
+            verificationStatus: 'unverified'
+        };
+    } catch (error) {
+        console.error('FetchPriceFinnhub Error:', error);
+        return null;
+    }
+}
