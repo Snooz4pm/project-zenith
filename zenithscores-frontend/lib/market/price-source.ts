@@ -45,15 +45,31 @@ export async function fetchAssetPrice(
 
             // console.log(`[PriceFetch] Forex Request: ${from} -> ${to}`);
 
-            const res = await fetch(
-                `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${from}&to_currency=${to}&apikey=${ALPHA_KEY}`,
-                { cache: 'no-store' }
-            );
-            const data = await res.json();
-            const price = Number(data?.["Realtime Currency Exchange Rate"]?.["5. Exchange Rate"]);
+            try {
+                const res = await fetch(
+                    `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${from}&to_currency=${to}&apikey=${ALPHA_KEY}`,
+                    { cache: 'no-store' }
+                );
+                const data = await res.json();
+                const price = Number(data?.["Realtime Currency Exchange Rate"]?.["5. Exchange Rate"]);
 
-            if (!isNaN(price) && price > 0) {
-                return { price, source: 'alpha_vantage', timestamp: Date.now() };
+                if (!isNaN(price) && price > 0) {
+                    return { price, source: 'alpha_vantage', timestamp: Date.now() };
+                }
+            } catch (avErr) {
+                console.warn("[PriceFetch] Alpha Vantage Forex failed, trying fallback...", avErr);
+            }
+
+            // FALLBACK: Coinbase (Free, No Key required for major pairs)
+            try {
+                const cbRes = await fetch(`https://api.coinbase.com/v2/prices/${from}-${to}/spot`);
+                const cbData = await cbRes.json();
+                const price = Number(cbData?.data?.amount);
+                if (!isNaN(price) && price > 0) {
+                    return { price, source: 'coinbase', timestamp: Date.now() };
+                }
+            } catch (cbErr) {
+                console.warn("[PriceFetch] Forex fallback failed:", cbErr);
             }
         }
 
@@ -73,18 +89,27 @@ export async function fetchAssetPrice(
                 // 3. Highest liquidity
 
                 const validPairs = data.pairs.filter((p: any) =>
-                    p.baseToken.symbol.toUpperCase() === symbol.toUpperCase() ||
-                    p.baseToken.symbol.toUpperCase() === 'W' + symbol.toUpperCase() // WBTC, WETH
+                    (p.baseToken.symbol.toUpperCase() === symbol.toUpperCase() ||
+                    p.baseToken.symbol.toUpperCase() === 'W' + symbol.toUpperCase()) &&
+                    ['USDT', 'USDC', 'USD', 'DAI', 'BUSD'].includes(p.quoteToken.symbol.toUpperCase())
                 );
 
-                // Sort by liquidity (descending)
-                validPairs.sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
+                if (validPairs.length === 0) {
+                   // Fallback to any pair if no USD pair found
+                   validPairs.push(...data.pairs.filter((p: any) => 
+                       p.baseToken.symbol.toUpperCase() === symbol.toUpperCase() ||
+                       p.baseToken.symbol.toUpperCase() === 'W' + symbol.toUpperCase()
+                   ));
+                }
+
+                // SORT BY VOLUME (h24) - This is the key to avoiding stale "liquidity traps"
+                validPairs.sort((a: any, b: any) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0));
 
                 const bestPair = validPairs[0];
                 const price = Number(bestPair?.priceUsd);
 
                 if (!isNaN(price) && price > 0) {
-                    return { price, source: 'dexscreener', timestamp: Date.now() };
+                    return { price, source: `dexscreener:${bestPair.chainId}`, timestamp: Date.now() };
                 }
             }
         }
