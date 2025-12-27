@@ -20,7 +20,10 @@ export interface MarketContextRequest {
 }
 
 export async function generateMarketContext(req: MarketContextRequest): Promise<string> {
-    if (!API_KEY) return "AI Analysis Unavailable (Missing Key)";
+    if (!API_KEY) {
+        console.warn("GEMINI_API_KEY not configured - using fallback analysis");
+        return generateFallbackAnalysis(req);
+    }
 
     const prompt = `
 You are a market analyst explaining price behavior.
@@ -56,6 +59,30 @@ Rules:
         return response.text();
     } catch (error) {
         console.error("Gemini API Error:", error);
-        return "Analysis currently unavailable due to high demand.";
+        return generateFallbackAnalysis(req);
     }
+}
+
+// Fallback analysis when AI is unavailable - provides basic structural info
+function generateFallbackAnalysis(req: MarketContextRequest): string {
+    const regimeDescriptions: Record<string, string> = {
+        'trend': 'The market is showing directional momentum with price making consistent higher highs/lows or lower highs/lows.',
+        'range': 'Price is consolidating between defined boundaries, suggesting accumulation or distribution phase.',
+        'breakout': 'Price has moved above recent resistance, potentially starting a new trend leg.',
+        'breakdown': 'Price has broken below support, indicating potential continuation lower.',
+        'chaos': 'Market structure is unclear with high volatility and no defined trend.',
+    };
+
+    const description = regimeDescriptions[req.regime] || regimeDescriptions['chaos'];
+
+    return `### Market Structure
+Currently in **${req.regime}** regime for ${req.name} (${req.symbol}).
+
+${description}
+
+### Why This Matters
+Understanding the current regime helps set appropriate expectations. ${req.regime === 'range' ? 'Range-bound markets favor mean reversion strategies.' : req.regime === 'trend' ? 'Trending markets favor continuation setups.' : 'Wait for clearer structure before taking positions.'}
+
+### Invalidation Conditions
+Monitor for regime change signals - sudden volume spikes or price breaking key levels.`;
 }
