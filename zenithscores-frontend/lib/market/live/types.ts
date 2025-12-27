@@ -33,6 +33,8 @@ export interface LivePriceResult {
     timestamp: number;
     isDelayed: boolean;
     delaySeconds: number;
+    source?: string;
+    changePercent?: number;
 }
 
 // Constants
