@@ -201,8 +201,8 @@ export async function fetchPriceDex(symbol: string): Promise<MarketPrice | null>
                 ['ethereum', 'bsc', 'solana', 'base'].includes(p.chainId)
             )
             .filter((p: DexPair) =>
-                Number(p.liquidity?.usd || 0) > 500000 &&
-                Number(p.volume?.h24 || 0) > 1000000
+                Number(p.liquidity?.usd || 0) > 100000 &&
+                Number(p.volume?.h24 || 0) > 50000
             )
             .filter((p: DexPair) =>
                 p.baseToken.symbol.toUpperCase() === symbol.toUpperCase() ||

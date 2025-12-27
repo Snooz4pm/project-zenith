@@ -59,9 +59,12 @@ export async function fetchAssetPrice(
                 const fhSymbol = symbol.includes('/') ? `OANDA:${symbol.replace('/', '_')}` : symbol;
                 const fh = await fetchPriceFinnhub(fhSymbol);
                 if (fh && fh.price > 0) {
+                    // console.log(`[PriceFetch] Forex Finnhub Success: ${fhSymbol} $${fh.price}`);
                     return { price: fh.price, changePercent: fh.changePercent, source: 'finnhub', timestamp: Date.now() };
                 }
-            } catch (e) { }
+            } catch (e) {
+                console.warn(`[PriceFetch] Finnhub Forex failed for ${symbol}`, e);
+            }
 
             // 2. Secondary: Alpha Vantage (With strict parsing and guards)
             if (ALPHA_KEY) {
@@ -105,29 +108,44 @@ export async function fetchAssetPrice(
         if (market === 'crypto') {
             // RULE ZERO: DexScreener ONLY, strictly filtered for major chains/high-volume
             const query = symbol.replace('/', '');
+            // Prevent cache completely
             const res = await fetch(
-                `https://api.dexscreener.com/latest/dex/search?q=${query}`,
+                `https://api.dexscreener.com/latest/dex/search?q=${query}&t=${Date.now()}`,
                 { cache: 'no-store' }
             );
             const data = await res.json();
 
             if (data?.pairs && Array.isArray(data.pairs)) {
-                const validPairs = data.pairs
-                    .filter((p: any) =>
-                        ['ethereum', 'bsc', 'solana', 'base'].includes(p.chainId)
-                    )
-                    .filter((p: any) =>
-                        // STRICT THRESHOLDS (500k Liq, 1M Vol)
-                        Number(p.liquidity?.usd || 0) > 500000 &&
-                        Number(p.volume?.h24 || 0) > 1000000
-                    )
-                    .filter((p: any) =>
-                        p.baseToken.symbol.toUpperCase() === symbol.toUpperCase() ||
-                        p.baseToken.symbol.toUpperCase() === 'W' + symbol.toUpperCase()
-                    )
-                    .sort((a: any, b: any) => Number(b.liquidity?.usd || 0) - Number(a.liquidity?.usd || 0));
+                // Pre-filter for main chains
+                let candidates = data.pairs.filter((p: any) =>
+                    ['ethereum', 'bsc', 'solana', 'base'].includes(p.chainId)
+                );
 
-                const bestPair = validPairs[0];
+                // Filter by Symbol (BTC or WBTC)
+                candidates = candidates.filter((p: any) =>
+                    p.baseToken.symbol.toUpperCase() === symbol.toUpperCase() ||
+                    p.baseToken.symbol.toUpperCase() === 'W' + symbol.toUpperCase()
+                );
+
+                // Sort by Liquidity
+                candidates.sort((a: any, b: any) => Number(b.liquidity?.usd || 0) - Number(a.liquidity?.usd || 0));
+
+                // Find first "Healthy" pair
+                // Lowered thresholds for debugging/safety: Liq > 100k, Vol > 50k
+                const bestPair = candidates.find((p: any) =>
+                    Number(p.liquidity?.usd || 0) > 100000 &&
+                    Number(p.volume?.h24 || 0) > 50000
+                );
+
+                if (!bestPair) {
+                    console.warn(`[PriceFetch] No healthy pair found for ${symbol} (Checked ${candidates.length} candidates)`);
+                    // Debug log the first raw candidate if any
+                    if (candidates.length > 0) {
+                        console.warn(`Top Rejected Candidate: ${candidates[0].chainId} Liq:${candidates[0].liquidity?.usd}`);
+                    }
+                    return null;
+                }
+
                 const price = Number(bestPair?.priceUsd);
                 const changePercent = Number(bestPair?.priceChange?.h24 || 0);
 
@@ -135,6 +153,7 @@ export async function fetchAssetPrice(
                 if (symbol.toUpperCase() === 'BTC') {
                     if (price < 10000 || price > 150000) {
                         console.error(`[PriceFetch] INSANE BTC PRICE: ${price} - REJECTING`);
+                        console.error(`Rejected Pair: ${bestPair.chainId} ${bestPair.pairAddress}`);
                         return null;
                     }
                 }

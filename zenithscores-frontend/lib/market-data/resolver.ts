@@ -217,8 +217,8 @@ async function fetchCryptoOHLCV(
             ['ethereum', 'bsc', 'solana', 'base'].includes(p.chainId)
         )
         .filter((p: any) =>
-            Number(p.liquidity?.usd || 0) > 500000 &&
-            Number(p.volume?.h24 || 0) > 1000000
+            Number(p.liquidity?.usd || 0) > 100000 &&
+            Number(p.volume?.h24 || 0) > 50000
         )
         .filter((p: any) =>
             p.baseToken.symbol.toUpperCase() === symbol.toUpperCase() ||
