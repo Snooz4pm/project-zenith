@@ -2,6 +2,7 @@
 
 import { RefreshCw, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
 
 interface ChartPriceDisplayProps {
     symbol: string;
@@ -20,8 +21,26 @@ export default function ChartPriceDisplay({
     isLoading,
     onRefresh,
     provider,
-    fetchedAt
-}: ChartPriceDisplayProps) {
+    fetchedAt,
+    cooldownSeconds = 60
+}: ChartPriceDisplayProps & { cooldownSeconds?: number }) {
+
+    const [timeLeft, setTimeLeft] = useState(0);
+
+    // Cooldown Timer Logic
+    useEffect(() => {
+        if (timeLeft > 0) {
+            const timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [timeLeft]);
+
+    // Handle Manual Refresh
+    const handleRefresh = () => {
+        if (timeLeft > 0 || isLoading) return;
+        onRefresh();
+        setTimeLeft(cooldownSeconds); // Start cooldown
+    };
 
     const isPositive = changePercent >= 0;
 
@@ -48,19 +67,19 @@ export default function ChartPriceDisplay({
 
                 {/* Refresh Button - Bound to Chart Refresh */}
                 <button
-                    onClick={onRefresh}
-                    disabled={isLoading}
+                    onClick={handleRefresh}
+                    disabled={isLoading || timeLeft > 0}
                     className={`
                         flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
                         border border-white/10
-                        ${isLoading
+                        ${isLoading || timeLeft > 0
                             ? 'bg-white/5 text-gray-500 cursor-not-allowed'
                             : 'bg-white/10 text-white hover:bg-white/20 active:scale-95'
                         }
                     `}
                 >
                     <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-                    {isLoading ? 'Syncing...' : 'Refresh'}
+                    {isLoading ? 'Syncing...' : timeLeft > 0 ? `Wait ${timeLeft}s` : 'Refresh'}
                 </button>
             </div>
 

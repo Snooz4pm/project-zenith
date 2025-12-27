@@ -289,6 +289,7 @@ export default function TerminalView({
                                 onRefresh={refetch}
                                 provider={provider}
                                 fetchedAt={fetchedAt}
+                                cooldownSeconds={assetType === 'crypto' ? 15 : 60}
                             />
 
                             {/* Timeframe Selector (Controls Chart Only) */}
