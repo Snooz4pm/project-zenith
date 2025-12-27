@@ -4,6 +4,24 @@ import { RefreshCw, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 
+// Currency symbol helper
+function getCurrencySymbol(symbol: string): string {
+    const upperSymbol = symbol.toUpperCase();
+    // For forex pairs like USD/JPY, the quote currency is second
+    if (upperSymbol.endsWith('JPY') || upperSymbol.includes('/JPY')) return '¥';
+    if (upperSymbol.endsWith('EUR') || upperSymbol.includes('/EUR')) return '€';
+    if (upperSymbol.endsWith('GBP') || upperSymbol.includes('/GBP')) return '£';
+    if (upperSymbol.endsWith('CHF') || upperSymbol.includes('/CHF')) return 'CHF ';
+    if (upperSymbol.endsWith('CAD') || upperSymbol.includes('/CAD')) return 'C$';
+    if (upperSymbol.endsWith('AUD') || upperSymbol.includes('/AUD')) return 'A$';
+    // For forex pairs like EUR/USD, GBP/USD, the quote is USD
+    if (upperSymbol.includes('/USD') || upperSymbol.endsWith('USD')) return '$';
+    // For crypto always use $
+    if (['BTC', 'ETH', 'SOL', 'DOGE', 'USDT'].some(c => upperSymbol.includes(c))) return '$';
+    // Default to $ for stocks
+    return '$';
+}
+
 interface ChartPriceDisplayProps {
     symbol: string;
     price: number;
@@ -26,6 +44,7 @@ export default function ChartPriceDisplay({
 }: ChartPriceDisplayProps & { cooldownSeconds?: number }) {
 
     const [timeLeft, setTimeLeft] = useState(0);
+    const currencySymbol = getCurrencySymbol(symbol);
 
     // Cooldown Timer Logic
     useEffect(() => {
@@ -57,7 +76,7 @@ export default function ChartPriceDisplay({
                                 animate={{ opacity: 1, scale: 1 }}
                                 className="text-3xl font-bold font-mono text-white tracking-tight"
                             >
-                                ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                                {currencySymbol}{price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                             </motion.div>
                         ) : (
                             <div className="h-9 w-32 bg-white/10 animate-pulse rounded" />
@@ -105,6 +124,6 @@ export default function ChartPriceDisplay({
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }
