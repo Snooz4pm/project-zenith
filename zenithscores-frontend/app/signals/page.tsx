@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
     TrendingUp, TrendingDown, Zap, Filter, RefreshCw,
-    ArrowRight, Activity, Target, Clock, Eye, Sparkles, Lock, User
+    ArrowRight, Activity, Target, Clock, Eye, Sparkles, Lock, User, Info
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { getZenithSignal, getScoreColor } from '@/lib/zenith';

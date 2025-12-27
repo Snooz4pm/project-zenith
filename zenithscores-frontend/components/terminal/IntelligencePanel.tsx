@@ -118,6 +118,7 @@ export default function IntelligencePanel({
     aiAnalysis,
     isLoadingAI,
     onDeepDive,
+    onJournal,
     className = '',
 }: IntelligencePanelProps) {
     const safeRegime = normalizeRegime(regime);

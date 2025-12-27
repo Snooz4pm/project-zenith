@@ -1,4 +1,4 @@
-import { OHLCV } from '@/components/chart-engine/engine/types'
+import { OHLCV } from '@/lib/market-data/types'
 
 export type VolatilityRegime =
     | 'low'
