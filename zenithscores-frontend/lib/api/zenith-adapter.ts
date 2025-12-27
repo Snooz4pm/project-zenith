@@ -395,7 +395,7 @@ export async function getAnalysis(
 
     if (!snapshot) return null;
 
-    const isAlgorithmPick = snapshot.convictionScore >= 70 && snapshot.regime !== 'chaos';
+    const isAlgorithmPick = true; // All assets allowed for analysis (no filtering)
 
     return {
         asset: {

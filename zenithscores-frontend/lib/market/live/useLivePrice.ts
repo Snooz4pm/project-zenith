@@ -15,12 +15,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
     LivePriceState,
+    LivePriceResult,
     LiveStatus,
     LIVE_POLL_INTERVAL_MS,
     DELAY_THRESHOLD_MS,
     STALE_THRESHOLD_MS
 } from '@/lib/market/live/types';
-import { fetchLivePrice } from '@/lib/market/live/finnhub-live';
 
 interface UseLivePriceOptions {
     symbol: string;
@@ -45,6 +45,30 @@ function determineStatus(
     if (latencyMs > DELAY_THRESHOLD_MS) return 'DELAYED';
 
     return 'LIVE';
+}
+
+/**
+ * Fetch live price via API route (server-side proxy)
+ * This keeps the API key secure on the server
+ */
+async function fetchLivePriceViaAPI(
+    symbol: string,
+    assetType: 'stock' | 'forex'
+): Promise<LivePriceResult | null> {
+    try {
+        const url = `/api/market/live?symbol=${encodeURIComponent(symbol)}&assetType=${assetType}`;
+        const response = await fetch(url, { cache: 'no-store' });
+
+        if (!response.ok) {
+            console.warn(`[useLivePrice] API error for ${symbol}: ${response.status}`);
+            return null;
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error(`[useLivePrice] Fetch error for ${symbol}:`, error);
+        return null;
+    }
 }
 
 export function useLivePrice({
@@ -72,7 +96,7 @@ export function useLivePrice({
         if (!enabled || !symbol) return;
 
         try {
-            const result = await fetchLivePrice(symbol, assetType);
+            const result = await fetchLivePriceViaAPI(symbol, assetType);
 
             if (!mountedRef.current) return;
 
@@ -98,6 +122,7 @@ export function useLivePrice({
                     ...prev,
                     status: 'DISCONNECTED',
                 }));
+                setIsLoading(false);
             }
         } catch (error) {
             console.error('[useLivePrice] Error:', error);
@@ -106,6 +131,7 @@ export function useLivePrice({
                     ...prev,
                     status: 'DISCONNECTED',
                 }));
+                setIsLoading(false);
             }
         }
     }, [symbol, assetType, enabled]);

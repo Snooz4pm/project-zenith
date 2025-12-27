@@ -2,7 +2,7 @@
  * Analysis Guard - Prevents bad page states
  * 
  * PURPOSE:
- * - Hard-block access to Deep Analysis unless asset is algorithm pick
+ * - Hard-block access only when data is missing
  * - Centralize failure behavior (no silent errors)
  * - Single source of truth for access control
  * 
@@ -18,16 +18,11 @@ type GuardInput = {
 
 /**
  * Guards Deep Analysis page access
- * Redirects to /not-available if data is missing or asset isn't an algorithm pick
+ * Redirects to /not-available only if data is missing
  */
 export function analysisGuard(data: GuardInput): asserts data is NonNullable<GuardInput> {
     // No data at all → redirect
     if (!data) {
-        redirect('/not-available');
-    }
-
-    // Not an algorithm pick → redirect
-    if (!data.isAlgorithmPick) {
         redirect('/not-available');
     }
 }
@@ -37,5 +32,5 @@ export function analysisGuard(data: GuardInput): asserts data is NonNullable<Gua
  * Use this for conditional rendering in lists
  */
 export function canAccessAnalysis(data: GuardInput): boolean {
-    return data !== null && data.isAlgorithmPick === true;
+    return data !== null;
 }

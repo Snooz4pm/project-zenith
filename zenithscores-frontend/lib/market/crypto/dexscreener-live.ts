@@ -21,6 +21,19 @@ import {
 
 const BASE_URL = 'https://api.dexscreener.com/latest/dex';
 
+// VERIFIED pair addresses for major tokens - prevents wrong matches
+const VERIFIED_PAIRS: Record<string, { chain: string; pair: string }> = {
+    'ETH': { chain: 'ethereum', pair: '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640' },
+    'SHIB': { chain: 'ethereum', pair: '0x811beed0119b4afce20d2583eb608c6f7af1954f' },
+    'LINK': { chain: 'ethereum', pair: '0xa6cc3c2531fdaa6ae1a3ca84c2855806728693e8' },
+    'PEPE': { chain: 'ethereum', pair: '0xa43fe16908251ee70ef74718545e4fe6c5ccec9f' },
+    'SOL': { chain: 'solana', pair: 'So11111111111111111111111111111111111111112' },
+    'BONK': { chain: 'solana', pair: '8QaXeHBrShJTdtN1rWCccBxpSVvKEeCxM6rJw5Mfqw6Y' },
+    'WIF': { chain: 'solana', pair: 'EP2ib6dYdEeqD8MfE2ezHCxX3kP3K2eLKkirfPm5eU1X' },
+    'BNB': { chain: 'bsc', pair: '0x58f876857a02d6762e0101bb5c46a8c1ed44dc16' },
+    'DOGE': { chain: 'bsc', pair: '0xac109c8025f272414fd9e2faa805a583708a017f' },
+};
+
 /**
  * Get liquidity tier from USD value
  */
@@ -130,7 +143,20 @@ export async function fetchPairByAddress(
  */
 export async function fetchCryptoLive(symbol: string): Promise<CryptoLiveState | null> {
     try {
-        const pair = await searchTokenPair(symbol);
+        const upperSymbol = symbol.toUpperCase();
+        let pair: DexscreenerPair | null = null;
+
+        // Check verified pairs first for accurate pricing
+        const verified = VERIFIED_PAIRS[upperSymbol];
+        if (verified) {
+            console.log(`[CRYPTO] Using verified pair for ${upperSymbol}`);
+            pair = await fetchPairByAddress(verified.chain, verified.pair);
+        }
+
+        // Fallback to search if no verified pair
+        if (!pair) {
+            pair = await searchTokenPair(symbol);
+        }
 
         if (!pair) {
             return null;

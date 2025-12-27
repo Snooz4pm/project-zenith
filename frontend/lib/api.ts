@@ -11,7 +11,8 @@ import type {
     CategorySlug,
 } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.cd zenithscores-frontend
+npm run devenv.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 class NewsAPI {
     private baseUrl: string;
