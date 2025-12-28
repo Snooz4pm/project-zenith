@@ -128,6 +128,7 @@ export default function FullChart({
                 <div className="h-[350px] w-full">
                     <ZenithChartPro
                         data={chartData.map(d => ({
+                            timestamp: d.timestamp,
                             time: Math.floor(d.timestamp / 1000), // Convert ms to seconds
                             open: d.open,
                             high: d.high,
