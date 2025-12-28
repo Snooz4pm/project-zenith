@@ -107,7 +107,8 @@ export async function getHistory(
     });
 
     return candles.map(c => ({
-        time: c.timestamp.getTime(),
+        timestamp: c.timestamp.getTime(),
+        time: Math.floor(c.timestamp.getTime() / 1000),
         open: Number(c.open),
         high: Number(c.high),
         low: Number(c.low),

@@ -46,21 +46,12 @@ export function calculateReturns(data: any[]): {
 }
 
 export function calculateVolatility(data: any[]): {
-    annualized(annualized: any): unknown;
     dailyVolatility: number;
     annualizedVolatility: number;
     volatilityOfVolatility: number;
 } {
     if (data.length < 2) {
-        return {
-            dailyVolatility: 0, annualizedVolatility: 0, volatilityOfVolatility: 0,
-            annualized: function (annualized: any): unknown {
-                throw new Error("Function not implemented.");
-            },
-            dailyVolatility: 0,
-            annualizedVolatility: 0,
-            volatilityOfVolatility: 0
-        };
+        return { dailyVolatility: 0, annualizedVolatility: 0, volatilityOfVolatility: 0 };
     }
 
     const sortedData = [...data].sort((a, b) => a.timestamp - b.timestamp);
@@ -89,15 +80,7 @@ export function calculateVolatility(data: any[]): {
         ? volatilityChanges.reduce((a, b) => a + b, 0) / volatilityChanges.length
         : 0;
 
-    return {
-        dailyVolatility, annualizedVolatility, volatilityOfVolatility: volOfVol,
-        annualized: function (annualized: any): unknown {
-            throw new Error("Function not implemented.");
-        },
-        dailyVolatility: 0,
-        annualizedVolatility: 0,
-        volatilityOfVolatility: 0
-    };
+    return { dailyVolatility, annualizedVolatility, volatilityOfVolatility: volOfVol };
 }
 
 export function calculateDrawdowns(data: any[]): {

@@ -176,10 +176,10 @@ export function fillOHLCVGaps(data: OHLCV[], intervalSeconds: number): OHLCV[] {
             // Fill missing candles with flat lines
             for (let g = 1; g <= Math.min(expectedGaps, 10); g++) {
                 const lastClose = sorted[i].close;
-                const fillTime = sorted[i].time + (g * intervalSeconds);
+                const gapTime = sorted[i].time + (g * intervalSeconds);
                 result.push({
-                    timestamp: fillTime * 1000, // Convert seconds to milliseconds
-                    time: fillTime,
+                    timestamp: gapTime * 1000, // Convert seconds to milliseconds
+                    time: gapTime,
                     open: lastClose,
                     high: lastClose,
                     low: lastClose,

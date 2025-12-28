@@ -21,8 +21,8 @@ async function testIdempotency() {
     console.log('🧹 Cleaned up old test data');
 
     const candles: OHLCV[] = [
-        { time: now, open: 50000, high: 51000, low: 49000, close: 50500, volume: 100 },
-        { time: now + 3600000, open: 50500, high: 52000, low: 50000, close: 51500, volume: 150 }
+        { timestamp: now * 1000, time: now, open: 50000, high: 51000, low: 49000, close: 50500, volume: 100 },
+        { timestamp: (now + 3600000) * 1000, time: now + 3600000, open: 50500, high: 52000, low: 50000, close: 51500, volume: 150 }
     ];
 
     // 1. Save Initial (Alpha Vantage - Priority 80)
