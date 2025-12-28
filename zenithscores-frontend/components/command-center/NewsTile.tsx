@@ -42,7 +42,7 @@ export default function NewsTile({ onClick }: NewsTileProps) {
 
     return (
         <motion.div
-            className="md:col-span-2 row-span-1 relative overflow-hidden rounded-2xl bg-[#0a0a12] border border-white/5 p-5 transition-all duration-300 hover:border-white/10 hover:shadow-lg hover:shadow-indigo-500/5 group cursor-pointer flex flex-col h-full"
+            className="md:col-span-1 lg:col-span-1 row-span-1 relative overflow-hidden rounded-2xl bg-[#0a0a12] border border-white/5 p-5 transition-all duration-300 hover:border-white/10 hover:shadow-lg hover:shadow-indigo-500/5 group cursor-pointer flex flex-col h-full"
             onClick={onClick}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}
