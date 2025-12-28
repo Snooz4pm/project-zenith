@@ -9,7 +9,7 @@ const PUBLIC_ROUTES = ['/', '/news', '/privacy', '/terms', '/crypto', '/stocks',
 const AUTH_ROUTES = ['/auth/login', '/auth/register', '/auth/error', '/auth/calibration']
 
 // Protected routes - require login only (calibration removed for now)
-const PROTECTED_ROUTES = ['/command-center', '/trading', '/signals', '/academy', '/explore', '/profile', '/learning', '/learn']
+const PROTECTED_ROUTES = ['/command-center', '/dashboard', '/trading', '/signals', '/academy', '/explore', '/profile', '/learning', '/learn', '/notebook', '/charts']
 
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
@@ -36,7 +36,15 @@ export async function middleware(request: NextRequest) {
     const isAuthRoute = AUTH_ROUTES.some(r => pathname.startsWith(r))
     const isProtectedRoute = PROTECTED_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'))
 
-    // RULE 1: Public routes - always allow
+    // RULE 1: Homepage - redirect logged-in users to command center
+    if (pathname === '/') {
+        if (isLoggedIn) {
+            return NextResponse.redirect(new URL('/command-center', request.url))
+        }
+        return NextResponse.next()
+    }
+
+    // RULE 2: Public routes - always allow access
     if (isPublicRoute && !isProtectedRoute) {
         return NextResponse.next()
     }

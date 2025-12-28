@@ -1,13 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, TrendingUp, BookOpen, Wallet, BarChart3, Menu, X, ChevronDown, User, LogOut, Newspaper, Book } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 
-const NAV_LINKS = [
-  { label: 'Dashboard', href: '/', icon: <LayoutDashboard size={16} /> },
+interface NavLink {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+  children?: { label: string; href: string; description: string }[];
+}
+
+// Public links - shown to everyone
+const PUBLIC_LINKS: NavLink[] = [
   {
     label: 'Markets',
     href: '/crypto',
@@ -18,11 +25,16 @@ const NAV_LINKS = [
       { label: 'Forex', href: '/forex', description: 'Currency pairs' }
     ]
   },
+  { label: 'News', href: '/news', icon: <Newspaper size={16} /> }
+];
+
+// Private links - shown only when logged in
+const PRIVATE_LINKS: NavLink[] = [
+  { label: 'Dashboard', href: '/command-center', icon: <LayoutDashboard size={16} /> },
   { label: 'Learn', href: '/learning', icon: <BookOpen size={16} /> },
   { label: 'Notebook', href: '/notebook', icon: <Book size={16} /> },
   { label: 'Trade', href: '/trading', icon: <Wallet size={16} /> },
-  { label: 'Charts', href: '/charts', icon: <BarChart3 size={16} /> },
-  { label: 'News', href: '/news', icon: <Newspaper size={16} /> }
+  { label: 'Charts', href: '/charts', icon: <BarChart3 size={16} /> }
 ];
 
 export default function Navbar() {
@@ -31,6 +43,16 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+
+  // Combine nav links based on auth state
+  const NAV_LINKS = useMemo(() => {
+    if (session) {
+      // Logged in: Dashboard first, then private links, then public
+      return [...PRIVATE_LINKS, ...PUBLIC_LINKS];
+    }
+    // Logged out: Only public links
+    return PUBLIC_LINKS;
+  }, [session]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -44,7 +66,7 @@ export default function Navbar() {
   }, [pathname]);
 
   const isActive = (href: string) => {
-    if (href === '/') return pathname === '/';
+    if (href === '/command-center') return pathname === '/command-center' || pathname === '/';
     return pathname.startsWith(href);
   };
 
