@@ -2,9 +2,15 @@
 
 import { Suspense, useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { ArrowRight, BarChart2, Zap, BookOpen, Activity, ChevronRight, TrendingUp } from 'lucide-react';
 import { motion, useScroll, useTransform } from 'framer-motion';
+
+// Dynamic import for FloatingLines to avoid SSR issues with Three.js
+const FloatingLines = dynamic(() => import('@/components/ui/FloatingLines'), {
+  ssr: false,
+  loading: () => null
+});
 
 // Animations
 const fadeInUp = {
@@ -41,8 +47,23 @@ export default function LandingPage() {
 
         {/* Animated Background Mesh */}
         <div className="absolute inset-0 z-0">
+          {/* FloatingLines WebGL Animation */}
+          <FloatingLines
+            linesGradient={['#14F195', '#00D4FF', '#0a0a12']}
+            enabledWaves={['top', 'middle', 'bottom']}
+            lineCount={[8, 12, 16]}
+            lineDistance={[10, 7, 5]}
+            bendRadius={5.0}
+            bendStrength={-0.4}
+            interactive={true}
+            parallax={true}
+            parallaxStrength={0.15}
+            animationSpeed={0.8}
+            mixBlendMode="screen"
+          />
+
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(20,241,149,0.05),_transparent_50%)]" />
-          <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_rgba(0,212,255,0.1),_transparent_50%)] animate-pulse" style={{ animationDuration: '4s' }} />
+          <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_rgba(0,212,255,0.08),_transparent_50%)]" />
           <div className="absolute bottom-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_bottom_left,_rgba(20,241,149,0.05),_transparent_50%)]" />
 
           {/* Noise Overlay */}
