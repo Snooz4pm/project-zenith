@@ -32,7 +32,7 @@ export default function SignalsPage() {
     const [signals, setSignals] = useState<Signal[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'crypto' | 'stock' | 'forex'>('all');
-    const [minScore, setMinScore] = useState(0);
+    const [minScore, setMinScore] = useState(50);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
     useEffect(() => {
@@ -77,6 +77,7 @@ export default function SignalsPage() {
     };
 
     const filteredSignals = signals
+        .filter(s => s.zenith_score >= minScore)
         .filter(s => filter === 'all' || s.asset_type === filter)
         .sort((a, b) => b.zenith_score - a.zenith_score);
 

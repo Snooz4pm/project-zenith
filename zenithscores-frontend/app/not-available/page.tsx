@@ -14,8 +14,8 @@ export default function NotAvailablePage() {
                 </h1>
 
                 <p className="text-zinc-400 mb-6 leading-relaxed">
-                    Deep analysis is available for all assets with live price data.
-                    This asset may not have sufficient data or the analysis is being generated.
+                    This asset doesn't currently qualify for deep analysis.
+                    Only assets in our Algorithm Picks with sufficient conviction scores have detailed analysis available.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -34,7 +34,7 @@ export default function NotAvailablePage() {
                 </div>
 
                 <p className="text-xs text-zinc-600 mt-8">
-                    All assets with live price data have deep analysis available.
+                    Explore our Algorithm Picks to find assets with available deep analysis.
                 </p>
             </div>
         </div>

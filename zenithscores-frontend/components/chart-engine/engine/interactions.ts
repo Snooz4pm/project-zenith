@@ -4,7 +4,7 @@
  * Returns INTENT (new state candidates), does not execute side effects.
  */
 
-import { Viewport } from './types';
+import { Viewport, Drawing, DrawingTool, Point, ChartDimensions } from './types';
 import { clampOffset } from './viewport';
 
 /**
@@ -77,5 +77,88 @@ export function calculateZoom(
         offset: clampedOffset,
         scale: newScale,
         candleWidth: newCandleWidth
+    };
+}
+
+/**
+ * Convert screen X position to candle index
+ */
+function screenToCandle(
+    x: number,
+    viewport: Viewport,
+    dims: { width: number; height: number; chartWidth: number; chartHeight: number },
+    totalCandles: number
+): number {
+    const candleIndex = Math.floor(viewport.offset + x / viewport.candleWidth);
+    return Math.max(0, Math.min(totalCandles - 1, candleIndex));
+}
+
+/**
+ * Convert screen Y position to price
+ */
+function screenToPrice(
+    y: number,
+    priceRange: { min: number; max: number },
+    dims: { width: number; height: number; chartWidth: number; chartHeight: number },
+    padding: { top: number; bottom: number }
+): number {
+    const chartHeight = dims.height - padding.top - padding.bottom;
+    const normalizedY = (y - padding.top) / chartHeight;
+    return priceRange.max - (normalizedY * (priceRange.max - priceRange.min));
+}
+
+/**
+ * Start a new drawing
+ */
+export function handleDrawingStart(
+    tool: DrawingTool,
+    x: number,
+    y: number,
+    viewport: Viewport,
+    priceRange: { min: number; max: number },
+    dims: { width: number; height: number; chartWidth: number; chartHeight: number }
+): Drawing {
+    const price = screenToPrice(y, priceRange, { ...dims, chartHeight: dims.height }, { top: 30, bottom: 80 });
+    const candleIndex = screenToCandle(x, viewport, { ...dims, chartWidth: dims.width, chartHeight: dims.height }, 1000);
+
+    return {
+        id: `drawing-${Date.now()}`,
+        type: (tool || 'trendline') as any,
+        points: [{ x: candleIndex, y: price }],
+        visible: true,
+        locked: false,
+        color: '#3B82F6'
+    };
+}
+
+/**
+ * Update drawing as mouse moves
+ */
+export function handleDrawingMove(
+    drawing: Drawing,
+    x: number,
+    y: number,
+    viewport: Viewport,
+    priceRange: { min: number; max: number },
+    dims: { width: number; height: number; chartWidth: number; chartHeight: number }
+): Drawing {
+    const price = screenToPrice(y, priceRange, { ...dims, chartHeight: dims.height }, { top: 30, bottom: 80 });
+    const candleIndex = screenToCandle(x, viewport, { ...dims, chartWidth: dims.width, chartHeight: dims.height }, 1000);
+
+    return {
+        ...drawing,
+        points: drawing.points.length === 1
+            ? [...drawing.points, { x: candleIndex, y: price }]
+            : [drawing.points[0], { x: candleIndex, y: price }]
+    };
+}
+
+/**
+ * Finalize drawing
+ */
+export function handleDrawingEnd(drawing: Drawing): Drawing {
+    return {
+        ...drawing,
+        locked: false
     };
 }

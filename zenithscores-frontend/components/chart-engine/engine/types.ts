@@ -7,6 +7,23 @@ import { AssetType, OHLCV } from '@/lib/market-data/types';
 
 // --- 1. CONFIGURATION ---
 
+export type ChartType = 'candle' | 'line' | 'area' | 'heikin-ashi' | 'renko' | 'point-figure' | 'hollow-candle';
+export type Timeframe = '1m' | '5m' | '15m' | '30m' | '1h' | '4h' | '1d' | '1w' | '1M' | '3M' | '1y' | 'custom';
+export type DrawingTool = 'trendline' | 'horizontal' | 'vertical' | 'ray' | 'channel' | 'fibonacci' | 'rectangle' | 'ellipse' | 'triangle' | 'text' | 'arrow' | 'measure' | null;
+
+export interface Indicator {
+    type: 'sma' | 'ema' | 'rsi' | 'macd' | 'bollinger' | 'volume' | 'vwap' | 'atr' | 'stochastic' | 'adx';
+    period?: number;
+    color: string;
+    visible?: boolean;
+}
+
+export interface LayoutPreset {
+    id: string;
+    name: string;
+    description: string;
+}
+
 export interface EngineConfig {
     width: number;
     height: number;
@@ -27,6 +44,7 @@ export interface EngineConfig {
     fonts: {
         axis: string;
         crosshair: string;
+        tooltip?: string;
     };
     padding: {
         top: number;
@@ -35,6 +53,12 @@ export interface EngineConfig {
         left: number;
     };
     mode?: 'expert' | 'overview';
+    chartType?: ChartType;
+    showGrid?: boolean;
+    showVolume?: boolean;
+    indicators?: Indicator[];
+    drawings?: Drawing[];
+    crosshair?: { x: number; y: number; price: number; time: Date | null } | null;
 }
 
 export const DEFAULT_THEME: EngineConfig['colors'] = {
@@ -47,7 +71,35 @@ export const DEFAULT_THEME: EngineConfig['colors'] = {
     wickDown: '#ef4444',
     crosshair: '#374151',
     priceLine: '#374151',
-    volumeUp: '#10b981', // usually same as candle or slightly transparent
+    volumeUp: '#10b981',
+    volumeDown: '#ef4444',
+};
+
+export const DARK_THEME: EngineConfig['colors'] = {
+    background: '#0a0a12',
+    grid: '#1a1a24',
+    text: '#6b7280',
+    candleUp: '#10b981',
+    candleDown: '#ef4444',
+    wickUp: '#10b981',
+    wickDown: '#ef4444',
+    crosshair: '#374151',
+    priceLine: '#374151',
+    volumeUp: '#10b981',
+    volumeDown: '#ef4444',
+};
+
+export const LIGHT_THEME: EngineConfig['colors'] = {
+    background: '#ffffff',
+    grid: '#e5e7eb',
+    text: '#4b5563',
+    candleUp: '#10b981',
+    candleDown: '#ef4444',
+    wickUp: '#10b981',
+    wickDown: '#ef4444',
+    crosshair: '#9ca3af',
+    priceLine: '#9ca3af',
+    volumeUp: '#10b981',
     volumeDown: '#ef4444',
 };
 

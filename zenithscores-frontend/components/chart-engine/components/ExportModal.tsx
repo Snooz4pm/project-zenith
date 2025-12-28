@@ -1,0 +1,122 @@
+'use client';
+
+import { useState } from 'react';
+import { X, Download, Image, FileJson, FileSpreadsheet, Copy, Check } from 'lucide-react';
+
+interface ExportModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onExport: (format: ExportFormat) => void;
+    symbol?: string;
+}
+
+export type ExportFormat = 'png' | 'jpg' | 'svg' | 'json' | 'csv';
+
+interface ExportOptions {
+    includeDrawings: boolean;
+    includeIndicators: boolean;
+    resolution: '1x' | '2x' | '4x';
+    transparent: boolean;
+}
+
+export default function ExportModal({ isOpen, onClose, onExport, symbol = 'Chart' }: ExportModalProps) {
+    const [format, setFormat] = useState<ExportFormat>('png');
+    const [copied, setCopied] = useState(false);
+
+    if (!isOpen) return null;
+
+    const handleExport = () => {
+        onExport(format);
+        onClose();
+    };
+
+    const handleCopyToClipboard = async () => {
+        onExport('png');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const FORMAT_OPTIONS: { id: ExportFormat; icon: React.ReactNode; label: string; desc: string }[] = [
+        { id: 'png', icon: <Image size={18} />, label: 'PNG', desc: 'High quality image' },
+        { id: 'jpg', icon: <Image size={18} />, label: 'JPG', desc: 'Compressed image' },
+        { id: 'json', icon: <FileJson size={18} />, label: 'JSON', desc: 'Chart data' },
+        { id: 'csv', icon: <FileSpreadsheet size={18} />, label: 'CSV', desc: 'Spreadsheet' },
+    ];
+
+    return (
+        <>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" onClick={onClose} />
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md">
+                <div className="bg-[#0d1117] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                        <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                            <Download size={18} className="text-blue-400" />
+                            Export Chart
+                        </h2>
+                        <button
+                            onClick={onClose}
+                            className="p-1 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-4 space-y-4">
+                        {/* Format Selection */}
+                        <div>
+                            <label className="text-xs text-white/60 uppercase tracking-wider mb-2 block">
+                                Format
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {FORMAT_OPTIONS.map((opt) => (
+                                    <button
+                                        key={opt.id}
+                                        onClick={() => setFormat(opt.id)}
+                                        className={`flex items-center gap-3 p-3 rounded-xl border transition ${
+                                            format === opt.id
+                                                ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
+                                                : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+                                        }`}
+                                    >
+                                        {opt.icon}
+                                        <div className="text-left">
+                                            <div className="font-medium text-sm">{opt.label}</div>
+                                            <div className="text-[10px] text-white/40">{opt.desc}</div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Export Info */}
+                        <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                            <p className="text-xs text-blue-300">
+                                Exporting chart for <span className="font-semibold">{symbol}</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="px-4 py-3 border-t border-white/10 flex gap-2">
+                        <button
+                            onClick={handleCopyToClipboard}
+                            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white/5 text-white/80 hover:bg-white/10 rounded-lg transition"
+                        >
+                            {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
+                            {copied ? 'Copied!' : 'Copy'}
+                        </button>
+                        <button
+                            onClick={handleExport}
+                            className="flex-[2] flex items-center justify-center gap-2 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
+                        >
+                            <Download size={16} />
+                            Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+}

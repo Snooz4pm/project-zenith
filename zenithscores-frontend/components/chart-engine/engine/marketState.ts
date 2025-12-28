@@ -3,7 +3,7 @@
  * Pure logic for indicators and regime detection.
  */
 
-import { MarketCandle, DerivedIndicators, RegimeType } from './types';
+import { MarketCandle, DerivedIndicators, RegimeType, Indicator } from './types';
 
 /**
  * Calculate Exponential Moving Average
@@ -95,6 +95,180 @@ export function determineRegime(
 }
 
 /**
+ * Calculate Simple Moving Average
+ */
+export function calculateSMA(candles: MarketCandle[], period: number): number[] {
+    const sma: number[] = new Array(candles.length).fill(NaN);
+
+    for (let i = period - 1; i < candles.length; i++) {
+        let sum = 0;
+        for (let j = 0; j < period; j++) {
+            sum += candles[i - j].close;
+        }
+        sma[i] = sum / period;
+    }
+
+    return sma;
+}
+
+/**
+ * Calculate RSI (Relative Strength Index)
+ */
+export function calculateRSI(candles: MarketCandle[], period: number = 14): number[] {
+    const rsi: number[] = new Array(candles.length).fill(NaN);
+
+    if (candles.length < period + 1) return rsi;
+
+    let gains = 0;
+    let losses = 0;
+
+    for (let i = 1; i <= period; i++) {
+        const change = candles[i].close - candles[i - 1].close;
+        if (change > 0) gains += change;
+        else losses -= change;
+    }
+
+    let avgGain = gains / period;
+    let avgLoss = losses / period;
+
+    rsi[period] = 100 - (100 / (1 + avgGain / (avgLoss || 1)));
+
+    for (let i = period + 1; i < candles.length; i++) {
+        const change = candles[i].close - candles[i - 1].close;
+        const gain = change > 0 ? change : 0;
+        const loss = change < 0 ? -change : 0;
+
+        avgGain = (avgGain * (period - 1) + gain) / period;
+        avgLoss = (avgLoss * (period - 1) + loss) / period;
+
+        rsi[i] = 100 - (100 / (1 + avgGain / (avgLoss || 1)));
+    }
+
+    return rsi;
+}
+
+/**
+ * Calculate MACD (Moving Average Convergence Divergence)
+ */
+export function calculateMACD(candles: MarketCandle[]): { macd: number[]; signal: number[]; histogram: number[] } {
+    const ema12 = calculateEMA(candles, 12);
+    const ema26 = calculateEMA(candles, 26);
+
+    const macd = ema12.map((val, i) => val - ema26[i]);
+
+    const signal = new Array(candles.length).fill(NaN);
+    const k = 2 / (9 + 1);
+    let ema = macd[26];
+    signal[26] = ema;
+
+    for (let i = 27; i < candles.length; i++) {
+        ema = macd[i] * k + ema * (1 - k);
+        signal[i] = ema;
+    }
+
+    const histogram = macd.map((val, i) => val - signal[i]);
+
+    return { macd, signal, histogram };
+}
+
+/**
+ * Calculate Bollinger Bands
+ */
+export function calculateBollingerBands(candles: MarketCandle[], period: number = 20, stdDev: number = 2): { upper: number[]; middle: number[]; lower: number[] } {
+    const middle = calculateSMA(candles, period);
+    const upper = new Array(candles.length).fill(NaN);
+    const lower = new Array(candles.length).fill(NaN);
+
+    for (let i = period - 1; i < candles.length; i++) {
+        let sum = 0;
+        for (let j = 0; j < period; j++) {
+            const diff = candles[i - j].close - middle[i];
+            sum += diff * diff;
+        }
+        const std = Math.sqrt(sum / period);
+        upper[i] = middle[i] + stdDev * std;
+        lower[i] = middle[i] - stdDev * std;
+    }
+
+    return { upper, middle, lower };
+}
+
+/**
+ * Calculate ATR (Average True Range)
+ */
+export function calculateATR(candles: MarketCandle[], period: number = 14): number[] {
+    const atr: number[] = new Array(candles.length).fill(NaN);
+    const tr: number[] = new Array(candles.length).fill(NaN);
+
+    for (let i = 1; i < candles.length; i++) {
+        const high = candles[i].high;
+        const low = candles[i].low;
+        const prevClose = candles[i - 1].close;
+
+        tr[i] = Math.max(
+            high - low,
+            Math.abs(high - prevClose),
+            Math.abs(low - prevClose)
+        );
+    }
+
+    let sum = 0;
+    for (let i = 1; i <= period; i++) {
+        sum += tr[i];
+    }
+    atr[period] = sum / period;
+
+    for (let i = period + 1; i < candles.length; i++) {
+        atr[i] = (atr[i - 1] * (period - 1) + tr[i]) / period;
+    }
+
+    return atr;
+}
+
+/**
+ * Compute indicators based on configuration
+ */
+export function computeIndicators(candles: MarketCandle[], indicators: Indicator[]): Record<string, number[]> {
+    const result: Record<string, number[]> = {};
+
+    for (const indicator of indicators) {
+        if (indicator.visible === false) continue;
+
+        switch (indicator.type) {
+            case 'sma':
+                result.sma = calculateSMA(candles, indicator.period || 20);
+                break;
+            case 'ema':
+                result.ema = calculateEMA(candles, indicator.period || 50);
+                break;
+            case 'rsi':
+                result.rsi = calculateRSI(candles, indicator.period || 14);
+                break;
+            case 'macd':
+                const macdData = calculateMACD(candles);
+                result.macd = macdData.macd;
+                result.macdSignal = macdData.signal;
+                result.macdHistogram = macdData.histogram;
+                break;
+            case 'bollinger':
+                const bbData = calculateBollingerBands(candles, indicator.period || 20);
+                result.bollingerUpper = bbData.upper;
+                result.bollingerMiddle = bbData.middle;
+                result.bollingerLower = bbData.lower;
+                break;
+            case 'atr':
+                result.atr = calculateATR(candles, indicator.period || 14);
+                break;
+            case 'vwap':
+                result.vwap = calculateVWAP(candles);
+                break;
+        }
+    }
+
+    return result;
+}
+
+/**
  * Main function to compute full state
  */
 export function computeMarketState(candles: MarketCandle[]): DerivedIndicators {
@@ -102,14 +276,12 @@ export function computeMarketState(candles: MarketCandle[]): DerivedIndicators {
 
     const ema20 = calculateEMA(candles, 20);
     const ema50 = calculateEMA(candles, 50);
-    // const vwap = calculateVWAP(candles); 
 
     const regime = determineRegime(candles, ema20, ema50);
 
     return {
         ema20,
         ema50,
-        // vwap,
         regime
     };
 }

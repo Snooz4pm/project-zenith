@@ -223,8 +223,11 @@ export const ALGORITHM_THRESHOLDS = {
 
 /**
  * Check if asset qualifies for Algorithm Picks
- * UPDATED: All assets now qualify (no filtering)
  */
 export function isAlgorithmPick(asset: Asset): boolean {
-    return true; // All assets qualify
+    return (
+        asset.convictionScore >= ALGORITHM_THRESHOLDS.minConvictionScore &&
+        asset.liquidityScore >= ALGORITHM_THRESHOLDS.minLiquidityFactor * 100 &&
+        !ALGORITHM_THRESHOLDS.excludedRegimes.includes(asset.regime)
+    );
 }
