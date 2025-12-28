@@ -446,6 +446,9 @@ export default function TerminalView({
                                         <ZenithChartPro
                                             data={activeData as any}
                                             suggestions={suggestions}
+                                            symbol={symbol}
+                                            assetType={assetType}
+                                            currentPrice={displayPrice}
                                         />
                                         <div className="absolute top-4 left-4">
                                             <SuggestionsPanel

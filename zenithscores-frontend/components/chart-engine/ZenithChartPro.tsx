@@ -5,7 +5,7 @@
  * 1. Manage State (Viewport, Canvas Ref)
  * 2. Handle Events (Mouse/Touch -> Interactions.ts)
  * 3. Schedule Renders (Renderer.ts)
- * 4. NO MATH. NO DRAWING LOGIC.
+ * 4. Support Alert Creation (double-click to set price alert)
  */
 
 'use client';
@@ -22,70 +22,77 @@ import { getVisibleRange, clampOffset } from './engine/viewport';
 import { computeMarketState } from './engine/marketState';
 import { renderChart } from './engine/renderer';
 import { calculatePan, calculateZoom } from './engine/interactions';
-import { OHLCV } from '@/lib/market-data/types';
+import { OHLCV, AssetType } from '@/lib/market-data/types';
+import AlertCreationModal from './AlertCreationModal';
+import { usePriceAlert } from '@/hooks/usePriceAlert';
 
 interface ZenithChartProProps {
-    data: OHLCV[]; // Canonical input
-    suggestions?: Drawing[]; // Future: AI Zones
+    data: OHLCV[];
+    suggestions?: Drawing[];
     height?: number;
+    // Alert system props
+    symbol?: string;
+    assetType?: AssetType;
+    currentPrice?: number;
 }
 
 export default function ZenithChartPro({
     data,
     suggestions = [],
-    height = 500
+    height = 500,
+    symbol = 'ASSET',
+    assetType = 'stock',
+    currentPrice = 0
 }: ZenithChartProProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
     // --- STATE ---
-
-    // Transform OHLCV to MarketCandle (identity for now, but strictly typed)
     const candles = useMemo(() => data as MarketCandle[], [data]);
 
-    // Viewport State
     const [viewport, setViewport] = useState<Viewport>({
-        offset: Math.max(0, candles.length - 50), // Start near end
-        scale: 1, // Default scale
-        candleWidth: 10 // Px per candle
+        offset: Math.max(0, candles.length - 50),
+        scale: 1,
+        candleWidth: 10
     });
 
-    // Chart Mode: Expert (candles) vs Overview (line)
     const [chartMode, setChartMode] = useState<'expert' | 'overview'>('expert');
-
-    // Market State (Pure Calculation)
     const marketState = useMemo(() => computeMarketState(candles), [candles]);
-
-    // Dimensions
     const [dims, setDims] = useState({ width: 800, height });
-
-    // Interactions
     const [isDragging, setIsDragging] = useState(false);
     const [lastMouse, setLastMouse] = useState<{ x: number, y: number } | null>(null);
 
-    // --- RENDER LOOP ---
+    // Alert system state
+    const [priceRange, setPriceRange] = useState({ min: 0, max: 100 });
+    const [alertModal, setAlertModal] = useState<{
+        isOpen: boolean;
+        targetPrice: number;
+    }>({ isOpen: false, targetPrice: 0 });
 
+    const { createAlert, isCreating } = usePriceAlert();
+
+    // --- RENDER LOOP ---
     const draw = useCallback(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // Derived Rendering Params
         const { startIndex, endIndex } = getVisibleRange(viewport, { ...dims, chartWidth: dims.width, chartHeight: dims.height }, candles.length);
 
-        // Find visible min/max price for auto-scaling
         let min = Infinity, max = -Infinity;
         for (let i = startIndex; i < endIndex; i++) {
             if (candles[i].low < min) min = candles[i].low;
             if (candles[i].high > max) max = candles[i].high;
         }
-        // Safety padding
         if (min === Infinity) { min = 0; max = 100; }
         if (min === max) { min -= 1; max += 1; }
         const padding = (max - min) * 0.1;
         min -= padding;
         max += padding;
+
+        // Store price range for click-to-price conversion
+        setPriceRange({ min, max });
 
         const config: EngineConfig = {
             width: dims.width,
@@ -94,10 +101,9 @@ export default function ZenithChartPro({
             colors: DEFAULT_THEME,
             fonts: { axis: '10px monospace', crosshair: '10px monospace' },
             padding: { top: 20, right: 50, bottom: 20, left: 0 },
-            mode: chartMode // Chart mode switch
+            mode: chartMode
         };
 
-        // Render
         renderChart(
             ctx,
             candles,
@@ -111,7 +117,7 @@ export default function ZenithChartPro({
             endIndex
         );
 
-    }, [candles, viewport, marketState, dims]);
+    }, [candles, viewport, marketState, dims, chartMode]);
 
     // Effect: Handle Resize
     useEffect(() => {
@@ -121,11 +127,9 @@ export default function ZenithChartPro({
             const { width, height } = entries[0].contentRect;
             const dpr = window.devicePixelRatio || 1;
 
-            // Update canvas buffer size
             canvasRef.current!.width = width * dpr;
             canvasRef.current!.height = height * dpr;
 
-            // Normalize coordinate system
             const ctx = canvasRef.current!.getContext('2d');
             if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -136,14 +140,13 @@ export default function ZenithChartPro({
         return () => resizeObserver.disconnect();
     }, []);
 
-    // Effect: Prevent page scroll when zooming chart (native listener with passive: false)
+    // Effect: Prevent page scroll when zooming (native listener)
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
         const handleNativeWheel = (e: WheelEvent) => {
-            e.preventDefault(); // This works with passive: false
-
+            e.preventDefault();
             const newViewport = calculateZoom(
                 viewport,
                 e.deltaY,
@@ -164,7 +167,6 @@ export default function ZenithChartPro({
     }, [draw]);
 
     // --- INTERACTION HANDLERS ---
-
     const handleMouseDown = (e: React.MouseEvent) => {
         setIsDragging(true);
         setLastMouse({ x: e.clientX, y: e.clientY });
@@ -172,17 +174,13 @@ export default function ZenithChartPro({
 
     const handleMouseMove = (e: React.MouseEvent) => {
         if (!isDragging || !lastMouse) return;
-
         const deltaX = e.clientX - lastMouse.x;
-        // const deltaY = e.clientY - lastMouse.y;
-
         const newViewport = calculatePan(
             viewport,
             deltaX,
             candles.length,
             Math.ceil(dims.width / viewport.candleWidth)
         );
-
         setViewport(newViewport);
         setLastMouse({ x: e.clientX, y: e.clientY });
     };
@@ -192,19 +190,50 @@ export default function ZenithChartPro({
         setLastMouse(null);
     };
 
-    const handleWheel = (e: React.WheelEvent) => {
-        // Prevent page scroll if within chart
-        // e.preventDefault(); // React synthetic events can't preventDefault easily on wheel sometimes check passive
+    // Y position to price conversion
+    const yToPrice = (y: number): number => {
+        const padTop = 20;
+        const padBottom = 20;
+        const chartHeight = dims.height - padTop - padBottom;
+        const normalizedY = (y - padTop) / chartHeight;
+        // Y is inverted (top = high price, bottom = low price)
+        return priceRange.max - (normalizedY * (priceRange.max - priceRange.min));
+    };
 
-        const newViewport = calculateZoom(
-            viewport,
-            e.deltaY,
-            null, // Cursor ratio TODO
-            candles.length,
-            Math.ceil(dims.width / viewport.candleWidth)
-        );
+    // Double-click to create alert
+    const handleDoubleClick = (e: React.MouseEvent) => {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) return;
 
-        setViewport(newViewport);
+        const y = e.clientY - rect.top;
+        const targetPrice = yToPrice(y);
+
+        setAlertModal({
+            isOpen: true,
+            targetPrice: Math.round(targetPrice * 100) / 100
+        });
+    };
+
+    // Handle alert creation
+    const handleAlertSubmit = async (alertData: {
+        targetPrice: number;
+        direction: 'above' | 'below';
+        note: string;
+        predictedDirection?: 'up' | 'down';
+        predictedWithin?: number;
+    }) => {
+        const actualCurrentPrice = currentPrice || (candles[candles.length - 1]?.close ?? 0);
+
+        await createAlert({
+            symbol,
+            assetType,
+            targetPrice: alertData.targetPrice,
+            direction: alertData.direction,
+            note: alertData.note,
+            predictedDirection: alertData.predictedDirection,
+            predictedWithin: alertData.predictedWithin,
+            priceAtCreation: actualCurrentPrice
+        });
     };
 
     return (
@@ -220,6 +249,7 @@ export default function ZenithChartPro({
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
+                onDoubleClick={handleDoubleClick}
             />
 
             {/* Chart Mode Toggle */}
@@ -244,7 +274,21 @@ export default function ZenithChartPro({
                 </button>
             </div>
 
-            {/* Overlay Elements (Tooltip, etc) can go here */}
+            {/* Double-click hint */}
+            <div className="absolute bottom-3 left-3 text-xs text-zinc-500/50">
+                Double-click to set price alert
+            </div>
+
+            {/* Alert Creation Modal */}
+            <AlertCreationModal
+                isOpen={alertModal.isOpen}
+                onClose={() => setAlertModal({ isOpen: false, targetPrice: 0 })}
+                onSubmit={handleAlertSubmit}
+                symbol={symbol}
+                assetType={assetType}
+                targetPrice={alertModal.targetPrice}
+                currentPrice={currentPrice || (candles[candles.length - 1]?.close ?? 0)}
+            />
         </div>
     );
 }
