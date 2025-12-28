@@ -25,6 +25,7 @@ import { calculatePan, calculateZoom } from './engine/interactions';
 import { OHLCV, AssetType } from '@/lib/market-data/types';
 import AlertCreationModal from './AlertCreationModal';
 import { usePriceAlert } from '@/hooks/usePriceAlert';
+import { Bell } from 'lucide-react';
 
 interface ZenithChartProProps {
     data: OHLCV[];
@@ -274,10 +275,14 @@ export default function ZenithChartPro({
                 </button>
             </div>
 
-            {/* Double-click hint */}
-            <div className="absolute bottom-3 left-3 text-xs text-zinc-500/50">
-                Double-click to set price alert
-            </div>
+            {/* Set Price Alert Button */}
+            <button
+                onClick={() => setAlertModal({ isOpen: true, targetPrice: 0 })}
+                className="absolute bottom-3 left-3 z-10 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600/80 hover:bg-blue-500 backdrop-blur text-white text-xs font-medium transition"
+            >
+                <Bell size={14} />
+                Set Price Alert
+            </button>
 
             {/* Alert Creation Modal */}
             <AlertCreationModal
@@ -286,7 +291,6 @@ export default function ZenithChartPro({
                 onSubmit={handleAlertSubmit}
                 symbol={symbol}
                 assetType={assetType}
-                targetPrice={alertModal.targetPrice}
                 currentPrice={currentPrice || (candles[candles.length - 1]?.close ?? 0)}
             />
         </div>

@@ -1,12 +1,12 @@
 /**
  * AlertCreationModal Component
  * 
- * Appears when user double-clicks chart to set a price alert.
+ * Modal for setting price alerts with user-typed price input.
  */
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Bell, TrendingUp, TrendingDown, Zap } from 'lucide-react';
 
@@ -16,7 +16,6 @@ interface AlertCreationModalProps {
     onSubmit: (data: AlertData) => void;
     symbol: string;
     assetType: 'stock' | 'crypto' | 'forex';
-    targetPrice: number;
     currentPrice: number;
 }
 
@@ -34,17 +33,34 @@ export default function AlertCreationModal({
     onSubmit,
     symbol,
     assetType,
-    targetPrice,
     currentPrice
 }: AlertCreationModalProps) {
+    const [priceInput, setPriceInput] = useState('');
+    const [direction, setDirection] = useState<'above' | 'below'>('above');
     const [note, setNote] = useState('');
     const [predictUp, setPredictUp] = useState<boolean | null>(null);
     const [timeframe, setTimeframe] = useState<number | null>(null);
 
-    const direction = targetPrice > currentPrice ? 'above' : 'below';
-    const percentDiff = ((targetPrice - currentPrice) / currentPrice * 100).toFixed(2);
+    // Reset when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            setPriceInput('');
+            setDirection('above');
+            setNote('');
+            setPredictUp(null);
+            setTimeframe(null);
+        }
+    }, [isOpen]);
+
+    const targetPrice = parseFloat(priceInput) || 0;
+    const isValidPrice = targetPrice > 0;
+    const percentDiff = isValidPrice
+        ? ((targetPrice - currentPrice) / currentPrice * 100).toFixed(2)
+        : '0.00';
 
     const handleSubmit = () => {
+        if (!isValidPrice) return;
+
         onSubmit({
             targetPrice,
             direction,
@@ -90,27 +106,63 @@ export default function AlertCreationModal({
                         </button>
                     </div>
 
-                    {/* Price Info */}
-                    <div className="bg-zinc-800/50 rounded-xl p-4 mb-6">
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <p className="text-xs text-zinc-500 mb-1">Alert when price goes</p>
-                                <p className={`text-xl font-bold ${direction === 'above' ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    {direction === 'above' ? '↑' : '↓'} ${targetPrice.toFixed(2)}
-                                </p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-xs text-zinc-500 mb-1">Current</p>
-                                <p className="text-lg text-zinc-300">${currentPrice.toFixed(2)}</p>
-                                <p className={`text-xs ${parseFloat(percentDiff) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    {parseFloat(percentDiff) >= 0 ? '+' : ''}{percentDiff}%
-                                </p>
-                            </div>
+                    {/* Current Price */}
+                    <div className="bg-zinc-800/50 rounded-xl p-3 mb-4 flex justify-between items-center">
+                        <span className="text-sm text-zinc-400">Current Price</span>
+                        <span className="text-lg font-bold text-white">${currentPrice.toFixed(2)}</span>
+                    </div>
+
+                    {/* Direction Selector */}
+                    <div className="mb-4">
+                        <label className="text-xs text-zinc-500 mb-2 block">Alert me when price goes</label>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setDirection('above')}
+                                className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 transition ${direction === 'above'
+                                        ? 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400'
+                                        : 'bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                                    }`}
+                            >
+                                <TrendingUp size={18} />
+                                Above
+                            </button>
+                            <button
+                                onClick={() => setDirection('below')}
+                                className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 transition ${direction === 'below'
+                                        ? 'bg-red-500/20 border-2 border-red-500 text-red-400'
+                                        : 'bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                                    }`}
+                            >
+                                <TrendingDown size={18} />
+                                Below
+                            </button>
                         </div>
                     </div>
 
+                    {/* Price Input */}
+                    <div className="mb-4">
+                        <label className="text-xs text-zinc-500 mb-2 block">Target Price</label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">$</span>
+                            <input
+                                type="number"
+                                value={priceInput}
+                                onChange={e => setPriceInput(e.target.value)}
+                                placeholder="Enter price..."
+                                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg py-3 pl-8 pr-4 text-white text-lg font-medium focus:border-blue-500 outline-none"
+                                step="0.01"
+                                min="0"
+                            />
+                        </div>
+                        {isValidPrice && (
+                            <p className={`text-xs mt-1 ${parseFloat(percentDiff) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {parseFloat(percentDiff) >= 0 ? '+' : ''}{percentDiff}% from current price
+                            </p>
+                        )}
+                    </div>
+
                     {/* Note */}
-                    <div className="mb-6">
+                    <div className="mb-4">
                         <label className="text-xs text-zinc-500 mb-2 block">Your thesis (optional)</label>
                         <textarea
                             value={note}
@@ -122,7 +174,7 @@ export default function AlertCreationModal({
                     </div>
 
                     {/* Prediction (Gamification) */}
-                    <div className="mb-6">
+                    <div className="mb-4">
                         <label className="text-xs text-zinc-500 mb-2 block flex items-center gap-1">
                             <Zap size={12} className="text-amber-400" />
                             Make a prediction (earn points)
@@ -130,22 +182,22 @@ export default function AlertCreationModal({
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setPredictUp(true)}
-                                className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition ${predictUp === true
+                                className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 text-sm transition ${predictUp === true
                                         ? 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400'
                                         : 'bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-zinc-500'
                                     }`}
                             >
-                                <TrendingUp size={16} />
+                                <TrendingUp size={14} />
                                 Going Up
                             </button>
                             <button
                                 onClick={() => setPredictUp(false)}
-                                className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition ${predictUp === false
+                                className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 text-sm transition ${predictUp === false
                                         ? 'bg-red-500/20 border-2 border-red-500 text-red-400'
                                         : 'bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-zinc-500'
                                     }`}
                             >
-                                <TrendingDown size={16} />
+                                <TrendingDown size={14} />
                                 Going Down
                             </button>
                         </div>
@@ -153,7 +205,7 @@ export default function AlertCreationModal({
 
                     {/* Timeframe */}
                     {predictUp !== null && (
-                        <div className="mb-6">
+                        <div className="mb-4">
                             <label className="text-xs text-zinc-500 mb-2 block">When do you expect this?</label>
                             <div className="flex gap-2">
                                 {[1, 4, 24, 72].map(hours => (
@@ -175,7 +227,11 @@ export default function AlertCreationModal({
                     {/* Submit */}
                     <button
                         onClick={handleSubmit}
-                        className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-semibold transition flex items-center justify-center gap-2"
+                        disabled={!isValidPrice}
+                        className={`w-full py-3 rounded-xl font-semibold transition flex items-center justify-center gap-2 ${isValidPrice
+                                ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                                : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                            }`}
                     >
                         <Bell size={16} />
                         Create Alert
