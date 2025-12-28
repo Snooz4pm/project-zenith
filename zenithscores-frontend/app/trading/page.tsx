@@ -8,7 +8,7 @@ import {
     TrendingUp, TrendingDown, Wallet, History, Activity,
     ArrowRight, Lock, CheckCircle, Target, RefreshCw
 } from 'lucide-react';
-import { getPortfolio, executeTrade, resetAccount } from '@/lib/actions/trading';
+import { getPortfolio, executeTrade, resetAccount, getTradeableAssets, TradeableAsset, fetchLivePrice } from '@/lib/actions/trading';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 import AssetPicker from '@/components/AssetPicker'; // Assuming this exists or dynamic import
@@ -38,12 +38,29 @@ export default function TradingPage() {
     const [isExecuting, setIsExecuting] = useState(false);
     const [tradeSuccess, setTradeSuccess] = useState<string | null>(null);
 
+    // -- LIVE MARKET DATA --
+    const [liveAssets, setLiveAssets] = useState<TradeableAsset[]>([]);
+    const [assetsLoading, setAssetsLoading] = useState(true);
+
     // Initial Load
     useEffect(() => {
         if (authSession?.user?.id) {
             refreshPortfolio();
         }
+        // Fetch live assets on mount
+        loadLiveAssets();
     }, [authSession]);
+
+    async function loadLiveAssets() {
+        setAssetsLoading(true);
+        try {
+            const assets = await getTradeableAssets();
+            setLiveAssets(assets);
+        } catch (e) {
+            console.error('Failed to load live assets:', e);
+        }
+        setAssetsLoading(false);
+    }
 
     async function refreshPortfolio() {
         if (!authSession?.user?.id) return;
@@ -60,7 +77,11 @@ export default function TradingPage() {
         if (!authSession?.user?.id || !selectedAsset) return;
 
         setIsExecuting(true);
-        const price = selectedAsset.current_price || selectedAsset.price; // Handle diff asset shapes
+
+        // Verify price server-side before executing
+        const assetType = selectedAsset.asset_type as 'CRYPTO' | 'STOCK' | 'FOREX';
+        const liveData = await fetchLivePrice(selectedAsset.symbol, assetType);
+        const price = liveData?.price || selectedAsset.current_price || selectedAsset.price;
         const qty = parseFloat(quantity);
 
         if (isNaN(qty) || qty <= 0) {
@@ -350,18 +371,17 @@ export default function TradingPage() {
                                     <ArrowRight size={16} className="rotate-45" /> {/* Close icon */}
                                 </button>
 
-                                <AssetPicker
-                                    assets={[
-                                        { symbol: 'BTC', name: 'Bitcoin', current_price: 65000, price_change_24h: 2.5, asset_type: 'CRYPTO', max_leverage: 100 },
-                                        { symbol: 'ETH', name: 'Ethereum', current_price: 3500, price_change_24h: 1.2, asset_type: 'CRYPTO', max_leverage: 100 },
-                                        { symbol: 'SOL', name: 'Solana', current_price: 145, price_change_24h: 5.4, asset_type: 'CRYPTO', max_leverage: 50 },
-                                        { symbol: 'AAPL', name: 'Apple Inc.', current_price: 189.50, price_change_24h: 0.5, asset_type: 'STOCK', max_leverage: 20 },
-                                        { symbol: 'TSLA', name: 'Tesla', current_price: 240.20, price_change_24h: -1.2, asset_type: 'STOCK', max_leverage: 20 },
-                                        { symbol: 'EURUSD', name: 'Euro / USD', current_price: 1.0850, price_change_24h: 0.05, asset_type: 'FOREX', max_leverage: 500 },
-                                        { symbol: 'GBPUSD', name: 'GBP / USD', current_price: 1.2750, price_change_24h: -0.1, asset_type: 'FOREX', max_leverage: 500 },
-                                    ]}
-                                    onSelect={(asset: any) => { setSelectedAsset(asset); setIsAssetPickerOpen(false); }}
-                                />
+                                {assetsLoading ? (
+                                    <div className="h-full flex items-center justify-center text-zinc-500">
+                                        <RefreshCw className="animate-spin mr-2" size={20} />
+                                        Loading live market data...
+                                    </div>
+                                ) : (
+                                    <AssetPicker
+                                        assets={liveAssets}
+                                        onSelect={(asset: any) => { setSelectedAsset(asset); setIsAssetPickerOpen(false); }}
+                                    />
+                                )}
                             </motion.div>
                         </div>
                     )}

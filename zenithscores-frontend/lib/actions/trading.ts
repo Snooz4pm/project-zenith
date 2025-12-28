@@ -2,9 +2,148 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { SUPPORTED_STOCKS, SUPPORTED_FOREX, SUPPORTED_CRYPTO } from '@/lib/market/symbols';
+import { fetchCryptoPrice, CRYPTO_NAMES } from '@/lib/market/crypto-engine';
+import { getStockQuote, getForexRates, MAJOR_FOREX_PAIRS, MINOR_FOREX_PAIRS, EXOTIC_FOREX_PAIRS } from '@/lib/finnhub';
 
 // Bypass PrismaClient type mismatch for generated models
 const db = prisma as any;
+
+// ===========================================
+// ASSET TYPES
+// ===========================================
+
+export interface TradeableAsset {
+    symbol: string;
+    name: string;
+    current_price: number;
+    price_change_24h: number;
+    asset_type: 'CRYPTO' | 'STOCK' | 'FOREX';
+    max_leverage: number;
+}
+
+// ===========================================
+// GET ALL TRADEABLE ASSETS WITH LIVE PRICES
+// ===========================================
+
+/**
+ * Fetches all supported assets with their current live prices.
+ * This is used to populate the AssetPicker with real data.
+ */
+export async function getTradeableAssets(): Promise<TradeableAsset[]> {
+    const assets: TradeableAsset[] = [];
+
+    // 1. CRYPTO - Fetch from Coinbase/CoinGecko via crypto-engine
+    const cryptoPromises = SUPPORTED_CRYPTO.map(async (symbol) => {
+        try {
+            const data = await fetchCryptoPrice(symbol);
+            if (data && data.price > 0) {
+                return {
+                    symbol: data.symbol,
+                    name: data.name || CRYPTO_NAMES[symbol] || symbol,
+                    current_price: data.price,
+                    price_change_24h: data.changePercent || 0,
+                    asset_type: 'CRYPTO' as const,
+                    max_leverage: 100,
+                };
+            }
+        } catch (e) {
+            console.warn(`[getTradeableAssets] Crypto ${symbol} failed`, e);
+        }
+        return null;
+    });
+
+    // 2. STOCKS - Fetch from Finnhub
+    const stockPromises = SUPPORTED_STOCKS.map(async (symbol) => {
+        try {
+            const quote = await getStockQuote(symbol);
+            if (quote && quote.c > 0) {
+                return {
+                    symbol,
+                    name: symbol, // Finnhub doesn't provide names in quote endpoint
+                    current_price: quote.c,
+                    price_change_24h: quote.dp || 0,
+                    asset_type: 'STOCK' as const,
+                    max_leverage: 20,
+                };
+            }
+        } catch (e) {
+            console.warn(`[getTradeableAssets] Stock ${symbol} failed`, e);
+        }
+        return null;
+    });
+
+    // 3. FOREX - Fetch rates and convert
+    const allForexPairs = { ...MAJOR_FOREX_PAIRS, ...MINOR_FOREX_PAIRS, ...EXOTIC_FOREX_PAIRS };
+    const forexPromises = SUPPORTED_FOREX.map(async (pair) => {
+        try {
+            // Split pair like EUR/USD
+            const [base, quote] = pair.split('/');
+            const rates = await getForexRates(base);
+            if (rates && rates.quote && rates.quote[quote]) {
+                const pairInfo = allForexPairs[pair as keyof typeof allForexPairs];
+                return {
+                    symbol: pair,
+                    name: pairInfo?.name || pair,
+                    current_price: rates.quote[quote],
+                    price_change_24h: 0, // Finnhub forex rates don't include change
+                    asset_type: 'FOREX' as const,
+                    max_leverage: 500,
+                };
+            }
+        } catch (e) {
+            console.warn(`[getTradeableAssets] Forex ${pair} failed`, e);
+        }
+        return null;
+    });
+
+    // Resolve all promises
+    const [cryptoResults, stockResults, forexResults] = await Promise.all([
+        Promise.all(cryptoPromises),
+        Promise.all(stockPromises),
+        Promise.all(forexPromises),
+    ]);
+
+    // Filter out nulls and add to assets
+    cryptoResults.forEach(r => r && assets.push(r));
+    stockResults.forEach(r => r && assets.push(r));
+    forexResults.forEach(r => r && assets.push(r));
+
+    return assets;
+}
+
+// ===========================================
+// FETCH SINGLE ASSET LIVE PRICE (FOR TRADE VERIFICATION)
+// ===========================================
+
+/**
+ * Fetches the current live price for a specific asset.
+ * Used to verify price before trade execution.
+ */
+export async function fetchLivePrice(symbol: string, assetType: 'CRYPTO' | 'STOCK' | 'FOREX'): Promise<{ price: number; timestamp: number } | null> {
+    try {
+        if (assetType === 'CRYPTO') {
+            const data = await fetchCryptoPrice(symbol);
+            if (data && data.price > 0) {
+                return { price: data.price, timestamp: data.timestamp };
+            }
+        } else if (assetType === 'STOCK') {
+            const quote = await getStockQuote(symbol);
+            if (quote && quote.c > 0) {
+                return { price: quote.c, timestamp: quote.t ? quote.t * 1000 : Date.now() };
+            }
+        } else if (assetType === 'FOREX') {
+            const [base, quote] = symbol.split('/');
+            const rates = await getForexRates(base);
+            if (rates && rates.quote && rates.quote[quote]) {
+                return { price: rates.quote[quote], timestamp: Date.now() };
+            }
+        }
+    } catch (e) {
+        console.error(`[fetchLivePrice] Failed for ${symbol}:`, e);
+    }
+    return null;
+}
 
 /**
  * Standardize decimal precision to avoid floating point anomalies.
