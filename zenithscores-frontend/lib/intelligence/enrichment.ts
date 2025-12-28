@@ -1,4 +1,4 @@
-'use server';
+// Intelligence Feed - Enrichment Logic
 
 import { prisma } from '@/lib/prisma';
 import type { IntelligenceItem, UserIntelProfile, TradeJournal } from '@prisma/client';
@@ -24,7 +24,7 @@ export function scoreRelevance(
     // 1. Asset Match Score (0-40)
     if (profile?.watchedAssets && item.assetTags.length > 0) {
         const watchedSet = new Set(profile.watchedAssets);
-        const matchCount = item.assetTags.filter(tag => watchedSet.has(tag)).length;
+        const matchCount = item.assetTags.filter((tag: string) => watchedSet.has(tag)).length;
         score += Math.min(40, matchCount * 20);
     }
 
@@ -127,7 +127,7 @@ export function generateWhyMatters(
 
     // Check if matches watched assets
     if (profile?.watchedAssets && item.assetTags.length > 0) {
-        const matched = item.assetTags.filter(tag =>
+        const matched = item.assetTags.filter((tag: string) =>
             profile.watchedAssets.includes(tag)
         );
         if (matched.length > 0) {
@@ -205,6 +205,6 @@ export async function getEnrichedFeed(userId: string, limit: number = 8): Promis
 
     // Sort by relevance and return top items
     return enrichedItems
-        .sort((a, b) => b.relevanceScore - a.relevanceScore)
+        .sort((a: EnrichedItem, b: EnrichedItem) => b.relevanceScore - a.relevanceScore)
         .slice(0, limit);
 }

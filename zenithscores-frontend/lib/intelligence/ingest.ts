@@ -1,4 +1,4 @@
-'use server';
+// Intelligence Feed - News Ingestion Logic
 
 import { prisma } from '@/lib/prisma';
 import { getCompanyNews, ALL_STOCKS } from '@/lib/finnhub';
