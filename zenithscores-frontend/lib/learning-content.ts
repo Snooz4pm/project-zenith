@@ -1,4 +1,7 @@
-import { ModuleContent } from './learning-types';
+import { ModuleContent, Part, Chapter } from './learning-types';
+
+// Re-export types for consumers
+export type { ModuleContent, Part, Chapter };
 import { TRADING_FUNDAMENTALS } from './content/trading-fundamentals';
 import { TECHNICAL_ANALYSIS } from './content/technical-analysis';
 import { ZENITH_MASTERY } from './content/zenith-mastery';
