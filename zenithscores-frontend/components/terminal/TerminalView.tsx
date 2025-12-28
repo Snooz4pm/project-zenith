@@ -17,18 +17,12 @@ import { detectConsolidationZones } from '@/lib/analysis/zoneDetection';
 import { zoneToDrawing } from '@/lib/analysis/zoneToDrawing';
 import { Drawing } from '@/components/chart-engine/engine/types';
 import SuggestionsPanel from '@/components/terminal/SuggestionsPanel';
-import { ReplayEngine } from '@/lib/market/replay';
-import ReplayControls from '@/components/terminal/ReplayControls';
 import { analyzeMarketState } from '@/lib/market/marketState';
 import { backtestZoneReliability } from '@/lib/analysis/backtest';
 import { useMarketContext } from '@/hooks/useMarketContext';
 import DeepDiveModal from '@/components/terminal/DeepDiveModal';
 import JournalModal from '@/components/journal/JournalModal';
 import ChartPriceDisplay from '@/components/market/ChartPriceDisplay';
-import HistoryPanel from '@/components/history/HistoryPanel';
-import HistoryModeButton from '@/components/history/HistoryModeButton';
-import { useHistoryReplay } from '@/hooks/useHistoryReplay';
-import { getEventsForAsset } from '@/lib/history/events';
 
 // Dynamic import for chart to avoid SSR issues
 const ZenithChartPro = dynamic(() => import('@/components/chart-engine/ZenithChartPro'), { ssr: false });
@@ -69,8 +63,8 @@ export default function TerminalView({
     const [selectedTimeframe, setSelectedTimeframe] = useState(2); // Default to 1M
     const { timeframe, range } = TIMEFRAMES[selectedTimeframe];
 
-    // --- 0. MODE SWITCH (KILL SWITCH) ---
-    const [mode, setMode] = useState<'LIVE' | 'REPLAY'>('LIVE');
+    // Mode is now LIVE-only (removed replay/history)
+    const mode = 'LIVE' as const;
 
     const [suggestions, setSuggestions] = useState<Drawing[]>([]);
     const [ignoredIds, setIgnoredIds] = useState<Set<string>>(new Set());
@@ -114,83 +108,8 @@ export default function TerminalView({
             ? ((stockForexPrice.price - stockForexPrice.previousClose) / stockForexPrice.previousClose) * 100
             : 0);
 
-    // --- 2. REPLAY ENGINE ---
-    const replayEngine = useRef<ReplayEngine | null>(null);
-    const [replayData, setReplayData] = useState<OHLCV[]>([]);
-    const [replayState, setReplayState] = useState({
-        isPlaying: false,
-        speed: 1,
-        progress: 0,
-        currentTime: 0
-    });
-
-    useEffect(() => {
-        if (mode === 'REPLAY') {
-            if (liveOHLCV.length > 0 && !replayEngine.current) {
-                const engine = new ReplayEngine(liveOHLCV, (candle, index) => {
-                    setReplayData(prev => {
-                        // Optimizing: append if new, update if same time
-                        const last = prev[prev.length - 1];
-                        if (last && last.time === candle.time) {
-                            return [...prev.slice(0, -1), candle];
-                        }
-                        return [...prev, candle];
-                    });
-                    setReplayState(s => ({
-                        ...s,
-                        currentTime: candle.time,
-                        progress: index / liveOHLCV.length
-                    }));
-                });
-                replayEngine.current = engine;
-                setReplayData([liveOHLCV[0]]);
-            }
-        } else {
-            if (replayEngine.current) {
-                replayEngine.current.stop();
-                replayEngine.current = null;
-            }
-            setReplayData([]);
-        }
-    }, [mode, liveOHLCV]);
-
-    // --- 2b. HISTORY MODE (Event-based pausing) ---
-    const historyEvents = useMemo(() =>
-        getEventsForAsset(symbol, assetType),
-        [symbol, assetType]
-    );
-
-    const currentReplayIndex = useMemo(() => {
-        if (mode !== 'REPLAY') return 0;
-        return Math.floor(replayState.progress * liveOHLCV.length);
-    }, [mode, replayState.progress, liveOHLCV.length]);
-
-    const {
-        isHistoryMode,
-        currentEvent,
-        currentChapter,
-        totalChapters,
-        continueReplay,
-        closePanel,
-        hasEvents
-    } = useHistoryReplay({
-        symbol,
-        assetType,
-        candles: liveOHLCV,
-        isPlaying: replayState.isPlaying,
-        currentIndex: currentReplayIndex,
-        onPause: () => {
-            replayEngine.current?.pause();
-            setReplayState(s => ({ ...s, isPlaying: false }));
-        },
-        onResume: () => {
-            replayEngine.current?.start();
-            setReplayState(s => ({ ...s, isPlaying: true }));
-        }
-    });
-
-    // --- 3. HARMONIZED DATA ---
-    const activeData = mode === 'LIVE' ? liveOHLCV : replayData;
+    // --- 2. DATA FLOW (LIVE-ONLY, no replay) ---
+    const activeData = liveOHLCV;
 
     // Prepare data for analysis (ensure timestamp exists)
     const analysisData = useMemo(() => {
@@ -271,14 +190,9 @@ export default function TerminalView({
         return `Current market structure is undefined. Wait for volatility contraction or trend alignment.`;
     }, [regime, entryZone, invalidation]);
 
-    // DISPLAY PRICE: Live mode uses price engine, Replay uses candle close
-    // This is the ONLY place price source is decided
-    const displayPrice = mode === 'REPLAY'
-        ? (replayData[replayData.length - 1]?.close || 0)
-        : livePrice;
-    const displayChangePercent = mode === 'REPLAY'
-        ? 0 // No change display in replay
-        : liveChangePercent;
+    // DISPLAY PRICE - Always live now (no replay mode)
+    const displayPrice = livePrice;
+    const displayChangePercent = liveChangePercent;
 
     // --- DEEP DIVE & JOURNAL STATE ---
     const [showDeepDive, setShowDeepDive] = useState(false);
@@ -383,21 +297,8 @@ export default function TerminalView({
                         <div className="sticky top-0 p-4 rounded-xl border border-white/[0.06] bg-white/[0.02]">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Market Pulse</h3>
-                                {/* MODE TOGGLE */}
-                                <div className="flex items-center bg-zinc-900 rounded p-0.5 border border-zinc-800">
-                                    <button
-                                        onClick={() => setMode('LIVE')}
-                                        className={`px-2 py-0.5 text-[10px] font-bold rounded ${mode === 'LIVE' ? 'bg-emerald-500 text-black' : 'text-zinc-500'}`}
-                                    >
-                                        LIVE
-                                    </button>
-                                    <button
-                                        onClick={() => setMode('REPLAY')}
-                                        className={`px-2 py-0.5 text-[10px] font-bold rounded ${mode === 'REPLAY' ? 'bg-amber-500 text-black' : 'text-zinc-500'}`}
-                                    >
-                                        REPLAY
-                                    </button>
-                                </div>
+                                {/* LIVE indicator */}
+                                <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-500 text-black">LIVE</span>
                             </div>
                             <MarketMovers
                                 title=""
@@ -413,7 +314,7 @@ export default function TerminalView({
 
                     {/* Center Panel: Chart */}
                     <div className="col-span-7">
-                        <div className={`h-full rounded-xl border ${mode === 'REPLAY' ? 'border-amber-900/30' : 'border-white/[0.06]'} bg-white/[0.02] p-4 flex flex-col`}>
+                        <div className="h-full rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 flex flex-col">
                             {/* Chart Header */}
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
@@ -421,58 +322,29 @@ export default function TerminalView({
                                     <span className="text-sm text-gray-400">
                                         {assetType.charAt(0).toUpperCase() + assetType.slice(1)} Chart
                                     </span>
-                                    {mode === 'REPLAY' ? (
-                                        <span className="text-[10px] text-amber-500 px-2 py-0.5 bg-amber-950/30 rounded font-bold">
-                                            REPLAY MODE
-                                        </span>
-                                    ) : provider && (
+                                    {provider && (
                                         <span className="text-[10px] text-gray-600 px-2 py-0.5 bg-white/[0.03] rounded">
                                             via {provider}
                                         </span>
                                     )}
                                 </div>
 
-                                {mode === 'REPLAY' && replayEngine.current ? (
-                                    <ReplayControls
-                                        isPlaying={replayState.isPlaying}
-                                        progress={replayState.progress}
-                                        speed={replayState.speed}
-                                        currentTime={replayState.currentTime}
-                                        onPlayPause={() => {
-                                            if (replayState.isPlaying) replayEngine.current?.pause();
-                                            else replayEngine.current?.start();
-                                            setReplayState(s => ({ ...s, isPlaying: !s.isPlaying }));
-                                        }}
-                                        onReset={() => {
-                                            replayEngine.current?.stop();
-                                            setReplayState(s => ({ ...s, isPlaying: false, progress: 0 }));
-                                        }}
-                                        onSpeedChange={(s) => {
-                                            replayEngine.current?.setSpeed(s);
-                                            setReplayState(prev => ({ ...prev, speed: s }));
-                                        }}
-                                        onSeek={(pct) => {
-                                            const idx = Math.floor(pct * liveOHLCV.length);
-                                            replayEngine.current?.seek(idx);
-                                        }}
-                                    />
-                                ) : (
-                                    <div className="flex items-center gap-2 text-[10px] text-gray-500">
-                                        <div className="flex items-center gap-1">
-                                            <div className="w-3 h-0.5 bg-[#00d4ff]" />
-                                            <span>EMA 20</span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <div className="w-3 h-0.5 bg-[#ff6b35]" />
-                                            <span>EMA 50</span>
-                                        </div>
+                                {/* Indicators legend */}
+                                <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                                    <div className="flex items-center gap-1">
+                                        <div className="w-3 h-0.5 bg-[#00d4ff]" />
+                                        <span>EMA 20</span>
                                     </div>
-                                )}
+                                    <div className="flex items-center gap-1">
+                                        <div className="w-3 h-0.5 bg-[#ff6b35]" />
+                                        <span>EMA 50</span>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Chart */}
                             <div className="flex-1 min-h-[400px] relative">
-                                {liveLoading && mode === 'LIVE' ? (
+                                {liveLoading ? (
                                     <div className="h-full flex items-center justify-center">
                                         <div className="text-gray-500">Loading chart data...</div>
                                     </div>
@@ -535,15 +407,6 @@ export default function TerminalView({
                     </div>
                 </div>
             </div>
-
-            {/* History Panel (Shows when replay hits historical event) */}
-            <HistoryPanel
-                event={currentEvent}
-                onContinue={continueReplay}
-                onClose={closePanel}
-                chapterNumber={currentChapter}
-                totalChapters={totalChapters}
-            />
         </div>
     );
 }
