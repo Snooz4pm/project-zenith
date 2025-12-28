@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
 
 interface CreateRoomModalProps {
   isOpen: boolean;
@@ -26,6 +26,7 @@ export default function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoo
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [maxMembers, setMaxMembers] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   // Auto-generate slug from name
   function handleNameChange(value: string) {
@@ -57,7 +58,11 @@ export default function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoo
       });
       handleClose();
     } catch (error: any) {
-      alert(error?.message || 'Failed to create room');
+      if (error?.message?.includes('slug')) {
+        setError('A room with this name/URL already exists. Please choose another.');
+      } else {
+        setError(error?.message || 'Failed to create room');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -71,6 +76,7 @@ export default function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoo
     setIsPublic(true);
     setRequiresApproval(false);
     setMaxMembers('');
+    setError('');
     onClose();
   }
 
@@ -94,6 +100,13 @@ export default function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoo
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-500 flex items-center gap-2">
+                <AlertTriangle size={16} />
+                {error}
+              </div>
+            )}
+
             {/* Room Name */}
             <div>
               <label className="block text-sm font-medium text-zinc-300 mb-2">
@@ -162,11 +175,10 @@ export default function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoo
                     key={type}
                     type="button"
                     onClick={() => setMarketType(type)}
-                    className={`px-4 py-2.5 rounded-lg border transition-colors capitalize ${
-                      marketType === type
-                        ? 'border-[var(--accent-mint)] bg-[var(--accent-mint)]/10 text-white'
-                        : 'border-white/10 bg-white/5 text-zinc-400 hover:border-white/20'
-                    }`}
+                    className={`px-4 py-2.5 rounded-lg border transition-colors capitalize ${marketType === type
+                      ? 'border-[var(--accent-mint)] bg-[var(--accent-mint)]/10 text-white'
+                      : 'border-white/10 bg-white/5 text-zinc-400 hover:border-white/20'
+                      }`}
                   >
                     {type}
                   </button>
@@ -218,8 +230,8 @@ export default function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoo
                     {requiresApproval
                       ? 'You review and approve join requests'
                       : !isPublic
-                      ? '⚠️ Warning: Private invite-only (members cannot request)'
-                      : 'Anyone can join instantly'}
+                        ? '⚠️ Warning: Private invite-only (members cannot request)'
+                        : 'Anyone can join instantly'}
                   </p>
                 </div>
               </div>

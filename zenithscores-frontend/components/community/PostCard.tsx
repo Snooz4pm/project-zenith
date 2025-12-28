@@ -18,6 +18,7 @@ interface PostCardProps {
     body: string;
     asset?: string | null;
     marketType?: string | null;
+    imageUrl?: string | null;
     postType: string;
     resolved?: boolean;
     commentCount: number;
@@ -43,6 +44,7 @@ export default function PostCard({
     body,
     asset,
     marketType,
+    imageUrl,
     postType,
     resolved,
     commentCount,
@@ -150,6 +152,21 @@ export default function PostCard({
             <p className="text-sm text-zinc-400 line-clamp-3 mb-4">
                 {body}
             </p>
+
+            {/* Attached Image */}
+            {imageUrl && (
+                <div className="mb-4 rounded-lg overflow-hidden border border-white/10 bg-black/20">
+                    <img
+                        src={imageUrl}
+                        alt="Post attachment"
+                        className="w-full h-auto max-h-[400px] object-contain"
+                        loading="lazy"
+                        onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                    />
+                </div>
+            )}
 
             {/* Reactions */}
             {reactions.length > 0 && (

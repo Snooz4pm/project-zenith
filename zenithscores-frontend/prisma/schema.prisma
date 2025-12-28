@@ -959,6 +959,7 @@ model CommunityPost {
   postType    String   @default("insight") @db.VarChar(20) // question / insight / thesis
   title       String   @db.VarChar(200)
   body        String   @db.VarChar(2000)
+  imageUrl    String?  @db.Text
   resolved    Boolean  @default(false) // For questions
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -98,7 +98,7 @@ export default function RoomFeed({ room: initialRoom, userId, isMember: initialI
   }
 
   function handleManageRoom() {
-    router.push(`/community/rooms/${initialRoom.slug}/manage`);
+    router.push(`/community/rooms/${initialRoom.slug}/settings`);
   }
 
   // Not a member screen
@@ -140,8 +140,8 @@ export default function RoomFeed({ room: initialRoom, userId, isMember: initialI
                 {isJoining
                   ? 'Joining...'
                   : initialRoom.requiresApproval
-                  ? 'Request to Join'
-                  : 'Join Room'
+                    ? 'Request to Join'
+                    : 'Join Room'
                 }
               </button>
             ) : (
@@ -211,7 +211,7 @@ export default function RoomFeed({ room: initialRoom, userId, isMember: initialI
                 <div key={req.id} className="flex items-center justify-between text-sm">
                   <span className="text-zinc-400">{req.user.name}</span>
                   <button
-                    onClick={() => router.push(`/community/rooms/${initialRoom.slug}/manage`)}
+                    onClick={() => router.push(`/community/rooms/${initialRoom.slug}/settings`)}
                     className="text-[var(--accent-mint)] hover:underline text-xs"
                   >
                     Review
@@ -245,6 +245,7 @@ export default function RoomFeed({ room: initialRoom, userId, isMember: initialI
                 body={post.body}
                 asset={post.asset}
                 marketType={post.marketType}
+                imageUrl={post.imageUrl}
                 postType={post.postType}
                 resolved={post.resolved}
                 commentCount={post._count.comments}
@@ -261,6 +262,7 @@ export default function RoomFeed({ room: initialRoom, userId, isMember: initialI
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSubmit={handleCreatePost}
+          allowImages={true}
         />
       </div>
     </div>

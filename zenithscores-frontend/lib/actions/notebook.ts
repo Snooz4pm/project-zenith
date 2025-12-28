@@ -302,3 +302,80 @@ export async function getMissionWithUpdates(journalId: string, userId: string) {
         return null;
     }
 }
+
+// ============================================
+// COURSE NOTES - Learning System Integration
+// ============================================
+
+/**
+ * Save a course note from the scratchpad to the Notebook.
+ * Uses type: 'course_note' to distinguish from trading missions.
+ */
+export async function saveCourseNote(
+    userId: string,
+    content: string,
+    metadata: {
+        source: 'course';
+        courseId: string;
+        courseTitle: string;
+        moduleId?: string;
+        moduleTitle?: string;
+        timestamp?: number;
+    }
+) {
+    try {
+        // Create journal entry with course context
+        const journal = await prisma.tradeJournal.create({
+            data: {
+                userId,
+                title: `${metadata.courseTitle}${metadata.moduleTitle ? ` › ${metadata.moduleTitle}` : ''}`,
+                type: 'course_note',
+                status: 'ARCHIVED', // Course notes are immediately archived
+                liveLog: [{
+                    id: crypto.randomUUID(),
+                    timestamp: metadata.timestamp || Date.now(),
+                    content,
+                    sentiment: 'neutral'
+                }] as any,
+                marketContext: {
+                    source: metadata.source,
+                    courseId: metadata.courseId,
+                    courseTitle: metadata.courseTitle,
+                    moduleId: metadata.moduleId,
+                    moduleTitle: metadata.moduleTitle,
+                    capturedAt: new Date().toISOString()
+                } as any,
+                tags: ['course', metadata.courseId, metadata.moduleId].filter(Boolean)
+            }
+        });
+
+        revalidatePath('/notebook');
+        return { success: true, data: journal };
+    } catch (error) {
+        console.error('Failed to save course note:', error);
+        return { success: false, error: 'Failed to save note to Notebook' };
+    }
+}
+
+/**
+ * Get all course notes for a specific course (for review).
+ */
+export async function getCourseNotes(userId: string, courseId: string) {
+    try {
+        const notes = await prisma.tradeJournal.findMany({
+            where: {
+                userId,
+                type: 'course_note',
+                tags: {
+                    has: courseId
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        return notes;
+    } catch (error) {
+        console.error('Failed to get course notes:', error);
+        return [];
+    }
+}

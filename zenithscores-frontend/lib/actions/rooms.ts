@@ -409,6 +409,7 @@ export async function createRoomPost(
     postType?: 'question' | 'insight' | 'thesis';
     asset?: string;
     marketType?: string;
+    imageUrl?: string;
   }
 ) {
   if (!userId) throw new Error('Unauthorized');
@@ -433,7 +434,8 @@ export async function createRoomPost(
         marketType: input.marketType || null,
         postType: input.postType || 'insight',
         title: input.title.trim(),
-        body: input.body.trim()
+        body: input.body.trim(),
+        imageUrl: input.imageUrl || null
       },
       include: {
         author: { select: { id: true, name: true, image: true } },
@@ -472,5 +474,48 @@ export async function deleteRoom(userId: string, roomId: string) {
   await prisma.room.delete({ where: { id: roomId } });
 
   revalidatePath('/community');
+  return { success: true };
+}
+
+export async function updateRoom(
+  userId: string,
+  roomId: string,
+  data: {
+    name?: string;
+    description?: string;
+    isPublic?: boolean;
+    requiresApproval?: boolean;
+    maxMembers?: number | null;
+  }
+) {
+  if (!userId) throw new Error('Unauthorized');
+
+  const room = await prisma.room.findUnique({ where: { id: roomId } });
+  if (!room) throw new Error('Room not found');
+  if (room.isSystem) throw new Error('Cannot update system rooms');
+  if (room.creatorId !== userId) throw new Error('Not authorized');
+
+  if (data.name && data.name.length > 100) {
+    throw new Error('Name too long (max 100 chars)');
+  }
+  if (data.description && data.description.length > 300) {
+    throw new Error('Description too long (max 300 chars)');
+  }
+
+  await prisma.room.update({
+    where: { id: roomId },
+    data: {
+      name: data.name,
+      description: data.description,
+      isPublic: data.isPublic,
+      requiresApproval: data.requiresApproval,
+      maxMembers: data.maxMembers
+    }
+  });
+
+  revalidatePath('/community');
+  revalidatePath(`/community/rooms/${room.slug}`);
+  revalidatePath(`/community/rooms/${room.slug}/settings`);
+
   return { success: true };
 }
