@@ -12,7 +12,7 @@ import { AssetType } from '@/lib/market-data/types';
 interface UseHistoryReplayProps {
     symbol: string;
     assetType: AssetType;
-    candles: Array<{ timestamp: number }>; // OHLCV with timestamp
+    candles: Array<{ time: number }>; // OHLCV with time (Unix seconds)
     isPlaying: boolean;
     currentIndex: number;
     onPause: () => void;
@@ -57,7 +57,7 @@ export function useHistoryReplay({
         if (!isPlaying || !candles[currentIndex]) return;
         if (state.currentEvent) return; // Already showing an event
 
-        const timestamp = candles[currentIndex].timestamp;
+        const timestamp = candles[currentIndex].time;
         const event = isEventDate(timestamp, events);
 
         if (event && !state.seenEventIds.has(event.id)) {

@@ -25,6 +25,10 @@ import { useMarketContext } from '@/hooks/useMarketContext';
 import DeepDiveModal from '@/components/terminal/DeepDiveModal';
 import JournalModal from '@/components/journal/JournalModal';
 import ChartPriceDisplay from '@/components/market/ChartPriceDisplay';
+import HistoryPanel from '@/components/history/HistoryPanel';
+import HistoryModeButton from '@/components/history/HistoryModeButton';
+import { useHistoryReplay } from '@/hooks/useHistoryReplay';
+import { getEventsForAsset } from '@/lib/history/events';
 
 // Dynamic import for chart to avoid SSR issues
 const ZenithChartPro = dynamic(() => import('@/components/chart-engine/ZenithChartPro'), { ssr: false });
@@ -149,6 +153,41 @@ export default function TerminalView({
             setReplayData([]);
         }
     }, [mode, liveOHLCV]);
+
+    // --- 2b. HISTORY MODE (Event-based pausing) ---
+    const historyEvents = useMemo(() =>
+        getEventsForAsset(symbol, assetType),
+        [symbol, assetType]
+    );
+
+    const currentReplayIndex = useMemo(() => {
+        if (mode !== 'REPLAY') return 0;
+        return Math.floor(replayState.progress * liveOHLCV.length);
+    }, [mode, replayState.progress, liveOHLCV.length]);
+
+    const {
+        isHistoryMode,
+        currentEvent,
+        currentChapter,
+        totalChapters,
+        continueReplay,
+        closePanel,
+        hasEvents
+    } = useHistoryReplay({
+        symbol,
+        assetType,
+        candles: liveOHLCV,
+        isPlaying: replayState.isPlaying,
+        currentIndex: currentReplayIndex,
+        onPause: () => {
+            replayEngine.current?.pause();
+            setReplayState(s => ({ ...s, isPlaying: false }));
+        },
+        onResume: () => {
+            replayEngine.current?.start();
+            setReplayState(s => ({ ...s, isPlaying: true }));
+        }
+    });
 
     // --- 3. HARMONIZED DATA ---
     const activeData = mode === 'LIVE' ? liveOHLCV : replayData;
@@ -496,6 +535,15 @@ export default function TerminalView({
                     </div>
                 </div>
             </div>
+
+            {/* History Panel (Shows when replay hits historical event) */}
+            <HistoryPanel
+                event={currentEvent}
+                onContinue={continueReplay}
+                onClose={closePanel}
+                chapterNumber={currentChapter}
+                totalChapters={totalChapters}
+            />
         </div>
     );
 }
