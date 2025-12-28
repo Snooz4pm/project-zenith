@@ -50,6 +50,9 @@ export default function ZenithChartPro({
         candleWidth: 10 // Px per candle
     });
 
+    // Chart Mode: Expert (candles) vs Overview (line)
+    const [chartMode, setChartMode] = useState<'expert' | 'overview'>('expert');
+
     // Market State (Pure Calculation)
     const marketState = useMemo(() => computeMarketState(candles), [candles]);
 
@@ -90,7 +93,8 @@ export default function ZenithChartPro({
             dpi: window.devicePixelRatio || 1,
             colors: DEFAULT_THEME,
             fonts: { axis: '10px monospace', crosshair: '10px monospace' },
-            padding: { top: 20, right: 50, bottom: 20, left: 0 }
+            padding: { top: 20, right: 50, bottom: 20, left: 0 },
+            mode: chartMode // Chart mode switch
         };
 
         // Render
@@ -196,6 +200,29 @@ export default function ZenithChartPro({
                 onMouseLeave={handleMouseUp}
                 onWheel={handleWheel}
             />
+
+            {/* Chart Mode Toggle */}
+            <div className="absolute top-3 right-3 z-10 flex rounded-full bg-black/60 backdrop-blur border border-white/10 p-1">
+                <button
+                    onClick={() => setChartMode('expert')}
+                    className={`px-3 py-1 text-xs rounded-full transition-all ${chartMode === 'expert'
+                            ? 'bg-white text-black font-medium'
+                            : 'text-white/70 hover:text-white'
+                        }`}
+                >
+                    Expert
+                </button>
+                <button
+                    onClick={() => setChartMode('overview')}
+                    className={`px-3 py-1 text-xs rounded-full transition-all ${chartMode === 'overview'
+                            ? 'bg-blue-500 text-white font-medium'
+                            : 'text-white/70 hover:text-white'
+                        }`}
+                >
+                    Overview
+                </button>
+            </div>
+
             {/* Overlay Elements (Tooltip, etc) can go here */}
         </div>
     );

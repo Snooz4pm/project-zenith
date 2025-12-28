@@ -35,6 +35,14 @@ export function renderChart(
     // 1. Clear
     ctx.clearRect(0, 0, dimensions.width, dimensions.height);
 
+    // MODE SWITCH: Overview = clean blue line chart
+    if (config.mode === 'overview') {
+        renderOverviewChart(ctx, candles, viewport, config, dimensions, minPrice, maxPrice, visibleStartIndex, visibleEndIndex);
+        return;
+    }
+
+    // EXPERT MODE: Full candlestick chart
+
     // Fill Background
     ctx.fillStyle = config.colors.background;
     ctx.fillRect(0, 0, dimensions.width, dimensions.height);
@@ -63,6 +71,83 @@ export function renderChart(
     if (candles.length > 0) {
         const lastCandle = candles[candles.length - 1];
         drawPriceLine(ctx, lastCandle.close, minPrice, maxPrice, dimensions, config);
+    }
+}
+
+/**
+ * Overview Mode - Clean blue line chart (beginner friendly)
+ */
+function renderOverviewChart(
+    ctx: CanvasRenderingContext2D,
+    candles: MarketCandle[],
+    viewport: Viewport,
+    config: EngineConfig,
+    dimensions: ChartDimensions,
+    minPrice: number,
+    maxPrice: number,
+    startIndex: number,
+    endIndex: number
+) {
+    const { width, height } = dimensions;
+
+    // 1. Gradient background
+    const gradient = ctx.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, '#0A1025');
+    gradient.addColorStop(0.5, '#0A1525');
+    gradient.addColorStop(1, '#0A1B20');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+
+    // 2. Build price path
+    const closePrices = candles.map(c => c.close);
+
+    // 3. Draw glow (thicker, blurred line)
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(96, 165, 250, 0.25)';
+    ctx.lineWidth = 6;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    drawPricePath(ctx, closePrices, startIndex, endIndex, viewport, minPrice, maxPrice, dimensions, config);
+    ctx.stroke();
+
+    // 4. Draw main line
+    ctx.beginPath();
+    ctx.strokeStyle = '#E5ECFF';
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    drawPricePath(ctx, closePrices, startIndex, endIndex, viewport, minPrice, maxPrice, dimensions, config);
+    ctx.stroke();
+}
+
+function drawPricePath(
+    ctx: CanvasRenderingContext2D,
+    prices: number[],
+    startIndex: number,
+    endIndex: number,
+    viewport: Viewport,
+    minPrice: number,
+    maxPrice: number,
+    dimensions: ChartDimensions,
+    config: EngineConfig
+) {
+    let started = false;
+    const drawStart = Math.max(0, startIndex - 1);
+    const drawEnd = Math.min(prices.length - 1, endIndex + 1);
+
+    for (let i = drawStart; i <= drawEnd; i++) {
+        const val = prices[i];
+        if (val === undefined || isNaN(val)) continue;
+
+        const x = indexToX(i, viewport.offset, viewport.candleWidth, config.padding.left);
+        const y = priceToY(val, minPrice, maxPrice, dimensions.chartHeight, config.padding.top, config.padding.bottom);
+
+        if (!started) {
+            ctx.moveTo(x, y);
+            started = true;
+        } else {
+            ctx.lineTo(x, y);
+        }
     }
 }
 

@@ -34,6 +34,7 @@ export interface EngineConfig {
         bottom: number;
         left: number;
     };
+    mode?: 'expert' | 'overview';
 }
 
 export const DEFAULT_THEME: EngineConfig['colors'] = {
