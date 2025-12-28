@@ -13,7 +13,7 @@ const AssetPicker = dynamic(() => import('@/components/AssetPicker'), { ssr: fal
 import {
     TrendingUp, TrendingDown, Wallet, BarChart3,
     Trophy, History, Activity, Bell, Users, Share2, CheckCircle,
-    ArrowRight, Lock, DollarSign, Shield, Zap
+    ArrowRight, Lock, DollarSign, Shield, Zap, AlertCircle
 } from 'lucide-react';
 
 // Types
@@ -640,91 +640,130 @@ export default function TradingPage() {
             {/* Trade Modal */}
             <AnimatePresence>
                 {showTradeModal && selectedAsset && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-[#0a0a0f] border border-[rgba(255,255,255,0.1)] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="bg-[#121218] border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative"
                         >
-                            <div className="p-6 border-b border-[rgba(255,255,255,0.05)] flex justify-between items-center bg-[rgba(255,255,255,0.02)]">
+                            {/* Modal Header */}
+                            <div className="p-6 pb-4 border-b border-white/5 flex justify-between items-center bg-gradient-to-b from-white/5 to-transparent">
                                 <div>
-                                    <h3 className="text-xl font-bold text-white flex items-center gap-2" style={{ fontFamily: "var(--font-display)" }}>
-                                        {tradeType === 'buy' ? 'LONG' : 'SHORT'} {selectedAsset.symbol}
+                                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                        <span className={`inline-block w-2 h-6 rounded-full ${tradeType === 'buy' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                        {tradeType === 'buy' ? 'Open Long' : 'Open Short'}
+                                        <span className="text-zinc-500 font-medium">/</span>
+                                        <span className="text-white">{selectedAsset.symbol}</span>
                                     </h3>
-                                    <p className="text-xs text-[var(--text-secondary)]">Current: {formatCurrency(selectedAsset.current_price)}</p>
+                                    <p className="text-sm text-zinc-400 mt-1 pl-4">Market Price: <span className="text-white font-mono">{formatCurrency(selectedAsset.current_price)}</span></p>
                                 </div>
-                                <button onClick={() => setShowTradeModal(false)} className="p-2 hover:bg-[rgba(255,255,255,0.1)] rounded-lg text-[var(--text-muted)]">
+                                <button
+                                    onClick={() => setShowTradeModal(false)}
+                                    className="p-2 hover:bg-white/10 rounded-full text-zinc-400 hover:text-white transition-all"
+                                >
                                     <ArrowRight size={20} className="rotate-45" />
                                 </button>
                             </div>
 
-                            <div className="p-6 space-y-4">
-                                <div className="grid grid-cols-2 gap-2 bg-[rgba(255,255,255,0.05)] p-1 rounded-xl">
+                            {/* Modal Body */}
+                            <div className="p-6 space-y-6">
+                                {/* Side Selector */}
+                                <div className="grid grid-cols-2 gap-2 bg-black/20 p-1.5 rounded-2xl border border-white/5">
                                     <button
                                         onClick={() => setTradeType('buy')}
-                                        className={`py-2 rounded-lg font-bold text-sm transition-all ${tradeType === 'buy' ? 'bg-[var(--accent-mint)] text-black' : 'text-[var(--text-secondary)] hover:text-white'}`}
+                                        className={`py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${tradeType === 'buy' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
                                     >
-                                        Buy / Long
+                                        <TrendingUp size={16} /> Buy / Long
                                     </button>
                                     <button
                                         onClick={() => setTradeType('sell')}
-                                        className={`py-2 rounded-lg font-bold text-sm transition-all ${tradeType === 'sell' ? 'bg-[var(--accent-danger)] text-white' : 'text-[var(--text-secondary)] hover:text-white'}`}
+                                        className={`py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${tradeType === 'sell' ? 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
                                     >
-                                        Sell / Short
+                                        <TrendingDown size={16} /> Sell / Short
                                     </button>
                                 </div>
 
+                                {/* Quantity Input */}
                                 <div>
-                                    <label className="text-xs text-[var(--text-secondary)] mb-1 block uppercase tracking-wider">Quantity</label>
-                                    <input
-                                        type="number"
-                                        value={quantity}
-                                        onChange={(e) => setQuantity(e.target.value)}
-                                        className="w-full bg-[rgba(0,0,0,0.5)] border border-[rgba(255,255,255,0.1)] rounded-xl py-3 px-4 text-white font-mono focus:border-[var(--accent-mint)] outline-none transition-colors"
-                                        placeholder="0.00"
-                                    />
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Position Size (USD)</label>
+                                        <div className="text-xs text-zinc-500">Balance: $12,450.00</div>
+                                    </div>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 font-mono">$</span>
+                                        <input
+                                            type="number"
+                                            value={quantity}
+                                            onChange={(e) => setQuantity(e.target.value)}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-8 pr-4 text-white font-mono text-lg focus:border-white/20 focus:bg-white/10 outline-none transition-all placeholder-zinc-700"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
                                 </div>
 
+                                {/* Risk Management */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="text-xs text-[var(--text-secondary)] mb-1 block uppercase tracking-wider">Stop Loss</label>
-                                        <input
-                                            type="number"
-                                            value={stopLoss}
-                                            onChange={(e) => setStopLoss(e.target.value)}
-                                            className="w-full bg-[rgba(0,0,0,0.5)] border border-[rgba(255,255,255,0.1)] rounded-xl py-3 px-4 text-white font-mono focus:border-[var(--accent-danger)] outline-none transition-colors"
-                                            placeholder="Optional"
-                                        />
+                                        <label className="text-xs font-bold text-zinc-400 mb-2 block uppercase tracking-wider">Stop Loss</label>
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                value={stopLoss}
+                                                onChange={(e) => setStopLoss(e.target.value)}
+                                                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white font-mono text-sm focus:border-red-500/50 outline-none transition-all placeholder-zinc-700"
+                                                placeholder="Price"
+                                            />
+                                        </div>
                                     </div>
                                     <div>
-                                        <label className="text-xs text-[var(--text-secondary)] mb-1 block uppercase tracking-wider">Take Profit</label>
-                                        <input
-                                            type="number"
-                                            value={takeProfit}
-                                            onChange={(e) => setTakeProfit(e.target.value)}
-                                            className="w-full bg-[rgba(0,0,0,0.5)] border border-[rgba(255,255,255,0.1)] rounded-xl py-3 px-4 text-white font-mono focus:border-[var(--accent-mint)] outline-none transition-colors"
-                                            placeholder="Optional"
-                                        />
+                                        <label className="text-xs font-bold text-zinc-400 mb-2 block uppercase tracking-wider">Take Profit</label>
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                value={takeProfit}
+                                                onChange={(e) => setTakeProfit(e.target.value)}
+                                                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white font-mono text-sm focus:border-emerald-500/50 outline-none transition-all placeholder-zinc-700"
+                                                placeholder="Price"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
-                                {tradeError && (
-                                    <div className="p-3 bg-[var(--accent-danger)]/10 border border-[var(--accent-danger)]/20 rounded-lg text-[var(--accent-danger)] text-sm">
-                                        {tradeError}
-                                    </div>
-                                )}
+                                {/* Summary & Action */}
+                                <div className="pt-2">
+                                    {tradeError && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm"
+                                        >
+                                            <AlertCircle size={16} />
+                                            {tradeError}
+                                        </motion.div>
+                                    )}
 
-                                <button
-                                    onClick={executeTrade}
-                                    disabled={executing}
-                                    className={`w-full py-4 rounded-xl font-bold text-lg shadow-[0_0_20px_rgba(0,0,0,0.2)] transition-all transform active:scale-95 ${tradeType === 'buy'
-                                            ? 'bg-[var(--accent-mint)] text-black hover:bg-[#00c97b] hover:shadow-[0_0_30px_rgba(20,241,149,0.3)]'
-                                            : 'bg-[var(--accent-danger)] text-white hover:bg-red-600 hover:shadow-[0_0_30px_rgba(239,68,68,0.3)]'
-                                        }`}
-                                >
-                                    {executing ? 'Executing...' : `Confirm ${tradeType === 'buy' ? 'Buy' : 'Sell'}`}
-                                </button>
+                                    <button
+                                        onClick={executeTrade}
+                                        disabled={executing}
+                                        className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all transform active:scale-[0.98] flex items-center justify-center gap-3 ${tradeType === 'buy'
+                                            ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:shadow-emerald-500/25 border border-emerald-400/20'
+                                            : 'bg-gradient-to-r from-red-500 to-red-600 text-white hover:shadow-red-500/25 border border-red-400/20'
+                                            } ${executing ? 'opacity-80 cursor-wait' : ''}`}
+                                    >
+                                        {executing ? (
+                                            <>
+                                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                Processing...
+                                            </>
+                                        ) : (
+                                            <>
+                                                {tradeType === 'buy' ? 'Confirm Long Order' : 'Confirm Short Order'}
+                                                <ArrowRight size={20} />
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     </div>
