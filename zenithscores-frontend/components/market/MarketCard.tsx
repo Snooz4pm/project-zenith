@@ -273,65 +273,96 @@ export default function MarketCard({
     return (
         <Link href={href}>
             <motion.div
-                whileHover={{ y: -2, boxShadow: '0 4px 20px -8px rgba(0,0,0,0.6)' }}
-                transition={{ duration: 0.2 }}
+                whileHover={{ scale: 1.02, boxShadow: '0 8px 30px -8px rgba(0,0,0,0.8)' }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
                 onClick={onClick}
-                className="relative bg-zinc-900/80 backdrop-blur rounded-xl border border-zinc-800/50 overflow-hidden group cursor-pointer"
+                className="relative bg-gradient-to-br from-zinc-900 to-zinc-950 backdrop-blur rounded-2xl border border-zinc-800/60 overflow-hidden group cursor-pointer shadow-lg"
             >
-                {/* Regime bar (MANDATORY) */}
+                {/* Regime bar with glow effect */}
                 <div
-                    className="absolute top-0 left-0 h-[2px] w-full"
-                    style={{ backgroundColor: color }}
+                    className="absolute top-0 left-0 h-[3px] w-full"
+                    style={{
+                        backgroundColor: color,
+                        boxShadow: `0 0 10px ${color}40`
+                    }}
                 />
 
                 {/* Card content */}
-                <div className="p-4">
-                    {/* Symbol + Name */}
-                    <div className="mb-3">
-                        <h3 className="text-lg font-bold text-white">{symbol}</h3>
-                        {name && (
-                            <p className="text-xs text-zinc-400">{name}</p>
-                        )}
+                <div className="p-5">
+                    {/* Header: Symbol + Asset Type Badge */}
+                    <div className="flex items-start justify-between mb-4">
+                        <div>
+                            <h3 className="text-xl font-bold text-white tracking-tight">{symbol}</h3>
+                            {name && (
+                                <p className="text-xs text-zinc-500 mt-0.5">{name}</p>
+                            )}
+                        </div>
+                        <span className="px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider bg-zinc-800/50 text-zinc-400 rounded-md border border-zinc-700/50">
+                            {assetType}
+                        </span>
                     </div>
 
-                    {/* Informative Mini-Chart */}
-                    <div className="mb-3 opacity-80 group-hover:opacity-100 transition-opacity">
-                        <InformativeMiniChart candles={candles.slice(-60)} color={color} />
+                    {/* Informative Mini-Chart with subtle glow */}
+                    <div className="mb-4 -mx-2 px-2 opacity-90 group-hover:opacity-100 transition-all duration-300">
+                        <div style={{ filter: `drop-shadow(0 0 8px ${color}15)` }}>
+                            <InformativeMiniChart candles={candles.slice(-60)} color={color} />
+                        </div>
                     </div>
 
-                    {/* Price */}
-                    <div className="text-2xl font-bold text-white mb-1">
-                        {formattedPrice}
+                    {/* Price + Change */}
+                    <div className="mb-4 flex items-baseline gap-3">
+                        <div className="text-3xl font-bold text-white tracking-tight">
+                            {formattedPrice}
+                        </div>
+                        <div className={`text-sm font-semibold ${changePct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%
+                        </div>
                     </div>
 
-                    {/* Session state */}
-                    <div className="text-xs text-zinc-500 mb-3">
-                        Session: <span className="text-zinc-400">{sessionState}</span>
+                    {/* Session state with icon */}
+                    <div className="text-xs text-zinc-500 mb-3 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-600"></span>
+                        <span className="text-zinc-400">{sessionState}</span>
                     </div>
+
+                    {/* Divider */}
+                    <div className="h-px bg-gradient-to-r from-transparent via-zinc-800 to-transparent mb-3"></div>
 
                     {/* Confidence or Neutral */}
-                    <div className="mb-1">
+                    <div className="flex items-center justify-between mb-2">
                         {showConfidence ? (
-                            <span className={`text-sm font-medium ${confidenceColor} px-2 py-1 rounded`}>
-                                {confidence} · {confidenceLabel}
+                            <span className={`text-xs font-semibold ${confidenceColor} px-2.5 py-1.5 rounded-lg`}>
+                                {confidence}% · {confidenceLabel}
                             </span>
                         ) : (
-                            <span className="text-sm text-zinc-400">
-                                Neutral
+                            <span className="text-xs font-medium text-zinc-500 bg-zinc-800/30 px-2.5 py-1.5 rounded-lg">
+                                Neutral Signal
                             </span>
                         )}
+
+                        {/* Regime badge (small) */}
+                        <span
+                            className="text-[10px] font-medium px-2 py-1 rounded-md capitalize opacity-70"
+                            style={{
+                                backgroundColor: `${color}15`,
+                                color: color,
+                                border: `1px solid ${color}30`
+                            }}
+                        >
+                            {regimeText}
+                        </span>
                     </div>
 
-                    {/* Insight line (THE HOOK) */}
-                    <div className="text-xs text-zinc-500">
-                        {insight}
-                    </div>
-
-                    {/* Regime text (quiet) */}
-                    <div className="mt-2 text-[10px] text-zinc-600 capitalize">
-                        {regimeText}
+                    {/* Insight line (THE HOOK) - more prominent */}
+                    <div className="text-xs font-medium text-zinc-400 bg-zinc-900/50 px-3 py-2 rounded-lg border border-zinc-800/50">
+                        💡 {insight}
                     </div>
                 </div>
+
+                {/* Hover overlay effect */}
+                <div
+                    className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                />
             </motion.div>
         </Link>
     );

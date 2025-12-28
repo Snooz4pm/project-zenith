@@ -27,7 +27,6 @@ import {
     Drawing,
     ChartType,
     Indicator,
-    Timeframe,
     DrawingTool,
     LayoutPreset
 } from './engine/types';
@@ -46,43 +45,20 @@ import AlertCreationModal from './AlertCreationModal';
 import { usePriceAlert } from '@/hooks/usePriceAlert';
 import {
     Bell,
-    Settings,
-    Download,
-    Upload,
-    Maximize2,
-    Minimize2,
     LineChart,
     BarChart3,
     TrendingUp,
     Grid,
     Ruler,
-    Circle,
     Square,
-    Type,
-    ZoomIn,
-    ZoomOut,
-    RefreshCw,
-    Layers,
     Eye,
     EyeOff,
-    ChevronDown,
-    Clock,
     BarChart,
-    Activity,
-    AlertCircle,
-    Share2,
-    Copy,
-    Filter
+    Activity
 } from 'lucide-react';
 import IndicatorPanel from './components/IndicatorPanel';
 import DrawingToolbar from './components/DrawingToolbar';
-import TimeframeSelector from './components/TimeframeSelector';
-import LayoutSelector from './components/LayoutSelector';
 import CrosshairInfo from './components/CrosshairInfo';
-import ExportModal from './components/ExportModal';
-import ComparisonModal from './components/ComparisonModal';
-import ChartSettingsModal from './components/ChartSettingsModal';
-import QuickActionsMenu from './components/QuickActionsMenu';
 
 interface ZenithChartProProps {
     data: OHLCV[];
@@ -105,10 +81,6 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ReactNode }[] 
     { value: 'renko', label: 'Renko', icon: <Square size={16} /> },
     { value: 'point-figure', label: 'P&F', icon: <Grid size={16} /> },
     { value: 'hollow-candle', label: 'Hollow', icon: <Activity size={16} /> },
-];
-
-const TIMEFRAMES: Timeframe[] = [
-    '1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1M', '3M', '1y', 'custom'
 ];
 
 const LAYOUT_PRESETS: LayoutPreset[] = [
@@ -152,12 +124,10 @@ export default function ZenithChartPro({
     const [drawings, setDrawings] = useState<Drawing[]>(suggestions);
     const [activeDrawingTool, setActiveDrawingTool] = useState<DrawingTool | null>(null);
     const [currentDrawing, setCurrentDrawing] = useState<Drawing | null>(null);
-    const [timeframe, setTimeframe] = useState<Timeframe>('1d');
     const [layout, setLayout] = useState<LayoutPreset>(LAYOUT_PRESETS[1]); // Technical by default
     const [showVolume, setShowVolume] = useState(true);
     const [showGrid, setShowGrid] = useState(true);
     const [showCrosshair, setShowCrosshair] = useState(true);
-    const [isFullscreen, setIsFullscreen] = useState(false);
     const [marketState, setMarketState] = useState(() => computeMarketState(candles));
     const [dims, setDims] = useState({ width: 800, height });
     const [isDragging, setIsDragging] = useState(false);
@@ -165,7 +135,6 @@ export default function ZenithChartPro({
     const [crosshairPos, setCrosshairPos] = useState<{ x: number; y: number; price: number; time: Date | null } | null>(null);
     const [showIndicatorsPanel, setShowIndicatorsPanel] = useState(true);
     const [showDrawingToolbar, setShowDrawingToolbar] = useState(true);
-    const [selectedCandleIndex, setSelectedCandleIndex] = useState<number | null>(null);
 
     // Alert system state
     const [priceRange, setPriceRange] = useState({ min: 0, max: 100 });
@@ -173,11 +142,6 @@ export default function ZenithChartPro({
         isOpen: boolean;
         targetPrice: number;
     }>({ isOpen: false, targetPrice: 0 });
-
-    // Modals state
-    const [exportModalOpen, setExportModalOpen] = useState(false);
-    const [comparisonModalOpen, setComparisonModalOpen] = useState(false);
-    const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
     const { createAlert, isCreating } = usePriceAlert();
 
@@ -464,62 +428,6 @@ export default function ZenithChartPro({
         }
         return null;
     };
-
-    // Double-click to create alert or reset drawing
-    const handleDoubleClick = (e: React.MouseEvent) => {
-        if (activeDrawingTool) {
-            // Reset drawing tool on double-click
-            setActiveDrawingTool(null);
-            return;
-        }
-
-        const rect = canvasRef.current?.getBoundingClientRect();
-        if (!rect) return;
-
-        const y = e.clientY - rect.top;
-        const targetPrice = yToPrice(y);
-
-        setAlertModal({
-            isOpen: true,
-            targetPrice: Math.round(targetPrice * 100) / 100
-        });
-    };
-
-    // Zoom controls
-    const handleZoomIn = () => {
-        setViewport(prev => ({
-            ...prev,
-            scale: Math.min(prev.scale * 1.2, 5),
-            candleWidth: Math.min(prev.candleWidth * 1.2, 30)
-        }));
-    };
-
-    const handleZoomOut = () => {
-        setViewport(prev => ({
-            ...prev,
-            scale: Math.max(prev.scale / 1.2, 0.2),
-            candleWidth: Math.max(prev.candleWidth / 1.2, 3)
-        }));
-    };
-
-    const handleZoomReset = () => {
-        setViewport({
-            offset: Math.max(0, candles.length - 100),
-            scale: 1,
-            candleWidth: 12
-        });
-    };
-
-    const handleZoomTo = (days: number) => {
-        const candlesPerDay = 24; // Assuming hourly data
-        const visibleCandles = days * candlesPerDay;
-        setViewport({
-            offset: Math.max(0, candles.length - visibleCandles),
-            scale: 1,
-            candleWidth: dims.width / visibleCandles
-        });
-    };
-
     // Handle alert creation
     const handleAlertSubmit = async (alertData: {
         targetPrice: number;
@@ -542,29 +450,6 @@ export default function ZenithChartPro({
         });
     };
 
-    // Toggle fullscreen
-    const toggleFullscreen = () => {
-        if (!containerRef.current) return;
-
-        if (!isFullscreen) {
-            if (containerRef.current.requestFullscreen) {
-                containerRef.current.requestFullscreen();
-            }
-        } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            }
-        }
-        setIsFullscreen(!isFullscreen);
-    };
-
-    // Export chart data
-    const handleExport = (format: 'png' | 'svg' | 'csv' | 'json') => {
-        // Implementation for export functionality
-        console.log(`Exporting chart as ${format}`);
-        setExportModalOpen(false);
-    };
-
     // Clear all drawings
     const handleClearDrawings = () => {
         setDrawings([]);
@@ -576,7 +461,7 @@ export default function ZenithChartPro({
         <div
             ref={containerRef}
             className="relative w-full overflow-hidden bg-background transition-all duration-200"
-            style={{ height: isFullscreen ? '100vh' : height }}
+            style={{ height }}
         >
             <canvas
                 ref={canvasRef}
@@ -585,11 +470,10 @@ export default function ZenithChartPro({
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseLeave}
-                onDoubleClick={handleDoubleClick}
                 className="cursor-crosshair"
             />
 
-            {/* Top Control Bar */}
+            {/* Top Control Bar - Simplified */}
             <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-3 bg-gradient-to-b from-black/80 to-transparent">
                 <div className="flex items-center gap-2">
                     <span className="font-bold text-lg text-white">{symbol}</span>
@@ -601,28 +485,20 @@ export default function ZenithChartPro({
                     </span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <TimeframeSelector
-                        timeframes={TIMEFRAMES}
-                        selected={timeframe}
-                        onChange={setTimeframe}
-                    />
-
-                    <div className="flex items-center gap-1 bg-black/60 backdrop-blur border border-white/10 rounded-lg p-1">
-                        {CHART_TYPES.map((type) => (
-                            <button
-                                key={type.value}
-                                onClick={() => setChartType(type.value)}
-                                className={`p-2 rounded-md transition-all ${chartType === type.value
-                                    ? 'bg-white/20 text-white'
-                                    : 'text-white/60 hover:text-white hover:bg-white/10'
-                                    }`}
-                                title={type.label}
-                            >
-                                {type.icon}
-                            </button>
-                        ))}
-                    </div>
+                <div className="flex items-center gap-1 bg-black/60 backdrop-blur border border-white/10 rounded-lg p-1">
+                    {CHART_TYPES.map((type) => (
+                        <button
+                            key={type.value}
+                            onClick={() => setChartType(type.value)}
+                            className={`p-2 rounded-md transition-all ${chartType === type.value
+                                ? 'bg-white/20 text-white'
+                                : 'text-white/60 hover:text-white hover:bg-white/10'
+                                }`}
+                            title={type.label}
+                        >
+                            {type.icon}
+                        </button>
+                    ))}
                 </div>
             </div>
 
@@ -648,7 +524,7 @@ export default function ZenithChartPro({
                 </div>
             )}
 
-            {/* Bottom Control Bar */}
+            {/* Bottom Control Bar - Simplified */}
             <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-between p-3 bg-gradient-to-t from-black/80 to-transparent">
                 <div className="flex items-center gap-2">
                     <button
@@ -672,85 +548,15 @@ export default function ZenithChartPro({
                     >
                         <BarChart size={18} />
                     </button>
-
-                    <div className="h-6 w-px bg-white/20 mx-2"></div>
-
-                    <button
-                        onClick={handleZoomIn}
-                        className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
-                        title="Zoom In"
-                    >
-                        <ZoomIn size={18} />
-                    </button>
-                    <button
-                        onClick={handleZoomOut}
-                        className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
-                        title="Zoom Out"
-                    >
-                        <ZoomOut size={18} />
-                    </button>
-                    <button
-                        onClick={handleZoomReset}
-                        className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
-                        title="Reset Zoom"
-                    >
-                        <RefreshCw size={18} />
-                    </button>
-
-                    <div className="flex items-center gap-1 ml-2">
-                        <button
-                            onClick={() => handleZoomTo(1)}
-                            className="px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white"
-                        >
-                            1D
-                        </button>
-                        <button
-                            onClick={() => handleZoomTo(7)}
-                            className="px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white"
-                        >
-                            1W
-                        </button>
-                        <button
-                            onClick={() => handleZoomTo(30)}
-                            className="px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white"
-                        >
-                            1M
-                        </button>
-                        <button
-                            onClick={() => handleZoomTo(365)}
-                            className="px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 text-white"
-                        >
-                            1Y
-                        </button>
-                    </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setAlertModal({ isOpen: true, targetPrice: 0 })}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600/80 hover:bg-blue-500 text-white text-sm font-medium transition"
-                    >
-                        <Bell size={16} />
-                        Set Alert
-                    </button>
-
-                    <button
-                        onClick={toggleFullscreen}
-                        className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
-                        title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-                    >
-                        {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-                    </button>
-
-                    <QuickActionsMenu
-                        onExport={() => setExportModalOpen(true)}
-                        onCompare={() => setComparisonModalOpen(true)}
-                        onSettings={() => setSettingsModalOpen(true)}
-                        onLayoutChange={setLayout}
-                        layouts={LAYOUT_PRESETS}
-                        currentLayout={layout}
-                    />
-                </div>
+                <button
+                    onClick={() => setAlertModal({ isOpen: true, targetPrice: 0 })}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600/80 hover:bg-blue-500 text-white text-sm font-medium transition"
+                >
+                    <Bell size={16} />
+                    Set Alert
+                </button>
             </div>
 
             {/* Crosshair Info Display */}
@@ -760,15 +566,6 @@ export default function ZenithChartPro({
                     containerRef={crosshairRef}
                 />
             )}
-
-            {/* Layout Quick Switch */}
-            <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-20">
-                <LayoutSelector
-                    layouts={LAYOUT_PRESETS}
-                    selected={layout}
-                    onChange={setLayout}
-                />
-            </div>
 
             {/* Modals */}
             <AlertCreationModal
@@ -780,43 +577,13 @@ export default function ZenithChartPro({
                 currentPrice={currentPrice || (candles[candles.length - 1]?.close ?? 0)}
             />
 
-            <ExportModal
-                isOpen={exportModalOpen}
-                onClose={() => setExportModalOpen(false)}
-                onExport={handleExport}
-                symbol={symbol}
-            />
-
-            <ComparisonModal
-                isOpen={comparisonModalOpen}
-                onClose={() => setComparisonModalOpen(false)}
-                onAddSymbol={onComparisonAdd}
-                currentSymbol={symbol}
-                comparisonSymbols={comparisonSymbols}
-            />
-
-            <ChartSettingsModal
-                isOpen={settingsModalOpen}
-                onClose={() => setSettingsModalOpen(false)}
-                theme={theme}
-                onThemeChange={setTheme}
-                showGrid={showGrid}
-                onGridToggle={setShowGrid}
-                showVolume={showVolume}
-                onVolumeToggle={setShowVolume}
-                showCrosshair={showCrosshair}
-                onCrosshairToggle={setShowCrosshair}
-                candleWidth={viewport.candleWidth}
-                onCandleWidthChange={(width) => setViewport(prev => ({ ...prev, candleWidth: width }))}
-            />
-
             {/* Drawing Tool Indicator */}
             {activeDrawingTool && (
                 <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 px-4 py-2 bg-black/80 backdrop-blur rounded-full border border-white/20">
                     <div className="flex items-center gap-2 text-white text-sm">
                         <Ruler size={16} />
                         <span className="capitalize">{activeDrawingTool} Mode</span>
-                        <span className="text-white/60 text-xs">(Double-click to cancel)</span>
+                        <span className="text-white/60 text-xs">(Click to draw)</span>
                     </div>
                 </div>
             )}
