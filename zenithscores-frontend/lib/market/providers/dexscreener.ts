@@ -19,8 +19,17 @@ export async function fetchCrypto(symbol: string): Promise<MarketTick> {
         ['USDT', 'USDC', 'USD', 'DAI'].includes(p.quoteToken.symbol.toUpperCase())
     )
 
-    // Sort by 24h volume, fallback to liquidity
+    // Sort by: 1. Has Change Data, 2. Volume
     const sortedPairs = (validPairs.length > 0 ? validPairs : pairs).sort((a: any, b: any) => {
+        // Prioritize pairs that actually have 24h change data
+        const changeA = Math.abs(a.priceChange?.h24 || 0)
+        const changeB = Math.abs(b.priceChange?.h24 || 0)
+        const hasChangeA = changeA > 0 ? 1 : 0
+        const hasChangeB = changeB > 0 ? 1 : 0
+
+        if (hasChangeA !== hasChangeB) return hasChangeB - hasChangeA
+
+        // Then by volume
         const volA = a.volume?.h24 || 0
         const volB = b.volume?.h24 || 0
         return volB - volA

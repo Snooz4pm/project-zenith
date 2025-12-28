@@ -97,9 +97,17 @@ export async function searchTokenPair(symbol: string): Promise<DexscreenerPair |
             ['USDT', 'USDC', 'USD', 'DAI'].includes(p.quoteToken.symbol.toUpperCase())
         );
 
-        // Sort by volume (primary) or liquidity (secondary)
+        // Sort by change data (primary) and volume (secondary)
         const sorted = (validPairs.length > 0 ? validPairs : candidates)
             .sort((a, b) => {
+                // Prefer pairs with valid change data
+                const changeA = Math.abs(a.priceChange?.h24 || 0);
+                const changeB = Math.abs(b.priceChange?.h24 || 0);
+                const hasChangeA = changeA > 0 ? 1 : 0;
+                const hasChangeB = changeB > 0 ? 1 : 0;
+
+                if (hasChangeA !== hasChangeB) return hasChangeB - hasChangeA;
+
                 const volA = a.volume?.h24 || 0;
                 const volB = b.volume?.h24 || 0;
                 if (Math.abs(volA - volB) > 1000) return volB - volA; // Volume wins if significant diff
@@ -108,7 +116,7 @@ export async function searchTokenPair(symbol: string): Promise<DexscreenerPair |
 
         const best = sorted[0];
 
-        console.log(`[CRYPTO] Found: ${best.baseToken.symbol}/${best.quoteToken.symbol} on ${best.chainId}, price: ${best.priceUsd}, vol: ${best.volume?.h24}`);
+        console.log(`[CRYPTO] Found: ${best.baseToken.symbol}/${best.quoteToken.symbol} on ${best.chainId}, price: ${best.priceUsd}, vol: ${best.volume?.h24}, change: ${best.priceChange?.h24}%`);
 
         return best;
     } catch (error) {
