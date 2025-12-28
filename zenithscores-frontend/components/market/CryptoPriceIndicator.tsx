@@ -18,7 +18,7 @@ interface CryptoPriceIndicatorProps {
     liquidityTier: 'HIGH' | 'MEDIUM' | 'LOW';
     volume24h: number;
     txnsH1: number;
-    status: 'LIVE' | 'LOW_ACTIVITY' | 'DISCONNECTED';
+    status: 'LIVE' | 'DELAYED' | 'LOW_ACTIVITY' | 'DISCONNECTED';
     className?: string;
 }
 
@@ -91,6 +91,9 @@ export default function CryptoPriceIndicator({
                 )}
                 {status === 'LOW_ACTIVITY' && (
                     <span className="h-2 w-2 rounded-full bg-amber-500" title="Low activity" />
+                )}
+                {status === 'DELAYED' && (
+                    <span className="h-2 w-2 rounded-full bg-yellow-500" title="Delayed data" />
                 )}
                 {status === 'DISCONNECTED' && (
                     <span className="h-2 w-2 rounded-full bg-red-500" title="Disconnected" />

@@ -8,7 +8,7 @@
  * - No trades = no price change (correct behavior)
  */
 
-export type CryptoLiveStatus = 'LIVE' | 'LOW_ACTIVITY' | 'DISCONNECTED';
+export type CryptoLiveStatus = 'LIVE' | 'DELAYED' | 'LOW_ACTIVITY' | 'DISCONNECTED';
 export type LiquidityTier = 'HIGH' | 'MEDIUM' | 'LOW';
 
 export interface CryptoLiveState {

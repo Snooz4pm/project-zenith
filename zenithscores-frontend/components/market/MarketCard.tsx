@@ -110,6 +110,19 @@ export default function MarketCard({
             ? `/forex/${symbol}`
             : `/stocks/${symbol}`;
 
+    // Smart price formatting based on asset type
+    const formattedPrice = assetType === 'forex'
+        ? price.toFixed(symbol.includes('JPY') ? 3 : 5)
+        : assetType === 'crypto'
+            ? price < 0.01
+                ? `$${price.toFixed(6)}`
+                : price < 1
+                    ? `$${price.toFixed(4)}`
+                    : price < 100
+                        ? `$${price.toFixed(2)}`
+                        : `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
     return (
         <Link href={href}>
             <div
@@ -188,7 +201,7 @@ export default function MarketCard({
                 {/* Price row with better styling */}
                 <div className="relative flex items-baseline justify-between">
                     <div className="text-2xl font-bold text-white tracking-tight">
-                        ${price.toLocaleString()}
+                        {formattedPrice}
                     </div>
 
                     <div
