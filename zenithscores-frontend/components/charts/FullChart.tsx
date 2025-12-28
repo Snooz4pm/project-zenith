@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
-import type { OHLCV, RegimeType, ChartZone, IndicatorType } from '@/lib/types/market';
+import type { OHLCV } from '@/lib/market-data/types';
+import type { RegimeType, ChartZone, IndicatorType } from '@/lib/types/market';
 import { getRegimeDisplay } from '@/lib/analysis/regime';
 import { Clock, TrendingUp, Activity, Target, XCircle } from 'lucide-react';
 
@@ -35,18 +36,18 @@ export default function FullChart({
 
     // Filter data based on timeframe
     const getFilteredData = (): OHLCV[] => {
-        const now = Date.now();
-        const msPerDay = 24 * 60 * 60 * 1000;
+        const now = Math.floor(Date.now() / 1000); // Convert to seconds to match OHLCV.time
+        const secPerDay = 24 * 60 * 60;
 
         switch (timeframe) {
             case '1D':
-                return ohlcv.filter(d => d.timestamp > now - msPerDay);
+                return ohlcv.filter(d => d.time > now - secPerDay);
             case '1W':
-                return ohlcv.filter(d => d.timestamp > now - 7 * msPerDay);
+                return ohlcv.filter(d => d.time > now - 7 * secPerDay);
             case '1M':
-                return ohlcv.filter(d => d.timestamp > now - 30 * msPerDay);
+                return ohlcv.filter(d => d.time > now - 30 * secPerDay);
             case '3M':
-                return ohlcv.filter(d => d.timestamp > now - 90 * msPerDay);
+                return ohlcv.filter(d => d.time > now - 90 * secPerDay);
             case 'ALL':
             default:
                 return ohlcv;
@@ -126,14 +127,7 @@ export default function FullChart({
             <div className="p-4">
                 <div className="h-[350px] w-full">
                     <ZenithChartPro
-                        data={chartData.map(d => ({
-                            time: d.timestamp, // Map timestamp -> time
-                            open: d.open,
-                            high: d.high,
-                            low: d.low,
-                            close: d.close,
-                            volume: d.volume
-                        }))}
+                        data={chartData}
                     />
                 </div>
             </div>
