@@ -1,0 +1,23 @@
+﻿components/charts/FullChart.tsx(130,25): error TS2322: Type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }[]' is not assignable to type 'OHLCV[]'.
+  Property 'timestamp' is missing in type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }' but required in type 'OHLCV'.
+lib/market-data/normalizer.ts(18,5): error TS2322: Type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }[]' is not assignable to type 'OHLCV[]'.
+  Property 'timestamp' is missing in type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }' but required in type 'OHLCV'.
+lib/market-data/normalizer.ts(40,5): error TS2741: Property 'timestamp' is missing in type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }' but required in type 'OHLCV'.
+lib/market-data/normalizer.ts(59,21): error TS2345: Argument of type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }' is not assignable to parameter of type 'OHLCV'.
+  Property 'timestamp' is missing in type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }' but required in type 'OHLCV'.
+lib/market-data/normalizer.ts(88,21): error TS2345: Argument of type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }' is not assignable to parameter of type 'OHLCV'.
+  Property 'timestamp' is missing in type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }' but required in type 'OHLCV'.
+lib/market-data/normalizer.ts(124,21): error TS2345: Argument of type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }' is not assignable to parameter of type 'OHLCV'.
+  Property 'timestamp' is missing in type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }' but required in type 'OHLCV'.
+lib/market-data/normalizer.ts(172,29): error TS2345: Argument of type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }' is not assignable to parameter of type 'OHLCV'.
+  Property 'timestamp' is missing in type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }' but required in type 'OHLCV'.
+lib/market/history.ts(109,5): error TS2322: Type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }[]' is not assignable to type 'OHLCV[]'.
+  Property 'timestamp' is missing in type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }' but required in type 'OHLCV'.
+lib/stats/calculations.ts(60,13): error TS1117: An object literal cannot have multiple properties with the same name.
+lib/stats/calculations.ts(61,13): error TS1117: An object literal cannot have multiple properties with the same name.
+lib/stats/calculations.ts(62,13): error TS1117: An object literal cannot have multiple properties with the same name.
+lib/stats/calculations.ts(97,9): error TS1117: An object literal cannot have multiple properties with the same name.
+lib/stats/calculations.ts(98,9): error TS1117: An object literal cannot have multiple properties with the same name.
+lib/stats/calculations.ts(99,9): error TS1117: An object literal cannot have multiple properties with the same name.
+scripts/test-history.ts(24,9): error TS2741: Property 'timestamp' is missing in type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }' but required in type 'OHLCV'.
+scripts/test-history.ts(25,9): error TS2741: Property 'timestamp' is missing in type '{ time: number; open: number; high: number; low: number; close: number; volume: number; }' but required in type 'OHLCV'.

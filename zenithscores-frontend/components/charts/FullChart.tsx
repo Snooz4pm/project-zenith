@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import type { OHLCV } from '@/lib/market-data/types';
-import type { RegimeType, ChartZone, IndicatorType } from '@/lib/types/market';
+import type { OHLCV as OHLCVLegacy, RegimeType, ChartZone, IndicatorType } from '@/lib/types/market';
 import { getRegimeDisplay } from '@/lib/analysis/regime';
 import { Clock, TrendingUp, Activity, Target, XCircle } from 'lucide-react';
 
@@ -13,7 +13,7 @@ const ZenithChartPro = dynamic(() => import('@/components/chart-engine/ZenithCha
 const VolumeChart = dynamic(() => import('./VolumeChart'), { ssr: false });
 
 interface FullChartProps {
-    ohlcv: OHLCV[];
+    ohlcv: OHLCVLegacy[]; // Legacy type with 'timestamp'
     regime: RegimeType;
     entryZone?: { min: number; max: number };
     invalidationLevel?: number;
@@ -35,19 +35,19 @@ export default function FullChart({
     const regimeDisplay = getRegimeDisplay(regime);
 
     // Filter data based on timeframe
-    const getFilteredData = (): OHLCV[] => {
-        const now = Math.floor(Date.now() / 1000); // Convert to seconds to match OHLCV.time
-        const secPerDay = 24 * 60 * 60;
+    const getFilteredData = (): OHLCVLegacy[] => {
+        const now = Date.now();
+        const msPerDay = 24 * 60 * 60 * 1000;
 
         switch (timeframe) {
             case '1D':
-                return ohlcv.filter(d => d.time > now - secPerDay);
+                return ohlcv.filter(d => d.timestamp > now - msPerDay);
             case '1W':
-                return ohlcv.filter(d => d.time > now - 7 * secPerDay);
+                return ohlcv.filter(d => d.timestamp > now - 7 * msPerDay);
             case '1M':
-                return ohlcv.filter(d => d.time > now - 30 * secPerDay);
+                return ohlcv.filter(d => d.timestamp > now - 30 * msPerDay);
             case '3M':
-                return ohlcv.filter(d => d.time > now - 90 * secPerDay);
+                return ohlcv.filter(d => d.timestamp > now - 90 * msPerDay);
             case 'ALL':
             default:
                 return ohlcv;
@@ -127,7 +127,14 @@ export default function FullChart({
             <div className="p-4">
                 <div className="h-[350px] w-full">
                     <ZenithChartPro
-                        data={chartData}
+                        data={chartData.map(d => ({
+                            time: Math.floor(d.timestamp / 1000), // Convert ms to seconds
+                            open: d.open,
+                            high: d.high,
+                            low: d.low,
+                            close: d.close,
+                            volume: d.volume
+                        }))}
                     />
                 </div>
             </div>
