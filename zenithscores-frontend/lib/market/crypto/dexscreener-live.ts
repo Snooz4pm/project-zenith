@@ -80,20 +80,35 @@ export async function searchTokenPair(symbol: string): Promise<DexscreenerPair |
             return null;
         }
 
-        // Find best match: symbol matches AND highest liquidity
+        // Find best match: symbol matches AND highest volume/liquidity
+        // Prioritize USD pairs
         const symbolUpper = symbol.toUpperCase();
-        const matching = pairs.filter(p =>
+
+        // Filter for matches
+        const matches = pairs.filter(p =>
             p.baseToken.symbol.toUpperCase() === symbolUpper ||
             p.baseToken.symbol.toUpperCase() === symbolUpper.replace('USD', '')
         );
 
-        // Sort by liquidity (highest first)
-        const sorted = (matching.length > 0 ? matching : pairs)
-            .sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
+        const candidates = matches.length > 0 ? matches : pairs;
+
+        // Prioritize USD quotes
+        const validPairs = candidates.filter(p =>
+            ['USDT', 'USDC', 'USD', 'DAI'].includes(p.quoteToken.symbol.toUpperCase())
+        );
+
+        // Sort by volume (primary) or liquidity (secondary)
+        const sorted = (validPairs.length > 0 ? validPairs : candidates)
+            .sort((a, b) => {
+                const volA = a.volume?.h24 || 0;
+                const volB = b.volume?.h24 || 0;
+                if (Math.abs(volA - volB) > 1000) return volB - volA; // Volume wins if significant diff
+                return (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0); // Else liquidity
+            });
 
         const best = sorted[0];
 
-        console.log(`[CRYPTO] Found: ${best.baseToken.symbol}/${best.quoteToken.symbol} on ${best.chainId}, liquidity: $${best.liquidity?.usd?.toLocaleString()}`);
+        console.log(`[CRYPTO] Found: ${best.baseToken.symbol}/${best.quoteToken.symbol} on ${best.chainId}, price: ${best.priceUsd}, vol: ${best.volume?.h24}`);
 
         return best;
     } catch (error) {

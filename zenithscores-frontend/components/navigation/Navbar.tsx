@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, TrendingUp, BookOpen, Wallet, BarChart3, Menu, X, ChevronDown, User, LogOut, Newspaper, Book, Users, Mail } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Newspaper, Book, Users, Mail } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import NotificationBell from '@/components/community/NotificationBell';
 
@@ -35,7 +35,6 @@ const PRIVATE_LINKS: NavLink[] = [
   { label: 'Learn', href: '/learning', icon: <BookOpen size={16} /> },
   { label: 'Notebook', href: '/notebook', icon: <Book size={16} /> },
   { label: 'Trade', href: '/trading', icon: <Wallet size={16} /> },
-  { label: 'Charts', href: '/charts', icon: <BarChart3 size={16} /> },
   { label: 'Community', href: '/community', icon: <Users size={16} /> }
 ];
 
