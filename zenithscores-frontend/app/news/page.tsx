@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -20,8 +20,10 @@ import {
 } from 'lucide-react';
 import ArticleCard from '@/components/ArticleCard';
 import UniversalLoader from '@/components/UniversalLoader';
+import NewsBiasSelector from '@/components/news/NewsBiasSelector';
 import { newsAPI, CATEGORIES } from '@/lib/news-api';
 import type { Article } from '@/lib/news-types';
+import { getUserNewsBiasesBatch } from '@/lib/actions/news';
 
 interface StatsData {
   total_articles: number;
@@ -58,6 +60,9 @@ export default function NewsPage() {
 
   // Expandable top story
   const [expandedTopStory, setExpandedTopStory] = useState(false);
+
+  // User bias responses
+  const [userBiases, setUserBiases] = useState<Record<number, string>>({});
 
   // Fetch articles
   const fetchArticles = useCallback(async () => {
@@ -105,6 +110,18 @@ export default function NewsPage() {
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
+
+  // Load user bias responses for current articles
+  useEffect(() => {
+    async function loadUserBiases() {
+      if (articles.length > 0) {
+        const articleIds = articles.map(a => a.id);
+        const biases = await getUserNewsBiasesBatch(articleIds);
+        setUserBiases(biases);
+      }
+    }
+    loadUserBiases();
+  }, [articles]);
 
   // Initial fetch
   useEffect(() => {
@@ -382,6 +399,14 @@ export default function NewsPage() {
                     Read Original Source →
                   </a>
                 </div>
+
+                {/* Market Bias Selector */}
+                <Suspense fallback={<div className="text-gray-600 text-sm mt-6">Loading...</div>}>
+                  <NewsBiasSelector
+                    articleId={topStory.id}
+                    initialBias={userBiases[topStory.id]}
+                  />
+                </Suspense>
               </div>
             ) : (
               <ArticleCard article={topStory} isTopStory={true} />

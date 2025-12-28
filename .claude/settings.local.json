@@ -5,7 +5,9 @@
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: simplify ZenithChartPro and enhance MarketCard design\n\n- Simplify ZenithChartPro: remove timeframe selector, zoom controls, layout presets\n- Keep essential features: chart types, drawing tools, indicators, basic toggles\n- Remove double-click alert \\(use button instead\\)\n- Enhance MarketCard with professional gradient design\n- Add asset type badge, change percentage display, and regime badge\n- Improve visual hierarchy with better spacing and prominent insight line\n- Add glow effects and smooth hover animations\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git commit:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npx prisma db push:*)"
     ]
   }
 }

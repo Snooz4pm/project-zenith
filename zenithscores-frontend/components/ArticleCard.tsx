@@ -8,7 +8,8 @@
 import { useState, useEffect } from 'react';
 import { ExternalLink, Bookmark, BookmarkCheck, Clock, TrendingUp, MessageCircle, Bell, Share2 } from 'lucide-react';
 import type { Article } from '@/lib/news-types';
-import { formatRelativeTime, getCategoryBySlug, CATEGORIES } from '@/lib/news-api';
+import { formatRelativeTime as originalFormatRelativeTime, getCategoryBySlug, CATEGORIES } from '@/lib/news-api';
+import { extractAssets, getImpactLevel, getImpactColorClasses, formatRelativeTime } from '@/lib/utils/assetExtractor';
 
 interface ArticleCardProps {
     article: Article;
@@ -56,6 +57,10 @@ function getThumbnailUrl(category: string, title: string): string {
 export default function ArticleCard({ article, isTopStory = false }: ArticleCardProps) {
     const [isBookmarked, setIsBookmarked] = useState(false);
     const [imageError, setImageError] = useState(false);
+
+    // Extract trading assets and impact level
+    const assets = extractAssets(`${article.title} ${article.article}`);
+    const impactLevel = getImpactLevel(article.importance_score);
 
     // Load bookmark state from localStorage
     useEffect(() => {
@@ -118,13 +123,34 @@ export default function ArticleCard({ article, isTopStory = false }: ArticleCard
                         </button>
                     </div>
 
-                    {/* Category badge */}
-                    <div className="flex items-center gap-2 mb-3 sm:mb-4 flex-wrap">
+                    {/* Trading Intelligence: Impact + Assets */}
+                    <div className="flex flex-wrap items-center gap-2 mb-3 sm:mb-4">
+                        {/* Impact Badge */}
+                        <span className={`px-2 py-0.5 text-[10px] sm:text-xs font-mono uppercase tracking-widest rounded border ${getImpactColorClasses(impactLevel)}`}>
+                            {impactLevel} IMPACT
+                        </span>
+
+                        {/* Asset Tags */}
+                        {assets.slice(0, 3).map(asset => (
+                            <span
+                                key={asset}
+                                className="px-2 py-0.5 text-[10px] sm:text-xs font-mono bg-[#1A2332] text-cyan-400 border border-cyan-500/20 rounded"
+                            >
+                                @{asset}
+                            </span>
+                        ))}
+
+                        {/* Category */}
                         <span className={`inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-full bg-gradient-to-r ${getCategoryColor(article.category)} text-white text-xs font-semibold`}>
                             {getCategoryIcon(article.category)} {article.category}
                         </span>
-                        <span className="text-gray-500 text-xs sm:text-sm">•</span>
-                        <span className="text-gray-400 text-xs sm:text-sm">{article.source}</span>
+                    </div>
+
+                    {/* Source - Terminal Style */}
+                    <div className="flex items-center gap-2 text-[11px] sm:text-sm font-mono text-gray-500 mb-3">
+                        <span className="uppercase">{article.source}</span>
+                        <span>•</span>
+                        <time>{formatRelativeTime(article.fetched_at)}</time>
                     </div>
 
                     {/* Title */}
@@ -246,16 +272,29 @@ export default function ArticleCard({ article, isTopStory = false }: ArticleCard
 
             {/* Content */}
             <div className="p-5">
-                {/* Source and time */}
-                <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
-                    <span className="font-medium text-gray-400">{article.source}</span>
-                    <span>•</span>
-                    <span>{formatRelativeTime(article.fetched_at)}</span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                        <Clock size={12} />
-                        {readingTime}
+                {/* Trading Intelligence: Impact + Assets */}
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                    {/* Impact Badge */}
+                    <span className={`px-2 py-0.5 text-[10px] font-mono uppercase tracking-widest rounded border ${getImpactColorClasses(impactLevel)}`}>
+                        {impactLevel}
                     </span>
+
+                    {/* Asset Tags */}
+                    {assets.slice(0, 3).map(asset => (
+                        <span
+                            key={asset}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-[#1A2332] text-cyan-400 border border-cyan-500/20 rounded"
+                        >
+                            @{asset}
+                        </span>
+                    ))}
+                </div>
+
+                {/* Source and time - Terminal Style */}
+                <div className="flex items-center gap-2 text-[11px] font-mono text-gray-500 mb-3">
+                    <span className="uppercase">{article.source}</span>
+                    <span>•</span>
+                    <time>{formatRelativeTime(article.fetched_at)}</time>
                 </div>
 
                 {/* Title */}

@@ -37,6 +37,8 @@ model User {
 
   courseProgress        UserCourseProgress[]    @relation("UserCourseProgress")
   journals              TradeJournal[]          @relation("UserJournals")
+  portfolio             Portfolio?              @relation("UserPortfolio")
+  newsResponses         NewsResponse[]          @relation("UserNewsResponses")
 }
 
 // Required by NextAuth PrismaAdapter for OAuth
@@ -776,5 +778,94 @@ model TradeJournal {
   @@index([userId])
   @@index([assetSymbol])
   @@index([status])
+  @@index([createdAt(sort: Desc)])
+}
+
+// ========================
+// TRADING ENGINE (Ledger-Based)
+// ========================
+
+model Portfolio {
+  id              String   @id @default(cuid())
+  userId          String   @unique @db.VarChar(255)
+  
+  balance         Float    @default(50000) // Available Cash (USDT) - Default 50k paper
+  totalRealizedPnL Float   @default(0)     // Lifetime PnL
+  
+  positions       Position[]
+  trades          Trade[]
+  snapshots       PortfolioSnapshot[]
+  
+  updatedAt       DateTime @updatedAt
+  user            User     @relation("UserPortfolio", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Position {
+  id              String   @id @default(cuid())
+  portfolioId     String
+  
+  symbol          String   @db.VarChar(20) // BTCUSD, AAPL
+  quantity        Float    // Amount held
+  avgEntryPrice   Float    // Weighted Average Price
+  
+  portfolio       Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  
+  @@unique([portfolioId, symbol]) // One position per asset per user
+}
+
+model Trade {
+  id              String   @id @default(cuid())
+  portfolioId     String
+  
+  symbol          String   @db.VarChar(20)
+  side            String   // 'BUY' or 'SELL'
+  quantity        Float    // Always positive
+  price           Float    // Execution Price
+  
+  // For Sells Only:
+  realizedPnL     Float?   
+  
+  timestamp       DateTime @default(now())
+  
+  portfolio       Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, timestamp])
+}
+
+model PortfolioSnapshot {
+  id          String   @id @default(cuid())
+  portfolioId String
+  timestamp   DateTime @default(now())
+  totalEquity Float    // Cash + Position Value at snapshot time
+
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, timestamp])
+}
+
+// ========================
+// NEWS INTELLIGENCE: Market Bias Tracking
+// ========================
+
+model NewsResponse {
+  id        String   @id @default(cuid())
+  userId    String   @db.VarChar(255)
+  articleId Int      // References articles.id from news database
+
+  // User's market bias based on this news
+  bias      String   @db.VarChar(10) // 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'UNCLEAR'
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user      User     @relation("UserNewsResponses", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Constraints
+  @@unique([userId, articleId]) // One response per user per article
+  @@index([userId])
+  @@index([articleId])
+  @@index([bias])
   @@index([createdAt(sort: Desc)])
 }
