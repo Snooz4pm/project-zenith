@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { LayoutGrid, Building2 } from 'lucide-react';
 import { useLivePrice } from '@/lib/market/live';
 import LivePriceIndicator from '@/components/market/LivePriceIndicator';
@@ -36,15 +37,17 @@ function StockCard({ symbol }: { symbol: string }) {
     }
 
     return (
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition-colors">
-            <LivePriceIndicator
-                symbol={symbol}
-                price={data.price}
-                previousClose={data.previousClose}
-                status={data.status}
-                delaySeconds={Math.round(data.latencyMs / 1000)}
-            />
-        </div>
+        <Link href={`/stocks/${symbol}`}>
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 hover:bg-zinc-800/50 transition-all cursor-pointer">
+                <LivePriceIndicator
+                    symbol={symbol}
+                    price={data.price}
+                    previousClose={data.previousClose}
+                    status={data.status}
+                    delaySeconds={Math.round(data.latencyMs / 1000)}
+                />
+            </div>
+        </Link>
     );
 }
 

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Coins } from 'lucide-react';
 import { useCryptoLive } from '@/lib/market/crypto/useCryptoLive';
 import CryptoPriceIndicator from '@/components/market/CryptoPriceIndicator';
@@ -27,18 +28,20 @@ function CryptoCard({ symbol }: { symbol: string }) {
     }
 
     return (
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition-colors">
-            <CryptoPriceIndicator
-                symbol={data.symbol || symbol}
-                priceUsd={data.priceUsd || 0}
-                priceChange24h={data.priceChange24h || 0}
-                liquidityUsd={data.liquidityUsd || 0}
-                liquidityTier={data.liquidityTier || 'HIGH'}
-                volume24h={data.volume24h || 0}
-                txnsH1={data.txnsH1 || 0}
-                status={data.status}
-            />
-        </div>
+        <Link href={`/crypto/${symbol}`}>
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 hover:bg-zinc-800/50 transition-all cursor-pointer">
+                <CryptoPriceIndicator
+                    symbol={data.symbol || symbol}
+                    priceUsd={data.priceUsd || 0}
+                    priceChange24h={data.priceChange24h || 0}
+                    liquidityUsd={data.liquidityUsd || 0}
+                    liquidityTier={data.liquidityTier || 'HIGH'}
+                    volume24h={data.volume24h || 0}
+                    txnsH1={data.txnsH1 || 0}
+                    status={data.status}
+                />
+            </div>
+        </Link>
     );
 }
 
