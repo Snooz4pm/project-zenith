@@ -157,7 +157,7 @@ export default function TradingPage() {
                                         <Tooltip
                                             contentStyle={{ backgroundColor: '#0a0a0c', border: '1px solid #333', borderRadius: '8px' }}
                                             itemStyle={{ color: '#fff' }}
-                                            formatter={(value: number) => [formatCurrency(value), 'Equity']}
+                                            formatter={(value: any) => [formatCurrency(Number(value)), 'Equity']}
                                         />
                                         <Area type="monotone" dataKey="value" stroke="#10b981" fillOpacity={1} fill="url(#colorValue)" strokeWidth={2} />
                                     </AreaChart>
@@ -235,9 +235,9 @@ export default function TradingPage() {
                                 onClick={handleTradeSubmit}
                                 disabled={isExecuting || !selectedAsset || !quantity}
                                 className={`w-full py-4 rounded-xl font-bold text-sm tracking-wide transition-all shadow-xl flex items-center justify-center gap-2 ${isExecuting ? 'opacity-50 cursor-not-allowed bg-zinc-800' :
-                                        orderSide === 'BUY'
-                                            ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-black hover:scale-[1.02] shadow-emerald-500/20'
-                                            : 'bg-gradient-to-r from-red-500 to-red-400 text-white hover:scale-[1.02] shadow-red-500/20'
+                                    orderSide === 'BUY'
+                                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-black hover:scale-[1.02] shadow-emerald-500/20'
+                                        : 'bg-gradient-to-r from-red-500 to-red-400 text-white hover:scale-[1.02] shadow-red-500/20'
                                     }`}
                             >
                                 {isExecuting ? "EXECUTING..." : `CONFIRM ${orderSide}`}
@@ -336,11 +336,34 @@ export default function TradingPage() {
                 {/* Asset Picker Modal */}
                 <AnimatePresence>
                     {isAssetPickerOpen && (
-                        <AssetPicker
-                            isOpen={isAssetPickerOpen}
-                            onClose={() => setIsAssetPickerOpen(false)}
-                            onSelect={(asset: any) => { setSelectedAsset(asset); setIsAssetPickerOpen(false); }}
-                        />
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="relative w-full max-w-2xl h-[600px] bg-[#0a0a0c] rounded-2xl border border-white/10 overflow-hidden shadow-2xl"
+                            >
+                                <button
+                                    onClick={() => setIsAssetPickerOpen(false)}
+                                    className="absolute top-4 right-4 z-10 p-2 bg-white/5 hover:bg-white/10 rounded-full text-white transition-colors"
+                                >
+                                    <ArrowRight size={16} className="rotate-45" /> {/* Close icon */}
+                                </button>
+
+                                <AssetPicker
+                                    assets={[
+                                        { symbol: 'BTC', name: 'Bitcoin', current_price: 65000, price_change_24h: 2.5, asset_type: 'CRYPTO', max_leverage: 100 },
+                                        { symbol: 'ETH', name: 'Ethereum', current_price: 3500, price_change_24h: 1.2, asset_type: 'CRYPTO', max_leverage: 100 },
+                                        { symbol: 'SOL', name: 'Solana', current_price: 145, price_change_24h: 5.4, asset_type: 'CRYPTO', max_leverage: 50 },
+                                        { symbol: 'AAPL', name: 'Apple Inc.', current_price: 189.50, price_change_24h: 0.5, asset_type: 'STOCK', max_leverage: 20 },
+                                        { symbol: 'TSLA', name: 'Tesla', current_price: 240.20, price_change_24h: -1.2, asset_type: 'STOCK', max_leverage: 20 },
+                                        { symbol: 'EURUSD', name: 'Euro / USD', current_price: 1.0850, price_change_24h: 0.05, asset_type: 'FOREX', max_leverage: 500 },
+                                        { symbol: 'GBPUSD', name: 'GBP / USD', current_price: 1.2750, price_change_24h: -0.1, asset_type: 'FOREX', max_leverage: 500 },
+                                    ]}
+                                    onSelect={(asset: any) => { setSelectedAsset(asset); setIsAssetPickerOpen(false); }}
+                                />
+                            </motion.div>
+                        </div>
                     )}
                 </AnimatePresence>
 

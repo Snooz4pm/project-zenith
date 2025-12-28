@@ -5,14 +5,14 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth'; // Assumptions on auth path
 
 export default async function JournalPage({ params }: { params: { id: string } }) {
-    const session = await getServerSession(authOptions as any);
+    const session: any = await getServerSession(authOptions as any);
 
     if (!session?.user?.email) {
         return <div>Access Denied</div>;
     }
 
     // We verify ownership here for safety before passing data
-    const journal = await prisma.tradeJournal.findUnique({
+    const journal = await (prisma as any).tradeJournal.findUnique({
         where: { id: params.id },
     });
 

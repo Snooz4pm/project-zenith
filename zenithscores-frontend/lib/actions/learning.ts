@@ -23,7 +23,7 @@ export async function saveCourseProgress(
     try {
         // 🛡️ Atomic Upsert: Prevents race conditions and duplicate entries.
         // The 'where' clause uses a unique constraint (userId + courseId).
-        await prisma.userCourseProgress.upsert({
+        await (prisma as any).userCourseProgress.upsert({
             where: {
                 userId_courseId: {
                     userId,
@@ -61,7 +61,7 @@ export async function saveCourseProgress(
  */
 export async function getUserProgress(userId: string) {
     try {
-        const progress = await prisma.userCourseProgress.findMany({
+        const progress = await (prisma as any).userCourseProgress.findMany({
             where: { userId },
             select: {
                 courseId: true,
@@ -83,7 +83,7 @@ export async function getUserProgress(userId: string) {
  */
 export async function getSingleCourseProgress(userId: string, courseId: string) {
     try {
-        return await prisma.userCourseProgress.findUnique({
+        return await (prisma as any).userCourseProgress.findUnique({
             where: {
                 userId_courseId: {
                     userId,

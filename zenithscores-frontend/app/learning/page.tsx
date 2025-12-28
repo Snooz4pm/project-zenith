@@ -147,7 +147,7 @@ export default function LearningHubPage() {
         try {
             const data = await getUserProgress(session.user.id);
             const map: Record<string, { progress: number, completed: boolean }> = {};
-            data.forEach(p => {
+            data.forEach((p: any) => {
                 map[p.courseId] = { progress: p.progress, completed: p.completed };
             });
             setRealCourseProgress(map);

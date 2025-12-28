@@ -60,7 +60,7 @@ export default function ArticleCard({ article, isTopStory = false }: ArticleCard
 
     // Extract trading assets and impact level
     const assets = extractAssets(`${article.title} ${article.article}`);
-    const impactLevel = getImpactLevel(article.importance_score);
+    const impactLevel = getImpactLevel(article.ai_importance);
 
     // Load bookmark state from localStorage
     useEffect(() => {

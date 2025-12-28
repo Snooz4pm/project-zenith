@@ -69,7 +69,7 @@ export default function JournalEditor({ journal, userId }: EditorProps) {
                         <ThesisEditor
                             initialData={thesis}
                             readOnly={status !== 'BRIEFING'}
-                            onChange={async (newThesis) => {
+                            onChange={async (newThesis: ThesisItem[]) => {
                                 setThesis(newThesis);
                                 // Debounce save in real app
                                 await updateJournalThesis(journal.id, userId, newThesis);
@@ -103,8 +103,8 @@ export default function JournalEditor({ journal, userId }: EditorProps) {
                                             {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                         </span>
                                         <span className={`${entry.sentiment === 'fear' ? 'text-red-400' :
-                                                entry.sentiment === 'confidence' ? 'text-emerald-400' :
-                                                    'text-zinc-300'
+                                            entry.sentiment === 'confidence' ? 'text-emerald-400' :
+                                                'text-zinc-300'
                                             }`}>
                                             {entry.content}
                                         </span>
@@ -116,7 +116,7 @@ export default function JournalEditor({ journal, userId }: EditorProps) {
                             {status !== 'ARCHIVED' && (
                                 <div className="p-3 border-t border-white/10 bg-white/[0.02]">
                                     <LogInput
-                                        onSubmit={async (text, sentiment) => {
+                                        onSubmit={async (text: string, sentiment: any) => {
                                             const entry: LogEntry = {
                                                 id: crypto.randomUUID(),
                                                 timestamp: new Date().toISOString(),
@@ -192,15 +192,15 @@ function ThesisEditor({ initialData, readOnly, onChange }: any) {
                 <div key={item.id} className="group relative flex gap-4">
                     {/* Semantic Type Marker */}
                     <div className={`w-1 shrink-0 rounded-full ${item.type === 'hypothesis' ? 'bg-blue-500 dashed-border' :
-                            item.type === 'fact' ? 'bg-white' :
-                                item.type === 'rule' ? 'bg-red-500' : 'bg-purple-500'
+                        item.type === 'fact' ? 'bg-white' :
+                            item.type === 'rule' ? 'bg-red-500' : 'bg-purple-500'
                         }`} />
 
                     <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                             <span className={`text-[9px] font-bold uppercase tracking-wider ${item.type === 'hypothesis' ? 'text-blue-500' :
-                                    item.type === 'fact' ? 'text-white' :
-                                        item.type === 'rule' ? 'text-red-500' : 'text-purple-500'
+                                item.type === 'fact' ? 'text-white' :
+                                    item.type === 'rule' ? 'text-red-500' : 'text-purple-500'
                                 }`}>[{item.type}]</span>
                         </div>
 
@@ -247,7 +247,7 @@ function LogInput({ onSubmit, disabled }: any) {
         if (!text.trim()) return;
 
         // Simple sentiment deduction for proto
-        let sentiment = 'neutral';
+        let sentiment: 'neutral' | 'fear' | 'confidence' = 'neutral';
         if (text.includes('fear') || text.includes('panic') || text.includes('stop')) sentiment = 'fear';
         if (text.includes('confident') || text.includes('good') || text.includes('target')) sentiment = 'confidence';
 
