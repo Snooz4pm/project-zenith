@@ -76,7 +76,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white font-sans selection:bg-cyan-500/30 overflow-x-hidden">
+    <div className="min-h-screen bg-black text-white selection:bg-[#14f195]/30 overflow-x-hidden">
 
       {/* HERO SECTION */}
       <div className="relative pt-16 md:pt-24 border-b border-white/5">
