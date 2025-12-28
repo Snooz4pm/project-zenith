@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, IBM_Plex_Mono } from "next/font/google";
+import { JetBrains_Mono, Syne, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import React, { Suspense } from "react";
 import dynamic from "next/dynamic";
@@ -23,11 +23,18 @@ const TermsAcceptanceModal = dynamic(
 // AuthProvider must wrap everything but can stay server-side
 import AuthProvider from "@/components/AuthProvider";
 
-const dmSans = DM_Sans({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  variable: "--font-dm-sans",
+  variable: "--font-jetbrains",
   display: "swap",
   weight: ["400", "500", "600", "700"],
+});
+
+const syne = Syne({
+  subsets: ["latin"],
+  variable: "--font-syne",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const ibmPlexMono = IBM_Plex_Mono({
@@ -38,7 +45,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Zenith Scores | Market Intelligence Dashboard",
+  title: "ZenithScores | Market Intelligence",
   description: "Real-time market regime analysis powered by Machine Alpha. Track BULLISH, BEARISH, and CONSOLIDATION signals with VIX and 200-Day SMA indicators.",
   keywords: ["market analysis", "trading signals", "VIX", "SMA", "market regime", "zenith scores"],
   verification: {
@@ -52,8 +59,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${ibmPlexMono.variable}`}>
-      <body className="antialiased font-sans terminal-mesh">
+    <html lang="en" className={`${jetbrainsMono.variable} ${syne.variable} ${ibmPlexMono.variable}`}>
+      <body className="antialiased bg-black text-white">
         <AuthProvider>
           {/* Modern fixed navigation */}
           <Navbar />

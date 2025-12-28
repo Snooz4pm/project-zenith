@@ -3,62 +3,25 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  LayoutDashboard,
-  TrendingUp,
-  BookOpen,
-  Wallet,
-  BarChart3,
-  Menu,
-  X,
-  ChevronDown,
-  User,
-  LogOut,
-  Bell
-} from 'lucide-react';
+import { LayoutDashboard, TrendingUp, BookOpen, Wallet, BarChart3, Menu, X, ChevronDown, User, LogOut, Newspaper } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 
-interface NavLink {
-  label: string;
-  href: string;
-  icon: React.ReactNode;
-  badge?: string;
-  children?: { label: string; href: string; description: string }[];
-}
-
-const NAV_LINKS: NavLink[] = [
-  {
-    label: 'Dashboard',
-    href: '/',
-    icon: <LayoutDashboard size={18} />
-  },
+const NAV_LINKS = [
+  { label: 'Dashboard', href: '/', icon: <LayoutDashboard size={16} /> },
   {
     label: 'Markets',
     href: '/crypto',
-    icon: <TrendingUp size={18} />,
+    icon: <TrendingUp size={16} />,
     children: [
-      { label: 'Crypto', href: '/crypto', description: 'Cryptocurrency markets and analysis' },
-      { label: 'Stocks', href: '/stocks', description: 'Stock market intelligence' },
-      { label: 'Forex', href: '/forex', description: 'Foreign exchange trading' },
-      { label: 'Commodities', href: '/commodities', description: 'Commodity market data' }
+      { label: 'Crypto', href: '/crypto', description: 'Cryptocurrency markets' },
+      { label: 'Stocks', href: '/stocks', description: 'Stock market data' },
+      { label: 'Forex', href: '/forex', description: 'Currency pairs' }
     ]
   },
-  {
-    label: 'Learn',
-    href: '/learning',
-    icon: <BookOpen size={18} />,
-    badge: 'New'
-  },
-  {
-    label: 'Trading',
-    href: '/trading',
-    icon: <Wallet size={18} />
-  },
-  {
-    label: 'Charts',
-    href: '/charts',
-    icon: <BarChart3 size={18} />
-  }
+  { label: 'Learn', href: '/learning', icon: <BookOpen size={16} /> },
+  { label: 'Trade', href: '/trading', icon: <Wallet size={16} /> },
+  { label: 'Charts', href: '/charts', icon: <BarChart3 size={16} /> },
+  { label: 'News', href: '/news', icon: <Newspaper size={16} /> }
 ];
 
 export default function Navbar() {
@@ -85,103 +48,154 @@ export default function Navbar() {
   };
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-[#0B0E1A]/95 backdrop-blur-xl border-b border-cyan-500/20 shadow-[0_0_30px_rgba(14,184,166,0.1)]' : 'bg-[#0B0E1A] border-b border-[#2D3F5A]'}`}>
-      <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
+        ? 'bg-black/80 backdrop-blur-xl border-b border-[#14f195]/20'
+        : 'bg-transparent'
+      }`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
+          {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center transition-all duration-300 group-hover:shadow-[0_0_20px_rgba(14,184,166,0.5)]">
-              <span className="text-[#0B0E1A] font-bold text-lg font-mono">Z</span>
-              <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-cyan-400/0 to-cyan-400/30 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative w-8 h-8 rounded-lg bg-[#14f195] flex items-center justify-center transition-all duration-300 group-hover:shadow-[0_0_20px_rgba(20,241,149,0.5)]">
+              <span className="text-black font-bold text-lg" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Z</span>
             </div>
             <div className="hidden sm:block">
-              <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">
+              <span className="text-xl font-bold text-white" style={{ fontFamily: "'Syne', sans-serif" }}>
                 ZenithScores
               </span>
-              <div className="text-[9px] text-cyan-600 uppercase tracking-widest font-mono -mt-1">Market Intelligence</div>
+              <div className="text-[9px] text-[#14f195] uppercase tracking-[0.2em] -mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Intelligence
+              </div>
             </div>
           </Link>
 
+          {/* Desktop Nav Links */}
           <div className="hidden lg:flex items-center gap-1">
             {NAV_LINKS.map((link) => (
               <div key={link.href} className="relative">
                 {link.children ? (
-                  <div className="relative" onMouseEnter={() => setActiveDropdown(link.label)} onMouseLeave={() => setActiveDropdown(null)}>
-                    <button className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive(link.href) ? 'bg-cyan-500/10 text-cyan-400 shadow-[0_0_12px_rgba(14,184,166,0.15)]' : 'text-gray-400 hover:text-cyan-300 hover:bg-[#1A2332]'}`}>
+                  <div
+                    className="relative"
+                    onMouseEnter={() => setActiveDropdown(link.label)}
+                    onMouseLeave={() => setActiveDropdown(null)}
+                  >
+                    <button className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive(link.href)
+                        ? 'text-[#14f195]'
+                        : 'text-zinc-400 hover:text-white'
+                      }`} style={{ fontFamily: "'Syne', sans-serif" }}>
                       {link.icon}
                       <span>{link.label}</span>
-                      <ChevronDown size={14} className={`transition-transform ${activeDropdown === link.label ? 'rotate-180' : ''}`} />
+                      <ChevronDown size={12} className={`transition-transform ${activeDropdown === link.label ? 'rotate-180' : ''}`} />
                     </button>
                     {activeDropdown === link.label && (
-                      <div className="absolute top-full left-0 mt-2 w-72 bg-[#1A2332] rounded-xl shadow-2xl border border-[#2D3F5A] p-2 backdrop-blur-xl">
+                      <div className="absolute top-full left-0 mt-2 w-56 bg-black/95 backdrop-blur-xl rounded-xl border border-zinc-800 p-2 shadow-2xl">
                         {link.children.map((child) => (
-                          <Link key={child.href} href={child.href} className="block px-4 py-3 rounded-lg hover:bg-[#253447] transition-colors group">
-                            <div className="font-medium text-sm text-gray-200 group-hover:text-cyan-400">{child.label}</div>
-                            <div className="text-xs text-gray-500 mt-0.5">{child.description}</div>
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            className="block px-4 py-3 rounded-lg hover:bg-zinc-900 transition-colors group"
+                          >
+                            <div className="font-medium text-sm text-zinc-200 group-hover:text-[#14f195]" style={{ fontFamily: "'Syne', sans-serif" }}>
+                              {child.label}
+                            </div>
+                            <div className="text-xs text-zinc-500 mt-0.5">{child.description}</div>
                           </Link>
                         ))}
                       </div>
                     )}
                   </div>
                 ) : (
-                  <Link href={link.href} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive(link.href) ? 'bg-cyan-500/10 text-cyan-400 shadow-[0_0_12px_rgba(14,184,166,0.15)]' : 'text-gray-400 hover:text-cyan-300 hover:bg-[#1A2332]'}`}>
+                  <Link
+                    href={link.href}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive(link.href)
+                        ? 'text-[#14f195]'
+                        : 'text-zinc-400 hover:text-white'
+                      }`}
+                    style={{ fontFamily: "'Syne', sans-serif" }}
+                  >
                     {link.icon}
                     <span>{link.label}</span>
-                    {link.badge && <span className="px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/20 text-amber-400 rounded border border-amber-500/30">{link.badge}</span>}
                   </Link>
                 )}
               </div>
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
-            <button className="hidden md:flex p-2 rounded-lg text-gray-400 hover:text-cyan-400 hover:bg-[#1A2332] transition-all relative group">
-              <Bell size={20} />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(251,191,36,0.6)]"></span>
-            </button>
-
+          {/* Auth Buttons */}
+          <div className="flex items-center gap-3">
             {session ? (
               <div className="hidden md:flex items-center gap-3">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#1A2332] border border-[#2D3F5A]">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center shadow-[0_0_12px_rgba(14,184,166,0.3)]">
-                    <User size={14} className="text-[#0B0E1A]" />
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900/50 border border-zinc-800">
+                  <div className="w-6 h-6 rounded-full bg-[#14f195] flex items-center justify-center">
+                    <User size={12} className="text-black" />
                   </div>
-                  <span className="text-sm font-medium text-gray-300">{session.user?.name || 'User'}</span>
+                  <span className="text-sm text-zinc-300" style={{ fontFamily: "'Syne', sans-serif" }}>
+                    {session.user?.name || 'User'}
+                  </span>
                 </div>
-                <button onClick={() => signOut()} className="p-2 rounded-lg text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-all" title="Sign Out">
-                  <LogOut size={18} />
+                <button
+                  onClick={() => signOut()}
+                  className="p-2 rounded-lg text-zinc-400 hover:bg-red-500/10 hover:text-red-400 transition-all"
+                >
+                  <LogOut size={16} />
                 </button>
               </div>
             ) : (
-              <Link href="/auth/login" className="hidden md:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white rounded-lg text-sm font-medium transition-all shadow-[0_0_16px_rgba(14,184,166,0.3)] hover:shadow-[0_0_24px_rgba(14,184,166,0.5)]">
-                Sign In
-              </Link>
+              <div className="hidden md:flex items-center gap-3">
+                <Link
+                  href="/auth/register"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-white border border-zinc-700 hover:border-zinc-500 transition-all"
+                  style={{ fontFamily: "'Syne', sans-serif" }}
+                >
+                  Create Account
+                </Link>
+                <Link
+                  href="/auth/login"
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-[#14f195] text-black hover:shadow-[0_0_20px_rgba(20,241,149,0.4)] transition-all"
+                  style={{ fontFamily: "'Syne', sans-serif" }}
+                >
+                  Login →
+                </Link>
+              </div>
             )}
 
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2 rounded-lg text-gray-400 hover:text-cyan-400 hover:bg-[#1A2332] transition-all">
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-lg text-zinc-400 hover:text-white transition-all"
+            >
               {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
         </div>
       </div>
 
+      {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-[#2D3F5A] bg-[#111827] backdrop-blur-xl">
-          <div className="max-w-[1800px] mx-auto px-4 py-4 space-y-2">
+        <div className="lg:hidden border-t border-zinc-800 bg-black/95 backdrop-blur-xl">
+          <div className="max-w-7xl mx-auto px-4 py-4 space-y-2">
             {NAV_LINKS.map((link) => (
               <div key={link.href}>
                 {link.children ? (
                   <div>
-                    <button onClick={() => setActiveDropdown(activeDropdown === link.label ? null : link.label)} className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-gray-300 hover:bg-[#1A2332] hover:text-cyan-400 transition-all">
+                    <button
+                      onClick={() => setActiveDropdown(activeDropdown === link.label ? null : link.label)}
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-zinc-300 hover:bg-zinc-900 transition-all"
+                    >
                       <div className="flex items-center gap-3">
                         {link.icon}
-                        <span className="font-medium">{link.label}</span>
+                        <span style={{ fontFamily: "'Syne', sans-serif" }}>{link.label}</span>
                       </div>
-                      <ChevronDown size={18} className={`transition-transform ${activeDropdown === link.label ? 'rotate-180' : ''}`} />
+                      <ChevronDown size={16} className={`transition-transform ${activeDropdown === link.label ? 'rotate-180' : ''}`} />
                     </button>
                     {activeDropdown === link.label && (
                       <div className="pl-4 mt-2 space-y-1">
                         {link.children.map((child) => (
-                          <Link key={child.href} href={child.href} className="block px-4 py-2 rounded-lg text-sm text-gray-400 hover:bg-[#1A2332] hover:text-cyan-400 transition-all">
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            className="block px-4 py-2 rounded-lg text-sm text-zinc-400 hover:bg-zinc-900 hover:text-[#14f195] transition-all"
+                          >
                             {child.label}
                           </Link>
                         ))}
@@ -189,13 +203,37 @@ export default function Navbar() {
                     )}
                   </div>
                 ) : (
-                  <Link href={link.href} className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive(link.href) ? 'bg-cyan-500/10 text-cyan-400' : 'text-gray-300 hover:bg-[#1A2332] hover:text-cyan-400'}`}>
+                  <Link
+                    href={link.href}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive(link.href)
+                        ? 'bg-zinc-900 text-[#14f195]'
+                        : 'text-zinc-300 hover:bg-zinc-900'
+                      }`}
+                  >
                     {link.icon}
-                    <span className="font-medium">{link.label}</span>
+                    <span style={{ fontFamily: "'Syne', sans-serif" }}>{link.label}</span>
                   </Link>
                 )}
               </div>
             ))}
+
+            {/* Mobile Auth */}
+            {!session && (
+              <div className="pt-4 border-t border-zinc-800 space-y-2">
+                <Link
+                  href="/auth/register"
+                  className="block w-full px-4 py-3 rounded-lg text-center text-sm font-medium text-white border border-zinc-700"
+                >
+                  Create Account
+                </Link>
+                <Link
+                  href="/auth/login"
+                  className="block w-full px-4 py-3 rounded-lg text-center text-sm font-medium bg-[#14f195] text-black"
+                >
+                  Login →
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}
