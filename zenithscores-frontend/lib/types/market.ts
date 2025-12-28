@@ -16,6 +16,7 @@
  */
 export type OHLCV = {
     timestamp: number;      // Unix ms
+    time: number;          // Unix timestamp (seconds) - for chart compatibility
     open: number;
     high: number;
     low: number;
