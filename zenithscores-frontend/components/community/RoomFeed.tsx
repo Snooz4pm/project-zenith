@@ -131,7 +131,7 @@ export default function RoomFeed({ room: initialRoom, userId, isMember: initialI
                 Created by {initialRoom.creator.name}
               </p>
             )}
-            {initialRoom.isPublic ? (
+            {initialRoom.isPublic || initialRoom.requiresApproval ? (
               <button
                 onClick={handleJoin}
                 disabled={isJoining}
@@ -146,7 +146,7 @@ export default function RoomFeed({ room: initialRoom, userId, isMember: initialI
               </button>
             ) : (
               <div className="text-zinc-500 text-sm">
-                This is a private room. Contact the creator for an invitation.
+                This is a private invite-only room. Contact the creator for access.
               </div>
             )}
           </div>

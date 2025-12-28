@@ -168,7 +168,11 @@ export async function joinRoom(userId: string, roomId: string) {
   const room = await prisma.room.findUnique({ where: { id: roomId } });
   if (!room) throw new Error('Room not found');
   if (!room.isActive) throw new Error('Room is not active');
-  if (!room.isPublic) throw new Error('Room is private');
+
+  // Private rooms must have approval enabled to allow join requests
+  if (!room.isPublic && !room.requiresApproval) {
+    throw new Error('This is a private invite-only room');
+  }
 
   // Check if already a member
   const existing = await prisma.roomMembership.findUnique({
@@ -177,7 +181,7 @@ export async function joinRoom(userId: string, roomId: string) {
 
   if (existing) return { success: true, alreadyMember: true };
 
-  // Check if requires approval
+  // Check if requires approval (for both public and private rooms)
   if (room.requiresApproval) {
     // Check if already has pending request
     const existingRequest = await prisma.roomJoinRequest.findUnique({

@@ -176,7 +176,7 @@ export default function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoo
 
             {/* Privacy Settings */}
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-zinc-300">
+              <label className="block text-sm font-medium text-zinc-300 mb-3">
                 Privacy & Access
               </label>
 
@@ -194,7 +194,9 @@ export default function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoo
                     Public Room
                   </label>
                   <p className="text-xs text-zinc-600">
-                    Anyone can discover and join this room
+                    {isPublic
+                      ? 'Anyone can discover this room'
+                      : 'Only visible to members and those with the link'}
                   </p>
                 </div>
               </div>
@@ -210,10 +212,14 @@ export default function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoo
                 />
                 <div>
                   <label htmlFor="requiresApproval" className="text-sm text-white cursor-pointer">
-                    Require Approval
+                    Require Approval to Join
                   </label>
                   <p className="text-xs text-zinc-600">
-                    You must approve members before they can join
+                    {requiresApproval
+                      ? 'You review and approve join requests'
+                      : !isPublic
+                      ? '⚠️ Warning: Private invite-only (members cannot request)'
+                      : 'Anyone can join instantly'}
                   </p>
                 </div>
               </div>

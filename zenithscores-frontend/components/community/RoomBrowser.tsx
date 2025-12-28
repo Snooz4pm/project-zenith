@@ -190,8 +190,11 @@ export default function RoomBrowser({ userId, currentRoomSlug }: RoomBrowserProp
                         {room.memberCount}
                       </span>
                       <span>{room.postCount} posts</span>
+                      {!room.isPublic && !room.requiresApproval && (
+                        <span className="text-red-400">Invite-only</span>
+                      )}
                       {room.requiresApproval && (
-                        <span className="text-amber-500">Approval required</span>
+                        <span className="text-amber-500">Request to join</span>
                       )}
                     </div>
                   </div>
