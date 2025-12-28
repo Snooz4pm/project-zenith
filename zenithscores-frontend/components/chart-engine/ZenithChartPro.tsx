@@ -28,9 +28,11 @@ import {
     ChartType,
     Indicator,
     DrawingTool,
-    LayoutPreset
+    LayoutPreset,
+    AlgorithmOverlay,
+    RegimeType
 } from './engine/types';
-import { getVisibleRange, clampOffset, calculateYScale } from './engine/viewport';
+import { getVisibleRange, clampOffset } from './engine/viewport';
 import { computeMarketState, computeIndicators } from './engine/marketState';
 import { renderChart } from './engine/renderer';
 import {
@@ -64,6 +66,14 @@ interface ZenithChartProProps {
     data: OHLCV[];
     suggestions?: Drawing[];
     height?: number;
+    regime?: RegimeType;
+    algorithmOverlays?: AlgorithmOverlay[];
+    showVolume?: boolean;
+    showEMA?: boolean;
+    showBB?: boolean;
+    showVolumeProfile?: boolean;
+    enableZoom?: boolean;
+    enablePan?: boolean;
     // Alert system props
     symbol?: string;
     assetType?: AssetType;
@@ -95,6 +105,14 @@ export default function ZenithChartPro({
     data,
     suggestions = [],
     height = 600,
+    regime,
+    algorithmOverlays = [],
+    showVolume: initialShowVolume = true,
+    showEMA: initialShowEMA = true,
+    showBB: initialShowBB = false,
+    showVolumeProfile: initialShowVolumeProfile = false,
+    enableZoom = true,
+    enablePan = true,
     symbol = 'ASSET',
     assetType = 'stock',
     currentPrice = 0,
@@ -121,11 +139,16 @@ export default function ZenithChartPro({
     const [activeDrawingTool, setActiveDrawingTool] = useState<DrawingTool | null>(null);
     const [currentDrawing, setCurrentDrawing] = useState<Drawing | null>(null);
     const [layout, setLayout] = useState<LayoutPreset>(LAYOUT_PRESETS[1]); // Technical by default
-    const [showVolume, setShowVolume] = useState(true);
+    const [showVolume, setShowVolume] = useState(initialShowVolume);
     const [showGrid, setShowGrid] = useState(true);
     const [showCrosshair, setShowCrosshair] = useState(true);
     const [marketState, setMarketState] = useState(() => computeMarketState(candles));
-    const [dims, setDims] = useState({ width: 800, height });
+    const [dims, setDims] = useState({
+        width: 800,
+        height,
+        chartWidth: 800 - 70, // Default padding right
+        chartHeight: height
+    });
     const [isDragging, setIsDragging] = useState(false);
     const [lastMouse, setLastMouse] = useState<{ x: number, y: number } | null>(null);
     const [crosshairPos, setCrosshairPos] = useState<{ x: number; y: number; price: number; time: Date | null } | null>(null);
@@ -255,7 +278,12 @@ export default function ZenithChartPro({
             const ctx = canvasRef.current!.getContext('2d');
             if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-            setDims({ width, height });
+            setDims({
+                width,
+                height,
+                chartWidth: width - 70, // right padding is fixed at 70 in config
+                chartHeight: height
+            });
         });
 
         resizeObserver.observe(containerRef.current);
@@ -430,7 +458,7 @@ export default function ZenithChartPro({
         const candleIndex = startIndex + Math.floor(x / candleWidth);
 
         if (candleIndex >= 0 && candleIndex < candles.length) {
-            return new Date(candles[candleIndex].timestamp);
+            return new Date(candles[candleIndex].time * 1000); // time is in seconds
         }
         return null;
     };

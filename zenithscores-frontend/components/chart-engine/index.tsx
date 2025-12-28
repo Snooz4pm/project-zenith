@@ -8,19 +8,10 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { RegimeType } from '@/lib/types/market';
+import type { OHLCV } from '@/lib/market-data/types';
 
 // Dynamic import for performance
 const ZenithChartPro = dynamic(() => import('./ZenithChartPro'), { ssr: false });
-
-interface OHLCV {
-    time?: number;
-    timestamp?: number;
-    open: number;
-    high: number;
-    low: number;
-    close: number;
-    volume: number;
-}
 
 interface AlgorithmOverlay {
     type: 'entry_zone' | 'invalidation' | 'volatility_compression' | 'support' | 'resistance';
@@ -79,8 +70,8 @@ export default function ChartEngine({
                     <button
                         onClick={() => setShowEMA(!showEMA)}
                         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${showEMA
-                                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                                : 'bg-gray-800/50 text-gray-500 hover:text-gray-300'
+                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            : 'bg-gray-800/50 text-gray-500 hover:text-gray-300'
                             }`}
                     >
                         EMA
@@ -88,8 +79,8 @@ export default function ChartEngine({
                     <button
                         onClick={() => setShowBB(!showBB)}
                         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${showBB
-                                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                                : 'bg-gray-800/50 text-gray-500 hover:text-gray-300'
+                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            : 'bg-gray-800/50 text-gray-500 hover:text-gray-300'
                             }`}
                     >
                         BB
@@ -97,8 +88,8 @@ export default function ChartEngine({
                     <button
                         onClick={() => setShowVolume(!showVolume)}
                         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${showVolume
-                                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                                : 'bg-gray-800/50 text-gray-500 hover:text-gray-300'
+                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            : 'bg-gray-800/50 text-gray-500 hover:text-gray-300'
                             }`}
                     >
                         Vol
@@ -106,8 +97,8 @@ export default function ChartEngine({
                     <button
                         onClick={() => setShowVolumeProfile(!showVolumeProfile)}
                         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${showVolumeProfile
-                                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                                : 'bg-gray-800/50 text-gray-500 hover:text-gray-300'
+                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            : 'bg-gray-800/50 text-gray-500 hover:text-gray-300'
                             }`}
                     >
                         Profile
@@ -139,8 +130,8 @@ export default function ChartEngine({
                             key={tf}
                             onClick={() => handleTimeframeChange(tf)}
                             className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${timeframe === tf
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-800/50 text-gray-500 hover:text-white hover:bg-gray-700/50'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-800/50 text-gray-500 hover:text-white hover:bg-gray-700/50'
                                 }`}
                         >
                             {tf}

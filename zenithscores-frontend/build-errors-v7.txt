@@ -1,0 +1,87 @@
+﻿
+> zenithscores_frontend@0.1.0 build
+> prisma generate && prisma db push --accept-data-loss && next build
+
+node.exe : Environment 
+variables loaded from .env
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (Envir  
+  onment variables loaded   
+  from .env:String) [],     
+RemoteException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+Prisma schema loaded from prisma\schema.prisma
+
+Γ£ö Generated Prisma Client (v6.19.1) to .\node_modules\@prisma\client in 185ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+
+Environment variables 
+loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": PostgreSQL database "neondb", schema "public" at "ep-morning-frost-addvv38i-pooler.c-2.us-east-1.aws.neon.tech"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[GΓ£ö Generated Prisma Client (v6.19.1) to .\node_modules\@prisma\client in 251ms
+
+  Γû▓ Next.js 14.2.21
+  - Environments: .env.local, .env
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Skipping linting
+   Checking validity of types ...
+Failed to compile.
+
+./lib/algorithm/zenith-score
+.ts:98:32
+Type error: Expected 3-4 
+arguments, but got 1.
+
+[0m [90m  96 |[39m       
+  [90m// Fetch fresh data 
+from beginning (using 
+5Y/ALL proxy)[39m[0m
+[0m [90m  97 |[39m       
+  [90m// TODO: Implement 
+true "ALL" if provider 
+supports it. Using '1D' 
+timeframe for adequate 
+granularity over long 
+term.[39m[0m
+[0m[31m[1m>[22m[39m[90
+m  98 |[39m         
+[36mconst[39m response 
+[33m=[39m [36mawait[39m 
+getOHLCV({[0m
+[0m [90m     |[39m       
+                         
+[31m[1m^[22m[39m[0m
+[0m [90m  99 |[39m       
+      symbol[33m:[39m [36
+mthis[39m[33m.[39msymbol
+[33m,[39m[0m
+[0m [90m 100 |[39m       
+      timeframe[33m:[39m 
+[32m'1D'[39m[33m,[39m[0m
+[0m [90m 101 |[39m       
+      range[33m:[39m 
+[32m'5Y'[39m[33m,[39m 
+[90m// Best proxy for 
+"lifetime" pending provider 
+"MAX" support[39m[0m

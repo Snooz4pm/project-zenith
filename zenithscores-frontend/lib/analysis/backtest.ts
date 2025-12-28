@@ -1,5 +1,5 @@
 
-import { OHLCV } from '@/lib/types/market';
+import { OHLCV } from '@/lib/market-data/types';
 import { detectConsolidationZones, ZoneCandidate } from '@/lib/analysis/zoneDetection';
 
 export interface BacktestResult {
@@ -30,7 +30,7 @@ export function backtestZoneReliability(data: OHLCV[]): BacktestResult {
 
     zones.forEach(zone => {
         // Find candles AFTER the zone formed
-        const startIndex = lookbackData.findIndex(d => d.timestamp > zone.endTime);
+        const startIndex = lookbackData.findIndex(d => d.time > zone.endTime);
         if (startIndex === -1) return;
 
         let bounced = 0;

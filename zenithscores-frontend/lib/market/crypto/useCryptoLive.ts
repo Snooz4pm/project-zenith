@@ -62,7 +62,7 @@ export function useCryptoLive({
         if (!enabled || !symbol) return;
 
         // Reject unsupported cryptos
-        if (!SUPPORTED_CRYPTOS.includes(symbol.toUpperCase())) {
+        if (!SUPPORTED_CRYPTOS.includes(symbol.toUpperCase() as any)) {
             setState(prev => ({
                 ...prev,
                 status: 'DISCONNECTED',

@@ -5,6 +5,7 @@
 
 // Canonical OHLCV format - the ONE format for all charts
 export interface OHLCV {
+    timestamp: number;
     time: number;    // Unix timestamp (seconds)
     open: number;
     high: number;

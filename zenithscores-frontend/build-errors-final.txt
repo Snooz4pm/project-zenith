@@ -1,0 +1,101 @@
+﻿
+> zenithscores_frontend@0.1.0 build
+> prisma generate && prisma db push --accept-data-loss && next build
+
+node.exe : Environment 
+variables loaded from .env
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (Envir  
+  onment variables loaded   
+  from .env:String) [],     
+RemoteException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+Prisma schema loaded from prisma\schema.prisma
+
+Γ£ö Generated Prisma Client (v6.19.1) to .\node_modules\@prisma\client in 231ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+Environment variables 
+loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": PostgreSQL database "neondb", schema "public" at "ep-morning-frost-addvv38i-pooler.c-2.us-east-1.aws.neon.tech"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[GΓ£ö Generated Prisma Client (v6.19.1) to .\node_modules\@prisma\client in 361ms
+
+  Γû▓ Next.js 14.2.21
+  - Environments: .env.local, .env
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Skipping linting
+   Checking validity of types ...
+Failed to compile.
+
+./components/chart-engine/in
+dex.tsx:121:21
+Type error: Type 'OHLCV[]' 
+is not assignable to type 'i
+mport("C:/Users/boume/defi-o
+racle-worker/zenithscores-fr
+ontend/lib/market-data/types
+").OHLCV[]'.
+  Type 'OHLCV' is not 
+assignable to type 'import("
+C:/Users/boume/defi-oracle-w
+orker/zenithscores-frontend/
+lib/market-data/types").OHLC
+V'.
+    Types of property 
+'time' are incompatible.
+      Type 'number | 
+undefined' is not 
+assignable to type 'number'.
+        Type 'undefined' is 
+not assignable to type 
+'number'.
+
+[0m [90m 119 |[39m       
+      
+[33m<[39m[33mdiv[39m cla
+ssName[33m=[39m[32m"flex-
+1 relative"[39m[33m>[39m
+[0m
+[0m [90m 120 |[39m       
+          [33m<[39m[33mZe
+nithChartPro[39m[0m
+[0m[31m[1m>[22m[39m[90
+m 121 |[39m                
+     
+data[33m=[39m{data}[0m
+[0m [90m     |[39m       
+              
+[31m[1m^[22m[39m[0m
+[0m [90m 122 |[39m       
+              regime[33m=[
+39m{regime}[0m
+[0m [90m 123 |[39m       
+              algorithmOverl
+ays[33m=[39m{algorithmOver
+lays}[0m
+[0m [90m 124 |[39m       
+              
+height[33m=[39m{height 
+[33m-[39m 
+[35m100[39m}[0m

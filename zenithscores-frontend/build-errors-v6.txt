@@ -1,0 +1,96 @@
+﻿
+> zenithscores_frontend@0.1.0 build
+> prisma generate && prisma db push --accept-data-loss && next build
+
+node.exe : Environment 
+variables loaded from .env
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (Envir  
+  onment variables loaded   
+  from .env:String) [],     
+RemoteException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+Prisma schema loaded from prisma\schema.prisma
+
+Γ£ö Generated Prisma Client (v6.19.1) to .\node_modules\@prisma\client in 202ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+
+Environment variables 
+loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": PostgreSQL database "neondb", schema "public" at "ep-morning-frost-addvv38i-pooler.c-2.us-east-1.aws.neon.tech"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[GΓ£ö Generated Prisma Client (v6.19.1) to .\node_modules\@prisma\client in 202ms
+
+  Γû▓ Next.js 14.2.21
+  - Environments: .env.local, .env
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Skipping linting
+   Checking validity of types ...
+Failed to compile.
+
+./components/zenith/ZenithSc
+oreDisplay.tsx:5:23
+Type error: Cannot find 
+module 
+'@/components/ui/badge' or 
+its corresponding type 
+declarations.
+
+[0m [90m 3 |[39m 
+[36mimport[39m { 
+useState[33m,[39m 
+useEffect } [36mfrom[39m 
+[32m'react'[39m[33m;[39m
+[0m
+[0m [90m 4 |[39m 
+[36mimport[39m { 
+[33mCard[39m[33m,[39m 
+[33mCardContent[39m } 
+[36mfrom[39m [32m'@/compo
+nents/ui/card'[39m[33m;[3
+9m[0m
+[0m[31m[1m>[22m[39m[90
+m 5 |[39m [36mimport[39m 
+{ [33mBadge[39m } 
+[36mfrom[39m [32m'@/compo
+nents/ui/badge'[39m[33m;[
+39m[0m
+[0m [90m   |[39m         
+              
+[31m[1m^[22m[39m[0m
+[0m [90m 6 |[39m 
+[36mimport[39m { [33mTren
+dingUp[39m[33m,[39m [33m
+TrendingDown[39m[33m,[39m
+ 
+[33mShield[39m[33m,[39m 
+[33mZap[39m[33m,[39m [3
+3mActivity[39m[33m,[39m 
+[33mClock[39m } 
+[36mfrom[39m [32m'lucide-
+react'[39m[33m;[39m[0m
+[0m [90m 7 |[39m[0m
+[0m [90m 8 |[39m 
+[36minterface[39m [33mZen
+ithScoreDisplayProps[39m 
+{[0m

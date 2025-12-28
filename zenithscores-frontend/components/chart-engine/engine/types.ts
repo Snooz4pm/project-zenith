@@ -139,6 +139,17 @@ export interface DerivedIndicators {
     regime?: RegimeType;
 }
 
+export interface AlgorithmOverlay {
+    type: 'entry_zone' | 'invalidation' | 'volatility_compression' | 'support' | 'resistance';
+    price?: number;
+    min?: number;
+    max?: number;
+    high?: number;
+    low?: number;
+    confidence?: number;
+    description?: string;
+}
+
 export interface MarketState {
     candles: MarketCandle[];
     indicators: DerivedIndicators;

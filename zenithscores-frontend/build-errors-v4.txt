@@ -1,0 +1,97 @@
+﻿
+> zenithscores_frontend@0.1.0 build
+> prisma generate && prisma db push --accept-data-loss && next build
+
+node.exe : Environment 
+variables loaded from .env
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (Envir  
+  onment variables loaded   
+  from .env:String) [],     
+RemoteException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+Prisma schema loaded from prisma\schema.prisma
+
+Γ£ö Generated Prisma Client (v6.19.1) to .\node_modules\@prisma\client in 186ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+Environment variables 
+loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": PostgreSQL database "neondb", schema "public" at "ep-morning-frost-addvv38i-pooler.c-2.us-east-1.aws.neon.tech"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[GΓ£ö Generated Prisma Client (v6.19.1) to .\node_modules\@prisma\client in 284ms
+
+  Γû▓ Next.js 14.2.21
+  - Environments: .env.local, .env
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Skipping linting
+   Checking validity of types ...
+Failed to compile.
+
+./components/wallet/ConnectW
+alletButton.tsx:5:47
+Type error: Cannot find 
+module '@/lib/web3-config' 
+or its corresponding type 
+declarations.
+
+[0m [90m 3 |[39m 
+[36mimport[39m { 
+useAccount[33m,[39m 
+useConnect[33m,[39m 
+useDisconnect } 
+[36mfrom[39m [32m'wagmi'
+[39m[33m;[39m[0m
+[0m [90m 4 |[39m 
+[36mimport[39m { 
+useWeb3Modal } 
+[36mfrom[39m [32m'@web3mo
+dal/wagmi/react'[39m[33m;
+[39m[0m
+[0m[31m[1m>[22m[39m[90
+m 5 |[39m [36mimport[39m 
+{ 
+truncateAddress[33m,[39m 
+getChainInfo } 
+[36mfrom[39m [32m'@/lib/w
+eb3-config'[39m[33m;[39m
+[0m
+[0m [90m   |[39m         
+                            
+          
+[31m[1m^[22m[39m[0m
+[0m [90m 6 |[39m 
+[36mimport[39m { 
+[33mWallet[39m[33m,[39m 
+[33mChevronDown[39m[33m,
+[39m 
+[33mLogOut[39m[33m,[39m 
+[33mCopy[39m[33m,[39m 
+[33mExternalLink[39m } 
+[36mfrom[39m [32m'lucide-
+react'[39m[33m;[39m[0m
+[0m [90m 7 |[39m 
+[36mimport[39m { useState 
+} [36mfrom[39m [32m'react
+'[39m[33m;[39m[0m
+[0m [90m 8 |[39m[0m

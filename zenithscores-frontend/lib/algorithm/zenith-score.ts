@@ -95,12 +95,12 @@ export class ZenithScoreCalculator {
 
         // Fetch fresh data from beginning (using 5Y/ALL proxy)
         // TODO: Implement true "ALL" if provider supports it. Using '1D' timeframe for adequate granularity over long term.
-        const response = await getOHLCV({
-            symbol: this.symbol,
-            timeframe: '1D',
-            range: '5Y', // Best proxy for "lifetime" pending provider "MAX" support
-            assetType: this.assetType
-        });
+        const response = await getOHLCV(
+            this.symbol,
+            '1D',
+            '5Y', // Best proxy for "lifetime" pending provider "MAX" support
+            this.assetType
+        );
 
         if (!response || !response.data || response.data.length === 0) {
             return [];
@@ -141,7 +141,7 @@ export class ZenithScoreCalculator {
 
         // Normalize metrics to 0-100 scale
         const returnScore = this.normalizeReturn(returns.totalReturn);
-        const volatilityScore = this.normalizeVolatility(volatility.annualized);
+        const volatilityScore = this.normalizeVolatility(volatility.annualizedVolatility);
         const consistencyScore = this.calculateConsistency(returns.periodicReturns);
         const recoveryScore = this.calculateRecoveryAbility(drawdowns);
         const volumeScore = volumeAnalysis.score;
@@ -159,12 +159,12 @@ export class ZenithScoreCalculator {
             score: Math.min(100, Math.max(0, lifetimeScore)),
             metrics: {
                 totalReturn: returns.totalReturn,
-                annualizedVolatility: volatility.annualized,
+                annualizedVolatility: volatility.annualizedVolatility,
                 maxDrawdown: drawdowns.maxDrawdown,
                 recoveryTime: drawdowns.avgRecoveryDays,
                 volumeConsistency: volumeAnalysis.consistency,
                 recoveryScore, // Return explicitly for storage
-                consistencyScore: consistencyAnalysis.score || consistencyScore // Just use calculated score
+                consistencyScore // Just use calculated score
             }
         };
     }
@@ -218,7 +218,7 @@ export class ZenithScoreCalculator {
 
         // Normalize
         const returnScore = this.normalizeReturn(returns.totalReturn);
-        const volatilityScore = this.normalizeVolatility(volatility.annualized);
+        const volatilityScore = this.normalizeVolatility(volatility.annualizedVolatility);
 
         // Combined score (70% returns, 30% volatility)
         return returnScore * 0.7 + volatilityScore * 0.3;

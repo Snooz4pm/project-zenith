@@ -1,0 +1,101 @@
+﻿
+> zenithscores_frontend@0.1.0 build
+> prisma generate && prisma db push --accept-data-loss && next build
+
+node.exe : Environment 
+variables loaded from .env
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (Envir  
+  onment variables loaded   
+  from .env:String) [],     
+RemoteException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+Prisma schema loaded from prisma\schema.prisma
+
+Γ£ö Generated Prisma Client (v6.19.1) to .\node_modules\@prisma\client in 222ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+
+Environment variables 
+loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": PostgreSQL database "neondb", schema "public" at "ep-morning-frost-addvv38i-pooler.c-2.us-east-1.aws.neon.tech"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[GΓ£ö Generated Prisma Client (v6.19.1) to .\node_modules\@prisma\client in 227ms
+
+  Γû▓ Next.js 14.2.21
+  - Environments: .env.local, .env
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Skipping linting
+   Checking validity of types ...
+Failed to compile.
+
+./lib/algorithm/zenith-score
+.ts:144:69
+Type error: Property 
+'annualized' does not exist 
+on type '{ dailyVolatility: 
+number; 
+annualizedVolatility: 
+number; 
+volatilityOfVolatility: 
+number; }'.
+
+[0m [90m 142 |[39m       
+  [90m// Normalize metrics 
+to 0-100 scale[39m[0m
+[0m [90m 143 |[39m       
+  [36mconst[39m 
+returnScore [33m=[39m [36
+mthis[39m[33m.[39mnormali
+zeReturn(returns[33m.[39mt
+otalReturn)[33m;[39m[0m
+[0m[31m[1m>[22m[39m[90
+m 144 |[39m         
+[36mconst[39m 
+volatilityScore [33m=[39m 
+[36mthis[39m[33m.[39mnor
+malizeVolatility(volatility
+[33m.[39mannualized)[33m;
+[39m[0m
+[0m [90m     |[39m       
+                            
+                            
+      
+[31m[1m^[22m[39m[0m
+[0m [90m 145 |[39m       
+  [36mconst[39m 
+consistencyScore 
+[33m=[39m [36mthis[39m[
+33m.[39mcalculateConsistenc
+y(returns[33m.[39mperiodic
+Returns)[33m;[39m[0m
+[0m [90m 146 |[39m       
+  [36mconst[39m 
+recoveryScore [33m=[39m [
+36mthis[39m[33m.[39mcalcu
+lateRecoveryAbility(drawdown
+s)[33m;[39m[0m
+[0m [90m 147 |[39m       
+  [36mconst[39m 
+volumeScore [33m=[39m volu
+meAnalysis[33m.[39mscore[
+33m;[39m[0m

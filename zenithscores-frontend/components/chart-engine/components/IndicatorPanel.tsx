@@ -3,14 +3,9 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Trash2, Settings, Eye, EyeOff } from 'lucide-react';
 
-export interface Indicator {
-    type: string;
-    period?: number;
-    color: string;
-    visible?: boolean;
-}
+import { Indicator, DrawingTool, LayoutPreset, AlgorithmOverlay, RegimeType } from '../engine/types';
 
-const AVAILABLE_INDICATORS = [
+const AVAILABLE_INDICATORS: { type: Indicator['type']; label: string; defaultPeriod: number | undefined }[] = [
     { type: 'sma', label: 'SMA', defaultPeriod: 20 },
     { type: 'ema', label: 'EMA', defaultPeriod: 50 },
     { type: 'rsi', label: 'RSI', defaultPeriod: 14 },
@@ -38,7 +33,7 @@ export default function IndicatorPanel({ indicators, onChange, onToggle }: Indic
     const [isExpanded, setIsExpanded] = useState(true);
     const [showAddMenu, setShowAddMenu] = useState(false);
 
-    const addIndicator = (type: string) => {
+    const addIndicator = (type: Indicator['type']) => {
         const indicatorDef = AVAILABLE_INDICATORS.find(i => i.type === type);
         if (!indicatorDef) return;
 
