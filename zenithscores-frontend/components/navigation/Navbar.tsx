@@ -85,16 +85,20 @@ export default function Navbar() {
   };
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md shadow-lg border-b border-zinc-200 dark:border-zinc-800' : 'bg-white dark:bg-zinc-950 border-b border-zinc-100 dark:border-zinc-900'}`}>
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-[#0B0E1A]/95 backdrop-blur-xl border-b border-cyan-500/20 shadow-[0_0_30px_rgba(14,184,166,0.1)]' : 'bg-[#0B0E1A] border-b border-[#2D3F5A]'}`}>
       <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center transition-transform group-hover:scale-105">
-              <span className="text-white font-bold text-lg">Z</span>
+            <div className="relative w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center transition-all duration-300 group-hover:shadow-[0_0_20px_rgba(14,184,166,0.5)]">
+              <span className="text-[#0B0E1A] font-bold text-lg font-mono">Z</span>
+              <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-cyan-400/0 to-cyan-400/30 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hidden sm:block">
-              ZenithScores
-            </span>
+            <div className="hidden sm:block">
+              <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">
+                ZenithScores
+              </span>
+              <div className="text-[9px] text-cyan-600 uppercase tracking-widest font-mono -mt-1">Market Intelligence</div>
+            </div>
           </Link>
 
           <div className="hidden lg:flex items-center gap-1">
@@ -102,27 +106,27 @@ export default function Navbar() {
               <div key={link.href} className="relative">
                 {link.children ? (
                   <div className="relative" onMouseEnter={() => setActiveDropdown(link.label)} onMouseLeave={() => setActiveDropdown(null)}>
-                    <button className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive(link.href) ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
+                    <button className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive(link.href) ? 'bg-cyan-500/10 text-cyan-400 shadow-[0_0_12px_rgba(14,184,166,0.15)]' : 'text-gray-400 hover:text-cyan-300 hover:bg-[#1A2332]'}`}>
                       {link.icon}
                       <span>{link.label}</span>
                       <ChevronDown size={14} className={`transition-transform ${activeDropdown === link.label ? 'rotate-180' : ''}`} />
                     </button>
                     {activeDropdown === link.label && (
-                      <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-2">
+                      <div className="absolute top-full left-0 mt-2 w-72 bg-[#1A2332] rounded-xl shadow-2xl border border-[#2D3F5A] p-2 backdrop-blur-xl">
                         {link.children.map((child) => (
-                          <Link key={child.href} href={child.href} className="block px-4 py-3 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors group">
-                            <div className="font-medium text-sm text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">{child.label}</div>
-                            <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{child.description}</div>
+                          <Link key={child.href} href={child.href} className="block px-4 py-3 rounded-lg hover:bg-[#253447] transition-colors group">
+                            <div className="font-medium text-sm text-gray-200 group-hover:text-cyan-400">{child.label}</div>
+                            <div className="text-xs text-gray-500 mt-0.5">{child.description}</div>
                           </Link>
                         ))}
                       </div>
                     )}
                   </div>
                 ) : (
-                  <Link href={link.href} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive(link.href) ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
+                  <Link href={link.href} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive(link.href) ? 'bg-cyan-500/10 text-cyan-400 shadow-[0_0_12px_rgba(14,184,166,0.15)]' : 'text-gray-400 hover:text-cyan-300 hover:bg-[#1A2332]'}`}>
                     {link.icon}
                     <span>{link.label}</span>
-                    {link.badge && <span className="px-1.5 py-0.5 text-[10px] font-bold bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded">{link.badge}</span>}
+                    {link.badge && <span className="px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/20 text-amber-400 rounded border border-amber-500/30">{link.badge}</span>}
                   </Link>
                 )}
               </div>
@@ -130,30 +134,30 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="hidden md:flex p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors relative">
+            <button className="hidden md:flex p-2 rounded-lg text-gray-400 hover:text-cyan-400 hover:bg-[#1A2332] transition-all relative group">
               <Bell size={20} />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(251,191,36,0.6)]"></span>
             </button>
 
             {session ? (
               <div className="hidden md:flex items-center gap-3">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-800">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                    <User size={14} className="text-white" />
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#1A2332] border border-[#2D3F5A]">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center shadow-[0_0_12px_rgba(14,184,166,0.3)]">
+                    <User size={14} className="text-[#0B0E1A]" />
                   </div>
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{session.user?.name || 'User'}</span>
+                  <span className="text-sm font-medium text-gray-300">{session.user?.name || 'User'}</span>
                 </div>
-                <button onClick={() => signOut()} className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:hover:text-red-400 transition-colors" title="Sign Out">
+                <button onClick={() => signOut()} className="p-2 rounded-lg text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-all" title="Sign Out">
                   <LogOut size={18} />
                 </button>
               </div>
             ) : (
-              <Link href="/auth/login" className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
+              <Link href="/auth/login" className="hidden md:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white rounded-lg text-sm font-medium transition-all shadow-[0_0_16px_rgba(14,184,166,0.3)] hover:shadow-[0_0_24px_rgba(14,184,166,0.5)]">
                 Sign In
               </Link>
             )}
 
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2 rounded-lg text-gray-400 hover:text-cyan-400 hover:bg-[#1A2332] transition-all">
               {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
@@ -161,13 +165,13 @@ export default function Navbar() {
       </div>
 
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+        <div className="lg:hidden border-t border-[#2D3F5A] bg-[#111827] backdrop-blur-xl">
           <div className="max-w-[1800px] mx-auto px-4 py-4 space-y-2">
             {NAV_LINKS.map((link) => (
               <div key={link.href}>
                 {link.children ? (
                   <div>
-                    <button onClick={() => setActiveDropdown(activeDropdown === link.label ? null : link.label)} className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                    <button onClick={() => setActiveDropdown(activeDropdown === link.label ? null : link.label)} className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-gray-300 hover:bg-[#1A2332] hover:text-cyan-400 transition-all">
                       <div className="flex items-center gap-3">
                         {link.icon}
                         <span className="font-medium">{link.label}</span>
@@ -177,7 +181,7 @@ export default function Navbar() {
                     {activeDropdown === link.label && (
                       <div className="pl-4 mt-2 space-y-1">
                         {link.children.map((child) => (
-                          <Link key={child.href} href={child.href} className="block px-4 py-2 rounded-lg text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                          <Link key={child.href} href={child.href} className="block px-4 py-2 rounded-lg text-sm text-gray-400 hover:bg-[#1A2332] hover:text-cyan-400 transition-all">
                             {child.label}
                           </Link>
                         ))}
@@ -185,7 +189,7 @@ export default function Navbar() {
                     )}
                   </div>
                 ) : (
-                  <Link href={link.href} className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive(link.href) ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
+                  <Link href={link.href} className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive(link.href) ? 'bg-cyan-500/10 text-cyan-400' : 'text-gray-300 hover:bg-[#1A2332] hover:text-cyan-400'}`}>
                     {link.icon}
                     <span className="font-medium">{link.label}</span>
                   </Link>

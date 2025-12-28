@@ -1,51 +1,69 @@
 @import "tailwindcss";
 
 /* ====================================
-   🎨 FUTURISTIC 2025 DESIGN SYSTEM
+   ZENITHSCORES DATA TERMINAL SYSTEM
+   Market Intelligence Platform 2025
    ==================================== */
 
 :root {
-  /* Core Backgrounds */
-  --background-dark: #0a0a0f;
-  --background-card: #12121a;
-  --background-elevated: #1a1a25;
-  --foreground: #ededed;
+  /* Terminal Base - Deep Navy Foundation */
+  --terminal-void: #0B0E1A;
+  --terminal-deep: #111827;
+  --terminal-surface: #1A2332;
+  --terminal-elevated: #253447;
+  --terminal-border: #2D3F5A;
 
-  /* 🌈 Neon Color Palette */
-  --neon-cyan: #00f0ff;
-  --neon-purple: #a855f7;
-  --neon-pink: #f72585;
-  --neon-green: #10b981;
-  --neon-orange: #ff6b35;
-  --neon-blue: #2979ff;
-  --neon-yellow: #fbbf24;
+  /* Data Cyan - Primary Intelligence Color */
+  --data-cyan-50: #E0F7FF;
+  --data-cyan-100: #B3ECFF;
+  --data-cyan-400: #14B8A6;
+  --data-cyan-500: #0891B2;
+  --data-cyan-600: #0E7490;
+  --data-cyan-700: #155E75;
+  --data-cyan-glow: rgba(8, 145, 178, 0.4);
 
-  /* Electric Accents (Legacy Support) */
-  --accent-cyan: var(--neon-cyan);
-  --accent-purple: var(--neon-purple);
-  --accent-neon: var(--neon-green);
+  /* Amber Alert - Secondary Accent */
+  --amber-400: #FBBF24;
+  --amber-500: #F59E0B;
+  --amber-600: #D97706;
+  --amber-glow: rgba(251, 191, 36, 0.3);
 
-  /* Score Gradients */
-  --score-bull-strong: #00f0ff;
-  --score-bull-mild: #0ECB81;
-  --score-neutral: #848E9C;
-  --score-bear-mild: #F6465D;
-  --score-bear-strong: #FF0033;
+  /* Market Signals */
+  --signal-bull: #10B981;
+  --signal-bear: #EF4444;
+  --signal-neutral: #6B7280;
+  --signal-warning: #F59E0B;
 
-  /* Price Actions */
-  --price-up: #0ECB81;
-  --price-down: #F6465D;
+  /* Typography Scale */
+  --text-primary: #F9FAFB;
+  --text-secondary: #D1D5DB;
+  --text-tertiary: #9CA3AF;
+  --text-muted: #6B7280;
 
-  /* Glassmorphism */
-  --glass-bg: rgba(15, 15, 25, 0.4);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-blur: 40px;
+  /* Depth & Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 20px var(--data-cyan-glow);
 
-  /* Animation Timings */
+  /* Animation Curves */
+  --ease-terminal: cubic-bezier(0.22, 0.61, 0.36, 1);
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-elastic: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snap: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Grid Pattern */
+  --grid-color: rgba(20, 184, 166, 0.08);
+  --grid-size: 32px;
+
+  /* Typography */
+  --font-sans: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), 'Courier New', monospace;
+}
+
+@theme {
+  --font-family-sans: var(--font-sans);
+  --font-family-mono: var(--font-mono);
 }
 
 /* STOCK PORTAL THEME OVERRIDES */
@@ -1983,4 +2001,93 @@ body {
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 600;
+}
+/* ====================================
+   TERMINAL GRID BACKGROUND
+   ==================================== */
+.terminal-grid {
+  background-color: var(--terminal-void);
+  background-image: 
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+  background-position: center center;
+}
+
+.terminal-mesh {
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(14, 116, 144, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(251, 191, 36, 0.1) 0%, transparent 50%),
+    var(--terminal-void);
+}
+
+/* Terminal Data Card */
+.data-card {
+  background: var(--terminal-surface);
+  border: 1px solid var(--terminal-border);
+  transition: all 0.3s var(--ease-terminal);
+}
+
+.data-card:hover {
+  border-color: var(--data-cyan-500);
+  box-shadow: 0 0 20px var(--data-cyan-glow);
+  transform: translateY(-2px);
+}
+
+/* Staggered Reveal Animation */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal-up {
+  animation: reveal-up 0.6s var(--ease-snap) forwards;
+}
+
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+
+/* Terminal Pulse */
+@keyframes terminal-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 var(--data-cyan-glow);
+  }
+  50% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+
+.pulse-cyan {
+  animation: terminal-pulse 2s ease-in-out infinite;
+}
+
+/* Scan Line Effect */
+@keyframes scan {
+  0% {
+    background-position: 0 -100vh;
+  }
+  35%, 100% {
+    background-position: 0 100vh;
+  }
+}
+
+.scan-effect {
+  background: linear-gradient(
+    0deg,
+    transparent 0%,
+    rgba(14, 184, 166, 0.05) 50%,
+    transparent 100%
+  );
+  background-size: 100% 50vh;
+  animation: scan 8s linear infinite;
+  pointer-events: none;
 }
