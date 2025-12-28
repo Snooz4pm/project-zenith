@@ -128,6 +128,7 @@ export function generateSyntheticOHLCV(
         const low = Math.min(open, price) * (1 - Math.random() * volatility * 0.5);
 
         result.push({
+            timestamp: time * 1000, // Convert seconds to milliseconds
             time,
             open,
             high,
