@@ -5,7 +5,9 @@ import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { ArrowLeft, Activity, Clock } from 'lucide-react';
 import Link from 'next/link';
-import { useOHLCV, getLatestPrice, getPriceChange } from '@/hooks/useOHLCV';
+import { useOHLCV } from '@/hooks/useOHLCV';
+import { useLivePrice } from '@/lib/market/live';
+import { useCryptoLive } from '@/lib/market/crypto/useCryptoLive';
 import IntelligencePanel from '@/components/terminal/IntelligencePanel';
 import MarketMovers from '@/components/terminal/MarketMovers';
 import type { Timeframe, DataRange, AssetType, OHLCV } from '@/lib/market-data/types';
@@ -87,8 +89,26 @@ export default function TerminalView({
         enabled: mode === 'LIVE'
     });
 
-    const latestPrice = useMemo(() => getLatestPrice(liveOHLCV), [liveOHLCV]);
-    const { change, changePercent } = useMemo(() => getPriceChange(liveOHLCV), [liveOHLCV]);
+    // LIVE PRICE - SEPARATE FROM CHART DATA (never changes with timeframe)
+    const stockForexPrice = useLivePrice({
+        symbol,
+        assetType: assetType === 'crypto' ? 'stock' : assetType,
+        enabled: mode === 'LIVE' && assetType !== 'crypto'
+    });
+    const cryptoPrice = useCryptoLive({
+        symbol,
+        enabled: mode === 'LIVE' && assetType === 'crypto'
+    });
+
+    // Unified live price (timeframe-independent)
+    const livePrice = assetType === 'crypto'
+        ? (cryptoPrice.priceUsd || 0)
+        : (stockForexPrice.price || 0);
+    const liveChangePercent = assetType === 'crypto'
+        ? (cryptoPrice.priceChange24h || 0)
+        : (stockForexPrice.previousClose > 0
+            ? ((stockForexPrice.price - stockForexPrice.previousClose) / stockForexPrice.previousClose) * 100
+            : 0);
 
     // --- 2. REPLAY ENGINE ---
     const replayEngine = useRef<ReplayEngine | null>(null);
@@ -200,7 +220,7 @@ export default function TerminalView({
     };
 
     // Regime & Scoring
-    const isPositive = change >= 0;
+    const isPositive = liveChangePercent >= 0;
     const convictionScore = Math.round((factors.momentum * 0.3) + (factors.trend * 0.4) + (factors.volume * 0.3));
 
     // Dynamic "What Breaks This Thesis" logic
@@ -212,8 +232,14 @@ export default function TerminalView({
         return `Current market structure is undefined. Wait for volatility contraction or trend alignment.`;
     }, [regime, entryZone, invalidation]);
 
-    // Display Price derived from Chart Data (Single Source of Truth)
-    const displayPrice = latestPrice;
+    // DISPLAY PRICE: Live mode uses price engine, Replay uses candle close
+    // This is the ONLY place price source is decided
+    const displayPrice = mode === 'REPLAY'
+        ? (replayData[replayData.length - 1]?.close || 0)
+        : livePrice;
+    const displayChangePercent = mode === 'REPLAY'
+        ? 0 // No change display in replay
+        : liveChangePercent;
 
     // --- DEEP DIVE & JOURNAL STATE ---
     const [showDeepDive, setShowDeepDive] = useState(false);
@@ -284,7 +310,7 @@ export default function TerminalView({
                             <ChartPriceDisplay
                                 symbol={symbol}
                                 price={displayPrice}
-                                changePercent={changePercent}
+                                changePercent={displayChangePercent}
                                 isLoading={liveLoading}
                                 onRefresh={refetch}
                                 provider={provider}
