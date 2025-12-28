@@ -15,8 +15,9 @@ export function normalizeFinnhubCandles(data: CandleData): OHLCV[] {
         return [];
     }
 
-    return data.t.map((timestamp, i) => ({
-        time: timestamp,
+    return data.t.map((time, i) => ({
+        timestamp: time * 1000, // Convert seconds to milliseconds
+        time: time, // Unix timestamp in seconds
         open: data.o[i],
         high: data.h[i],
         low: data.l[i],
@@ -38,6 +39,7 @@ export function normalizeDexScreenerToQuote(pair: DexPair): OHLCV | null {
     // DexScreener doesn't provide OHLCV, only current price + changes
     // We create a synthetic candle from available data
     return {
+        timestamp: now * 1000, // Convert seconds to milliseconds
         time: now,
         open: price / (1 + (pair.priceChange?.h24 || 0) / 100), // Estimate open from 24h change
         high: price * 1.02, // Estimate
@@ -55,9 +57,11 @@ export function normalizeAlphaVantageDaily(data: Record<string, any>): OHLCV[] {
     const result: OHLCV[] = [];
 
     for (const [dateStr, values] of Object.entries(data)) {
-        const timestamp = new Date(dateStr).getTime() / 1000;
+        const timestampMs = new Date(dateStr).getTime();
+        const time = Math.floor(timestampMs / 1000);
         result.push({
-            time: timestamp,
+            timestamp: timestampMs,
+            time: time,
             open: parseFloat(values['1. open'] || values['open'] || 0),
             high: parseFloat(values['2. high'] || values['high'] || 0),
             low: parseFloat(values['3. low'] || values['low'] || 0),
