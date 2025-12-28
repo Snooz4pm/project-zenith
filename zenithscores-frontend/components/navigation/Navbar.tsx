@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, TrendingUp, BookOpen, Wallet, BarChart3, Menu, X, ChevronDown, User, LogOut, Newspaper } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, BookOpen, Wallet, BarChart3, Menu, X, ChevronDown, User, LogOut, Newspaper, Book } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 
 const NAV_LINKS = [
@@ -19,6 +19,7 @@ const NAV_LINKS = [
     ]
   },
   { label: 'Learn', href: '/learning', icon: <BookOpen size={16} /> },
+  { label: 'Notebook', href: '/notebook', icon: <Book size={16} /> },
   { label: 'Trade', href: '/trading', icon: <Wallet size={16} /> },
   { label: 'Charts', href: '/charts', icon: <BarChart3 size={16} /> },
   { label: 'News', href: '/news', icon: <Newspaper size={16} /> }
@@ -49,8 +50,8 @@ export default function Navbar() {
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
-        ? 'bg-[rgba(5,5,8,0.8)] backdrop-blur-md border-b border-[rgba(255,255,255,0.05)]'
-        : 'bg-transparent'
+      ? 'bg-[rgba(5,5,8,0.8)] backdrop-blur-md border-b border-[rgba(255,255,255,0.05)]'
+      : 'bg-transparent'
       }`}>
       <div className="max-w-[1920px] mx-auto px-6 sm:px-8">
         <div className="flex items-center justify-between h-20">
@@ -92,8 +93,8 @@ export default function Navbar() {
                     onMouseLeave={() => setActiveDropdown(null)}
                   >
                     <button className={`flex items-center gap-2 text-sm font-medium transition-all duration-300 ${isActive(link.href)
-                        ? 'text-[var(--accent-mint)] text-glow'
-                        : 'text-[var(--text-secondary)] hover:text-white'
+                      ? 'text-[var(--accent-mint)] text-glow'
+                      : 'text-[var(--text-secondary)] hover:text-white'
                       }`} style={{ fontFamily: "var(--font-body)" }}>
                       <span>{link.label}</span>
                       <ChevronDown size={10} className={`opacity-50 transition-transform duration-300 ${activeDropdown === link.label ? 'rotate-180' : ''}`} />
@@ -120,8 +121,8 @@ export default function Navbar() {
                   <Link
                     href={link.href}
                     className={`relative text-sm font-medium transition-all duration-300 ${isActive(link.href)
-                        ? 'text-[var(--accent-mint)] text-glow'
-                        : 'text-[var(--text-secondary)] hover:text-white'
+                      ? 'text-[var(--accent-mint)] text-glow'
+                      : 'text-[var(--text-secondary)] hover:text-white'
                       }`}
                     style={{ fontFamily: "var(--font-body)" }}
                   >
