@@ -23,7 +23,7 @@ const CORE_CONCEPTS_BY_MODULE: Record<string, any[]> = {
   'liquidity': [
     {
       term: 'Market Depth',
-      definition: 'The market's ability to sustain large orders without causing significant price movement. Measured by volume available at each price level.',
+      definition: 'The market\'s ability to sustain large orders without causing significant price movement. Measured by volume available at each price level.',
       importance: 'critical' as const
     },
     {
