@@ -163,3 +163,142 @@ export async function deleteJournal(journalId: string, userId: string) {
         return { success: false, error: 'Failed to delete journal' };
     }
 }
+
+// ============================================
+// LINKED MISSION NOTEBOOK - Asset Page Actions
+// ============================================
+
+/**
+ * Get active missions linked to a specific asset symbol.
+ * Used by asset detail pages to show mission selector.
+ */
+export async function getAssetMissions(userId: string, assetSymbol: string) {
+    try {
+        return await prisma.tradeJournal.findMany({
+            where: {
+                userId,
+                assetSymbol: assetSymbol.toUpperCase(),
+                status: { in: ['BRIEFING', 'LIVE'] },
+                type: 'mission'
+            },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                missionUpdates: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 1
+                }
+            }
+        });
+    } catch (e) {
+        console.error('Failed to get asset missions:', e);
+        return [];
+    }
+}
+
+/**
+ * Create a lightweight mission from an asset page.
+ * Minimal input: title + optional hypothesis.
+ */
+export async function createLightweightMission(
+    userId: string,
+    assetSymbol: string,
+    title: string,
+    hypothesis?: string,
+    currentPrice?: number
+) {
+    try {
+        const thesis: ThesisItem[] = hypothesis ? [{
+            id: crypto.randomUUID(),
+            type: 'hypothesis',
+            content: hypothesis,
+            conviction: 50
+        }] : [];
+
+        const journal = await prisma.tradeJournal.create({
+            data: {
+                userId,
+                title,
+                assetSymbol: assetSymbol.toUpperCase(),
+                type: 'mission',
+                status: 'BRIEFING',
+                thesis: thesis as any,
+                liveLog: [],
+                marketContext: currentPrice ? { priceAtCreation: currentPrice } : undefined
+            }
+        });
+
+        revalidatePath('/notebook');
+        return { success: true, data: journal };
+    } catch (error) {
+        console.error('Failed to create lightweight mission:', error);
+        return { success: false, error: 'Failed to create mission' };
+    }
+}
+
+/**
+ * Append an update to a mission from an asset page.
+ * This is append-only - never modifies core thesis.
+ */
+export async function appendMissionUpdate(
+    journalId: string,
+    userId: string,
+    note: string,
+    price?: number,
+    source: 'asset_page' | 'notebook' = 'asset_page'
+) {
+    try {
+        // Verify ownership
+        const journal = await prisma.tradeJournal.findUnique({
+            where: { id: journalId }
+        });
+
+        if (!journal || journal.userId !== userId) {
+            return { success: false, error: 'Unauthorized' };
+        }
+
+        // Only allow updates on active missions
+        if (!['BRIEFING', 'LIVE'].includes(journal.status)) {
+            return { success: false, error: 'Mission is closed' };
+        }
+
+        const update = await prisma.missionUpdate.create({
+            data: {
+                journalId,
+                note,
+                price,
+                source
+            }
+        });
+
+        revalidatePath(`/notebook/${journalId}`);
+        return { success: true, data: update };
+    } catch (error) {
+        console.error('Failed to append mission update:', error);
+        return { success: false, error: 'Failed to add update' };
+    }
+}
+
+/**
+ * Get a mission with all its updates for display.
+ */
+export async function getMissionWithUpdates(journalId: string, userId: string) {
+    try {
+        const mission = await prisma.tradeJournal.findUnique({
+            where: { id: journalId },
+            include: {
+                missionUpdates: {
+                    orderBy: { createdAt: 'desc' }
+                }
+            }
+        });
+
+        if (!mission || mission.userId !== userId) {
+            return null;
+        }
+
+        return mission;
+    } catch (e) {
+        console.error('Failed to get mission:', e);
+        return null;
+    }
+}

@@ -23,6 +23,7 @@ import { useMarketContext } from '@/hooks/useMarketContext';
 import DeepDiveModal from '@/components/terminal/DeepDiveModal';
 import JournalModal from '@/components/journal/JournalModal';
 import ChartPriceDisplay from '@/components/market/ChartPriceDisplay';
+import { MissionPanel } from '@/components/mission';
 
 // Dynamic import for chart to avoid SSR issues
 const ZenithChartPro = dynamic(() => import('@/components/chart-engine/ZenithChartPro'), { ssr: false });
@@ -242,6 +243,13 @@ export default function TerminalView({
                 onClose={() => setShowJournal(false)}
                 symbol={symbol}
                 aiContext={aiAnalysis || deepDiveContent} // Allow importing either brief or deep dive
+            />
+
+            {/* Linked Mission Panel */}
+            <MissionPanel
+                symbol={symbol}
+                assetType={assetType}
+                currentPrice={displayPrice}
             />
 
             {/* Header */}

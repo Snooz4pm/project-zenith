@@ -749,6 +749,9 @@ model TradeJournal {
   title       String?  @db.VarChar(255)
   assetSymbol String?  @db.VarChar(20)
   
+  // Mission type: 'mission' for live tracking, 'deep_dive' for research
+  type        String   @default("mission") @db.VarChar(20)
+  
   // Phase Locks: BRIEFING -> LIVE -> DEBRIEF -> ARCHIVED
   status      String   @default("BRIEFING") @db.VarChar(20)
   
@@ -774,10 +777,29 @@ model TradeJournal {
   updatedAt   DateTime @updatedAt
 
   user User? @relation("UserJournals", fields: [userId], references: [id], onDelete: Cascade)
+  missionUpdates MissionUpdate[]
 
   @@index([userId])
   @@index([assetSymbol])
   @@index([status])
+  @@index([type])
+  @@index([createdAt(sort: Desc)])
+}
+
+// Mission Updates: Append-only observations from Asset Detail pages
+model MissionUpdate {
+  id          String   @id @default(cuid())
+  journalId   String
+  
+  price       Float?   // Current price when update was made
+  note        String   @db.Text
+  source      String   @db.VarChar(20) // 'asset_page' | 'notebook'
+  
+  createdAt   DateTime @default(now())
+
+  journal     TradeJournal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@index([journalId])
   @@index([createdAt(sort: Desc)])
 }
 
