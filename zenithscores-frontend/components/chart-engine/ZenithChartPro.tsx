@@ -136,6 +136,28 @@ export default function ZenithChartPro({
         return () => resizeObserver.disconnect();
     }, []);
 
+    // Effect: Prevent page scroll when zooming chart (native listener with passive: false)
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const handleNativeWheel = (e: WheelEvent) => {
+            e.preventDefault(); // This works with passive: false
+
+            const newViewport = calculateZoom(
+                viewport,
+                e.deltaY,
+                null,
+                candles.length,
+                Math.ceil(dims.width / viewport.candleWidth)
+            );
+            setViewport(newViewport);
+        };
+
+        canvas.addEventListener('wheel', handleNativeWheel, { passive: false });
+        return () => canvas.removeEventListener('wheel', handleNativeWheel);
+    }, [viewport, candles.length, dims.width]);
+
     // Effect: Draw on change
     useEffect(() => {
         requestAnimationFrame(draw);
@@ -198,7 +220,6 @@ export default function ZenithChartPro({
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
-                onWheel={handleWheel}
             />
 
             {/* Chart Mode Toggle */}
@@ -206,8 +227,8 @@ export default function ZenithChartPro({
                 <button
                     onClick={() => setChartMode('expert')}
                     className={`px-3 py-1 text-xs rounded-full transition-all ${chartMode === 'expert'
-                            ? 'bg-white text-black font-medium'
-                            : 'text-white/70 hover:text-white'
+                        ? 'bg-white text-black font-medium'
+                        : 'text-white/70 hover:text-white'
                         }`}
                 >
                     Expert
@@ -215,8 +236,8 @@ export default function ZenithChartPro({
                 <button
                     onClick={() => setChartMode('overview')}
                     className={`px-3 py-1 text-xs rounded-full transition-all ${chartMode === 'overview'
-                            ? 'bg-blue-500 text-white font-medium'
-                            : 'text-white/70 hover:text-white'
+                        ? 'bg-blue-500 text-white font-medium'
+                        : 'text-white/70 hover:text-white'
                         }`}
                 >
                     Overview

@@ -75,7 +75,8 @@ export function renderChart(
 }
 
 /**
- * Overview Mode - Clean blue line chart (beginner friendly)
+ * Overview Mode - Enhanced line chart (beginner friendly, premium feel)
+ * Features: gradient fill, direction-aware color, last-price dot
  */
 function renderOverviewChart(
     ctx: CanvasRenderingContext2D,
@@ -88,36 +89,116 @@ function renderOverviewChart(
     startIndex: number,
     endIndex: number
 ) {
-    const { width, height } = dimensions;
+    const { width, height, chartHeight } = dimensions;
+    const { top: padTop, bottom: padBottom, left: padLeft, right: padRight } = config.padding;
 
     // 1. Gradient background
-    const gradient = ctx.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, '#0A1025');
-    gradient.addColorStop(0.5, '#0A1525');
-    gradient.addColorStop(1, '#0A1B20');
-    ctx.fillStyle = gradient;
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
+    bgGradient.addColorStop(0, '#0A1025');
+    bgGradient.addColorStop(0.5, '#0A1525');
+    bgGradient.addColorStop(1, '#0A1B20');
+    ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, width, height);
 
-    // 2. Build price path
-    const closePrices = candles.map(c => c.close);
+    // 2. Micro-grid (very subtle, 3 lines only)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 3; i++) {
+        const y = padTop + (chartHeight * i / 4);
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
 
-    // 3. Draw glow (thicker, blurred line)
+    if (candles.length === 0) return;
+
+    // 3. Determine trend direction (for color)
+    const safeStart = Math.max(0, startIndex);
+    const safeEnd = Math.min(candles.length - 1, endIndex - 1);
+    const startClose = candles[safeStart]?.close ?? 0;
+    const endClose = candles[safeEnd]?.close ?? startClose;
+
+    const trend = endClose > startClose ? 'up' : endClose < startClose ? 'down' : 'flat';
+    const LINE_COLORS = {
+        up: '#E5ECFF',    // Bright blue-white
+        down: '#FCD34D',  // Amber
+        flat: '#CBD5E1'   // Gray-blue
+    };
+    const GLOW_COLORS = {
+        up: 'rgba(96, 165, 250, 0.25)',
+        down: 'rgba(252, 211, 77, 0.25)',
+        flat: 'rgba(148, 163, 184, 0.25)'
+    };
+    const lineColor = LINE_COLORS[trend];
+    const glowColor = GLOW_COLORS[trend];
+
+    // 4. Collect path points
+    const closePrices = candles.map(c => c.close);
+    const points: { x: number; y: number }[] = [];
+    const drawStart = Math.max(0, startIndex - 1);
+    const drawEnd = Math.min(closePrices.length - 1, endIndex + 1);
+
+    for (let i = drawStart; i <= drawEnd; i++) {
+        const val = closePrices[i];
+        if (val === undefined || isNaN(val)) continue;
+        const x = indexToX(i, viewport.offset, viewport.candleWidth, padLeft);
+        const y = priceToY(val, minPrice, maxPrice, chartHeight, padTop, padBottom);
+        points.push({ x, y });
+    }
+
+    if (points.length === 0) return;
+
+    // 5. Draw gradient fill under line
+    const firstX = points[0].x;
+    const lastX = points[points.length - 1].x;
+    const lastY = points[points.length - 1].y;
+    const chartBottom = height - padBottom;
+
     ctx.beginPath();
-    ctx.strokeStyle = 'rgba(96, 165, 250, 0.25)';
+    ctx.moveTo(firstX, points[0].y);
+    for (const p of points) {
+        ctx.lineTo(p.x, p.y);
+    }
+    ctx.lineTo(lastX, chartBottom);
+    ctx.lineTo(firstX, chartBottom);
+    ctx.closePath();
+
+    const areaGradient = ctx.createLinearGradient(0, padTop, 0, chartBottom);
+    areaGradient.addColorStop(0, glowColor);
+    areaGradient.addColorStop(1, 'rgba(96, 165, 250, 0.00)');
+    ctx.fillStyle = areaGradient;
+    ctx.fill();
+
+    // 6. Draw glow line (thicker, for depth)
+    ctx.beginPath();
+    ctx.strokeStyle = glowColor;
     ctx.lineWidth = 6;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    drawPricePath(ctx, closePrices, startIndex, endIndex, viewport, minPrice, maxPrice, dimensions, config);
+    ctx.moveTo(points[0].x, points[0].y);
+    for (const p of points) ctx.lineTo(p.x, p.y);
     ctx.stroke();
 
-    // 4. Draw main line
+    // 7. Draw main line
     ctx.beginPath();
-    ctx.strokeStyle = '#E5ECFF';
+    ctx.strokeStyle = lineColor;
     ctx.lineWidth = 2;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    drawPricePath(ctx, closePrices, startIndex, endIndex, viewport, minPrice, maxPrice, dimensions, config);
+    ctx.moveTo(points[0].x, points[0].y);
+    for (const p of points) ctx.lineTo(p.x, p.y);
     ctx.stroke();
+
+    // 8. Last-price dot with glow
+    ctx.save();
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = lineColor;
+    ctx.beginPath();
+    ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = lineColor;
+    ctx.fill();
+    ctx.restore();
 }
 
 function drawPricePath(
