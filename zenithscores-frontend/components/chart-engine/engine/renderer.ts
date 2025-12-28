@@ -8,7 +8,8 @@ import {
     MarketCandle,
     Viewport,
     DerivedIndicators,
-    ChartDimensions
+    ChartDimensions,
+    Drawing
 } from './types';
 import { indexToX, priceToY } from './viewport';
 
@@ -30,7 +31,8 @@ export function renderChart(
     minPrice: number,
     maxPrice: number,
     visibleStartIndex: number,
-    visibleEndIndex: number
+    visibleEndIndex: number,
+    indicatorData?: Record<string, number[]>
 ) {
     // 1. Clear
     ctx.clearRect(0, 0, dimensions.width, dimensions.height);
@@ -48,11 +50,20 @@ export function renderChart(
     ctx.fillRect(0, 0, dimensions.width, dimensions.height);
 
     // 2. Draw Grid
-    drawGrid(ctx, config, dimensions, minPrice, maxPrice);
+    if (config.showGrid) {
+        drawGrid(ctx, config, dimensions, minPrice, maxPrice);
+    }
 
     // 3. Draw Indicators (Behind candles)
-    if (indicators.ema20) drawLine(ctx, indicators.ema20, visibleStartIndex, visibleEndIndex, viewport, minPrice, maxPrice, dimensions, config, '#0ea5e9', 1.5);
-    if (indicators.ema50) drawLine(ctx, indicators.ema50, visibleStartIndex, visibleEndIndex, viewport, minPrice, maxPrice, dimensions, config, '#f97316', 1.5);
+    if (config.indicators && indicatorData) {
+        for (const indicator of config.indicators) {
+            if (indicator.visible === false) continue;
+            const data = indicatorData[indicator.type];
+            if (data) {
+                drawLine(ctx, data, visibleStartIndex, visibleEndIndex, viewport, minPrice, maxPrice, dimensions, config, indicator.color, 1.5);
+            }
+        }
+    }
 
     // 4. Draw Candles
     drawCandles(
@@ -67,10 +78,20 @@ export function renderChart(
         config
     );
 
-    // 5. Draw Price Line (Current Price)
+    // 5. Draw User Drawings
+    if (config.drawings && config.drawings.length > 0) {
+        drawDrawings(ctx, config.drawings, viewport, minPrice, maxPrice, dimensions, config, candles.length);
+    }
+
+    // 6. Draw Price Line (Current Price)
     if (candles.length > 0) {
         const lastCandle = candles[candles.length - 1];
         drawPriceLine(ctx, lastCandle.close, minPrice, maxPrice, dimensions, config);
+    }
+
+    // 7. Draw Crosshair
+    if (config.crosshair) {
+        drawCrosshair(ctx, config.crosshair, dimensions, config);
     }
 }
 
@@ -367,4 +388,232 @@ function drawPriceLine(
     ctx.lineTo(dims.width, crisp(y));
     ctx.stroke();
     ctx.setLineDash([]); // Reset
+}
+
+// Helper to convert candle index to X coordinate
+function candleIndexToX(index: number, viewport: Viewport, padding: number): number {
+    return indexToX(index, viewport.offset, viewport.candleWidth, padding);
+}
+
+// Draw all user drawings
+function drawDrawings(
+    ctx: CanvasRenderingContext2D,
+    drawings: Drawing[],
+    viewport: Viewport,
+    minPrice: number,
+    maxPrice: number,
+    dimensions: ChartDimensions,
+    config: EngineConfig,
+    candleCount: number
+) {
+    for (const drawing of drawings) {
+        if (!drawing.visible) continue;
+
+        ctx.strokeStyle = drawing.color || '#3B82F6';
+        ctx.fillStyle = drawing.color || '#3B82F6';
+        ctx.lineWidth = 2;
+
+        switch (drawing.type) {
+            case 'trendline':
+                drawTrendline(ctx, drawing, viewport, minPrice, maxPrice, dimensions, config);
+                break;
+            case 'horizontal':
+                drawHorizontalLine(ctx, drawing, viewport, minPrice, maxPrice, dimensions, config);
+                break;
+            case 'vertical':
+                drawVerticalLine(ctx, drawing, viewport, minPrice, maxPrice, dimensions, config);
+                break;
+            case 'rectangle':
+                drawRectangle(ctx, drawing, viewport, minPrice, maxPrice, dimensions, config);
+                break;
+            case 'ellipse':
+                drawEllipse(ctx, drawing, viewport, minPrice, maxPrice, dimensions, config);
+                break;
+            case 'ray':
+                drawRay(ctx, drawing, viewport, minPrice, maxPrice, dimensions, config, candleCount);
+                break;
+        }
+    }
+}
+
+function drawTrendline(
+    ctx: CanvasRenderingContext2D,
+    drawing: Drawing,
+    viewport: Viewport,
+    minPrice: number,
+    maxPrice: number,
+    dimensions: ChartDimensions,
+    config: EngineConfig
+) {
+    if (drawing.points.length < 2) return;
+
+    const p1 = drawing.points[0];
+    const p2 = drawing.points[1];
+
+    const x1 = candleIndexToX(p1.x, viewport, config.padding.left);
+    const y1 = priceToY(p1.y, minPrice, maxPrice, dimensions.chartHeight, config.padding.top, config.padding.bottom);
+    const x2 = candleIndexToX(p2.x, viewport, config.padding.left);
+    const y2 = priceToY(p2.y, minPrice, maxPrice, dimensions.chartHeight, config.padding.top, config.padding.bottom);
+
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+}
+
+function drawHorizontalLine(
+    ctx: CanvasRenderingContext2D,
+    drawing: Drawing,
+    viewport: Viewport,
+    minPrice: number,
+    maxPrice: number,
+    dimensions: ChartDimensions,
+    config: EngineConfig
+) {
+    if (drawing.points.length < 1) return;
+
+    const p = drawing.points[0];
+    const y = priceToY(p.y, minPrice, maxPrice, dimensions.chartHeight, config.padding.top, config.padding.bottom);
+
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(dimensions.width, y);
+    ctx.stroke();
+}
+
+function drawVerticalLine(
+    ctx: CanvasRenderingContext2D,
+    drawing: Drawing,
+    viewport: Viewport,
+    minPrice: number,
+    maxPrice: number,
+    dimensions: ChartDimensions,
+    config: EngineConfig
+) {
+    if (drawing.points.length < 1) return;
+
+    const p = drawing.points[0];
+    const x = candleIndexToX(p.x, viewport, config.padding.left);
+
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, dimensions.height);
+    ctx.stroke();
+}
+
+function drawRectangle(
+    ctx: CanvasRenderingContext2D,
+    drawing: Drawing,
+    viewport: Viewport,
+    minPrice: number,
+    maxPrice: number,
+    dimensions: ChartDimensions,
+    config: EngineConfig
+) {
+    if (drawing.points.length < 2) return;
+
+    const p1 = drawing.points[0];
+    const p2 = drawing.points[1];
+
+    const x1 = candleIndexToX(p1.x, viewport, config.padding.left);
+    const y1 = priceToY(p1.y, minPrice, maxPrice, dimensions.chartHeight, config.padding.top, config.padding.bottom);
+    const x2 = candleIndexToX(p2.x, viewport, config.padding.left);
+    const y2 = priceToY(p2.y, minPrice, maxPrice, dimensions.chartHeight, config.padding.top, config.padding.bottom);
+
+    ctx.globalAlpha = 0.2;
+    ctx.fillRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+    ctx.globalAlpha = 1.0;
+    ctx.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+}
+
+function drawEllipse(
+    ctx: CanvasRenderingContext2D,
+    drawing: Drawing,
+    viewport: Viewport,
+    minPrice: number,
+    maxPrice: number,
+    dimensions: ChartDimensions,
+    config: EngineConfig
+) {
+    if (drawing.points.length < 2) return;
+
+    const p1 = drawing.points[0];
+    const p2 = drawing.points[1];
+
+    const x1 = candleIndexToX(p1.x, viewport, config.padding.left);
+    const y1 = priceToY(p1.y, minPrice, maxPrice, dimensions.chartHeight, config.padding.top, config.padding.bottom);
+    const x2 = candleIndexToX(p2.x, viewport, config.padding.left);
+    const y2 = priceToY(p2.y, minPrice, maxPrice, dimensions.chartHeight, config.padding.top, config.padding.bottom);
+
+    const centerX = (x1 + x2) / 2;
+    const centerY = (y1 + y2) / 2;
+    const radiusX = Math.abs(x2 - x1) / 2;
+    const radiusY = Math.abs(y2 - y1) / 2;
+
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+    ctx.globalAlpha = 0.2;
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+    ctx.stroke();
+}
+
+function drawRay(
+    ctx: CanvasRenderingContext2D,
+    drawing: Drawing,
+    viewport: Viewport,
+    minPrice: number,
+    maxPrice: number,
+    dimensions: ChartDimensions,
+    config: EngineConfig,
+    candleCount: number
+) {
+    if (drawing.points.length < 2) return;
+
+    const p1 = drawing.points[0];
+    const p2 = drawing.points[1];
+
+    const x1 = candleIndexToX(p1.x, viewport, config.padding.left);
+    const y1 = priceToY(p1.y, minPrice, maxPrice, dimensions.chartHeight, config.padding.top, config.padding.bottom);
+    const x2 = candleIndexToX(p2.x, viewport, config.padding.left);
+    const y2 = priceToY(p2.y, minPrice, maxPrice, dimensions.chartHeight, config.padding.top, config.padding.bottom);
+
+    // Calculate direction
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const angle = Math.atan2(dy, dx);
+
+    // Extend to edge of screen
+    const extendedX = x2 + Math.cos(angle) * dimensions.width * 2;
+    const extendedY = y2 + Math.sin(angle) * dimensions.height * 2;
+
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(extendedX, extendedY);
+    ctx.stroke();
+}
+
+function drawCrosshair(
+    ctx: CanvasRenderingContext2D,
+    crosshair: { x: number; y: number; price: number; time: Date | null },
+    dimensions: ChartDimensions,
+    config: EngineConfig
+) {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+
+    // Vertical line
+    ctx.beginPath();
+    ctx.moveTo(crosshair.x, 0);
+    ctx.lineTo(crosshair.x, dimensions.height);
+    ctx.stroke();
+
+    // Horizontal line
+    ctx.beginPath();
+    ctx.moveTo(0, crosshair.y);
+    ctx.lineTo(dimensions.width, crosshair.y);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
 }

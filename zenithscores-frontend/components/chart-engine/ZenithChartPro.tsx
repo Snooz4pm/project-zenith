@@ -116,11 +116,7 @@ export default function ZenithChartPro({
 
     const [chartType, setChartType] = useState<ChartType>('candle');
     const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-    const [activeIndicators, setActiveIndicators] = useState<Indicator[]>([
-        { type: 'sma', period: 20, color: '#3B82F6' },
-        { type: 'ema', period: 50, color: '#EF4444' },
-        { type: 'rsi', period: 14, color: '#8B5CF6' },
-    ]);
+    const [activeIndicators, setActiveIndicators] = useState<Indicator[]>([]);
     const [drawings, setDrawings] = useState<Drawing[]>(suggestions);
     const [activeDrawingTool, setActiveDrawingTool] = useState<DrawingTool | null>(null);
     const [currentDrawing, setCurrentDrawing] = useState<Drawing | null>(null);
@@ -151,16 +147,10 @@ export default function ZenithChartPro({
             case 'basic':
                 setShowIndicatorsPanel(false);
                 setShowDrawingToolbar(false);
-                setActiveIndicators([]);
                 break;
             case 'technical':
                 setShowIndicatorsPanel(true);
                 setShowDrawingToolbar(true);
-                setActiveIndicators([
-                    { type: 'sma', period: 20, color: '#3B82F6' },
-                    { type: 'ema', period: 50, color: '#EF4444' },
-                    { type: 'rsi', period: 14, color: '#8B5CF6' },
-                ]);
                 break;
             case 'minimal':
                 setShowIndicatorsPanel(false);
@@ -170,7 +160,6 @@ export default function ZenithChartPro({
                 break;
             case 'volume-profile':
                 setShowIndicatorsPanel(false);
-                setActiveIndicators([{ type: 'volume', color: '#6B7280' }]);
                 break;
         }
     }, [layout]);
@@ -485,20 +474,28 @@ export default function ZenithChartPro({
                     </span>
                 </div>
 
-                <div className="flex items-center gap-1 bg-black/60 backdrop-blur border border-white/10 rounded-lg p-1">
-                    {CHART_TYPES.map((type) => (
+                <div className="flex items-center gap-2">
+                    {/* Simple Line/Candle Toggle */}
+                    <div className="flex items-center gap-1 bg-black/60 backdrop-blur border border-white/10 rounded-lg p-1">
                         <button
-                            key={type.value}
-                            onClick={() => setChartType(type.value)}
-                            className={`p-2 rounded-md transition-all ${chartType === type.value
+                            onClick={() => setChartType('line')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${chartType === 'line'
                                 ? 'bg-white/20 text-white'
                                 : 'text-white/60 hover:text-white hover:bg-white/10'
                                 }`}
-                            title={type.label}
                         >
-                            {type.icon}
+                            Line
                         </button>
-                    ))}
+                        <button
+                            onClick={() => setChartType('candle')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${chartType === 'candle'
+                                ? 'bg-white/20 text-white'
+                                : 'text-white/60 hover:text-white hover:bg-white/10'
+                                }`}
+                        >
+                            Candle
+                        </button>
+                    </div>
                 </div>
             </div>
 
