@@ -39,6 +39,7 @@ model User {
   journals              TradeJournal[]          @relation("UserJournals")
   portfolio             Portfolio?              @relation("UserPortfolio")
   newsResponses         NewsResponse[]          @relation("UserNewsResponses")
+  intelProfile          UserIntelProfile?       @relation("UserIntelProfile")
 }
 
 // Required by NextAuth PrismaAdapter for OAuth
@@ -890,4 +891,43 @@ model NewsResponse {
   @@index([articleId])
   @@index([bias])
   @@index([createdAt(sort: Desc)])
+}
+
+// ========================
+// INTELLIGENCE FEED SYSTEM
+// ========================
+
+model IntelligenceItem {
+  id          String   @id @default(cuid())
+  source      String   @db.VarChar(50) // 'finnhub' | 'alphavantage'
+  externalId  String   @unique
+  headline    String   @db.VarChar(500)
+  summary     String?  @db.Text
+  url         String
+  imageUrl    String?
+  publishedAt DateTime
+  assetTags   String[] @default([])
+  category    String?  @db.VarChar(50) // 'earnings' | 'macro' | 'sector'
+  sentiment   Float?   @default(0)     // -1 to 1
+  impactScore Float?   @default(0)     // 0 to 100
+  createdAt   DateTime @default(now())
+
+  @@index([publishedAt(sort: Desc)])
+  @@index([assetTags])
+  @@index([category])
+}
+
+model UserIntelProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique @db.VarChar(255)
+  watchedAssets   String[] @default([])
+  attentionBias   Json?    // { crypto: 0.6, stocks: 0.3, forex: 0.1 }
+  lastViewed      DateTime?
+  clickHistory    Json?    // array of { itemId, timestamp }
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation("UserIntelProfile", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

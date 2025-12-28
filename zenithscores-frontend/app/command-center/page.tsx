@@ -13,6 +13,7 @@ import NewsTile from '@/components/command-center/NewsTile';
 import NotebookTile from '@/components/command-center/NotebookTile';
 import NotesTile from '@/components/command-center/NotesTile';
 import SlideOutPanel from '@/components/command-center/SlideOutPanel';
+import { IntelligenceDrawer } from '@/components/intelligence';
 import { Bell, Settings, Zap, BarChart2, FileText, Users, BookOpen, Newspaper } from 'lucide-react';
 
 type PanelType = 'trades' | 'market' | 'signals' | 'performance' | 'community' | 'learning' | 'news' | 'notes' | null;
@@ -21,6 +22,7 @@ export default function CommandCenterPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
     const [activePanel, setActivePanel] = useState<PanelType>(null);
+    const [intelligenceOpen, setIntelligenceOpen] = useState(false);
     const [currentTime, setCurrentTime] = useState<string>('');
     const [lastActive, setLastActive] = useState<string>('Just now');
 
@@ -94,7 +96,7 @@ export default function CommandCenterPage() {
                         <span className="text-xs">⚡</span>
                         <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Risk-On</span>
                     </div>
-                    <div className="relative cursor-pointer hover:opacity-80 transition-opacity">
+                    <div className="relative cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setIntelligenceOpen(true)}>
                         <Bell size={20} className="text-[var(--text-muted)] hover:text-white" />
                         <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--accent-danger)] text-[8px] flex items-center justify-center text-white font-bold">3</span>
                     </div>
@@ -164,6 +166,12 @@ export default function CommandCenterPage() {
                 isOpen={activePanel !== null}
                 onClose={closePanel}
                 panelType={activePanel}
+            />
+
+            {/* Intelligence Drawer */}
+            <IntelligenceDrawer
+                isOpen={intelligenceOpen}
+                onClose={() => setIntelligenceOpen(false)}
             />
         </div>
     );
