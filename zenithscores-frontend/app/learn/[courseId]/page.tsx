@@ -1,584 +1,480 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
 import {
-    ArrowLeft, ChevronRight, ChevronLeft, CheckCircle, Circle,
-    BookOpen, Clock, BarChart2, Zap, Menu, X, Trophy, Star
+    ChevronLeft,
+    ChevronRight,
+    BookOpen,
+    Clock,
+    Target,
+    Zap,
+    AlertCircle,
+    Info,
+    CheckCircle2,
+    MessageSquare,
+    BarChart3,
+    Search,
+    Sidebar as SidebarIcon,
+    HelpCircle,
+    TrendingUp,
+    TrendingDown,
+    Shield,
+    Lightbulb,
+    Globe,
+    Database,
+    Lock,
+    ArrowRight,
+    MousePointer2,
+    GitBranch,
+    Layers,
+    Cpu,
+    Unlink,
+    Maximize2
 } from 'lucide-react';
-import { getCourseById, type ModuleContent, type Part, type Chapter } from '@/lib/learning-content';
+import { useRouter } from 'next/navigation';
 
-// Simple markdown renderer for our content
-function renderMarkdown(content: string): React.ReactNode[] {
-    // Split into lines
-    const lines = content.split('\n');
-    const elements: React.ReactNode[] = [];
-    let inCodeBlock = false;
-    let codeContent: string[] = [];
-    let codeLanguage = '';
-    let inTable = false;
-    let tableRows: string[] = [];
-    let listItems: string[] = [];
-    let listType: 'ul' | 'ol' | null = null;
-
-    const flushList = () => {
-        if (listItems.length > 0 && listType) {
-            const ListTag = listType === 'ol' ? 'ol' : 'ul';
-            elements.push(
-                <ListTag key={`list-${elements.length}`} className={`my-4 space-y-2 ${listType === 'ol' ? 'list-decimal' : 'list-disc'} list-inside text-gray-300`}>
-                    {listItems.map((item, i) => (
-                        <li key={i} dangerouslySetInnerHTML={{ __html: parseInline(item) }} />
-                    ))}
-                </ListTag>
-            );
-            listItems = [];
-            listType = null;
-        }
-    };
-
-    const flushTable = () => {
-        if (tableRows.length > 0) {
-            const headerRow = tableRows[0].split('|').filter(c => c.trim());
-            const dataRows = tableRows.slice(2).map(row => row.split('|').filter(c => c.trim()));
-            elements.push(
-                <div key={`table-${elements.length}`} className="my-6 overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="border-b border-cyan-500/30">
-                                {headerRow.map((cell, i) => (
-                                    <th key={i} className="px-4 py-3 text-left text-cyan-400 font-semibold">{cell.trim()}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {dataRows.map((row, i) => (
-                                <tr key={i} className="border-b border-white/5 hover:bg-white/5">
-                                    {row.map((cell, j) => (
-                                        <td key={j} className="px-4 py-3 text-gray-300" dangerouslySetInnerHTML={{ __html: parseInline(cell.trim()) }} />
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            );
-            tableRows = [];
-            inTable = false;
-        }
-    };
-
-    const parseInline = (text: string) => {
-        return text
-            .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
-            .replace(/\*(.+?)\*/g, '<em class="text-cyan-300">$1</em>')
-            .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-cyan-500/10 text-cyan-400 rounded text-sm font-mono">$1</code>')
-            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-cyan-400 hover:underline">$1</a>');
-    };
-
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-
-        // Code blocks
-        if (line.startsWith('```')) {
-            if (!inCodeBlock) {
-                flushList();
-                flushTable();
-                inCodeBlock = true;
-                codeLanguage = line.slice(3).trim();
-                codeContent = [];
-            } else {
-                elements.push(
-                    <pre key={`code-${elements.length}`} className="my-4 p-4 bg-black/50 border border-cyan-500/20 rounded-xl overflow-x-auto">
-                        <code className="text-sm font-mono text-gray-300">{codeContent.join('\n')}</code>
-                    </pre>
-                );
-                inCodeBlock = false;
-            }
-            continue;
-        }
-
-        if (inCodeBlock) {
-            codeContent.push(line);
-            continue;
-        }
-
-        // Tables
-        if (line.includes('|') && line.trim().startsWith('|')) {
-            flushList();
-            inTable = true;
-            tableRows.push(line);
-            continue;
-        } else if (inTable) {
-            flushTable();
-        }
-
-        // Headers
-        if (line.startsWith('### ')) {
-            flushList();
-            elements.push(
-                <h3 key={`h3-${elements.length}`} className="text-xl font-bold text-white mt-8 mb-4 flex items-center gap-2">
-                    <span className="w-1.5 h-6 bg-gradient-to-b from-cyan-400 to-purple-500 rounded-full" />
-                    {line.slice(4)}
-                </h3>
-            );
-            continue;
-        }
-
-        if (line.startsWith('## ')) {
-            flushList();
-            elements.push(
-                <h2 key={`h2-${elements.length}`} className="text-2xl font-bold text-white mt-10 mb-6">
-                    {line.slice(3)}
-                </h2>
-            );
-            continue;
-        }
-
-        // Blockquotes
-        if (line.startsWith('> ')) {
-            flushList();
-            const content = line.slice(2);
-            const isWarning = content.includes('⚠️');
-            const isTip = content.includes('💡') || content.includes('🎯');
-            elements.push(
-                <blockquote
-                    key={`quote-${elements.length}`}
-                    className={`my-4 p-4 rounded-xl border-l-4 ${isWarning
-                        ? 'bg-orange-500/10 border-orange-500 text-orange-200'
-                        : isTip
-                            ? 'bg-cyan-500/10 border-cyan-500 text-cyan-200'
-                            : 'bg-purple-500/10 border-purple-500 text-purple-200'
-                        }`}
-                    dangerouslySetInnerHTML={{ __html: parseInline(content) }}
-                />
-            );
-            continue;
-        }
-
-        // Horizontal rule
-        if (line.trim() === '---') {
-            flushList();
-            elements.push(<hr key={`hr-${elements.length}`} className="my-8 border-white/10" />);
-            continue;
-        }
-
-        // Lists
-        const ulMatch = line.match(/^[\-\*]\s+(.+)/);
-        const olMatch = line.match(/^\d+\.\s+(.+)/);
-
-        if (ulMatch) {
-            if (listType !== 'ul') {
-                flushList();
-                listType = 'ul';
-            }
-            listItems.push(ulMatch[1]);
-            continue;
-        }
-
-        if (olMatch) {
-            if (listType !== 'ol') {
-                flushList();
-                listType = 'ol';
-            }
-            listItems.push(olMatch[1]);
-            continue;
-        }
-
-        // Regular paragraph
-        if (line.trim()) {
-            flushList();
-            elements.push(
-                <p
-                    key={`p-${elements.length}`}
-                    className="my-3 text-gray-300 leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: parseInline(line) }}
-                />
-            );
-        }
+// Mock Course Data Structure
+const COURSES_REGISTRY: Record<string, any> = {
+    'trading-fundamentals': {
+        title: 'Trading Fundamentals',
+        level: 'LVL 1 Novice',
+        duration: '135 min',
+        modulesCount: 6,
+        modules: [
+            { id: 'overview', title: 'The Genesis of Value', icon: <BookOpen className="w-4 h-4" /> },
+            { id: 'mechanics', title: 'Market Mechanics', icon: <Database className="w-4 h-4" /> },
+            { id: 'order-types', title: 'Order Execution Flow', icon: <Zap className="w-4 h-4" /> },
+            { id: 'liquidity', title: 'The Role of Liquidity', icon: <BarChart3 className="w-4 h-4" /> },
+            { id: 'participants', title: 'Institutional Landscape', icon: <Globe className="w-4 h-4" /> },
+            { id: 'risk-intro', title: 'Risk Axioms', icon: <Shield className="w-4 h-4" /> },
+        ],
+    },
+    'zenith-score-mastery': {
+        title: 'Zenith Score Mastery',
+        level: 'LVL 2 Specialist',
+        duration: '105 min',
+        modulesCount: 4,
+        modules: [
+            { id: 'theory', title: 'Algorithmic Theory', icon: <Cpu className="w-4 h-4" /> },
+            { id: 'components', title: 'Score Components', icon: <Layers className="w-4 h-4" /> },
+            { id: 'regime', title: 'Regime Identification', icon: <Globe className="w-4 h-4" /> },
+            { id: 'application', title: 'Practical Trading', icon: <Target className="w-4 h-4" /> },
+        ]
+    },
+    'technical-analysis': {
+        title: 'Technical Analysis',
+        level: 'LVL 3 Analyst',
+        duration: '230 min',
+        modulesCount: 5,
+        modules: [
+            { id: 'charts', title: 'Visual Structures', icon: <BarChart3 className="w-4 h-4" /> },
+            { id: 'indicators', title: 'Derived Heuristics', icon: <Zap className="w-4 h-4" /> },
+            { id: 'patterns', title: 'Recurring Geometries', icon: <Maximize2 className="w-4 h-4" /> },
+            { id: 'volume', title: 'Volume Validation', icon: <Database className="w-4 h-4" /> },
+            { id: 'synthesis', title: 'Analytical Synthesis', icon: <GitBranch className="w-4 h-4" /> },
+        ]
+    },
+    'risk-management-pro': {
+        title: 'Risk Management Pro',
+        level: 'LVL 4 Strategist',
+        duration: '140 min',
+        modulesCount: 4,
+        modules: [
+            { id: 'sizing', title: 'Position Sizing Math', icon: <BarChart3 className="w-4 h-4" /> },
+            { id: 'stops', title: 'Structural Invalidation', icon: <Shield className="w-4 h-4" /> },
+            { id: 'kelly', title: 'Kelly Criterion', icon: <Zap className="w-4 h-4" /> },
+            { id: 'portfolio', title: 'Portfolio Correlation', icon: <Layers className="w-4 h-4" /> },
+        ]
+    },
+    'trading-psychology': {
+        title: 'Trading Psychology',
+        level: 'LVL 3 Behavioral',
+        duration: '150 min',
+        modulesCount: 4,
+        modules: [
+            { id: 'bias', title: 'Cognitive Biases', icon: <Lightbulb className="w-4 h-4" /> },
+            { id: 'discipline', title: 'Execution Discipline', icon: <Zap className="w-4 h-4" /> },
+            { id: 'routine', title: 'Operational Routines', icon: <Clock className="w-4 h-4" /> },
+            { id: 'recovery', title: 'Drawdown Recovery', icon: <TrendingUp className="w-4 h-4" /> },
+        ]
+    },
+    'defi-deep-dive': {
+        title: 'DeFi Deep Dive',
+        level: 'LVL 5 Architect',
+        duration: '200 min',
+        modulesCount: 5,
+        modules: [
+            { id: 'architecture', title: 'Protocol Arch', icon: <Unlink className="w-4 h-4" /> },
+            { id: 'amm', title: 'AMM Mechanics', icon: <Database className="w-4 h-4" /> },
+            { id: 'yield', title: 'Yield Optimization', icon: <TrendingUp className="w-4 h-4" /> },
+            { id: 'security', title: 'Smart Contract Risk', icon: <Shield className="w-4 h-4" /> },
+            { id: 'future', title: 'Future of Finance', icon: <Globe className="w-4 h-4" /> },
+        ]
     }
+};
 
-    flushList();
-    flushTable();
-
-    return elements;
-}
-
-export default function LearnModulePage() {
-    const params = useParams();
+export default function CoursePage({ params }: { params: { courseId: string } }) {
     const router = useRouter();
-    const courseId = params?.courseId as string;
+    const courseId = params.courseId;
+    const course = COURSES_REGISTRY[courseId] || COURSES_REGISTRY['trading-fundamentals'];
 
-    const [course, setCourse] = useState<ModuleContent | null>(null);
-    const [currentPartIndex, setCurrentPartIndex] = useState(0);
-    const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
-    const [completedChapters, setCompletedChapters] = useState<Set<string>>(new Set());
+    const [activeModule, setActiveModule] = useState(0);
     const [sidebarOpen, setSidebarOpen] = useState(true);
-    const [showCompletionModal, setShowCompletionModal] = useState(false);
+    const [readingProgress, setReadingProgress] = useState(0);
 
     useEffect(() => {
-        if (courseId) {
-            const foundCourse = getCourseById(courseId);
-            if (foundCourse) {
-                setCourse(foundCourse);
-            } else {
-                router.push('/learning');
-            }
-        }
+        const handleScroll = () => {
+            const winScroll = document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            setReadingProgress(scrolled);
+        };
 
-        // Load progress from localStorage
-        const saved = localStorage.getItem(`learning_progress_${courseId}`);
-        if (saved) {
-            const { completed, partIndex, chapterIndex } = JSON.parse(saved);
-            setCompletedChapters(new Set(completed));
-            setCurrentPartIndex(partIndex || 0);
-            setCurrentChapterIndex(chapterIndex || 0);
-        }
-    }, [courseId, router]);
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
-    // Save progress
-    useEffect(() => {
-        if (courseId && completedChapters.size > 0) {
-            localStorage.setItem(`learning_progress_${courseId}`, JSON.stringify({
-                completed: Array.from(completedChapters),
-                partIndex: currentPartIndex,
-                chapterIndex: currentChapterIndex
-            }));
-        }
-    }, [courseId, completedChapters, currentPartIndex, currentChapterIndex]);
-
-    const currentPart = course?.parts[currentPartIndex];
-    const currentChapter = currentPart?.chapters[currentChapterIndex];
-    const currentChapterId = `${currentPart?.id}-${currentChapter?.id}`;
-
-    // Calculate progress
-    const totalChapters = course?.parts.reduce((sum, p) => sum + p.chapters.length, 0) || 0;
-    const progressPercent = (completedChapters.size / totalChapters) * 100;
-
-    const markComplete = () => {
-        if (currentChapterId) {
-            setCompletedChapters(prev => new Set([...prev, currentChapterId]));
+    const renderContent = () => {
+        switch (courseId) {
+            case 'trading-fundamentals':
+                return <TradingFundamentalsContent />;
+            case 'zenith-score-mastery':
+                return <ZenithMasteryContent />;
+            case 'technical-analysis':
+                return <TechnicalAnalysisContent />;
+            case 'risk-management-pro':
+                return <RiskManagementContent />;
+            case 'trading-psychology':
+                return <TradingPsychologyContent />;
+            case 'defi-deep-dive':
+                return <DeFiContent />;
+            default:
+                return <TradingFundamentalsContent />;
         }
     };
-
-    const goToNext = () => {
-        markComplete();
-        if (currentPart && currentChapterIndex < currentPart.chapters.length - 1) {
-            setCurrentChapterIndex(prev => prev + 1);
-        } else if (course && currentPartIndex < course.parts.length - 1) {
-            setCurrentPartIndex(prev => prev + 1);
-            setCurrentChapterIndex(0);
-        }
-        window.scrollTo(0, 0);
-    };
-
-    const goToPrev = () => {
-        if (currentChapterIndex > 0) {
-            setCurrentChapterIndex(prev => prev - 1);
-        } else if (currentPartIndex > 0) {
-            setCurrentPartIndex(prev => prev - 1);
-            const prevPart = course?.parts[currentPartIndex - 1];
-            setCurrentChapterIndex((prevPart?.chapters.length || 1) - 1);
-        }
-        window.scrollTo(0, 0);
-    };
-
-    const isFirstChapter = currentPartIndex === 0 && currentChapterIndex === 0;
-    const isLastChapter = currentPartIndex === (course?.parts.length || 1) - 1 &&
-        currentChapterIndex === (currentPart?.chapters.length || 1) - 1;
-
-    const handleFinishCourse = () => {
-        markComplete();
-        setShowCompletionModal(true);
-    };
-
-    if (!course) {
-        return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
-                <div className="text-white">Loading...</div>
-            </div>
-        );
-    }
 
     return (
-        <div className="min-h-screen bg-black text-white">
-            {/* Top Navigation Bar */}
-            <header className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-xl border-b border-white/10">
-                <div className="flex items-center justify-between px-4 h-16">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => setSidebarOpen(!sidebarOpen)}
-                            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors lg:hidden"
-                        >
-                            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-                        </button>
-                        <Link
-                            href="/learning"
-                            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-                        >
-                            <ArrowLeft size={20} />
-                            <span className="hidden sm:inline">Back to Courses</span>
-                        </Link>
-                    </div>
+        <div className="min-h-screen bg-[#0a0a0c] text-zinc-300 font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
 
-                    <div className="flex items-center gap-3">
-                        <span className="text-2xl">{course.icon}</span>
-                        <div className="hidden sm:block">
-                            <h1 className="font-bold text-white">{course.title}</h1>
-                            <p className="text-xs text-gray-400">{course.subtitle}</p>
-                        </div>
-                    </div>
+            {/* Progress Bar */}
+            <div className="fixed top-0 left-0 w-full h-1 z-50 bg-zinc-900">
+                <motion.div
+                    className="h-full bg-emerald-500"
+                    style={{ width: `${readingProgress}%` }}
+                />
+            </div>
 
-                    <div className="flex items-center gap-4">
-                        {/* Progress */}
-                        <div className="hidden md:flex items-center gap-2">
-                            <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
-                                <motion.div
-                                    className="h-full bg-gradient-to-r from-cyan-500 to-purple-500"
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${progressPercent}%` }}
-                                />
-                            </div>
-                            <span className="text-sm text-gray-400">{Math.round(progressPercent)}%</span>
-                        </div>
+            {/* Header */}
+            <header className="h-16 border-b border-white/5 bg-[#0a0a0c]/80 backdrop-blur-xl sticky top-0 z-40 px-6 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => router.back()}
+                        className="p-2 hover:bg-white/5 rounded-lg text-zinc-500 hover:text-white transition-all"
+                    >
+                        <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <div className="h-4 w-[1px] bg-white/10" />
+                    <h1 className="text-sm font-bold tracking-tight text-white uppercase font-display">
+                        {course.title} <span className="text-zinc-500 font-normal ml-2">/ {course.level}</span>
+                    </h1>
+                </div>
+
+                <div className="flex items-center gap-6">
+                    <div className="hidden md:flex items-center gap-2 text-xs font-mono text-zinc-500">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>EST. READ: {course.duration}</span>
                     </div>
+                    <div className="h-4 w-[1px] bg-white/10 hidden md:block" />
+                    <button className="p-2 text-zinc-500 hover:text-white transition-colors">
+                        <Search className="w-4 h-4" />
+                    </button>
                 </div>
             </header>
 
-            <div className="pt-16 flex">
-                {/* Sidebar */}
-                <AnimatePresence>
-                    {sidebarOpen && (
-                        <motion.aside
-                            initial={{ x: -300, opacity: 0 }}
-                            animate={{ x: 0, opacity: 1 }}
-                            exit={{ x: -300, opacity: 0 }}
-                            className="fixed lg:sticky top-16 left-0 w-80 h-[calc(100vh-4rem)] bg-[#0a0a0f] border-r border-white/10 overflow-y-auto z-40"
-                        >
-                            <div className="p-4">
-                                {/* Course Info */}
-                                <div className="p-4 rounded-xl bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 mb-6">
-                                    <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
-                                        <Clock size={14} />
-                                        {course.estimatedTime}
-                                        <span className="mx-2">•</span>
-                                        <BarChart2 size={14} />
-                                        {course.difficulty}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Trophy size={16} className="text-yellow-400" />
-                                        <span className="text-sm text-gray-300">
-                                            {completedChapters.size} / {totalChapters} completed
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Course Contents */}
-                                <h3 className="text-sm font-semibold text-gray-400 uppercase mb-4">Course Contents</h3>
-
-                                <div className="space-y-4">
-                                    {course.parts.map((part, pIndex) => (
-                                        <div key={part.id}>
-                                            <div className="flex items-center gap-2 text-sm font-semibold text-white mb-2">
-                                                <span className="text-cyan-400">Part {pIndex + 1}</span>
-                                                <span className="text-gray-500">•</span>
-                                                <span className="text-gray-300 text-xs">{part.estimatedTime}</span>
-                                            </div>
-                                            <h4 className="text-white font-medium mb-2">{part.title}</h4>
-
-                                            <div className="space-y-1 ml-2">
-                                                {part.chapters.map((chapter, cIndex) => {
-                                                    const chapterId = `${part.id}-${chapter.id}`;
-                                                    const isActive = currentPartIndex === pIndex && currentChapterIndex === cIndex;
-                                                    const isCompleted = completedChapters.has(chapterId);
-
-                                                    return (
-                                                        <button
-                                                            key={chapter.id}
-                                                            onClick={() => {
-                                                                setCurrentPartIndex(pIndex);
-                                                                setCurrentChapterIndex(cIndex);
-                                                                window.scrollTo(0, 0);
-                                                            }}
-                                                            className={`w-full text-left p-2 rounded-lg flex items-center gap-2 transition-all ${isActive
-                                                                ? 'bg-cyan-500/20 text-cyan-400'
-                                                                : 'hover:bg-white/5 text-gray-400 hover:text-white'
-                                                                }`}
-                                                        >
-                                                            {isCompleted ? (
-                                                                <CheckCircle size={16} className="text-green-400 flex-shrink-0" />
-                                                            ) : (
-                                                                <Circle size={16} className="flex-shrink-0" />
-                                                            )}
-                                                            <span className="text-sm truncate">{chapter.title}</span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </motion.aside>
-                    )}
-                </AnimatePresence>
-
-                {/* Main Content */}
-                <main className={`flex-1 min-h-[calc(100vh-4rem)] pb-24 ${sidebarOpen ? 'lg:ml-0' : ''}`}>
-                    <div className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-12">
-                        {/* Chapter Header */}
-                        <motion.div
-                            key={currentChapterId}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="mb-8"
-                        >
-                            <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
-                                <span className="text-cyan-400">Part {currentPartIndex + 1}</span>
-                                <ChevronRight size={14} />
-                                <span>Chapter {currentChapterIndex + 1}</span>
-                            </div>
-                            <h1 className="text-3xl lg:text-4xl font-bold text-white mb-4">
-                                {currentChapter?.title}
-                            </h1>
-                            <div className="flex items-center gap-4 text-sm text-gray-400">
-                                <span className="flex items-center gap-1">
-                                    <BookOpen size={14} />
-                                    {currentPart?.title}
-                                </span>
-                            </div>
-                        </motion.div>
-
-                        {/* Chapter Content */}
-                        <motion.article
-                            key={currentChapterId}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.1 }}
-                            className="prose prose-invert max-w-none"
-                        >
-                            {currentChapter && renderMarkdown(currentChapter.content)}
-                        </motion.article>
-
-                        {/* Navigation Buttons */}
-                        <div className="mt-12 flex items-center justify-between gap-4 pt-8 border-t border-white/10">
+            <div className="flex">
+                {/* Sidebar Navigation */}
+                <aside
+                    className={`fixed left-0 top-16 bottom-0 z-30 bg-[#0a0a0c] border-r border-white/5 transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-72' : 'w-0 overflow-hidden'}`}
+                >
+                    <nav className="p-4 h-full overflow-y-auto space-y-1">
+                        <div className="px-3 py-2 text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-2">
+                            Course Structure
+                        </div>
+                        {course.modules.map((mod: any, idx: number) => (
                             <button
-                                onClick={goToPrev}
-                                disabled={isFirstChapter}
-                                className={`flex items-center gap-2 px-4 py-3 rounded-xl transition-all ${isFirstChapter
-                                    ? 'text-gray-600 cursor-not-allowed'
-                                    : 'bg-white/5 hover:bg-white/10 text-white'
-                                    }`}
+                                key={mod.id}
+                                onClick={() => setActiveModule(idx)}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all group ${activeModule === idx ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5 border border-transparent'}`}
                             >
-                                <ChevronLeft size={20} />
-                                Previous
+                                <span className={`${activeModule === idx ? 'text-emerald-400' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
+                                    {mod.icon}
+                                </span>
+                                <span className="truncate">{mod.title}</span>
                             </button>
+                        ))}
+                    </nav>
+                </aside>
 
-                            {completedChapters.has(currentChapterId!) ? (
-                                <div className="flex items-center gap-2 text-green-400">
-                                    <CheckCircle size={20} />
-                                    <span>Completed</span>
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={markComplete}
-                                    className="px-4 py-2 rounded-lg border border-green-500/30 text-green-400 hover:bg-green-500/10 transition-colors"
-                                >
-                                    Mark as Complete
-                                </button>
-                            )}
+                {/* Main Content Area */}
+                <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-72' : 'ml-0'}`}>
+                    <div className="max-w-4xl mx-auto px-8 md:px-16 py-12 md:py-20 lg:py-24">
+                        {renderContent()}
 
-                            {isLastChapter ? (
-                                <button
-                                    onClick={handleFinishCourse}
-                                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-emerald-500/20"
-                                >
-                                    <Trophy size={20} />
-                                    Finish Course
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={goToNext}
-                                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold hover:opacity-90 transition-opacity"
-                                >
-                                    Next Chapter
-                                    <ChevronRight size={20} />
-                                </button>
-                            )}
+                        {/* Pagination / Navigation Footer */}
+                        <div className="mt-20 pt-12 border-t border-white/10 flex items-center justify-between">
+                            <button
+                                className="flex items-center gap-2 text-zinc-500 hover:text-white transition-all text-sm font-medium"
+                                onClick={() => setActiveModule(Math.max(0, activeModule - 1))}
+                            >
+                                <ChevronLeft className="w-4 h-4" /> Previous Module
+                            </button>
+                            <button
+                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white text-black hover:bg-zinc-200 transition-all text-sm font-bold shadow-xl shadow-white/5"
+                                onClick={() => setActiveModule(Math.min(course.modules.length - 1, activeModule + 1))}
+                            >
+                                Next Module <ChevronRight className="w-4 h-4" />
+                            </button>
                         </div>
                     </div>
                 </main>
+
+                {/* Right Rail Insights */}
+                <aside className="hidden xl:block w-80 bg-[#0a0a0c] border-l border-white/5 p-8 overflow-y-auto sticky top-16 h-[calc(100vh-4rem)]">
+                    <div className="space-y-8">
+                        <div>
+                            <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Core Concepts</h4>
+                            <div className="space-y-4">
+                                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                                    <div className="text-[10px] text-zinc-500 mb-1">LIQUIDITY</div>
+                                    <p className="text-xs text-zinc-400 leading-snug">The ability to buy or sell an asset without causing significant price movement.</p>
+                                </div>
+                                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                                    <div className="text-[10px] text-zinc-500 mb-1">SLIPPAGE</div>
+                                    <p className="text-xs text-zinc-400 leading-snug">The difference between the expected price of a trade and the price at which it's executed.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
+                            <h4 className="text-xs font-bold text-emerald-400 mb-2 flex items-center gap-2">
+                                <Info size={14} /> Analyst Tip
+                            </h4>
+                            <p className="text-[11px] text-emerald-200/60 leading-relaxed italic">
+                                Cross-reference high-timeframe structural levels with current @ZenithScore conviction before entry.
+                            </p>
+                        </div>
+                    </div>
+                </aside>
             </div>
 
-            {/* Mobile Sidebar Overlay */}
-            {sidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-                    onClick={() => setSidebarOpen(false)}
-                />
-            )}
+            {/* Floating Sidebar Toggle */}
+            <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="fixed bottom-8 left-8 p-3 rounded-full bg-[#121214] border border-white/10 text-zinc-400 hover:text-white shadow-2xl z-50 hover:scale-110 transition-all"
+            >
+                <SidebarIcon size={20} />
+            </button>
 
-            {/* Completion Modal */}
-            <AnimatePresence>
-                {showCompletionModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/80 backdrop-blur-md"
-                        />
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="relative w-full max-w-lg bg-[#0a0a0f] border border-white/10 rounded-2xl p-8 text-center shadow-2xl overflow-hidden"
-                        >
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 via-purple-500 to-emerald-500" />
-
-                            {/* Confetti-like decor */}
-                            <div className="absolute -top-12 -left-12 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl" />
-                            <div className="absolute -bottom-12 -right-12 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl" />
-
-                            <div className="mb-6 inline-flex p-4 rounded-full bg-yellow-400/10 border border-yellow-400/20">
-                                <Trophy size={48} className="text-yellow-400" />
-                            </div>
-
-                            <h2 className="text-3xl font-black text-white mb-2">COURSE COMPLETE!</h2>
-                            <p className="text-gray-400 mb-8">
-                                Congratulations! You've successfully mastered <span className="text-white font-semibold">"{course.title}"</span>. Your Zenith trading skills have significantly leveled up.
-                            </p>
-
-                            <div className="grid grid-cols-2 gap-4 mb-8">
-                                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                                    <div className="text-2xl font-bold text-cyan-400">+{totalChapters * 10}</div>
-                                    <div className="text-xs text-gray-500 uppercase font-bold tracking-wider">XP Earned</div>
-                                </div>
-                                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                                    <div className="text-2xl font-bold text-emerald-400">Master</div>
-                                    <div className="text-xs text-gray-500 uppercase font-bold tracking-wider">Rank Achieved</div>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col gap-3">
-                                <button
-                                    onClick={() => router.push('/learning')}
-                                    className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold hover:opacity-90 transition-opacity"
-                                >
-                                    Explore More Courses
-                                </button>
-                                <button
-                                    onClick={() => router.push('/trading')}
-                                    className="w-full py-4 rounded-xl bg-white/5 text-white font-bold hover:bg-white/10 transition-colors border border-white/10"
-                                >
-                                    Practice with Paper Trading
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
         </div>
+    );
+}
+
+// --- Content Components ---
+
+function TradingFundamentalsContent() {
+    return (
+        <motion.article
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="prose prose-invert prose-emerald max-w-none"
+        >
+            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-8 tracking-tight font-display">
+                Trading Fundamentals: The Mathematical Essence of Markets
+            </h1>
+            <p className="text-xl text-zinc-400 leading-relaxed mb-12">
+                A professional architect must understand the strength of their materials before building a skyscraper. A trader must understand the mechanics of price, liquidity, and orders before risking a single dollar.
+            </p>
+
+            <section className="mb-16">
+                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <span className="text-emerald-500 text-lg">01.</span> The Double Auction Heuristic
+                </h2>
+                <p className="leading-relaxed text-zinc-400 mb-6">
+                    Every market—from @AAPL on the NASDAQ to @BTCUSD on Coinbase—operates on a continuous double auction. This is not just "buying and selling"; it is a battle between passive limit orders and aggressive market orders.
+                </p>
+                <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/10">
+                    <h3 className="text-lg font-bold text-white mb-4">The Order Book Mechanics</h3>
+                    <div className="space-y-4 font-mono text-xs">
+                        <div className="flex justify-between items-center text-red-400/80">
+                            <span>LIMIT SELL (ASK) - $100.50</span>
+                            <span>500 UNITS</span>
+                        </div>
+                        <div className="flex justify-between items-center text-red-500 font-bold bg-red-500/5 p-2 rounded border border-red-500/20">
+                            <span>BEST ASK - $100.25</span>
+                            <span>120 UNITS</span>
+                        </div>
+                        <div className="h-[1px] bg-white/10 my-2 relative">
+                            <span className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 px-3 bg-[#0a0a0c] text-[10px] text-zinc-500">SPREAD: $0.05</span>
+                        </div>
+                        <div className="flex justify-between items-center text-emerald-500 font-bold bg-emerald-500/5 p-2 rounded border border-emerald-500/20">
+                            <span>BEST BID - $100.20</span>
+                            <span>450 UNITS</span>
+                        </div>
+                        <div className="flex justify-between items-center text-emerald-400/80">
+                            <span>LIMIT BUY (BID) - $100.15</span>
+                            <span>1500 UNITS</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div className="my-12 p-8 rounded-2xl bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 relative overflow-hidden group">
+                <div className="flex items-start gap-4 relative z-10">
+                    <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <Zap className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest block mb-2">INTERACTIVE — SCENARIO</span>
+                        <p className="text-white font-medium leading-relaxed italic">
+                            "You see a large limit buy order for 10,000 units at $100.15. Price drops to $100.16 and then immediately bounces without hitting the order. This is a sign of aggressive 'front-running' by market participants who don't want to miss the liquidity. How does this affect your entry strategy?"
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </motion.article>
+    );
+}
+
+function ZenithMasteryContent() {
+    return (
+        <motion.article
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="prose prose-invert prose-emerald max-w-none"
+        >
+            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-8 tracking-tight font-display">
+                Zenith Score Mastery: Decoding Market Regime
+            </h1>
+            <section className="mb-16">
+                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <span className="text-emerald-500 text-lg">01.</span> Algorithmic Foundations
+                </h2>
+                <p className="text-zinc-400 leading-relaxed mb-6">
+                    Retail traders look at individual indicators like RSI or MACD. Professional systems look at *Regimes*. The Zenith Score is a unified measurement of the current market state, calculated via three primary vectors:
+                </p>
+                <div className="grid grid-cols-1 gap-6">
+                    <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 flex gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-400 border border-orange-500/20 shrink-0">
+                            <Zap size={24} />
+                        </div>
+                        <div>
+                            <h4 className="text-white font-bold mb-1">Momentum Velocity</h4>
+                            <p className="text-sm text-zinc-500">Calculates the second-order derivative of price movement to identify acceleration or exhaustion.</p>
+                        </div>
+                    </div>
+                    <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 flex gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20 shrink-0">
+                            <BarChart3 size={24} />
+                        </div>
+                        <div>
+                            <h4 className="text-white font-bold mb-1">Volume Integrity</h4>
+                            <p className="text-sm text-zinc-500">Cross-references price action with transactional depth to confirm if a move is structural or speculative.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </motion.article>
+    );
+}
+
+function TechnicalAnalysisContent() {
+    return (
+        <motion.article
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="prose prose-invert prose-emerald max-w-none"
+        >
+            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-8 tracking-tight font-display">
+                Technical Analysis: The Geometry of Human Behavior
+            </h1>
+            <p className="text-xl text-zinc-400 leading-relaxed mb-12">
+                Charts are not crystal balls; they are maps of previous market auctions. A "Support" level is simply a price where historical demand exceeded supply. A "Trend" is a sustained imbalance in conviction.
+            </p>
+
+            <section className="mb-16">
+                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <span className="text-emerald-500 text-lg">01.</span> Visual Structures & Market Flow
+                </h2>
+                <p className="text-zinc-400 leading-relaxed mb-6">
+                    Learn to identify "Market Structure" shift (MSS). When price breaks the previous impulsive low in an uptrend, the regime has likely transitioned from 'Bullish' to 'Distribution'.
+                </p>
+            </section>
+        </motion.article>
+    );
+}
+
+function RiskManagementContent() {
+    return (
+        <motion.article
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="prose prose-invert prose-emerald max-w-none"
+        >
+            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-8 tracking-tight font-display">
+                Risk Management Pro: Defensive Alpha
+            </h1>
+            <section className="mb-16">
+                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <span className="text-emerald-500 text-lg">01.</span> The 1% Rule and Beyond
+                </h2>
+                <p className="text-zinc-400 leading-relaxed mb-6">
+                    Protecting capital is more important than growing it. If you lose 50%, you need 100% gain just to get back to breakeven. This is the asymmetry of risk.
+                </p>
+                <code className="block p-6 rounded-xl bg-black border border-white/10 text-emerald-400 font-mono text-sm mb-6">
+                    Position Size = (Account Risk Amount) / (Stop Loss Distance)
+                </code>
+            </section>
+        </motion.article>
+    );
+}
+
+function TradingPsychologyContent() {
+    return (
+        <motion.article
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="prose prose-invert prose-emerald max-w-none"
+        >
+            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-8 tracking-tight font-display">
+                Trading Psychology: The Counter-Intuitive Brain
+            </h1>
+            <p className="text-zinc-400 leading-relaxed">
+                Your brain is evolved for survival on the savannah, not for probability in the markets. Fear of Missing Out (FOMO) is a natural response to perceived resource scarcity, but in trading, it leads to buying at the top of an auction.
+            </p>
+        </motion.article>
+    );
+}
+
+function DeFiContent() {
+    return (
+        <motion.article
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="prose prose-invert prose-emerald max-w-none"
+        >
+            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-8 tracking-tight font-display">
+                DeFi Deep Dive: Architecture of Autonomy
+            </h1>
+            <p className="text-zinc-400 leading-relaxed">
+                Decentralized Finance replaces the central clearing house with a smart contract. Understand the mechanics of Automated Market Makers (AMMs) and why "Impermanent Loss" is a structural cost of providing liquidity.
+            </p>
+        </motion.article>
     );
 }
