@@ -149,7 +149,7 @@ export interface MarketState {
 
 // --- 4. DRAWINGS & OVERLAYS ---
 
-export type DrawingType = 'trendline' | 'zone' | 'fib' | 'horizontal_ray';
+export type DrawingType = 'trendline' | 'zone' | 'fib' | 'horizontal_ray' | 'horizontal' | 'vertical' | 'rectangle' | 'ellipse' | 'ray';
 
 export interface Point {
     x: number; // Index-based (time)

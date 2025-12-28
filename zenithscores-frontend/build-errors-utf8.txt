@@ -1,0 +1,37 @@
+﻿components/chart-engine/engine/renderer.ts(420,18): error TS2678: Type '"horizontal"' is not comparable to type 'DrawingType'.
+components/chart-engine/engine/renderer.ts(423,18): error TS2678: Type '"vertical"' is not comparable to type 'DrawingType'.
+components/chart-engine/engine/renderer.ts(426,18): error TS2678: Type '"rectangle"' is not comparable to type 'DrawingType'.
+components/chart-engine/engine/renderer.ts(429,18): error TS2678: Type '"ellipse"' is not comparable to type 'DrawingType'.
+components/chart-engine/engine/renderer.ts(432,18): error TS2678: Type '"ray"' is not comparable to type 'DrawingType'.
+components/chart-engine/index.tsx(121,21): error TS2322: Type 'OHLCV[]' is not assignable to type 'import("C:/Users/boume/defi-oracle-worker/zenithscores-frontend/lib/market-data/types").OHLCV[]'.
+  Type 'OHLCV' is not assignable to type 'import("C:/Users/boume/defi-oracle-worker/zenithscores-frontend/lib/market-data/types").OHLCV'.
+    Types of property 'time' are incompatible.
+      Type 'number | undefined' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+components/chart-engine/ZenithChartPro.tsx(33,40): error TS2305: Module '"./engine/viewport"' has no exported member 'calculateYScale'.
+components/chart-engine/ZenithChartPro.tsx(330,17): error TS2345: Argument of type '{ width: number; height: number; }' is not assignable to parameter of type '{ width: number; height: number; chartWidth: number; chartHeight: number; }'.
+  Type '{ width: number; height: number; }' is missing the following properties from type '{ width: number; height: number; chartWidth: number; chartHeight: number; }': chartWidth, chartHeight
+components/chart-engine/ZenithChartPro.tsx(366,17): error TS2345: Argument of type '{ width: number; height: number; }' is not assignable to parameter of type '{ width: number; height: number; chartWidth: number; chartHeight: number; }'.
+  Type '{ width: number; height: number; }' is missing the following properties from type '{ width: number; height: number; chartWidth: number; chartHeight: number; }': chartWidth, chartHeight
+components/chart-engine/ZenithChartPro.tsx(433,50): error TS2339: Property 'timestamp' does not exist on type 'MarketCandle'.
+components/chart-engine/ZenithChartPro.tsx(559,25): error TS2322: Type 'Dispatch<SetStateAction<Indicator[]>>' is not assignable to type '(indicators: Indicator[]) => void'.
+  Types of parameters 'value' and 'indicators' are incompatible.
+    Type 'Indicator[]' is not assignable to type 'SetStateAction<Indicator[]>'.
+      Type 'import("C:/Users/boume/defi-oracle-worker/zenithscores-frontend/components/chart-engine/components/IndicatorPanel").Indicator[]' is not assignable to type 'import("C:/Users/boume/defi-oracle-worker/zenithscores-frontend/components/chart-engine/engine/types").Indicator[]'.
+        Type 'import("C:/Users/boume/defi-oracle-worker/zenithscores-frontend/components/chart-engine/components/IndicatorPanel").Indicator' is not assignable to type 'import("C:/Users/boume/defi-oracle-worker/zenithscores-frontend/components/chart-engine/engine/types").Indicator'.
+          Types of property 'type' are incompatible.
+            Type 'string' is not assignable to type '"volume" | "sma" | "ema" | "rsi" | "macd" | "bollinger" | "vwap" | "atr" | "stochastic" | "adx"'.
+components/zenith/ZenithScoreDisplay.tsx(4,16): error TS2305: Module '"@/components/ui/card"' has no exported member 'CardContent'.
+components/zenith/ZenithScoreDisplay.tsx(5,23): error TS2307: Cannot find module '@/components/ui/badge' or its corresponding type declarations.
+lib/algorithm/zenith-score.ts(98,32): error TS2554: Expected 3-4 arguments, but got 1.
+lib/algorithm/zenith-score.ts(144,69): error TS2339: Property 'annualized' does not exist on type '{ dailyVolatility: number; annualizedVolatility: number; volatilityOfVolatility: number; }'.
+lib/algorithm/zenith-score.ts(162,50): error TS2339: Property 'annualized' does not exist on type '{ dailyVolatility: number; annualizedVolatility: number; volatilityOfVolatility: number; }'.
+lib/algorithm/zenith-score.ts(167,35): error TS2304: Cannot find name 'consistencyAnalysis'.
+lib/algorithm/zenith-score.ts(221,69): error TS2339: Property 'annualized' does not exist on type '{ dailyVolatility: number; annualizedVolatility: number; volatilityOfVolatility: number; }'.
+lib/analysis/backtest.ts(24,44): error TS2345: Argument of type 'import("C:/Users/boume/defi-oracle-worker/zenithscores-frontend/lib/types/market").OHLCV[]' is not assignable to parameter of type 'import("C:/Users/boume/defi-oracle-worker/zenithscores-frontend/lib/market-data/types").OHLCV[]'.
+  Property 'time' is missing in type 'import("C:/Users/boume/defi-oracle-worker/zenithscores-frontend/lib/types/market").OHLCV' but required in type 'import("C:/Users/boume/defi-oracle-worker/zenithscores-frontend/lib/market-data/types").OHLCV'.
+lib/market/crypto/useCryptoLive.ts(65,41): error TS2345: Argument of type 'string' is not assignable to parameter of type '"BTC" | "ETH" | "USDT" | "USDC" | "BNB" | "SOL" | "XRP" | "ADA" | "AVAX" | "DOGE" | "LINK" | "MATIC" | "DOT" | "ATOM" | "LTC" | "UNI" | "AAVE" | "ARB" | "OP" | "TON"'.
+lib/web3-config.ts(2,10): error TS2305: Module '"wagmi/chains"' has no exported member 'mainnet'.
+lib/web3-config.ts(2,19): error TS2305: Module '"wagmi/chains"' has no exported member 'polygon'.
+lib/web3-config.ts(2,28): error TS2305: Module '"wagmi/chains"' has no exported member 'arbitrum'.
+lib/web3-config.ts(2,38): error TS2305: Module '"wagmi/chains"' has no exported member 'base'.
