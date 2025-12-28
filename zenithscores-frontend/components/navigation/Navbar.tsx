@@ -3,8 +3,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, TrendingUp, BookOpen, Wallet, BarChart3, Menu, X, ChevronDown, User, LogOut, Newspaper, Book } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, BookOpen, Wallet, BarChart3, Menu, X, ChevronDown, User, LogOut, Newspaper, Book, Users, Mail } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
+import NotificationBell from '@/components/community/NotificationBell';
 
 interface NavLink {
   label: string;
@@ -34,7 +35,8 @@ const PRIVATE_LINKS: NavLink[] = [
   { label: 'Learn', href: '/learning', icon: <BookOpen size={16} /> },
   { label: 'Notebook', href: '/notebook', icon: <Book size={16} /> },
   { label: 'Trade', href: '/trading', icon: <Wallet size={16} /> },
-  { label: 'Charts', href: '/charts', icon: <BarChart3 size={16} /> }
+  { label: 'Charts', href: '/charts', icon: <BarChart3 size={16} /> },
+  { label: 'Community', href: '/community', icon: <Users size={16} /> }
 ];
 
 export default function Navbar() {
@@ -161,7 +163,19 @@ export default function Navbar() {
           {/* Auth Buttons */}
           <div className="flex items-center gap-4">
             {session ? (
-              <div className="hidden md:flex items-center gap-4">
+              <div className="hidden md:flex items-center gap-3">
+                {/* Inbox Link */}
+                <Link
+                  href="/inbox"
+                  className="p-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                  title="Inbox"
+                >
+                  <Mail size={18} />
+                </Link>
+
+                {/* Notification Bell */}
+                <NotificationBell />
+
                 <div className="flex items-center gap-3 px-4 py-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)]">
                   <div className="w-2 h-2 rounded-full bg-[var(--accent-mint)] animate-pulse" />
                   <span className="text-sm text-[var(--text-secondary)]" style={{ fontFamily: "var(--font-body)" }}>

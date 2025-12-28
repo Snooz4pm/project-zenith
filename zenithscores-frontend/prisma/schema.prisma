@@ -40,6 +40,15 @@ model User {
   portfolio             Portfolio?              @relation("UserPortfolio")
   newsResponses         NewsResponse[]          @relation("UserNewsResponses")
   intelProfile          UserIntelProfile?       @relation("UserIntelProfile")
+
+  // Community System relations
+  posts                 CommunityPost[]         @relation("UserPosts")
+  comments              Comment[]               @relation("UserComments")
+  notifications         Notification[]          @relation("UserNotifications")
+  sourceNotifications   Notification[]          @relation("SourceUserNotifications")
+  conversationsAsA      Conversation[]          @relation("ConversationsAsA")
+  conversationsAsB      Conversation[]          @relation("ConversationsAsB")
+  sentMessages          DirectMessage[]         @relation("SentMessages")
 }
 
 // Required by NextAuth PrismaAdapter for OAuth
@@ -931,3 +940,99 @@ model UserIntelProfile {
 
   @@index([userId])
 }
+
+// ========================
+// COMMUNITY SYSTEM
+// ========================
+
+model CommunityPost {
+  id          String   @id @default(cuid())
+  authorId    String
+  asset       String?  @db.VarChar(20)  // BTC, AAPL, EURUSD
+  marketType  String?  @db.VarChar(20)  // stock / crypto / forex
+  postType    String   @default("insight") @db.VarChar(20) // question / insight / thesis
+  title       String   @db.VarChar(200)
+  body        String   @db.VarChar(2000)
+  resolved    Boolean  @default(false) // For questions
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author      User     @relation("UserPosts", fields: [authorId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+
+  @@index([authorId])
+  @@index([createdAt(sort: Desc)])
+  @@index([asset])
+  @@index([postType])
+}
+
+model Comment {
+  id          String   @id @default(cuid())
+  postId      String
+  authorId    String
+  parentId    String?  // For nested replies (max depth 1)
+  body        String   @db.VarChar(1000)
+  createdAt   DateTime @default(now())
+
+  post        CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author      User     @relation("UserComments", fields: [authorId], references: [id], onDelete: Cascade)
+  parent      Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[] @relation("CommentReplies")
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+  @@index([createdAt(sort: Desc)])
+}
+
+model Notification {
+  id              String   @id @default(cuid())
+  userId          String   // Recipient
+  type            String   @db.VarChar(50) // COMMENT_ON_POST, DIRECT_MESSAGE
+  sourceUserId    String   // Who triggered it
+  sourceEntityId  String   // postId or conversationId
+  message         String?  @db.VarChar(200) // Preview text
+  read            Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  user            User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  sourceUser      User     @relation("SourceUserNotifications", fields: [sourceUserId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([sourceEntityId])
+}
+
+model Conversation {
+  id            String   @id @default(cuid())
+  participantA  String   // Always alphabetically first
+  participantB  String   // Always alphabetically second
+  lastMessageAt DateTime @default(now())
+  contextType   String?  @db.VarChar(20) // post / comment (what initiated)
+  contextId     String?  // postId or commentId
+  createdAt     DateTime @default(now())
+
+  userA         User     @relation("ConversationsAsA", fields: [participantA], references: [id], onDelete: Cascade)
+  userB         User     @relation("ConversationsAsB", fields: [participantB], references: [id], onDelete: Cascade)
+  messages      DirectMessage[]
+
+  @@unique([participantA, participantB])
+  @@index([participantA])
+  @@index([participantB])
+  @@index([lastMessageAt(sort: Desc)])
+}
+
+model DirectMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String   @db.VarChar(2000)
+  createdAt      DateTime @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([senderId])
+}
+
