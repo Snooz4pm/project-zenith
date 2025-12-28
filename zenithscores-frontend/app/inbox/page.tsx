@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { formatDistanceToNow } from 'date-fns';
-import { User, Send, ArrowLeft, MessageSquare } from 'lucide-react';
+import { formatDistanceToNow, format } from 'date-fns';
+import { User, Send, ArrowLeft, MessageSquare, Smile, Link2, Inbox } from 'lucide-react';
 import {
     getConversations,
     getMessages,
@@ -19,6 +19,7 @@ interface ConversationData {
     lastMessageAt: Date | string;
     contextType: string | null;
     contextId: string | null;
+    hasUnread?: boolean;
 }
 
 interface MessageData {
@@ -27,6 +28,9 @@ interface MessageData {
     createdAt: Date | string;
     sender: { id: string; name: string | null; image: string | null };
 }
+
+// Quick emoji picker
+const QUICK_EMOJIS = ['👍', '🎯', '💡', '📈', '🤔', '🔥', '👏', '💪'];
 
 export default function InboxPage() {
     const { data: session, status } = useSession();
@@ -39,7 +43,10 @@ export default function InboxPage() {
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
+    const [showEmojis, setShowEmojis] = useState(false);
+    const [showMobileConversation, setShowMobileConversation] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // Load conversations
     const loadConversations = useCallback(async () => {
@@ -76,6 +83,7 @@ export default function InboxPage() {
     useEffect(() => {
         if (activeConversationId) {
             loadMessages();
+            setShowMobileConversation(true);
         }
     }, [activeConversationId, loadMessages]);
 
@@ -108,7 +116,34 @@ export default function InboxPage() {
         }
     };
 
+    const handleEmojiClick = (emoji: string) => {
+        setNewMessage(prev => prev + emoji);
+        setShowEmojis(false);
+        inputRef.current?.focus();
+    };
+
+    const handleBackToList = () => {
+        setShowMobileConversation(false);
+        router.push('/inbox');
+    };
+
     const activeConversation = conversations.find(c => c.id === activeConversationId);
+
+    // Format timestamp with more detail
+    const formatMessageTime = (date: Date | string) => {
+        const d = new Date(date);
+        const now = new Date();
+        const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) {
+            return format(d, 'h:mm a');
+        } else if (diffDays === 1) {
+            return `Yesterday ${format(d, 'h:mm a')}`;
+        } else if (diffDays < 7) {
+            return format(d, 'EEEE h:mm a');
+        }
+        return format(d, 'MMM d, h:mm a');
+    };
 
     if (status === 'loading' || isLoading) {
         return (
@@ -121,120 +156,193 @@ export default function InboxPage() {
     return (
         <div className="min-h-screen bg-[var(--void)] text-white">
             <div className="max-w-5xl mx-auto px-4 py-8">
-                <h1 className="text-2xl font-bold mb-6">Inbox</h1>
+                <div className="flex items-center justify-between mb-6">
+                    <h1 className="text-2xl font-bold">Inbox</h1>
+                    {conversations.length > 0 && (
+                        <span className="text-sm text-zinc-500">
+                            {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
+                        </span>
+                    )}
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Conversations List */}
-                    <div className="md:col-span-1 border border-white/10 rounded-xl bg-[#0c0c10] overflow-hidden">
+                    <div className={`md:col-span-1 border border-white/10 rounded-xl bg-[#0c0c10] overflow-hidden ${showMobileConversation ? 'hidden md:block' : ''}`}>
                         <div className="p-4 border-b border-white/5">
                             <h2 className="text-sm font-medium text-zinc-400">Conversations</h2>
                         </div>
 
                         <div className="divide-y divide-white/5 max-h-[600px] overflow-y-auto">
                             {conversations.length === 0 ? (
-                                <div className="p-6 text-center text-zinc-500 text-sm">
-                                    No conversations yet
+                                <div className="p-8 text-center">
+                                    <Inbox size={40} className="mx-auto mb-4 text-zinc-600" />
+                                    <p className="text-zinc-500 text-sm mb-2">No conversations yet</p>
+                                    <p className="text-zinc-600 text-xs">
+                                        Start a conversation by messaging someone from a post
+                                    </p>
                                 </div>
                             ) : (
-                                conversations.map(conv => (
-                                    <button
-                                        key={conv.id}
-                                        onClick={() => router.push(`/inbox?conversation=${conv.id}`)}
-                                        className={`w-full p-4 text-left hover:bg-white/5 transition-colors ${conv.id === activeConversationId ? 'bg-white/5' : ''
-                                            }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                                {conv.otherUser.image ? (
-                                                    <img src={conv.otherUser.image} alt="" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <User size={16} className="text-zinc-500" />
-                                                )}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-sm font-medium text-white truncate">
-                                                        {conv.otherUser.name || 'Anonymous'}
-                                                    </span>
-                                                    <span className="text-[10px] text-zinc-600">
-                                                        {formatDistanceToNow(new Date(conv.lastMessageAt), { addSuffix: false })}
-                                                    </span>
+                                conversations.map(conv => {
+                                    const isActive = conv.id === activeConversationId;
+                                    const isUnread = conv.lastMessage && conv.lastMessage.sender.id !== session?.user?.id;
+
+                                    return (
+                                        <button
+                                            key={conv.id}
+                                            onClick={() => router.push(`/inbox?conversation=${conv.id}`)}
+                                            className={`w-full p-4 text-left hover:bg-white/5 transition-colors relative ${isActive ? 'bg-white/5 border-l-2 border-[var(--accent-mint)]' : ''}`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                {/* Avatar with online indicator potential */}
+                                                <div className="relative">
+                                                    <div className="w-11 h-11 rounded-full bg-white/5 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                        {conv.otherUser.image ? (
+                                                            <img src={conv.otherUser.image} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <User size={18} className="text-zinc-500" />
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                {conv.lastMessage && (
-                                                    <p className="text-xs text-zinc-500 truncate mt-0.5">
-                                                        {conv.lastMessage.sender.id === session?.user?.id ? 'You: ' : ''}
-                                                        {conv.lastMessage.body}
-                                                    </p>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className={`text-sm font-medium truncate ${isUnread ? 'text-white' : 'text-zinc-300'}`}>
+                                                            {conv.otherUser.name || 'Anonymous'}
+                                                        </span>
+                                                        <span className="text-[10px] text-zinc-600 flex-shrink-0 ml-2">
+                                                            {formatDistanceToNow(new Date(conv.lastMessageAt), { addSuffix: false })}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Context indicator */}
+                                                    {conv.contextType && (
+                                                        <div className="flex items-center gap-1 text-[10px] text-zinc-600 mt-0.5">
+                                                            <Link2 size={10} />
+                                                            <span>From {conv.contextType}</span>
+                                                        </div>
+                                                    )}
+
+                                                    {conv.lastMessage && (
+                                                        <p className={`text-xs truncate mt-0.5 ${isUnread ? 'text-zinc-400 font-medium' : 'text-zinc-600'}`}>
+                                                            {conv.lastMessage.sender.id === session?.user?.id ? 'You: ' : ''}
+                                                            {conv.lastMessage.body}
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                {/* Unread indicator */}
+                                                {isUnread && !isActive && (
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-[var(--accent-mint)] flex-shrink-0" />
                                                 )}
                                             </div>
-                                        </div>
-                                    </button>
-                                ))
+                                        </button>
+                                    );
+                                })
                             )}
                         </div>
                     </div>
 
                     {/* Messages Panel */}
-                    <div className="md:col-span-2 border border-white/10 rounded-xl bg-[#0c0c10] flex flex-col h-[600px]">
+                    <div className={`md:col-span-2 border border-white/10 rounded-xl bg-[#0c0c10] flex flex-col h-[600px] ${!showMobileConversation && activeConversationId ? '' : !activeConversationId ? '' : ''} ${!showMobileConversation ? 'hidden md:flex' : ''}`}>
                         {activeConversationId && activeConversation ? (
                             <>
                                 {/* Header */}
                                 <div className="p-4 border-b border-white/5 flex items-center gap-3">
                                     <button
-                                        onClick={() => router.push('/inbox')}
-                                        className="md:hidden p-1 hover:bg-white/5 rounded"
+                                        onClick={handleBackToList}
+                                        className="md:hidden p-2 hover:bg-white/5 rounded-lg transition-colors"
                                     >
                                         <ArrowLeft size={18} />
                                     </button>
-                                    <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center overflow-hidden">
+                                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center overflow-hidden">
                                         {activeConversation.otherUser.image ? (
                                             <img src={activeConversation.otherUser.image} alt="" className="w-full h-full object-cover" />
                                         ) : (
-                                            <User size={14} className="text-zinc-500" />
+                                            <User size={16} className="text-zinc-500" />
                                         )}
                                     </div>
-                                    <div>
+                                    <div className="flex-1">
                                         <span className="font-medium text-white">
                                             {activeConversation.otherUser.name || 'Anonymous'}
                                         </span>
                                         {activeConversation.contextType && (
-                                            <p className="text-xs text-zinc-500">
-                                                From {activeConversation.contextType}
+                                            <p className="text-xs text-zinc-500 flex items-center gap-1">
+                                                <Link2 size={10} />
+                                                Started from {activeConversation.contextType}
                                             </p>
                                         )}
                                     </div>
                                 </div>
 
                                 {/* Messages */}
-                                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                                    {messages.map(msg => {
-                                        const isOwn = msg.sender.id === session?.user?.id;
-                                        return (
-                                            <div
-                                                key={msg.id}
-                                                className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                                            >
-                                                <div
-                                                    className={`max-w-[70%] px-4 py-2.5 rounded-2xl ${isOwn
-                                                            ? 'bg-[var(--accent-mint)] text-[var(--void)]'
-                                                            : 'bg-white/5 text-white'
-                                                        }`}
-                                                >
-                                                    <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>
-                                                    <p className={`text-[10px] mt-1 ${isOwn ? 'text-black/50' : 'text-zinc-600'}`}>
-                                                        {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
-                                                    </p>
+                                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                                    {messages.length === 0 ? (
+                                        <div className="h-full flex items-center justify-center text-zinc-600 text-sm">
+                                            No messages yet. Say hello! 👋
+                                        </div>
+                                    ) : (
+                                        messages.map((msg, index) => {
+                                            const isOwn = msg.sender.id === session?.user?.id;
+                                            const showTimestamp = index === 0 ||
+                                                new Date(msg.createdAt).getTime() - new Date(messages[index - 1].createdAt).getTime() > 300000; // 5 min gap
+
+                                            return (
+                                                <div key={msg.id}>
+                                                    {showTimestamp && (
+                                                        <div className="text-center text-[10px] text-zinc-600 my-3">
+                                                            {formatMessageTime(msg.createdAt)}
+                                                        </div>
+                                                    )}
+                                                    <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                                                        <div
+                                                            className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${isOwn
+                                                                    ? 'bg-[var(--accent-mint)] text-[var(--void)] rounded-br-md'
+                                                                    : 'bg-white/5 text-white rounded-bl-md'
+                                                                }`}
+                                                        >
+                                                            <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })
+                                    )}
                                     <div ref={messagesEndRef} />
                                 </div>
 
                                 {/* Input */}
                                 <form onSubmit={handleSendMessage} className="p-4 border-t border-white/5">
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 items-end">
+                                        {/* Emoji Picker */}
+                                        <div className="relative">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowEmojis(!showEmojis)}
+                                                className="p-2.5 hover:bg-white/5 rounded-xl transition-colors text-zinc-400 hover:text-white"
+                                            >
+                                                <Smile size={20} />
+                                            </button>
+                                            {showEmojis && (
+                                                <>
+                                                    <div className="fixed inset-0 z-10" onClick={() => setShowEmojis(false)} />
+                                                    <div className="absolute left-0 bottom-full mb-2 bg-[#1a1a1e] border border-white/10 rounded-xl shadow-xl z-20 p-2 flex gap-1 flex-wrap max-w-[200px]">
+                                                        {QUICK_EMOJIS.map(emoji => (
+                                                            <button
+                                                                key={emoji}
+                                                                type="button"
+                                                                onClick={() => handleEmojiClick(emoji)}
+                                                                className="p-2 hover:bg-white/10 rounded-lg transition-colors text-xl"
+                                                            >
+                                                                {emoji}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+
                                         <input
+                                            ref={inputRef}
                                             type="text"
                                             value={newMessage}
                                             onChange={(e) => setNewMessage(e.target.value)}
@@ -255,8 +363,11 @@ export default function InboxPage() {
                         ) : (
                             <div className="flex-1 flex items-center justify-center text-zinc-500">
                                 <div className="text-center">
-                                    <MessageSquare size={32} className="mx-auto mb-3 opacity-50" />
-                                    <p className="text-sm">Select a conversation</p>
+                                    <MessageSquare size={40} className="mx-auto mb-4 opacity-40" />
+                                    <p className="text-sm mb-1">Select a conversation</p>
+                                    <p className="text-xs text-zinc-600">
+                                        Or message someone from a community post
+                                    </p>
                                 </div>
                             </div>
                         )}

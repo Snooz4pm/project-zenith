@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, Filter, HelpCircle, Lightbulb, TrendingUp } from 'lucide-react';
 import PostCard from '@/components/community/PostCard';
 import CreatePostModal from '@/components/community/CreatePostModal';
-import { getPosts, createPost, getOrCreateConversation } from '@/lib/actions/community';
+import { getPosts, createPost, deletePost, getOrCreateConversation } from '@/lib/actions/community';
 
 interface PostData {
     id: string;
@@ -85,6 +85,17 @@ export default function CommunityPage() {
         setPosts(prev => [newPost as PostData, ...prev]);
     };
 
+    const handleDeletePost = async (postId: string) => {
+        if (!session?.user?.id) return;
+
+        try {
+            await deletePost(session.user.id, postId);
+            setPosts(prev => prev.filter(p => p.id !== postId));
+        } catch (error) {
+            console.error('Failed to delete post:', error);
+        }
+    };
+
     const handleMessageAuthor = async (authorId: string) => {
         if (!session?.user?.id) return;
         if (authorId === session.user.id) return;
@@ -132,8 +143,8 @@ export default function CommunityPage() {
                                 key={option.value}
                                 onClick={() => setFilter(option.value)}
                                 className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${isActive
-                                        ? 'bg-white/10 text-white'
-                                        : 'text-zinc-500 hover:text-white hover:bg-white/5'
+                                    ? 'bg-white/10 text-white'
+                                    : 'text-zinc-500 hover:text-white hover:bg-white/5'
                                     }`}
                             >
                                 {option.label}
@@ -169,7 +180,9 @@ export default function CommunityPage() {
                                     resolved={post.resolved}
                                     commentCount={post._count.comments}
                                     createdAt={post.createdAt}
+                                    currentUserId={session?.user?.id}
                                     onMessage={post.author.id !== session?.user?.id ? handleMessageAuthor : undefined}
+                                    onDelete={handleDeletePost}
                                 />
                             ))}
 

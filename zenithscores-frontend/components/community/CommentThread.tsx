@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { User, Reply, Send, Trash2 } from 'lucide-react';
+import { User, Reply, Send, Trash2, Smile } from 'lucide-react';
 
 interface CommentAuthor {
     id: string;
@@ -26,6 +26,9 @@ interface CommentThreadProps {
     onMessage?: (authorId: string) => void;
 }
 
+// Quick emoji picker
+const QUICK_EMOJIS = ['👍', '🎯', '💡', '📈', '🤔', '🔥'];
+
 export default function CommentThread({
     comments,
     currentUserId,
@@ -37,6 +40,22 @@ export default function CommentThread({
     const [replyingTo, setReplyingTo] = useState<string | null>(null);
     const [replyText, setReplyText] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showEmojis, setShowEmojis] = useState(false);
+    const [showReplyEmojis, setShowReplyEmojis] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const replyInputRef = useRef<HTMLInputElement>(null);
+
+    const handleAddEmoji = (emoji: string, isReply = false) => {
+        if (isReply) {
+            setReplyText(prev => prev + emoji);
+            setShowReplyEmojis(false);
+            replyInputRef.current?.focus();
+        } else {
+            setNewComment(prev => prev + emoji);
+            setShowEmojis(false);
+            inputRef.current?.focus();
+        }
+    };
 
     const handleSubmitComment = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -174,8 +193,36 @@ export default function CommentThread({
         <div className="space-y-0">
             {/* New Comment Form */}
             <form onSubmit={handleSubmitComment} className="mb-6">
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-end">
+                    {/* Emoji Picker */}
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setShowEmojis(!showEmojis)}
+                            className="p-3 hover:bg-white/5 rounded-xl transition-colors text-zinc-400 hover:text-white"
+                        >
+                            <Smile size={18} />
+                        </button>
+                        {showEmojis && (
+                            <>
+                                <div className="fixed inset-0 z-10" onClick={() => setShowEmojis(false)} />
+                                <div className="absolute left-0 bottom-full mb-2 bg-[#1a1a1e] border border-white/10 rounded-xl shadow-xl z-20 p-2 flex gap-1">
+                                    {QUICK_EMOJIS.map(emoji => (
+                                        <button
+                                            key={emoji}
+                                            type="button"
+                                            onClick={() => handleAddEmoji(emoji)}
+                                            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-lg"
+                                        >
+                                            {emoji}
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
                     <input
+                        ref={inputRef}
                         type="text"
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
