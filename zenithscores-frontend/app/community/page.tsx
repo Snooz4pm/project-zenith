@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Plus, Filter, HelpCircle, Lightbulb, TrendingUp } from 'lucide-react';
+import { Plus, HelpCircle, Lightbulb, TrendingUp } from 'lucide-react';
 import PostCard from '@/components/community/PostCard';
 import CreatePostModal from '@/components/community/CreatePostModal';
+import RoomBrowser from '@/components/community/RoomBrowser';
 import { getPosts, createPost, deletePost, getOrCreateConversation } from '@/lib/actions/community';
 
 interface PostData {
@@ -118,88 +119,98 @@ export default function CommunityPage() {
 
     return (
         <div className="min-h-screen bg-[var(--void)] text-white">
-            <div className="max-w-3xl mx-auto px-4 py-8">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <h1 className="text-2xl font-bold">Community</h1>
-                        <p className="text-sm text-zinc-500 mt-1">Exchange market insights with traders</p>
-                    </div>
-                    <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-[var(--accent-mint)] text-[var(--void)] font-medium rounded-lg hover:opacity-90 transition-opacity"
-                    >
-                        <Plus size={18} />
-                        New Post
-                    </button>
-                </div>
+            <div className="max-w-7xl mx-auto px-4 py-8">
+                <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
+                    {/* Rooms Sidebar */}
+                    <aside className="order-2 lg:order-1">
+                        <RoomBrowser userId={session?.user?.id} />
+                    </aside>
 
-                {/* Filters */}
-                <div className="flex items-center gap-2 mb-6 pb-6 border-b border-white/5">
-                    {filterOptions.map(option => {
-                        const isActive = filter === option.value;
-                        return (
-                            <button
-                                key={option.value}
-                                onClick={() => setFilter(option.value)}
-                                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${isActive
-                                    ? 'bg-white/10 text-white'
-                                    : 'text-zinc-500 hover:text-white hover:bg-white/5'
-                                    }`}
-                            >
-                                {option.label}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Posts Feed */}
-                <div className="space-y-4">
-                    {filteredPosts.length === 0 ? (
-                        <div className="text-center py-12 text-zinc-500">
-                            <p className="mb-4">No posts yet.</p>
+                    {/* Main Feed */}
+                    <main className="order-1 lg:order-2">
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <h1 className="text-2xl font-bold">Community</h1>
+                                <p className="text-sm text-zinc-500 mt-1">Exchange market insights with traders</p>
+                            </div>
                             <button
                                 onClick={() => setIsModalOpen(true)}
-                                className="text-[var(--accent-mint)] hover:underline"
+                                className="flex items-center gap-2 px-4 py-2.5 bg-[var(--accent-mint)] text-[var(--void)] font-medium rounded-lg hover:opacity-90 transition-opacity"
                             >
-                                Be the first to post
+                                <Plus size={18} />
+                                New Post
                             </button>
                         </div>
-                    ) : (
-                        <>
-                            {filteredPosts.map(post => (
-                                <PostCard
-                                    key={post.id}
-                                    id={post.id}
-                                    author={post.author}
-                                    title={post.title}
-                                    body={post.body}
-                                    asset={post.asset}
-                                    marketType={post.marketType}
-                                    postType={post.postType}
-                                    resolved={post.resolved}
-                                    commentCount={post._count.comments}
-                                    createdAt={post.createdAt}
-                                    currentUserId={session?.user?.id}
-                                    onMessage={post.author.id !== session?.user?.id ? handleMessageAuthor : undefined}
-                                    onDelete={handleDeletePost}
-                                />
-                            ))}
 
-                            {/* Load More */}
-                            {nextCursor && (
-                                <div className="text-center pt-4">
+                        {/* Filters */}
+                        <div className="flex items-center gap-2 mb-6 pb-6 border-b border-white/5">
+                            {filterOptions.map(option => {
+                                const isActive = filter === option.value;
+                                return (
                                     <button
-                                        onClick={() => loadPosts(nextCursor)}
-                                        disabled={isLoadingMore}
-                                        className="text-sm text-zinc-500 hover:text-white transition-colors disabled:opacity-50"
+                                        key={option.value}
+                                        onClick={() => setFilter(option.value)}
+                                        className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${isActive
+                                            ? 'bg-white/10 text-white'
+                                            : 'text-zinc-500 hover:text-white hover:bg-white/5'
+                                            }`}
                                     >
-                                        {isLoadingMore ? 'Loading...' : 'Load more'}
+                                        {option.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Posts Feed */}
+                        <div className="space-y-4">
+                            {filteredPosts.length === 0 ? (
+                                <div className="text-center py-12 text-zinc-500">
+                                    <p className="mb-4">No posts yet.</p>
+                                    <button
+                                        onClick={() => setIsModalOpen(true)}
+                                        className="text-[var(--accent-mint)] hover:underline"
+                                    >
+                                        Be the first to post
                                     </button>
                                 </div>
+                            ) : (
+                                <>
+                                    {filteredPosts.map(post => (
+                                        <PostCard
+                                            key={post.id}
+                                            id={post.id}
+                                            author={post.author}
+                                            title={post.title}
+                                            body={post.body}
+                                            asset={post.asset}
+                                            marketType={post.marketType}
+                                            postType={post.postType}
+                                            resolved={post.resolved}
+                                            commentCount={post._count.comments}
+                                            createdAt={post.createdAt}
+                                            currentUserId={session?.user?.id}
+                                            onMessage={post.author.id !== session?.user?.id ? handleMessageAuthor : undefined}
+                                            onDelete={handleDeletePost}
+                                        />
+                                    ))}
+
+                                    {/* Load More */}
+                                    {nextCursor && (
+                                        <div className="text-center pt-4">
+                                            <button
+                                                onClick={() => loadPosts(nextCursor)}
+                                                disabled={isLoadingMore}
+                                                className="text-sm text-zinc-500 hover:text-white transition-colors disabled:opacity-50"
+                                            >
+                                                {isLoadingMore ? 'Loading...' : 'Load more'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
                             )}
-                        </>
-                    )}
+                        </div>
+                    </main>
                 </div>
             </div>
 

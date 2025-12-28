@@ -49,6 +49,11 @@ model User {
   conversationsAsA      Conversation[]          @relation("ConversationsAsA")
   conversationsAsB      Conversation[]          @relation("ConversationsAsB")
   sentMessages          DirectMessage[]         @relation("SentMessages")
+
+  // Trader Rooms relations
+  createdRooms          Room[]                  @relation("CreatedRooms")
+  roomMemberships       RoomMembership[]        @relation("UserRoomMemberships")
+  roomJoinRequests      RoomJoinRequest[]       @relation("UserRoomJoinRequests")
 }
 
 // Required by NextAuth PrismaAdapter for OAuth
@@ -948,6 +953,7 @@ model UserIntelProfile {
 model CommunityPost {
   id          String   @id @default(cuid())
   authorId    String
+  roomId      String?  // Nullable for backward compatibility
   asset       String?  @db.VarChar(20)  // BTC, AAPL, EURUSD
   marketType  String?  @db.VarChar(20)  // stock / crypto / forex
   postType    String   @default("insight") @db.VarChar(20) // question / insight / thesis
@@ -958,12 +964,14 @@ model CommunityPost {
   updatedAt   DateTime @updatedAt
 
   author      User     @relation("UserPosts", fields: [authorId], references: [id], onDelete: Cascade)
+  room        Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
   comments    Comment[]
 
   @@index([authorId])
   @@index([createdAt(sort: Desc)])
   @@index([asset])
   @@index([postType])
+  @@index([roomId, createdAt(sort: Desc)])
 }
 
 model Comment {
@@ -1034,5 +1042,82 @@ model DirectMessage {
 
   @@index([conversationId, createdAt(sort: Desc)])
   @@index([senderId])
+}
+
+// ========================
+// TRADER ROOMS SYSTEM
+// ========================
+
+model Room {
+  id               String   @id @default(cuid())
+  slug             String   @unique @db.VarChar(50)  // crypto-intraday
+  name             String   @db.VarChar(100)         // Crypto — Intraday
+  description      String   @db.VarChar(300)
+  marketType       String   @db.VarChar(20)          // crypto / stock / forex
+
+  // Room configuration
+  isSystem         Boolean  @default(false)          // System vs user-created
+  isPublic         Boolean  @default(true)           // Public vs private
+  requiresApproval Boolean  @default(false)          // Auto-join vs approval needed
+  maxMembers       Int?                              // Optional member cap
+
+  // Creator (null for system rooms)
+  creatorId        String?  @db.VarChar(255)
+
+  // Denormalized counts
+  memberCount      Int      @default(0)
+  postCount        Int      @default(0)
+
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  creator          User?             @relation("CreatedRooms", fields: [creatorId], references: [id], onDelete: SetNull)
+  members          RoomMembership[]
+  posts            CommunityPost[]
+  joinRequests     RoomJoinRequest[]
+
+  @@index([isActive, marketType])
+  @@index([slug])
+  @@index([creatorId])
+  @@index([isPublic, isActive])
+}
+
+model RoomMembership {
+  id        String   @id @default(cuid())
+  userId    String   @db.VarChar(255)
+  roomId    String
+
+  joinedAt  DateTime @default(now())
+
+  // Relations
+  user      User     @relation("UserRoomMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])  // Prevent duplicate memberships
+  @@index([userId])
+  @@index([roomId])
+}
+
+model RoomJoinRequest {
+  id         String   @id @default(cuid())
+  userId     String   @db.VarChar(255)
+  roomId     String
+  message    String?  @db.VarChar(500)  // Why they want to join
+  status     String   @default("pending") @db.VarChar(20)  // pending / approved / rejected
+
+  createdAt  DateTime @default(now())
+  reviewedAt DateTime?
+  reviewedBy String?  @db.VarChar(255)
+
+  // Relations
+  user       User     @relation("UserRoomJoinRequests", fields: [userId], references: [id], onDelete: Cascade)
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@index([roomId, status])
+  @@index([userId])
+  @@index([status])
 }
 
