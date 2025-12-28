@@ -73,6 +73,7 @@ function generateOHLCVFromPrice(price: number, days: number = 30): OHLCV[] {
 
         data.push({
             timestamp,
+            time: Math.floor(timestamp / 1000), // Unix seconds for chart compatibility
             open: currentPrice * (1 - Math.abs(change) / 2),
             high: currentPrice * (1 + Math.random() * 0.01),
             low: currentPrice * (1 - Math.random() * 0.01),
