@@ -1,6 +1,6 @@
 /**
  * CryptoPriceIndicator Component - PREMIUM VERSION
- * 
+ *
  * Clean, minimal, alive. Same energy as LivePriceIndicator.
  */
 
@@ -9,6 +9,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { CryptoLiveStatus } from '@/lib/market/crypto';
 
 interface CryptoPriceIndicatorProps {
     symbol: string;
@@ -18,7 +19,7 @@ interface CryptoPriceIndicatorProps {
     liquidityTier: 'HIGH' | 'MEDIUM' | 'LOW';
     volume24h: number;
     txnsH1: number;
-    status: 'LIVE' | 'DELAYED' | 'LOW_ACTIVITY' | 'DISCONNECTED';
+    status: CryptoLiveStatus;
     className?: string;
 }
 
@@ -88,9 +89,6 @@ export default function CryptoPriceIndicator({
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                     </span>
-                )}
-                {status === 'LOW_ACTIVITY' && (
-                    <span className="h-2 w-2 rounded-full bg-amber-500" title="Low activity" />
                 )}
                 {status === 'DELAYED' && (
                     <span className="h-2 w-2 rounded-full bg-yellow-500" title="Delayed data" />
