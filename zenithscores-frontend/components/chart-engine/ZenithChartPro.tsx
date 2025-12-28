@@ -267,12 +267,18 @@ export default function ZenithChartPro({
         setMarketState(computeMarketState(candles));
     }, [candles]);
 
-    // Effect: Prevent page scroll when zooming
+    // Effect: Prevent page scroll when zooming (disabled in drawing mode)
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
         const handleNativeWheel = (e: WheelEvent) => {
+            // Disable zoom when in drawing mode
+            if (activeDrawingTool) {
+                e.preventDefault();
+                return;
+            }
+
             if (e.ctrlKey) {
                 // Ctrl+Wheel for vertical zoom (price scale)
                 e.preventDefault();
@@ -295,7 +301,7 @@ export default function ZenithChartPro({
 
         canvas.addEventListener('wheel', handleNativeWheel, { passive: false });
         return () => canvas.removeEventListener('wheel', handleNativeWheel);
-    }, [viewport, candles.length, dims.width]);
+    }, [viewport, candles.length, dims.width, activeDrawingTool]);
 
     // Effect: Draw on change
     useEffect(() => {
@@ -310,8 +316,11 @@ export default function ZenithChartPro({
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
+        // PRIORITY 1: Drawing mode (disables pan/zoom)
         if (activeDrawingTool) {
-            // Start drawing
+            e.preventDefault();
+            e.stopPropagation();
+
             const newDrawing = handleDrawingStart(
                 activeDrawingTool,
                 x,
@@ -321,11 +330,12 @@ export default function ZenithChartPro({
                 dims
             );
             setCurrentDrawing(newDrawing);
-        } else {
-            // Start panning
-            setIsDragging(true);
-            setLastMouse({ x: e.clientX, y: e.clientY });
+            return; // Don't allow panning while drawing
         }
+
+        // PRIORITY 2: Panning (only if not drawing)
+        setIsDragging(true);
+        setLastMouse({ x: e.clientX, y: e.clientY });
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
@@ -335,15 +345,18 @@ export default function ZenithChartPro({
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        // Update crosshair position
-        if (showCrosshair) {
+        // Always update crosshair
+        if (showCrosshair && !currentDrawing) {
             const price = yToPrice(y);
             const time = xToTime(x);
             setCrosshairPos({ x, y, price, time });
         }
 
-        if (currentDrawing) {
-            // Continue drawing
+        // PRIORITY 1: Active drawing (blocks panning)
+        if (currentDrawing && activeDrawingTool) {
+            e.preventDefault();
+            e.stopPropagation();
+
             const updatedDrawing = handleDrawingMove(
                 currentDrawing,
                 x,
@@ -353,8 +366,11 @@ export default function ZenithChartPro({
                 dims
             );
             setCurrentDrawing(updatedDrawing);
-        } else if (isDragging && lastMouse) {
-            // Continue panning
+            return; // Don't pan while actively drawing
+        }
+
+        // PRIORITY 2: Panning (only if not in drawing mode)
+        if (isDragging && lastMouse && !activeDrawingTool) {
             const deltaX = e.clientX - lastMouse.x;
             const newViewport = calculatePan(
                 viewport,
@@ -368,12 +384,13 @@ export default function ZenithChartPro({
     };
 
     const handleMouseUp = () => {
-        if (currentDrawing) {
-            // Finish drawing
+        if (currentDrawing && activeDrawingTool) {
+            // Finish drawing and commit it
             const finalDrawing = handleDrawingEnd(currentDrawing);
             setDrawings(prev => [...prev, finalDrawing]);
             setCurrentDrawing(null);
-            setActiveDrawingTool(null);
+            // Keep tool active for continuous drawing
+            // User can click "Select" to exit drawing mode
         } else {
             // Finish panning
             setIsDragging(false);
@@ -382,13 +399,13 @@ export default function ZenithChartPro({
     };
 
     const handleMouseLeave = () => {
+        // Clean up any active state
         setIsDragging(false);
         setLastMouse(null);
         setCrosshairPos(null);
-        if (currentDrawing) {
-            setCurrentDrawing(null);
-            setActiveDrawingTool(null);
-        }
+
+        // Don't auto-cancel drawings on mouse leave
+        // Let user explicitly cancel by clicking "Select"
     };
 
     // Y position to price conversion
@@ -445,6 +462,30 @@ export default function ZenithChartPro({
         setCurrentDrawing(null);
         setActiveDrawingTool(null);
     };
+
+    // Undo last drawing
+    const handleUndo = () => {
+        setDrawings(prev => prev.slice(0, -1));
+    };
+
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ctrl+Z or Cmd+Z for undo
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                e.preventDefault();
+                handleUndo();
+            }
+            // Escape to exit drawing mode
+            if (e.key === 'Escape' && activeDrawingTool) {
+                setActiveDrawingTool(null);
+                setCurrentDrawing(null);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [activeDrawingTool]);
 
     return (
         <div
@@ -576,11 +617,15 @@ export default function ZenithChartPro({
 
             {/* Drawing Tool Indicator */}
             {activeDrawingTool && (
-                <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 px-4 py-2 bg-black/80 backdrop-blur rounded-full border border-white/20">
-                    <div className="flex items-center gap-2 text-white text-sm">
-                        <Ruler size={16} />
-                        <span className="capitalize">{activeDrawingTool} Mode</span>
-                        <span className="text-white/60 text-xs">(Click to draw)</span>
+                <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 px-4 py-2 bg-black/90 backdrop-blur rounded-lg border border-white/20 shadow-lg">
+                    <div className="flex items-center gap-3 text-white text-sm">
+                        <Ruler size={16} className="text-blue-400" />
+                        <div>
+                            <div className="font-medium capitalize">{activeDrawingTool} Mode</div>
+                            <div className="text-white/60 text-xs">
+                                Click & drag to draw • ESC to cancel • Ctrl+Z to undo
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
