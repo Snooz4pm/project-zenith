@@ -671,3 +671,46 @@ model MarketCandle {
   @@unique([symbol, timeframe, timestamp])
   @@index([symbol, timeframe, timestamp])
 }
+
+// ========================
+// CHART ALERT SYSTEM
+// ========================
+
+model PriceAlert {
+  id            String   @id @default(cuid())
+  userId        String   @db.VarChar(255)
+  
+  // Alert target
+  symbol        String   @db.VarChar(20)
+  assetType     String   @db.VarChar(10) // stock, crypto, forex
+  targetPrice   Decimal  @db.Decimal(20, 8)
+  direction     String   @db.VarChar(10) // 'above', 'below', 'cross'
+  
+  // Alert context
+  note          String?  @db.Text // User's thesis/reason
+  chartSnapshot String?  @db.Text // Optional base64 or URL
+  
+  // Prediction tracking (gamification)
+  predictedDirection String? @db.VarChar(10) // 'up', 'down', null
+  predictedWithin    Int?     // Hours until target should hit
+  
+  // Status
+  status        String   @default("active") @db.VarChar(20) // active, triggered, expired, cancelled
+  priceAtCreation Decimal @db.Decimal(20, 8)
+  priceAtTrigger  Decimal? @db.Decimal(20, 8)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  triggeredAt   DateTime?
+  expiresAt     DateTime?
+  
+  // Scoring (was prediction correct?)
+  wasCorrect    Boolean?
+  pointsEarned  Int?     @default(0)
+  
+  @@index([userId], map: "idx_price_alerts_user")
+  @@index([symbol], map: "idx_price_alerts_symbol")
+  @@index([status], map: "idx_price_alerts_status")
+  @@index([createdAt(sort: Desc)], map: "idx_price_alerts_time")
+}
+
