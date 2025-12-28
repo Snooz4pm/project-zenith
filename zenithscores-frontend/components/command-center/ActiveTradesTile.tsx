@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import styles from './Tiles.module.css';
+import { ArrowUpRight, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface ActiveTradesTileProps {
     onClick: () => void;
@@ -25,7 +25,6 @@ export default function ActiveTradesTile({ onClick }: ActiveTradesTileProps) {
                 const response = await fetch('/api/trading/positions');
                 if (response.ok) {
                     const data = await response.json();
-                    // Transform data to our format
                     const activeTrades = (data.positions || []).slice(0, 3).map((p: any) => ({
                         symbol: p.symbol,
                         direction: p.quantity > 0 ? 'long' : 'short',
@@ -36,8 +35,7 @@ export default function ActiveTradesTile({ onClick }: ActiveTradesTileProps) {
                     setTotalPnL(data.positions?.reduce((sum: number, p: any) => sum + (p.unrealized_pnl || 0), 0) || 0);
                 }
             } catch (error) {
-                console.error('Error fetching trades:', error);
-                // Use mock data for demo
+                // Mock data
                 setTrades([
                     { symbol: 'AAPL', direction: 'long', pnl: 127, pnlPercent: 2.1 },
                     { symbol: 'BTC', direction: 'long', pnl: -45, pnlPercent: -0.8 },
@@ -50,61 +48,68 @@ export default function ActiveTradesTile({ onClick }: ActiveTradesTileProps) {
         };
 
         fetchTrades();
-        const interval = setInterval(fetchTrades, 30000); // Refresh every 30s
+        const interval = setInterval(fetchTrades, 30000);
         return () => clearInterval(interval);
     }, []);
 
     const moreCount = Math.max(0, trades.length - 3);
 
     return (
-        <div className={`${styles.tile} ${styles.tileHero}`} onClick={onClick}>
-            <div className={styles.tileHeader}>
-                <div className={styles.tileTitle}>
-                    <span className={styles.tileIcon}>📊</span>
-                    <span className={styles.tileName}>Active Trades</span>
+        <div
+            className="w-full h-full glass-panel rounded-2xl p-5 border border-[rgba(255,255,255,0.05)] hover:border-[var(--accent-mint)]/30 transition-all cursor-pointer group flex flex-col"
+            onClick={onClick}
+        >
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                    <span className="text-lg">📊</span>
+                    <span className="font-bold text-white group-hover:text-[var(--accent-mint)] transition-colors">Active Trades</span>
                 </div>
-                <button className={styles.expandBtn} aria-label="Expand">↗</button>
+                <button className="p-1.5 rounded-lg bg-[rgba(255,255,255,0.05)] text-[var(--text-muted)] group-hover:text-white transition-colors">
+                    <ArrowUpRight size={16} />
+                </button>
             </div>
 
-            <div className={styles.tileContent}>
+            <div className="flex-1 flex flex-col">
                 {loading ? (
-                    <div className={styles.emptyState}>
-                        <span>Loading trades...</span>
+                    <div className="flex-1 flex items-center justify-center text-[var(--text-muted)] text-sm animate-pulse">
+                        Loading trades...
                     </div>
                 ) : trades.length === 0 ? (
-                    <div className={styles.emptyState}>
-                        <span className={styles.emptyIcon}>📈</span>
-                        <span>No active trades</span>
+                    <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-muted)]">
+                        <TrendingUp size={24} className="mb-2 opacity-50" />
+                        <span className="text-sm">No active trades</span>
                     </div>
                 ) : (
                     <>
-                        <div className={styles.tradeCards}>
+                        <div className="space-y-3 flex-1">
                             {trades.slice(0, 3).map((trade, idx) => (
-                                <div key={idx} className={styles.tradeCard}>
-                                    <div className={styles.tradeSymbol}>{trade.symbol}</div>
-                                    <div className={styles.tradeDirection}>{trade.direction}</div>
-                                    <div className={`${styles.tradePnL} ${trade.pnl >= 0 ? styles.statPositive : styles.statNegative}`}>
-                                        {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toFixed(0)}
+                                <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)]">
+                                    <div className="flex items-center gap-3">
+                                        <div className="font-bold text-white">{trade.symbol}</div>
+                                        <div className={`text-xs uppercase px-1.5 py-0.5 rounded font-bold ${trade.direction === 'long' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                                            {trade.direction.toUpperCase()}
+                                        </div>
                                     </div>
-                                    <div className={`${styles.tradePercent} ${trade.pnl >= 0 ? styles.statPositive : styles.statNegative}`}>
-                                        {trade.pnlPercent >= 0 ? '🟢' : '🔴'} {Math.abs(trade.pnlPercent).toFixed(1)}%
+                                    <div className="text-right">
+                                        <div className={`font-mono text-sm font-bold ${trade.pnl >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-danger)]'}`}>
+                                            {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toFixed(0)}
+                                        </div>
+                                        <div className={`text-xs flex items-center justify-end gap-1 ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                            {trade.pnlPercent >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                                            {Math.abs(trade.pnlPercent).toFixed(1)}%
+                                        </div>
                                     </div>
                                 </div>
                             ))}
                             {moreCount > 0 && (
-                                <div className={styles.moreIndicator}>+{moreCount}</div>
+                                <div className="text-center text-xs text-[var(--text-muted)] mt-2">+{moreCount} more positions</div>
                             )}
                         </div>
 
-                        <div className={styles.summaryRow}>
-                            <span>
-                                Total P&L: <span className={`${styles.summaryValue} ${totalPnL >= 0 ? styles.statPositive : styles.statNegative}`}>
-                                    {totalPnL >= 0 ? '+' : ''}${Math.abs(totalPnL).toFixed(0)}
-                                </span>
-                            </span>
-                            <span>•</span>
-                            <span>
-                                <span className={styles.summaryValue}>{trades.length}</span> Open Trades
+                        <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.05)] flex justify-between items-center text-sm">
+                            <span className="text-[var(--text-secondary)]">Total P&L</span>
+                            <span className={`font-mono font-bold ${totalPnL >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-danger)]'}`}>
+                                {totalPnL >= 0 ? '+' : ''}${Math.abs(totalPnL).toFixed(0)}
                             </span>
                         </div>
                     </>

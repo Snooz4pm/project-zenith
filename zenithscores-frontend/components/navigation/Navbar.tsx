@@ -49,72 +49,86 @@ export default function Navbar() {
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
-        ? 'bg-black/80 backdrop-blur-xl border-b border-[#14f195]/20'
+        ? 'bg-[rgba(5,5,8,0.8)] backdrop-blur-md border-b border-[rgba(255,255,255,0.05)]'
         : 'bg-transparent'
       }`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative w-8 h-8 rounded-lg bg-[#14f195] flex items-center justify-center transition-all duration-300 group-hover:shadow-[0_0_20px_rgba(20,241,149,0.5)]">
-              <span className="text-black font-bold text-lg" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Z</span>
+      <div className="max-w-[1920px] mx-auto px-6 sm:px-8">
+        <div className="flex items-center justify-between h-20">
+          {/* Logo Section */}
+          <Link href="/" className="flex items-center gap-4 group">
+            <div className="relative w-10 h-10 flex items-center justify-center transition-all duration-300 group-hover:drop-shadow-[0_0_15px_rgba(20,241,149,0.5)]">
+              {/* Geometric Hexagon Logo */}
+              <div
+                className="absolute inset-0 bg-[var(--accent-mint)] opacity-20 group-hover:opacity-100 transition-opacity duration-300"
+                style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+              />
+              <div
+                className="absolute inset-[2px] bg-[var(--surface-1)]"
+                style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+              />
+              <span className="relative text-[var(--accent-mint)] font-bold text-xl" style={{ fontFamily: "var(--font-display)" }}>Z</span>
             </div>
+
             <div className="hidden sm:block">
-              <span className="text-xl font-bold text-white" style={{ fontFamily: "'Syne', sans-serif" }}>
-                ZenithScores
-              </span>
-              <div className="text-[9px] text-[#14f195] uppercase tracking-[0.2em] -mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                Intelligence
+              <div className="flex flex-col">
+                <span className="text-lg font-bold text-white tracking-wide" style={{ fontFamily: "var(--font-display)" }}>
+                  ZenithScores
+                </span>
+                <span className="text-[10px] text-[var(--accent-mint)] uppercase tracking-[0.3em] font-medium" style={{ fontFamily: "var(--font-data)" }}>
+                  INTELLIGENCE
+                </span>
               </div>
             </div>
           </Link>
 
           {/* Desktop Nav Links */}
-          <div className="hidden lg:flex items-center gap-1">
+          <div className="hidden xl:flex items-center gap-8">
             {NAV_LINKS.map((link) => (
-              <div key={link.href} className="relative">
+              <div key={link.href} className="relative group">
                 {link.children ? (
                   <div
                     className="relative"
                     onMouseEnter={() => setActiveDropdown(link.label)}
                     onMouseLeave={() => setActiveDropdown(null)}
                   >
-                    <button className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive(link.href)
-                        ? 'text-[#14f195]'
-                        : 'text-zinc-400 hover:text-white'
-                      }`} style={{ fontFamily: "'Syne', sans-serif" }}>
-                      {link.icon}
+                    <button className={`flex items-center gap-2 text-sm font-medium transition-all duration-300 ${isActive(link.href)
+                        ? 'text-[var(--accent-mint)] text-glow'
+                        : 'text-[var(--text-secondary)] hover:text-white'
+                      }`} style={{ fontFamily: "var(--font-body)" }}>
                       <span>{link.label}</span>
-                      <ChevronDown size={12} className={`transition-transform ${activeDropdown === link.label ? 'rotate-180' : ''}`} />
+                      <ChevronDown size={10} className={`opacity-50 transition-transform duration-300 ${activeDropdown === link.label ? 'rotate-180' : ''}`} />
                     </button>
-                    {activeDropdown === link.label && (
-                      <div className="absolute top-full left-0 mt-2 w-56 bg-black/95 backdrop-blur-xl rounded-xl border border-zinc-800 p-2 shadow-2xl">
-                        {link.children.map((child) => (
-                          <Link
-                            key={child.href}
-                            href={child.href}
-                            className="block px-4 py-3 rounded-lg hover:bg-zinc-900 transition-colors group"
-                          >
-                            <div className="font-medium text-sm text-zinc-200 group-hover:text-[#14f195]" style={{ fontFamily: "'Syne', sans-serif" }}>
-                              {child.label}
-                            </div>
-                            <div className="text-xs text-zinc-500 mt-0.5">{child.description}</div>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
+
+                    {/* Dropdown Menu */}
+                    <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-4 w-64 p-2 rounded-xl glass-panel origin-top transition-all duration-200 ${activeDropdown === link.label ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'
+                      }`}>
+                      {link.children.map((child) => (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          className="block px-4 py-3 rounded-lg hover:bg-[rgba(255,255,255,0.03)] transition-colors group/item"
+                        >
+                          <div className="font-medium text-sm text-[var(--text-primary)] group-hover/item:text-[var(--accent-mint)]" style={{ fontFamily: "var(--font-body)" }}>
+                            {child.label}
+                          </div>
+                          <div className="text-xs text-[var(--text-muted)] mt-0.5">{child.description}</div>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <Link
                     href={link.href}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive(link.href)
-                        ? 'text-[#14f195]'
-                        : 'text-zinc-400 hover:text-white'
+                    className={`relative text-sm font-medium transition-all duration-300 ${isActive(link.href)
+                        ? 'text-[var(--accent-mint)] text-glow'
+                        : 'text-[var(--text-secondary)] hover:text-white'
                       }`}
-                    style={{ fontFamily: "'Syne', sans-serif" }}
+                    style={{ fontFamily: "var(--font-body)" }}
                   >
-                    {link.icon}
-                    <span>{link.label}</span>
+                    {link.label}
+                    {isActive(link.href) && (
+                      <span className="absolute -bottom-2 left-0 right-0 h-px bg-[var(--accent-mint)] shadow-[0_0_10px_var(--accent-mint)]" />
+                    )}
                   </Link>
                 )}
               </div>
@@ -122,39 +136,41 @@ export default function Navbar() {
           </div>
 
           {/* Auth Buttons */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             {session ? (
-              <div className="hidden md:flex items-center gap-3">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900/50 border border-zinc-800">
-                  <div className="w-6 h-6 rounded-full bg-[#14f195] flex items-center justify-center">
-                    <User size={12} className="text-black" />
-                  </div>
-                  <span className="text-sm text-zinc-300" style={{ fontFamily: "'Syne', sans-serif" }}>
-                    {session.user?.name || 'User'}
+              <div className="hidden md:flex items-center gap-4">
+                <div className="flex items-center gap-3 px-4 py-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)]">
+                  <div className="w-2 h-2 rounded-full bg-[var(--accent-mint)] animate-pulse" />
+                  <span className="text-sm text-[var(--text-secondary)]" style={{ fontFamily: "var(--font-body)" }}>
+                    {session.user?.name || 'Operator'}
                   </span>
                 </div>
                 <button
                   onClick={() => signOut()}
-                  className="p-2 rounded-lg text-zinc-400 hover:bg-red-500/10 hover:text-red-400 transition-all"
+                  className="w-10 h-10 flex items-center justify-center rounded-full text-[var(--text-muted)] hover:text-[var(--accent-danger)] hover:bg-[rgba(239,68,68,0.1)] transition-all"
                 >
-                  <LogOut size={16} />
+                  <LogOut size={18} />
                 </button>
               </div>
             ) : (
-              <div className="hidden md:flex items-center gap-3">
+              <div className="hidden md:flex items-center gap-4">
                 <Link
                   href="/auth/register"
-                  className="px-4 py-2 rounded-lg text-sm font-medium text-white border border-zinc-700 hover:border-zinc-500 transition-all"
-                  style={{ fontFamily: "'Syne', sans-serif" }}
+                  className="px-6 py-2.5 rounded-lg text-sm font-medium text-white border border-[rgba(255,255,255,0.1)] hover:border-[rgba(255,255,255,0.3)] hover:bg-[rgba(255,255,255,0.02)] transition-all"
+                  style={{ fontFamily: "var(--font-body)" }}
                 >
                   Create Account
                 </Link>
                 <Link
                   href="/auth/login"
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-[#14f195] text-black hover:shadow-[0_0_20px_rgba(20,241,149,0.4)] transition-all"
-                  style={{ fontFamily: "'Syne', sans-serif" }}
+                  className="group relative px-6 py-2.5 rounded-lg text-sm font-bold text-[var(--void)] bg-[var(--accent-mint)] overflow-hidden transition-all hover:shadow-[0_0_20px_var(--glow-mint)]"
+                  style={{ fontFamily: "var(--font-body)" }}
                 >
-                  Login →
+                  <span className="relative z-10 flex items-center gap-2">
+                    Login
+                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                  </span>
+                  <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
                 </Link>
               </div>
             )}
@@ -162,7 +178,7 @@ export default function Navbar() {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg text-zinc-400 hover:text-white transition-all"
+              className="xl:hidden p-2 text-[var(--text-secondary)] hover:text-white"
             >
               {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -170,67 +186,51 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-zinc-800 bg-black/95 backdrop-blur-xl">
-          <div className="max-w-7xl mx-auto px-4 py-4 space-y-2">
+        <div className="xl:hidden fixed inset-0 top-20 bg-[var(--surface-1)] z-40 overflow-y-auto border-t border-[rgba(255,255,255,0.05)]">
+          <div className="p-6 space-y-6">
             {NAV_LINKS.map((link) => (
               <div key={link.href}>
-                {link.children ? (
-                  <div>
-                    <button
-                      onClick={() => setActiveDropdown(activeDropdown === link.label ? null : link.label)}
-                      className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-zinc-300 hover:bg-zinc-900 transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        {link.icon}
-                        <span style={{ fontFamily: "'Syne', sans-serif" }}>{link.label}</span>
-                      </div>
-                      <ChevronDown size={16} className={`transition-transform ${activeDropdown === link.label ? 'rotate-180' : ''}`} />
-                    </button>
-                    {activeDropdown === link.label && (
-                      <div className="pl-4 mt-2 space-y-1">
-                        {link.children.map((child) => (
-                          <Link
-                            key={child.href}
-                            href={child.href}
-                            className="block px-4 py-2 rounded-lg text-sm text-zinc-400 hover:bg-zinc-900 hover:text-[#14f195] transition-all"
-                          >
-                            {child.label}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
+                <Link
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-4 text-lg font-medium text-[var(--text-secondary)] hover:text-[var(--accent-mint)] transition-colors"
+                  style={{ fontFamily: "var(--font-body)" }}
+                >
+                  {link.icon}
+                  {link.label}
+                </Link>
+                {link.children && (
+                  <div className="ml-9 mt-4 space-y-4 border-l border-[rgba(255,255,255,0.05)] pl-4">
+                    {link.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block text-sm text-[var(--text-muted)] hover:text-white"
+                      >
+                        {child.label}
+                      </Link>
+                    ))}
                   </div>
-                ) : (
-                  <Link
-                    href={link.href}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive(link.href)
-                        ? 'bg-zinc-900 text-[#14f195]'
-                        : 'text-zinc-300 hover:bg-zinc-900'
-                      }`}
-                  >
-                    {link.icon}
-                    <span style={{ fontFamily: "'Syne', sans-serif" }}>{link.label}</span>
-                  </Link>
                 )}
               </div>
             ))}
 
-            {/* Mobile Auth */}
             {!session && (
-              <div className="pt-4 border-t border-zinc-800 space-y-2">
-                <Link
-                  href="/auth/register"
-                  className="block w-full px-4 py-3 rounded-lg text-center text-sm font-medium text-white border border-zinc-700"
-                >
-                  Create Account
-                </Link>
+              <div className="pt-8 space-y-4">
                 <Link
                   href="/auth/login"
-                  className="block w-full px-4 py-3 rounded-lg text-center text-sm font-medium bg-[#14f195] text-black"
+                  className="block w-full py-3 text-center rounded-lg bg-[var(--accent-mint)] text-[var(--void)] font-bold"
                 >
-                  Login →
+                  Login
+                </Link>
+                <Link
+                  href="/auth/register"
+                  className="block w-full py-3 text-center rounded-lg border border-[rgba(255,255,255,0.1)] text-white"
+                >
+                  Create Account
                 </Link>
               </div>
             )}

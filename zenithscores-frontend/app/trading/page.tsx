@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -8,17 +8,12 @@ import dynamic from 'next/dynamic';
 
 // 🔧 NUCLEAR FIX: Client-only dynamic imports for smooth navigation
 const PortfolioChart = dynamic(() => import('@/components/PortfolioChart'), { ssr: false });
-const AnalyticsDashboard = dynamic(() => import('@/components/AnalyticsDashboard').then(mod => ({ default: mod.AnalyticsDashboard })), { ssr: false });
-const OnboardingTour = dynamic(() => import('@/components/OnboardingTour').then(mod => ({ default: mod.OnboardingTour })), { ssr: false });
 const AssetPicker = dynamic(() => import('@/components/AssetPicker'), { ssr: false });
 
-const CommunityFeed = dynamic(() => import('@/components/CommunityFeed'), { ssr: false });
-
 import {
-    ArrowLeft, TrendingUp, TrendingDown, Wallet, BarChart3,
-    Trophy, History, AlertTriangle, CheckCircle, X, RefreshCw,
-    DollarSign, Percent, Target, Shield, Activity, Bell, LogIn, User, GraduationCap,
-    Users, MessageSquare, CreditCard, Zap, Share2, ChevronDown, ChevronUp
+    TrendingUp, TrendingDown, Wallet, BarChart3,
+    Trophy, History, Activity, Bell, Users, Share2, CheckCircle,
+    ArrowRight, Lock, DollarSign, Shield, Zap
 } from 'lucide-react';
 
 // Types
@@ -205,7 +200,6 @@ export default function TradingPage() {
             });
             if (res.ok) {
                 setSessionLinked(true);
-                console.log('✅ Trading session linked to user');
             }
         } catch (e) {
             console.error('Failed to link session:', e);
@@ -224,7 +218,6 @@ export default function TradingPage() {
             const ws = new WebSocket(`${wsUrl}/ws/trading/${sessionId}`);
 
             ws.onopen = () => {
-                console.log('📡 WebSocket connected');
                 setWsConnected(true);
             };
 
@@ -235,20 +228,17 @@ export default function TradingPage() {
                     if (data.type === 'portfolio_update') {
                         setPortfolio(data.data);
                     } else if (data.type === 'price_update') {
-                        // Update asset prices
                         setAssets(prev => prev.map(asset => ({
                             ...asset,
                             current_price: data.data[asset.symbol] || asset.current_price
                         })));
                     } else if (data.type === 'trigger_alert') {
-                        // Stop-loss or take-profit triggered
                         setTriggerAlert(`${data.trigger_type.toUpperCase()} triggered for ${data.symbol} @ $${data.price.toFixed(2)}`);
                         setTimeout(() => setTriggerAlert(null), 5000);
                         loadPortfolio();
                         loadHistory();
                     }
                 } catch (e) {
-                    // Handle ping/pong
                     if (event.data === 'ping') {
                         ws.send('pong');
                     }
@@ -256,14 +246,8 @@ export default function TradingPage() {
             };
 
             ws.onclose = () => {
-                console.log('📡 WebSocket disconnected');
                 setWsConnected(false);
-                // Reconnect after 5 seconds
                 setTimeout(connectWebSocket, 5000);
-            };
-
-            ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
             };
 
             wsRef.current = ws;
@@ -272,7 +256,7 @@ export default function TradingPage() {
         }
     };
 
-    // Fallback: Auto-refresh every 15 seconds if WebSocket not connected
+    // Fallback: Auto-refresh
     useEffect(() => {
         if (!sessionId || wsConnected) return;
         const interval = setInterval(() => {
@@ -357,12 +341,6 @@ export default function TradingPage() {
         }
     };
 
-    const handleRefresh = async () => {
-        setRefreshing(true);
-        await loadAllData();
-        setRefreshing(false);
-    };
-
     const openTradeModal = (asset: Asset, type: 'buy' | 'sell') => {
         setSelectedAsset(asset);
         setTradeType(type);
@@ -374,61 +352,6 @@ export default function TradingPage() {
         setTradeError(null);
         setShowConfirmation(false);
         setShowTradeModal(true);
-    };
-
-    const calculateTradeValue = () => {
-        if (!selectedAsset || !quantity) return 0;
-        const qty = parseFloat(quantity) || 0;
-        const price = orderType === 'limit' && limitPrice ? parseFloat(limitPrice) : selectedAsset.current_price;
-        return qty * price;
-    };
-
-    const calculateMarginRequired = () => {
-        return calculateTradeValue() / leverage;
-    };
-
-    const validateTrade = (): string | null => {
-        const qty = parseFloat(quantity) || 0;
-        if (qty <= 0) return 'Quantity must be greater than 0';
-
-        const margin = calculateMarginRequired();
-        if (tradeType === 'buy' && portfolio && margin > portfolio.available_margin) {
-            return `Insufficient margin. Required: ${formatCurrency(margin)}, Available: ${formatCurrency(portfolio.available_margin)}`;
-        }
-
-        if (tradeType === 'sell' && portfolio) {
-            // For paper trading, allowing selling without holdings to enable shorting.
-            // The constraint is primarily on margin/balance which is checked below.
-            const holding = portfolio.holdings.find(h => h.symbol === selectedAsset?.symbol);
-            // No longer returning error if holding is missing or quantity is less than qty
-            // because this will initiate a short position.
-        }
-
-        if (stopLoss && selectedAsset) {
-            const sl = parseFloat(stopLoss);
-            if (tradeType === 'buy' && sl >= selectedAsset.current_price) {
-                return 'Stop-loss must be below current price for buy orders';
-            }
-        }
-
-        if (takeProfit && selectedAsset) {
-            const tp = parseFloat(takeProfit);
-            if (tradeType === 'buy' && tp <= selectedAsset.current_price) {
-                return 'Take-profit must be above current price for buy orders';
-            }
-        }
-
-        return null;
-    };
-
-    const handlePreviewTrade = () => {
-        const error = validateTrade();
-        if (error) {
-            setTradeError(error);
-            return;
-        }
-        setTradeError(null);
-        setShowConfirmation(true);
     };
 
     const executeTrade = async () => {
@@ -461,8 +384,6 @@ export default function TradingPage() {
                 setShowTradeModal(false);
                 loadHistory();
                 loadLeaderboard();
-
-                // Clear success after 3 seconds
                 setTimeout(() => setTradeSuccess(null), 3000);
             } else {
                 setTradeError(data.detail || 'Trade failed');
@@ -474,63 +395,53 @@ export default function TradingPage() {
         }
     };
 
-    // Auth loading state
     if (isAuthLoading || loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
-                <div className="text-white font-mono animate-pulse">Loading Trading Platform...</div>
+            <div className="min-h-screen bg-[var(--void)] flex items-center justify-center">
+                <div className="text-[var(--accent-mint)] font-mono animate-pulse flex items-center gap-2">
+                    <Activity size={24} className="animate-spin" />
+                    Initializing Terminal...
+                </div>
             </div>
         );
     }
 
-    // Not authenticated - show login prompt
     if (!isAuthenticated) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
-                <div className="text-center max-w-md mx-auto px-6">
-                    <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
-                        <TrendingUp size={40} className="text-white" />
+            <div className="min-h-screen bg-[var(--void)] flex items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-0 z-0">
+                    <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_top_right,_rgba(0,212,255,0.1),_transparent_50%)]" />
+                </div>
+                <div className="text-center max-w-md mx-auto px-6 relative z-10">
+                    <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-[rgba(20,241,149,0.1)] flex items-center justify-center border border-[var(--accent-mint)]/20 shadow-[0_0_30px_rgba(20,241,149,0.1)]">
+                        <TrendingUp size={40} className="text-[var(--accent-mint)]" />
                     </div>
-                    <h1 className="text-3xl font-bold text-white mb-3">Zenith Paper Trading</h1>
-                    <p className="text-gray-400 mb-8">
-                        Sign in to start paper trading with $10,000 virtual money.
-                        Track your portfolio, compete on the leaderboard, and sharpen your trading skills!
+                    <h1 className="text-4xl font-bold text-white mb-3" style={{ fontFamily: "var(--font-display)" }}>Zenith Trader</h1>
+                    <p className="text-[var(--text-secondary)] mb-8">
+                        Sign in to access the institutional-grade paper trading environment.
+                        $10,000 virtual capital. Real-time data. Zero risk.
                     </p>
 
-                    <div className="space-y-4">
-                        <button
-                            onClick={() => signIn('google', { callbackUrl: '/trading' })}
-                            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-medium rounded-xl transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40"
-                        >
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#fff" />
-                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#fff" />
-                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#fff" />
-                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#fff" />
-                            </svg>
-                            Sign in with Google
-                        </button>
-
-                        <Link
-                            href="/"
-                            className="block w-full px-6 py-3 text-gray-400 hover:text-white font-medium rounded-xl bg-white/5 hover:bg-white/10 transition-all text-center"
-                        >
-                            ← Back to Home
-                        </Link>
-                    </div>
+                    <button
+                        onClick={() => signIn('google', { callbackUrl: '/trading' })}
+                        className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-[var(--accent-mint)] text-black font-bold rounded-xl transition-all hover:shadow-[0_0_20px_rgba(20,241,149,0.4)] hover:scale-[1.02]"
+                    >
+                        <Zap size={20} fill="currentColor" />
+                        ACCESS TERMINAL
+                    </button>
 
                     <div className="mt-8 grid grid-cols-3 gap-4 text-center">
-                        <div className="p-3 bg-white/5 rounded-lg">
-                            <DollarSign className="mx-auto mb-1 text-emerald-400" size={20} />
-                            <div className="text-xs text-gray-400">$10K Virtual</div>
+                        <div className="p-3 bg-[rgba(255,255,255,0.05)] rounded-lg border border-[rgba(255,255,255,0.05)]">
+                            <DollarSign className="mx-auto mb-1 text-[var(--accent-mint)]" size={20} />
+                            <div className="text-xs text-[var(--text-secondary)]">$10K Equity</div>
                         </div>
-                        <div className="p-3 bg-white/5 rounded-lg">
-                            <Trophy className="mx-auto mb-1 text-yellow-400" size={20} />
-                            <div className="text-xs text-gray-400">Leaderboard</div>
+                        <div className="p-3 bg-[rgba(255,255,255,0.05)] rounded-lg border border-[rgba(255,255,255,0.05)]">
+                            <Trophy className="mx-auto mb-1 text-[var(--accent-gold)]" size={20} />
+                            <div className="text-xs text-[var(--text-secondary)]">Compete</div>
                         </div>
-                        <div className="p-3 bg-white/5 rounded-lg">
-                            <Shield className="mx-auto mb-1 text-cyan-400" size={20} />
-                            <div className="text-xs text-gray-400">Risk Free</div>
+                        <div className="p-3 bg-[rgba(255,255,255,0.05)] rounded-lg border border-[rgba(255,255,255,0.05)]">
+                            <Shield className="mx-auto mb-1 text-[var(--accent-cyan)]" size={20} />
+                            <div className="text-xs text-[var(--text-secondary)]">Risk Free</div>
                         </div>
                     </div>
                 </div>
@@ -539,325 +450,131 @@ export default function TradingPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white ">
-
-            {/* Success Toast */}
-            <AnimatePresence>
-                {tradeSuccess && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -50 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -50 }}
-                        className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2"
-                    >
-                        <CheckCircle size={20} />
-                        {tradeSuccess}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Trigger Alert Toast */}
-            <AnimatePresence>
-                {triggerAlert && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -50 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -50 }}
-                        className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-yellow-500 text-black px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 font-bold"
-                    >
-                        <Bell size={20} />
-                        {triggerAlert}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+        <div className="min-h-screen bg-[var(--void)] text-[var(--text-primary)] pt-20">
 
             {/* WebSocket Status Indicator */}
             <div className="fixed bottom-4 right-4 z-40">
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs ${wsConnected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-                    }`}>
-                    <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
-                    {wsConnected ? 'Live' : 'Offline'}
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border ${wsConnected ? 'bg-emerald-500/10 border-emerald-500/20 text-[var(--accent-mint)]' : 'bg-red-500/10 border-red-500/20 text-[var(--accent-danger)]'}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-[var(--accent-mint)] animate-pulse' : 'bg-[var(--accent-danger)]'}`} />
+                    {wsConnected ? 'SYSTEM ONLINE' : 'DISCONNECTED'}
                 </div>
             </div>
 
             {/* Portfolio Summary Bar */}
             {portfolio && (
-                <div className="border-b border-white/10 bg-black/40">
-                    <div className="container mx-auto px-4 py-4">
+                <div className="border-b border-[rgba(255,255,255,0.05)] bg-[rgba(0,0,0,0.4)] backdrop-blur-md sticky top-16 z-30">
+                    <div className="container mx-auto px-4 py-3">
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                             <div>
-                                <div className="text-xs text-gray-500 uppercase tracking-wider">Portfolio Value</div>
-                                <div className="text-xl font-bold text-white">{formatCurrency(portfolio.portfolio_value)}</div>
+                                <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider font-bold">Equity</div>
+                                <div className="text-lg font-bold text-white font-mono">{formatCurrency(portfolio.portfolio_value)}</div>
                             </div>
                             <div>
-                                <div className="text-xs text-gray-500 uppercase tracking-wider">Available Margin</div>
-                                <div className="text-xl font-bold text-emerald-400">{formatCurrency(portfolio.available_margin)}</div>
+                                <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider font-bold">Margin Avail</div>
+                                <div className="text-lg font-bold text-[var(--accent-mint)] font-mono">{formatCurrency(portfolio.available_margin)}</div>
                             </div>
                             <div>
-                                <div className="text-xs text-gray-500 uppercase tracking-wider">Total P&L</div>
-                                <div className={`text-xl font-bold ${portfolio.total_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider font-bold">Total P&L</div>
+                                <div className={`text-lg font-bold font-mono ${portfolio.total_pnl >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-danger)]'}`}>
                                     {formatCurrency(portfolio.total_pnl)}
                                 </div>
                             </div>
                             <div>
-                                <div className="text-xs text-gray-500 uppercase tracking-wider">Win Rate</div>
-                                <div className="text-xl font-bold text-white">{portfolio.win_rate.toFixed(1)}%</div>
+                                <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider font-bold">Win Rate</div>
+                                <div className="text-lg font-bold text-[var(--text-primary)] font-mono">{portfolio.win_rate.toFixed(1)}%</div>
                             </div>
                             <div>
-                                <div className="text-xs text-gray-500 uppercase tracking-wider">Total Trades</div>
-                                <div className="text-xl font-bold text-white">{portfolio.total_trades}</div>
+                                <div className="text-[10px] text-[var(--text-secondary)] uppercase tracking-wider font-bold">Trades</div>
+                                <div className="text-lg font-bold text-[var(--text-primary)] font-mono">{portfolio.total_trades}</div>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Tabs - Mobile Optimized */}
-            <div className="container mx-auto px-0 md:px-4 py-4">
-                {/* Scrollable tabs wrapper with proper padding */}
-                <div className="overflow-x-auto scrollbar-hide -webkit-overflow-scrolling-touch">
-                    <div className="flex gap-2 mb-6 px-4 md:px-0 min-w-max">
-                        {[
-                            { id: 'portfolio', label: 'Portfolio', icon: Wallet },
-                            { id: 'trade', label: 'Trade', icon: BarChart3 },
-                            { id: 'history', label: 'History', icon: History },
-                            { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
-                            { id: 'analytics', label: 'Analytics', icon: Activity },
-                            { id: 'community', label: 'Community', icon: Users },
-                        ].map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id as any)}
-                                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors whitespace-nowrap flex-shrink-0 ${activeTab === tab.id
-                                    ? 'bg-white text-black'
-                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                                    }`}
-                            >
-                                <tab.icon size={16} />
-                                <span className="hidden sm:inline">{tab.label}</span>
-                                <span className="sm:hidden">{tab.label.length > 6 ? tab.label.slice(0, 4) : tab.label}</span>
-                            </button>
-                        ))}
-                    </div>
+            {/* Main Content */}
+            <div className="container mx-auto px-4 py-6">
+
+                {/* Tabs */}
+                <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+                    {[
+                        { id: 'portfolio', label: 'Portfolio', icon: Wallet },
+                        { id: 'trade', label: 'Trade', icon: BarChart3 },
+                        { id: 'history', label: 'History', icon: History },
+                        { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
+                        { id: 'analytics', label: 'Analytics', icon: Activity },
+                        { id: 'community', label: 'Community', icon: Users },
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id as any)}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${activeTab === tab.id
+                                ? 'bg-[var(--accent-mint)] text-black'
+                                : 'bg-[rgba(255,255,255,0.05)] text-[var(--text-muted)] hover:bg-[rgba(255,255,255,0.1)] hover:text-white'
+                                }`}
+                            style={{ fontFamily: "var(--font-body)" }}
+                        >
+                            <tab.icon size={16} />
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
 
-                {/* Tab content wrapper with proper padding */}
-                <div className="px-4 md:px-0">
+                {/* Tab Content */}
+                {activeTab === 'portfolio' && portfolio && (
+                    <div className="space-y-6">
+                        <div className="glass-panel p-6 rounded-2xl border border-[rgba(255,255,255,0.05)]">
+                            <h2 className="text-xl font-bold mb-6 flex items-center gap-2" style={{ fontFamily: "var(--font-display)" }}>
+                                <Activity className="text-[var(--accent-mint)]" size={24} />
+                                Active Positions
+                            </h2>
 
-                    {/* Portfolio Tab */}
-                    {activeTab === 'portfolio' && portfolio && (
-                        <div className="space-y-6">
-                            {/* ACTIVE TRADES - SHOWN FIRST */}
-                            <div className="glass-panel rounded-xl p-4">
-                                <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                    <Activity className="text-emerald-400" size={20} />
-                                    Active Trades
-                                    {portfolio.holdings.length > 0 && (
-                                        <span className="text-xs px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full">
-                                            {portfolio.holdings.length} open
-                                        </span>
-                                    )}
-                                </h2>
-                                {portfolio.holdings.length === 0 ? (
-                                    <div className="text-center py-12 text-gray-500">
-                                        <Wallet className="mx-auto mb-4 opacity-50" size={48} />
-                                        <p>No holdings yet. Start trading!</p>
-                                        <button
-                                            onClick={() => setActiveTab('trade')}
-                                            className="mt-4 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
-                                        >
-                                            Open Trading
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full">
-                                            <thead>
-                                                <tr className="text-xs text-gray-500 uppercase border-b border-white/10">
-                                                    <th className="text-left py-3 px-2">Asset</th>
-                                                    <th className="text-right py-3 px-2">Quantity</th>
-                                                    <th className="text-right py-3 px-2">Avg Price</th>
-                                                    <th className="text-right py-3 px-2">Current</th>
-                                                    <th className="text-right py-3 px-2">Value</th>
-                                                    <th className="text-right py-3 px-2">P&L</th>
-                                                    <th className="text-right py-3 px-2">Leverage</th>
-                                                    <th className="text-center py-3 px-2">Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {portfolio.holdings.map((holding) => (
-                                                    <tr key={holding.symbol} className="border-b border-white/5 hover:bg-white/5">
-                                                        <td className="py-3 px-2">
-                                                            <div className="font-bold">{holding.symbol}</div>
-                                                            <div className="text-xs text-gray-500">{holding.name}</div>
-                                                        </td>
-                                                        <td className="text-right py-3 px-2 font-mono">{holding.quantity.toFixed(4)}</td>
-                                                        <td className="text-right py-3 px-2 font-mono">{formatCurrency(holding.avg_buy_price)}</td>
-                                                        <td className="text-right py-3 px-2 font-mono">{formatCurrency(holding.current_price)}</td>
-                                                        <td className="text-right py-3 px-2 font-mono font-bold">{formatCurrency(holding.current_value)}</td>
-                                                        <td className={`text-right py-3 px-2 font-mono font-bold ${holding.unrealized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                            {formatCurrency(holding.unrealized_pnl)}
-                                                        </td>
-                                                        <td className="text-right py-3 px-2">
-                                                            <span className={`px-2 py-0.5 rounded text-xs ${holding.leverage > 1 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-500/20 text-gray-400'}`}>
-                                                                {holding.leverage}x
-                                                            </span>
-                                                        </td>
-                                                        <td className="text-center py-3 px-2">
-                                                            <div className="flex items-center justify-center gap-2">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        // Share to community
-                                                                        setActiveTab('community');
-                                                                    }}
-                                                                    className="px-2 py-1 bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/30 text-sm flex items-center gap-1"
-                                                                    title="Share to Community"
-                                                                >
-                                                                    <Share2 size={14} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        const asset = assets.find(a => a.symbol === holding.symbol);
-                                                                        if (asset) openTradeModal(asset, 'sell');
-                                                                    }}
-                                                                    className="px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 text-sm"
-                                                                >
-                                                                    Sell
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Portfolio Chart - Now below active trades */}
-                            {sessionId && (
-                                <PortfolioChart
-                                    sessionId={sessionId}
-                                    currentValue={portfolio.portfolio_value}
-                                    totalPnl={portfolio.total_pnl}
-                                />
-                            )}
-                        </div>
-                    )}
-
-                    {/* Trade Tab */}
-                    {activeTab === 'trade' && (
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                            {/* Asset Picker Sidebar */}
-                            <div className="md:col-span-1 h-full min-h-[500px]">
-                                <AssetPicker
-                                    assets={assets}
-                                    onSelect={(asset) => openTradeModal(asset, 'buy')}
-                                />
-                            </div>
-
-                            {/* Asset Grid */}
-                            <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-min">
-                                {assets.map(asset => (
-                                    <motion.div
-                                        key={asset.symbol}
-                                        className="glass-panel rounded-xl p-4 hover:border-white/20 transition-colors h-fit"
-                                        whileHover={{ scale: 1.02 }}
+                            {portfolio.holdings.length === 0 ? (
+                                <div className="text-center py-20 border border-dashed border-[rgba(255,255,255,0.1)] rounded-xl">
+                                    <Wallet className="mx-auto mb-4 text-[var(--text-muted)]" size={48} />
+                                    <p className="text-[var(--text-secondary)] mb-4">No open positions.</p>
+                                    <button
+                                        onClick={() => setActiveTab('trade')}
+                                        className="px-6 py-2 bg-[var(--accent-mint)] text-black font-bold rounded-lg hover:bg-[#00c97b] transition-colors"
                                     >
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div>
-                                                <div className="font-bold text-lg">{asset.symbol}</div>
-                                                <div className="text-xs text-gray-500">{asset.name}</div>
-                                            </div>
-                                            <span className={`text-xs px-2 py-0.5 rounded flex items-center gap-1 ${asset.asset_type === 'crypto' ? 'bg-purple-500/20 text-purple-400' :
-                                                asset.asset_type === 'stock' ? 'bg-blue-500/20 text-blue-400' :
-                                                    asset.asset_type === 'commodity' ? 'bg-amber-500/20 text-amber-400' :
-                                                        'bg-emerald-500/20 text-emerald-400'
-                                                }`}>
-                                                {asset.asset_type === 'commodity' && <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
-                                                {asset.asset_type === 'forex' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
-                                                {asset.asset_type}
-                                            </span>
-                                        </div>
-
-                                        <div className="mb-4">
-                                            <div className="text-2xl font-bold font-mono">{formatCurrency(asset.current_price)}</div>
-                                            <div className={`text-sm flex items-center gap-1 ${asset.price_change_24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                {asset.price_change_24h >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                                                {formatPercent(asset.price_change_24h)}
-                                            </div>
-                                        </div>
-
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => openTradeModal(asset, 'buy')}
-                                                className="flex-1 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 font-medium transition-colors"
-                                            >
-                                                Buy
-                                            </button>
-                                            <button
-                                                onClick={() => openTradeModal(asset, 'sell')}
-                                                className="flex-1 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 font-medium transition-colors"
-                                            >
-                                                Sell
-                                            </button>
-                                        </div>
-
-                                        <div className="mt-3 text-xs text-gray-500 flex items-center gap-1">
-                                            <Shield size={12} />
-                                            Max Leverage: {asset.max_leverage}x
-                                        </div>
-                                    </motion.div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-
-                    {/* History Tab */}
-                    {activeTab === 'history' && (
-                        <div className="glass-panel rounded-xl p-4">
-                            <h2 className="text-lg font-bold mb-4">Trade History</h2>
-                            {tradeHistory.length === 0 ? (
-                                <div className="text-center py-12 text-gray-500">
-                                    <History className="mx-auto mb-4 opacity-50" size={48} />
-                                    <p>No trades yet</p>
+                                        Execute Order
+                                    </button>
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full">
+                                    <table className="w-full text-left">
                                         <thead>
-                                            <tr className="text-xs text-gray-500 uppercase border-b border-white/10">
-                                                <th className="text-left py-3 px-2">Date</th>
-                                                <th className="text-left py-3 px-2">Asset</th>
-                                                <th className="text-center py-3 px-2">Type</th>
-                                                <th className="text-right py-3 px-2">Quantity</th>
-                                                <th className="text-right py-3 px-2">Price</th>
-                                                <th className="text-right py-3 px-2">Total</th>
-                                                <th className="text-right py-3 px-2">P&L</th>
+                                            <tr className="text-xs text-[var(--text-muted)] uppercase border-b border-[rgba(255,255,255,0.05)]">
+                                                <th className="py-4 px-4 pl-6">Asset</th>
+                                                <th className="py-4 px-4 text-right">Size</th>
+                                                <th className="py-4 px-4 text-right">Entry</th>
+                                                <th className="py-4 px-4 text-right">Mark</th>
+                                                <th className="py-4 px-4 text-right">Value</th>
+                                                <th className="py-4 px-4 text-right">P&L</th>
+                                                <th className="py-4 px-4 text-center">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {tradeHistory.map((trade) => (
-                                                <tr key={trade.id} className="border-b border-white/5 hover:bg-white/5">
-                                                    <td className="py-3 px-2 text-sm text-gray-400">
-                                                        {new Date(trade.executed_at).toLocaleDateString()}
+                                            {portfolio.holdings.map((holding) => (
+                                                <tr key={holding.symbol} className="border-b border-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                                                    <td className="py-4 px-4 pl-6 font-bold text-white">{holding.symbol}</td>
+                                                    <td className="py-4 px-4 text-right font-mono text-[var(--text-secondary)]">{holding.quantity}</td>
+                                                    <td className="py-4 px-4 text-right font-mono text-[var(--text-secondary)]">{formatCurrency(holding.avg_buy_price)}</td>
+                                                    <td className="py-4 px-4 text-right font-mono text-white">{formatCurrency(holding.current_price)}</td>
+                                                    <td className="py-4 px-4 text-right font-mono font-bold text-white">{formatCurrency(holding.current_value)}</td>
+                                                    <td className={`py-4 px-4 text-right font-mono font-bold ${holding.unrealized_pnl >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-danger)]'}`}>
+                                                        {formatCurrency(holding.unrealized_pnl)}
                                                     </td>
-                                                    <td className="py-3 px-2 font-bold">{trade.symbol}</td>
-                                                    <td className="py-3 px-2 text-center">
-                                                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${trade.trade_type === 'buy'
-                                                            ? 'bg-emerald-500/20 text-emerald-400'
-                                                            : 'bg-red-500/20 text-red-400'
-                                                            }`}>
-                                                            {trade.trade_type.toUpperCase()}
-                                                        </span>
-                                                    </td>
-                                                    <td className="text-right py-3 px-2 font-mono">{trade.quantity.toFixed(4)}</td>
-                                                    <td className="text-right py-3 px-2 font-mono">{formatCurrency(trade.price_at_execution)}</td>
-                                                    <td className="text-right py-3 px-2 font-mono">{formatCurrency(trade.total_value)}</td>
-                                                    <td className={`text-right py-3 px-2 font-mono font-bold ${trade.realized_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'
-                                                        }`}>
-                                                        {trade.realized_pnl !== 0 ? formatCurrency(trade.realized_pnl) : '-'}
+                                                    <td className="py-4 px-4 text-center">
+                                                        <button
+                                                            onClick={() => {
+                                                                const asset = assets.find(a => a.symbol === holding.symbol);
+                                                                if (asset) openTradeModal(asset, 'sell');
+                                                            }}
+                                                            className="px-3 py-1 bg-[var(--accent-danger)]/10 text-[var(--accent-danger)] hover:bg-[var(--accent-danger)]/20 rounded font-bold text-xs transition-colors"
+                                                        >
+                                                            CLOSE
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -866,333 +583,167 @@ export default function TradingPage() {
                                 </div>
                             )}
                         </div>
-                    )}
 
-                    {/* Leaderboard Tab */}
-                    {activeTab === 'leaderboard' && (
-                        <div className="glass-panel rounded-xl p-4">
-                            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                <Trophy className="text-yellow-400" />
-                                Top Traders
-                            </h2>
-                            {leaderboard.length === 0 ? (
-                                <div className="text-center py-12 text-gray-500">
-                                    <Trophy className="mx-auto mb-4 opacity-50" size={48} />
-                                    <p>No traders yet</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {leaderboard.map((entry, index) => (
-                                        <div
-                                            key={index}
-                                            className={`flex items-center justify-between p-3 rounded-lg ${index === 0 ? 'bg-yellow-500/10 border border-yellow-500/20' :
-                                                index === 1 ? 'bg-gray-400/10 border border-gray-400/20' :
-                                                    index === 2 ? 'bg-amber-700/10 border border-amber-700/20' :
-                                                        'bg-white/5'
-                                                }`}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${index === 0 ? 'bg-yellow-500 text-black' :
-                                                    index === 1 ? 'bg-gray-400 text-black' :
-                                                        index === 2 ? 'bg-amber-700 text-white' :
-                                                            'bg-white/10 text-gray-400'
-                                                    }`}>
-                                                    {entry.rank}
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold">{entry.display_name}</div>
-                                                    <div className="text-xs text-gray-500">{entry.total_trades} trades • {entry.win_rate.toFixed(1)}% win rate</div>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="font-bold font-mono">{formatCurrency(entry.portfolio_value)}</div>
-                                                <div className={`text-sm ${entry.total_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                    {formatCurrency(entry.total_pnl)}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                        {sessionId && (
+                            <PortfolioChart
+                                sessionId={sessionId}
+                                currentValue={portfolio.portfolio_value}
+                                totalPnl={portfolio.total_pnl}
+                            />
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'trade' && (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="md:col-span-1 min-h-[500px]">
+                            <AssetPicker
+                                assets={assets}
+                                onSelect={(asset) => openTradeModal(asset, 'buy')}
+                            />
                         </div>
-                    )}
+                        <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-min">
+                            {assets.map(asset => (
+                                <motion.div
+                                    key={asset.symbol}
+                                    className="glass-panel p-5 rounded-xl border border-[rgba(255,255,255,0.05)] hover:border-[var(--accent-mint)]/30 transition-all cursor-pointer group"
+                                    whileHover={{ y: -5 }}
+                                    onClick={() => openTradeModal(asset, 'buy')}
+                                >
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <div className="font-bold text-lg text-white" style={{ fontFamily: "var(--font-display)" }}>{asset.symbol}</div>
+                                            <div className="text-xs text-[var(--text-secondary)]">{asset.name}</div>
+                                        </div>
+                                        <div className={`text-xs font-mono px-2 py-1 rounded bg-[rgba(255,255,255,0.05)]`}>
+                                            {asset.asset_type.toUpperCase()}
+                                        </div>
+                                    </div>
+                                    <div className="mb-4">
+                                        <div className="text-2xl font-bold font-mono text-white">{formatCurrency(asset.current_price)}</div>
+                                        <div className={`text-sm flex items-center gap-1 font-mono ${asset.price_change_24h >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-danger)]'}`}>
+                                            {asset.price_change_24h >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                                            {formatPercent(asset.price_change_24h)}
+                                        </div>
+                                    </div>
+                                    <button className="w-full py-2 bg-[rgba(255,255,255,0.05)] group-hover:bg-[var(--accent-mint)] group-hover:text-black text-[var(--text-muted)] group-hover:font-bold rounded-lg transition-all text-xs uppercase tracking-wider">
+                                        Trade
+                                    </button>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
-                    {/* Analytics Tab */}
-                    {activeTab === 'analytics' && (
-                        <AnalyticsDashboard sessionId={sessionId || ''} />
-                    )}
-
-                    {/* Community Tab - INTEGRATED COMPONENT */}
-                    {activeTab === 'community' && (
-                        <CommunityFeed />
-                    )}
-                </div>{/* End tab content wrapper */}
-            </div>{/* End tabs container */}
+            </div>
 
             {/* Trade Modal */}
             <AnimatePresence>
                 {showTradeModal && selectedAsset && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-                        onClick={() => setShowTradeModal(false)}
-                    >
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                         <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-md"
-                            onClick={e => e.stopPropagation()}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-[#0a0a0f] border border-[rgba(255,255,255,0.1)] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
                         >
-                            {!showConfirmation ? (
-                                <>
-                                    {/* Trade Form */}
-                                    <div className="flex justify-between items-center mb-6">
-                                        <h2 className="text-xl font-bold">
-                                            {tradeType === 'buy' ? '📈 Buy' : '📉 Sell'} {selectedAsset.symbol}
-                                        </h2>
-                                        <button onClick={() => setShowTradeModal(false)} className="text-gray-500 hover:text-white">
-                                            <X size={24} />
-                                        </button>
-                                    </div>
+                            <div className="p-6 border-b border-[rgba(255,255,255,0.05)] flex justify-between items-center bg-[rgba(255,255,255,0.02)]">
+                                <div>
+                                    <h3 className="text-xl font-bold text-white flex items-center gap-2" style={{ fontFamily: "var(--font-display)" }}>
+                                        {tradeType === 'buy' ? 'LONG' : 'SHORT'} {selectedAsset.symbol}
+                                    </h3>
+                                    <p className="text-xs text-[var(--text-secondary)]">Current: {formatCurrency(selectedAsset.current_price)}</p>
+                                </div>
+                                <button onClick={() => setShowTradeModal(false)} className="p-2 hover:bg-[rgba(255,255,255,0.1)] rounded-lg text-[var(--text-muted)]">
+                                    <ArrowRight size={20} className="rotate-45" />
+                                </button>
+                            </div>
 
-                                    {/* Current Price */}
-                                    <div className="bg-white/5 rounded-lg p-3 mb-4">
-                                        <div className="text-xs text-gray-500">Current Price</div>
-                                        <div className="text-2xl font-bold font-mono">{formatCurrency(selectedAsset.current_price)}</div>
-                                    </div>
+                            <div className="p-6 space-y-4">
+                                <div className="grid grid-cols-2 gap-2 bg-[rgba(255,255,255,0.05)] p-1 rounded-xl">
+                                    <button
+                                        onClick={() => setTradeType('buy')}
+                                        className={`py-2 rounded-lg font-bold text-sm transition-all ${tradeType === 'buy' ? 'bg-[var(--accent-mint)] text-black' : 'text-[var(--text-secondary)] hover:text-white'}`}
+                                    >
+                                        Buy / Long
+                                    </button>
+                                    <button
+                                        onClick={() => setTradeType('sell')}
+                                        className={`py-2 rounded-lg font-bold text-sm transition-all ${tradeType === 'sell' ? 'bg-[var(--accent-danger)] text-white' : 'text-[var(--text-secondary)] hover:text-white'}`}
+                                    >
+                                        Sell / Short
+                                    </button>
+                                </div>
 
-                                    {/* Order Type */}
-                                    <div className="mb-4">
-                                        <label className="text-xs text-gray-500 uppercase tracking-wider">Order Type</label>
-                                        <div className="flex gap-2 mt-1">
-                                            {['market', 'limit'].map(type => (
-                                                <button
-                                                    key={type}
-                                                    onClick={() => setOrderType(type as any)}
-                                                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${orderType === type
-                                                        ? 'bg-white text-black'
-                                                        : 'bg-white/10 text-gray-400 hover:bg-white/20'
-                                                        }`}
-                                                >
-                                                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
+                                <div>
+                                    <label className="text-xs text-[var(--text-secondary)] mb-1 block uppercase tracking-wider">Quantity</label>
+                                    <input
+                                        type="number"
+                                        value={quantity}
+                                        onChange={(e) => setQuantity(e.target.value)}
+                                        className="w-full bg-[rgba(0,0,0,0.5)] border border-[rgba(255,255,255,0.1)] rounded-xl py-3 px-4 text-white font-mono focus:border-[var(--accent-mint)] outline-none transition-colors"
+                                        placeholder="0.00"
+                                    />
+                                </div>
 
-                                    {/* Limit Price */}
-                                    {orderType === 'limit' && (
-                                        <div className="mb-4">
-                                            <label className="text-xs text-gray-500 uppercase tracking-wider">Limit Price</label>
-                                            <input
-                                                type="number"
-                                                value={limitPrice}
-                                                onChange={e => setLimitPrice(e.target.value)}
-                                                className="w-full mt-1 p-3 bg-white/5 border border-white/10 rounded-lg text-white font-mono"
-                                                placeholder="0.00"
-                                            />
-                                        </div>
-                                    )}
-
-                                    {/* Quantity */}
-                                    <div className="mb-4">
-                                        <label className="text-xs text-gray-500 uppercase tracking-wider">Quantity</label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs text-[var(--text-secondary)] mb-1 block uppercase tracking-wider">Stop Loss</label>
                                         <input
                                             type="number"
-                                            value={quantity}
-                                            onChange={e => setQuantity(e.target.value)}
-                                            className="w-full mt-1 p-3 bg-white/5 border border-white/10 rounded-lg text-white font-mono"
-                                            placeholder="0.00"
+                                            value={stopLoss}
+                                            onChange={(e) => setStopLoss(e.target.value)}
+                                            className="w-full bg-[rgba(0,0,0,0.5)] border border-[rgba(255,255,255,0.1)] rounded-xl py-3 px-4 text-white font-mono focus:border-[var(--accent-danger)] outline-none transition-colors"
+                                            placeholder="Optional"
                                         />
                                     </div>
-
-                                    {/* Leverage */}
-                                    <div className="mb-4">
-                                        <label className="text-xs text-gray-500 uppercase tracking-wider flex justify-between">
-                                            <span>Leverage</span>
-                                            <span className="text-yellow-400">{leverage}x</span>
-                                        </label>
+                                    <div>
+                                        <label className="text-xs text-[var(--text-secondary)] mb-1 block uppercase tracking-wider">Take Profit</label>
                                         <input
-                                            type="range"
-                                            min="1"
-                                            max={selectedAsset.max_leverage}
-                                            value={leverage}
-                                            onChange={e => setLeverage(parseInt(e.target.value))}
-                                            className="w-full mt-2"
+                                            type="number"
+                                            value={takeProfit}
+                                            onChange={(e) => setTakeProfit(e.target.value)}
+                                            className="w-full bg-[rgba(0,0,0,0.5)] border border-[rgba(255,255,255,0.1)] rounded-xl py-3 px-4 text-white font-mono focus:border-[var(--accent-mint)] outline-none transition-colors"
+                                            placeholder="Optional"
                                         />
-                                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                            <span>1x</span>
-                                            <span>{selectedAsset.max_leverage}x</span>
-                                        </div>
                                     </div>
+                                </div>
 
-                                    {/* Stop Loss & Take Profit */}
-                                    <div className="grid grid-cols-2 gap-3 mb-4">
-                                        <div>
-                                            <label className="text-xs text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                                                <Target size={12} className="text-red-400" /> Stop Loss
-                                            </label>
-                                            <input
-                                                type="number"
-                                                value={stopLoss}
-                                                onChange={e => setStopLoss(e.target.value)}
-                                                className="w-full mt-1 p-2 bg-white/5 border border-white/10 rounded-lg text-white font-mono text-sm"
-                                                placeholder="Optional"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                                                <Target size={12} className="text-emerald-400" /> Take Profit
-                                            </label>
-                                            <input
-                                                type="number"
-                                                value={takeProfit}
-                                                onChange={e => setTakeProfit(e.target.value)}
-                                                className="w-full mt-1 p-2 bg-white/5 border border-white/10 rounded-lg text-white font-mono text-sm"
-                                                placeholder="Optional"
-                                            />
-                                        </div>
+                                {tradeError && (
+                                    <div className="p-3 bg-[var(--accent-danger)]/10 border border-[var(--accent-danger)]/20 rounded-lg text-[var(--accent-danger)] text-sm">
+                                        {tradeError}
                                     </div>
+                                )}
 
-                                    {/* Trade Summary */}
-                                    {parseFloat(quantity) > 0 && (
-                                        <div className="bg-white/5 rounded-lg p-3 mb-4 space-y-2">
-                                            <div className="flex justify-between text-sm">
-                                                <span className="text-gray-500">Total Value</span>
-                                                <span className="font-mono font-bold">{formatCurrency(calculateTradeValue())}</span>
-                                            </div>
-                                            <div className="flex justify-between text-sm">
-                                                <span className="text-gray-500">Margin Required</span>
-                                                <span className="font-mono">{formatCurrency(calculateMarginRequired())}</span>
-                                            </div>
-                                            {leverage > 1 && (
-                                                <div className="flex justify-between text-sm text-yellow-400">
-                                                    <span>Leveraged Position</span>
-                                                    <span className="font-mono">{formatCurrency(calculateTradeValue())} @ {leverage}x</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {/* Error */}
-                                    {tradeError && (
-                                        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4 text-red-400 text-sm flex items-start gap-2">
-                                            <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
-                                            {tradeError}
-                                        </div>
-                                    )}
-
-                                    {/* Preview Button */}
-                                    <button
-                                        onClick={handlePreviewTrade}
-                                        className={`w-full py-3 rounded-lg font-bold text-white transition-colors ${tradeType === 'buy'
-                                            ? 'bg-emerald-500 hover:bg-emerald-600'
-                                            : 'bg-red-500 hover:bg-red-600'
-                                            }`}
-                                    >
-                                        Preview {tradeType === 'buy' ? 'Buy' : 'Sell'} Order
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    {/* Confirmation */}
-                                    <div className="text-center mb-6">
-                                        <div className="text-4xl mb-2">⚠️</div>
-                                        <h2 className="text-xl font-bold">Confirm Your Trade</h2>
-                                    </div>
-
-                                    <div className="bg-white/5 rounded-lg p-4 mb-6 space-y-3">
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500">Asset</span>
-                                            <span className="font-bold">{selectedAsset.symbol}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500">Type</span>
-                                            <span className={`font-bold ${tradeType === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                {tradeType.toUpperCase()}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500">Quantity</span>
-                                            <span className="font-mono">{quantity}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500">Price</span>
-                                            <span className="font-mono">{formatCurrency(selectedAsset.current_price)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500">Total Value</span>
-                                            <span className="font-mono font-bold">{formatCurrency(calculateTradeValue())}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500">Leverage</span>
-                                            <span className={leverage > 1 ? 'text-yellow-400 font-bold' : ''}>{leverage}x</span>
-                                        </div>
-                                        {stopLoss && (
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-500">Stop Loss</span>
-                                                <span className="text-red-400 font-mono">{formatCurrency(parseFloat(stopLoss))}</span>
-                                            </div>
-                                        )}
-                                        {takeProfit && (
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-500">Take Profit</span>
-                                                <span className="text-emerald-400 font-mono">{formatCurrency(parseFloat(takeProfit))}</span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-6 text-yellow-400 text-sm">
-                                        ⚡ This is paper trading. Your P&L will affect your virtual portfolio only.
-                                    </div>
-
-                                    {/* Error */}
-                                    {tradeError && (
-                                        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4 text-red-400 text-sm flex items-start gap-2">
-                                            <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
-                                            {tradeError}
-                                        </div>
-                                    )}
-
-                                    <div className="flex gap-3">
-                                        <button
-                                            onClick={() => setShowConfirmation(false)}
-                                            className="flex-1 py-3 bg-white/10 rounded-lg font-medium hover:bg-white/20 transition-colors"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            onClick={executeTrade}
-                                            disabled={executing}
-                                            className={`flex-1 py-3 rounded-lg font-bold text-white transition-colors flex items-center justify-center gap-2 ${tradeType === 'buy'
-                                                ? 'bg-emerald-500 hover:bg-emerald-600'
-                                                : 'bg-red-500 hover:bg-red-600'
-                                                } ${executing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        >
-                                            {executing ? (
-                                                <>
-                                                    <RefreshCw size={16} className="animate-spin" />
-                                                    Executing...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <CheckCircle size={16} />
-                                                    Confirm {tradeType === 'buy' ? 'Buy' : 'Sell'}
-                                                </>
-                                            )}
-                                        </button>
-                                    </div>
-                                </>
-                            )}
+                                <button
+                                    onClick={executeTrade}
+                                    disabled={executing}
+                                    className={`w-full py-4 rounded-xl font-bold text-lg shadow-[0_0_20px_rgba(0,0,0,0.2)] transition-all transform active:scale-95 ${tradeType === 'buy'
+                                            ? 'bg-[var(--accent-mint)] text-black hover:bg-[#00c97b] hover:shadow-[0_0_30px_rgba(20,241,149,0.3)]'
+                                            : 'bg-[var(--accent-danger)] text-white hover:bg-red-600 hover:shadow-[0_0_30px_rgba(239,68,68,0.3)]'
+                                        }`}
+                                >
+                                    {executing ? 'Executing...' : `Confirm ${tradeType === 'buy' ? 'Buy' : 'Sell'}`}
+                                </button>
+                            </div>
                         </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+            {/* Success Toast */}
+            <AnimatePresence>
+                {tradeSuccess && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -50 }}
+                        className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-[var(--accent-mint)] text-black px-6 py-3 rounded-full font-bold shadow-[0_0_20px_rgba(20,241,149,0.4)] flex items-center gap-2"
+                    >
+                        <CheckCircle size={20} />
+                        {tradeSuccess}
                     </motion.div>
                 )}
             </AnimatePresence>
-
-            <OnboardingTour />
-        </div >
+        </div>
     );
 }

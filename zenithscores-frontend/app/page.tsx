@@ -1,665 +1,242 @@
 ﻿'use client';
 
-import { Suspense, useRef, useState } from 'react';
+import { Suspense, useRef } from 'react';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
-import { ArrowRight, Activity, Cpu, ShieldCheck, History, Zap, TrendingUp, ChevronDown } from 'lucide-react';
-import { motion, useInView, AnimatePresence } from 'framer-motion';
-import PredictiveSearch from '@/components/PredictiveSearch';
-import MarketPulse from '@/components/MarketPulse';
-import ShimmerText from '@/components/ShimmerText';
-import AnimatedCounter from '@/components/AnimatedCounter';
-import InteractiveCard from '@/components/InteractiveCard';
-import GlowingBorder from '@/components/GlowingBorder';
-import LiveIndicator from '@/components/LiveIndicator';
-import AnimatedProgress from '@/components/AnimatedProgress';
-import { RecentlyViewed } from '@/components/RecentlyViewed';
+import Image from 'next/image';
+import { ArrowRight, BarChart2, Zap, BookOpen, Activity, ChevronRight, TrendingUp } from 'lucide-react';
+import { motion, useScroll, useTransform } from 'framer-motion';
 
-// Dynamic imports for v2 components
-const MarketGlitch = dynamic(() => import('@/components/effects/MarketGlitch'), { ssr: false });
+// Animations
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.5 }
+};
 
-// Animation variants
 const staggerContainer = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
+  animate: {
     transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.2,
-    },
-  },
-};
-
-const fadeUpItem = {
-  hidden: { opacity: 0, y: 40 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.6,
-      ease: 'easeOut' as const,
-    },
-  },
-};
-
-const scaleInItem = {
-  hidden: { opacity: 0, scale: 0.95 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: {
-      duration: 0.5,
-      ease: 'easeOut' as const,
-    },
-  },
+      staggerChildren: 0.1
+    }
+  }
 };
 
 export default function LandingPage() {
-  const methodologyRef = useRef<HTMLDivElement>(null);
-  const isMethodologyInView = useInView(methodologyRef, { once: true, margin: '-100px' });
-  const [showScanningExplainer, setShowScanningExplainer] = useState(false);
-  const [activeScanningStep, setActiveScanningStep] = useState<string | null>(null);
-  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end start"]
+  });
 
-  const handleMouseEnter = () => {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
-    setShowScanningExplainer(true);
-  };
-
-  const handleMouseLeave = () => {
-    closeTimeoutRef.current = setTimeout(() => {
-      setShowScanningExplainer(false);
-    }, 300);
-  };
+  const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
+  const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-[#14f195]/30 overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--void)] text-[var(--text-primary)] selection:bg-[var(--accent-mint)] selection:text-[var(--void)]">
 
-      {/* HERO SECTION */}
-      <div className="relative pt-16 md:pt-24 border-b border-white/5">
-        {/* MarketGlitch Background */}
-        <div className="absolute inset-0 h-[600px] overflow-hidden">
-          <MarketGlitch
-            glitchColors={['#00f0ff', '#a855f7', '#22c55e', '#f59e0b']}
-            glitchSpeed={60}
-            outerVignette={true}
-            smooth={true}
-          />
+      {/* ====================================
+          HERO SECTION
+         ==================================== */}
+      <section className="relative h-screen min-h-[800px] flex items-center justify-center overflow-hidden">
+
+        {/* Animated Background Mesh */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(20,241,149,0.05),_transparent_50%)]" />
+          <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_rgba(0,212,255,0.1),_transparent_50%)] animate-pulse" style={{ animationDuration: '4s' }} />
+          <div className="absolute bottom-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_bottom_left,_rgba(20,241,149,0.05),_transparent_50%)]" />
+
+          {/* Noise Overlay */}
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }} />
         </div>
 
-
-        <div className="container mx-auto px-4 md:px-6 py-12 md:py-24 lg:py-32 relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-center">
-
-          {/* Left: Product Statement */}
+        <div className="container mx-auto px-6 relative z-10 text-center">
           <motion.div
-            className="relative z-10"
+            initial="initial"
+            animate="animate"
             variants={staggerContainer}
-            initial="hidden"
-            animate="visible"
+            className="max-w-4xl mx-auto"
           >
-            {/* Status Badge */}
-            <motion.div
-              variants={fadeUpItem}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/30 backdrop-blur-sm mb-8"
-            >
-              <LiveIndicator status="live" size="sm" showLabel={false} />
-              <span className="text-cyan-400 text-xs font-mono font-bold tracking-wider">
-                SYSTEM STATUS: OPERATIONAL
-              </span>
+            {/* Tagline */}
+            <motion.div variants={fadeInUp} className="mb-6 flex justify-center">
+              <div className="px-4 py-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)] backdrop-blur-sm flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[var(--accent-mint)] animate-pulse" />
+                <span className="text-xs uppercase tracking-[0.2em] text-[var(--text-secondary)] font-medium" style={{ fontFamily: "var(--font-data)" }}>
+                  System v2.0 Online
+                </span>
+              </div>
             </motion.div>
 
-            {/* Main Headline with NEW VALUE PROPOSITION */}
-            <motion.h1
-              variants={fadeUpItem}
-              className="text-3xl md:text-5xl lg:text-6xl font-heading mb-4 leading-[1.15]"
-            >
-              <span className="text-white block mb-2">ZenithScore isn't a screener.</span>
-              <ShimmerText
-                colors={['#00f0ff', '#a855f7', '#f72585', '#a855f7', '#00f0ff']}
-                speed={4}
-                className="font-heading block"
-              >
-                It's a system that learns how you trade.
-              </ShimmerText>
+            {/* Main Heading */}
+            <motion.h1 variants={fadeInUp} className="text-6xl md:text-8xl font-bold mb-8 leading-tight tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
+              Market Intelligence, <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-mint)] to-[var(--accent-cyan)]">
+                Engineered.
+              </span>
             </motion.h1>
 
-            {/* Value Comparison - Anonymous vs Logged In - Now Clickable */}
-            <motion.div
-              variants={fadeUpItem}
-              className="mb-8 grid grid-cols-2 gap-4 max-w-lg"
-            >
-              <Link
-                href="/news"
-                className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 hover:border-gray-500/50 hover:bg-gray-700/30 transition-all cursor-pointer group"
-              >
-                <p className="text-sm font-bold text-gray-400 mb-1 group-hover:text-gray-300">Anonymous users</p>
-                <p className="text-xs text-gray-500 group-hover:text-gray-400">See the market ΓåÆ</p>
-              </Link>
-              <Link
-                href="/auth/login"
-                className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur-sm rounded-xl p-4 border border-blue-500/30 hover:border-blue-400/50 hover:from-blue-600/30 hover:to-purple-600/30 transition-all cursor-pointer group"
-              >
-                <p className="text-sm font-bold text-blue-400 mb-1 group-hover:text-blue-300">Logged-in users</p>
-                <p className="text-xs text-blue-300 group-hover:text-blue-200">See their edge ΓåÆ</p>
-              </Link>
-            </motion.div>
-
-            <motion.p
-              variants={fadeUpItem}
-              className="text-lg text-gray-400 max-w-lg leading-relaxed mb-12"
-            >
-              Real-time scores calibrated to your risk tolerance and trading style.
+            {/* Subtitle */}
+            <motion.p variants={fadeInUp} className="text-xl text-[var(--text-secondary)] mb-12 max-w-2xl mx-auto leading-relaxed font-light">
+              Sophisticated market analysis powered by the zenith v2 algorithm.
+              Detect accumulation, momentum shifts, and volatility anomalies in real-time.
             </motion.p>
 
-            {/* Live Search Bar */}
-            <motion.div variants={fadeUpItem} className="mb-10 relative z-20">
-              <GlowingBorder
-                colors={['#00f0ff', '#a855f7', '#f72585']}
-                borderWidth={2}
-                animated={true}
-                glowIntensity={0.3}
-                className="rounded-xl"
+            {/* CTAs */}
+            <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              <Link
+                href="/crypto" // Default market view
+                className="group relative px-8 py-4 bg-[var(--text-primary)] text-[var(--void)] rounded-xl font-bold text-lg overflow-hidden transition-transform hover:scale-105"
               >
-                <Suspense fallback={<div className="w-full max-w-lg h-14 bg-gray-900 rounded-xl" />}>
-                  <PredictiveSearch
-                    mode="all"
-                    behavior="navigate"
-                    placeholder="Analyze any asset (e.g. NVDA, BTC, SOXS)..."
-                    className="w-full max-w-lg"
-                  />
-                </Suspense>
-              </GlowingBorder>
-            </motion.div>
+                <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent-mint)] to-[var(--accent-cyan)] opacity-0 group-hover:opacity-20 transition-opacity" />
+                <span className="relative flex items-center gap-2">
+                  Explore Markets <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                </span>
+              </Link>
 
-            {/* TOP MOVERS LEADERBOARD */}
-            <motion.div variants={scaleInItem}>
-              <InteractiveCard
-                className="mb-12 w-full max-w-lg"
-                tiltEnabled={true}
-                maxTilt={5}
-                glowColor="rgba(0, 240, 255, 0.2)"
+              <Link
+                href="/learning"
+                className="px-8 py-4 rounded-xl border border-[rgba(255,255,255,0.1)] text-[var(--text-primary)] font-medium hover:bg-[rgba(255,255,255,0.05)] transition-colors flex items-center gap-2"
               >
-                <div className="flex items-center justify-between px-4 py-3 bg-white/5 border-b border-white/5">
-                  <h3 className="text-xs font-bold text-gray-300 uppercase tracking-widest flex items-center gap-2">
-                    <Activity size={14} className="text-emerald-400" /> Top Opportunities
-                  </h3>
-                  <LiveIndicator status="live" size="sm" label="LIVE RANKING" />
-                </div>
-                <div className="divide-y divide-white/5">
-                  {/* Row 1: NVDA */}
-                  <Link href="/stocks/NVDA" className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors group">
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-600 font-mono text-xs">01</span>
-                      <div>
-                        <div className="font-bold text-sm text-white group-hover:text-cyan-400 transition-colors">NVDA</div>
-                        <div className="text-[10px] text-gray-500">Technology / AI</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs font-mono text-emerald-400">+4.2%</span>
-                      <div className="w-10 h-8 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-sm shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                        92
-                      </div>
-                    </div>
-                  </Link>
-
-                  {/* Row 2: BTC */}
-                  <Link href="/crypto/BTC" className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors group">
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-600 font-mono text-xs">02</span>
-                      <div>
-                        <div className="font-bold text-sm text-white group-hover:text-orange-400 transition-colors">BTC</div>
-                        <div className="text-[10px] text-gray-500">Bitcoin Network</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs font-mono text-emerald-400">+1.8%</span>
-                      <div className="w-10 h-8 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-sm shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                        88
-                      </div>
-                    </div>
-                  </Link>
-
-                  {/* Row 3: SOXS */}
-                  <Link href="/stocks/SOXS" className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors group">
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-600 font-mono text-xs">03</span>
-                      <div>
-                        <div className="font-bold text-sm text-white group-hover:text-red-400 transition-colors">SOXS</div>
-                        <div className="text-[10px] text-gray-500">Bear 3x Semi</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs font-mono text-red-500">-2.4%</span>
-                      <div className="w-10 h-8 rounded bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 font-bold text-sm shadow-[0_0_10px_rgba(239,68,68,0.2)]">
-                        34
-                      </div>
-                    </div>
-                  </Link>
-
-                  <Link href="/stocks" className="block bg-white/5 py-2 text-center text-[10px] font-bold text-gray-400 hover:text-white hover:bg-white/10 transition-colors uppercase tracking-wider">
-                    View Full Leaderboard ΓåÆ
-                  </Link>
-                </div>
-              </InteractiveCard>
+                Start Learning <ChevronRight size={18} className="text-[var(--text-muted)]" />
+              </Link>
             </motion.div>
-
-            {/* RECENTLY VIEWED WIDGET - Memory Feature */}
-            <motion.div variants={fadeUpItem} className="w-full max-w-lg">
-              <RecentlyViewed />
-            </motion.div>
-
-            {/* Auth buttons moved to Anonymous/Logged-in boxes above */}
-          </motion.div>
-
-          {/* Right: Enhanced Radar Visualization - Hidden on small mobile */}
-          <motion.div
-            className="relative min-h-[300px] md:min-h-[450px] h-auto w-full hidden sm:block"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <InteractiveCard
-              className="h-full flex items-center justify-center p-0"
-              tiltEnabled={true}
-              maxTilt={8}
-              glowColor="rgba(0, 240, 255, 0.3)"
-            >
-              {/* Radar Conic Gradient (The Sweep) */}
-              <div className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-2xl">
-                <div className="w-[800px] h-[800px] bg-[conic-gradient(from_0deg,transparent_0_340deg,rgba(0,240,255,0.3)_360deg)] animate-[radar-sweep_3s_linear_infinite] rounded-full opacity-60" />
-              </div>
-
-              {/* Static Rings */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-[150px] h-[150px] border border-cyan-500/30 rounded-full animate-[breathing_4s_ease-in-out_infinite]" />
-                <div className="w-[280px] h-[280px] border border-cyan-500/20 rounded-full absolute animate-[breathing_5s_ease-in-out_infinite_0.5s]" />
-                <div className="w-[410px] h-[410px] border border-cyan-500/10 rounded-full absolute animate-[breathing_6s_ease-in-out_infinite_1s]" />
-
-                {/* Crosshairs */}
-                <div className="absolute w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
-                <div className="absolute h-full w-[1px] bg-gradient-to-b from-transparent via-cyan-500/20 to-transparent" />
-              </div>
-
-              {/* Active TARGET Blips */}
-              <motion.div
-                animate={{ opacity: [0, 1, 0], scale: [0.5, 1.2, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity, delay: 0.8 }}
-                className="absolute top-1/4 left-1/3 w-3 h-3 bg-red-500 rounded-full shadow-[0_0_15px_#ef4444,0_0_30px_#ef4444]"
-              />
-              <motion.div
-                animate={{ opacity: [0, 1, 0], scale: [0.5, 1.2, 0.5] }}
-                transition={{ duration: 3, repeat: Infinity, delay: 1.5 }}
-                className="absolute bottom-1/3 right-1/4 w-2 h-2 bg-emerald-400 rounded-full shadow-[0_0_15px_#10b981,0_0_30px_#10b981]"
-              />
-              <motion.div
-                animate={{ opacity: [0, 1, 0], scale: [0.5, 1.2, 0.5] }}
-                transition={{ duration: 2.5, repeat: Infinity, delay: 0.2 }}
-                className="absolute top-1/2 right-1/3 w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_15px_#00f0ff,0_0_30px_#00f0ff]"
-              />
-              <motion.div
-                animate={{ opacity: [0, 1, 0], scale: [0.5, 1.2, 0.5] }}
-                transition={{ duration: 2.8, repeat: Infinity, delay: 2 }}
-                className="absolute bottom-1/4 left-1/4 w-2.5 h-2.5 bg-purple-400 rounded-full shadow-[0_0_15px_#a855f7,0_0_30px_#a855f7]"
-              />
-
-              {/* Center Display - Hoverable/Expandable */}
-              <div
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-                className="relative z-10 flex flex-col items-center"
-              >
-                <button
-                  onClick={() => setShowScanningExplainer(!showScanningExplainer)}
-                  className="w-full text-center bg-black/60 backdrop-blur-xl p-8 rounded-2xl border border-white/10 shadow-2xl cursor-pointer hover:border-cyan-500/30 hover:shadow-[0_0_30px_rgba(0,240,255,0.2)] transition-all duration-300 group z-20 relative"
-                >
-                  <div className="text-5xl font-mono font-bold tracking-tighter text-white mb-2 flex items-center justify-center gap-1 group-hover:text-cyan-300 transition-colors">
-                    <span>Scanning</span>
-                    <motion.span
-                      animate={{ opacity: [1, 0] }}
-                      transition={{ duration: 0.8, repeat: Infinity, repeatType: 'reverse' }}
-                    >
-                      ...
-                    </motion.span>
-                  </div>
-                  <div className="text-[10px] text-cyan-400 font-mono tracking-[0.2em] uppercase mb-4">
-                    <AnimatedCounter value={24392} suffix=" Assets" className="text-cyan-400" /> Analyzed Real-Time
-                  </div>
-                  <AnimatedProgress
-                    value={78}
-                    max={100}
-                    height={6}
-                    gradientFrom="#00f0ff"
-                    gradientTo="#a855f7"
-                    showGlow={true}
-                  />
-                  {/* Click hint */}
-                  <div className="mt-4 text-[10px] text-gray-500 group-hover:text-cyan-400 transition-colors flex items-center justify-center gap-1">
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">Hover to reveal methodology</span>
-                    <ChevronDown className={`w-3 h-3 opacity-0 group-hover:opacity-100 transition-all duration-300 ${showScanningExplainer ? 'rotate-180' : ''}`} />
-                  </div>
-                </button>
-
-                {/* Inline Scanning Explainer - "Tab Underneath" Style */}
-                <motion.div
-                  initial={{ height: 0, opacity: 0, y: -20 }}
-                  animate={showScanningExplainer ? { height: 'auto', opacity: 1, y: 0 } : { height: 0, opacity: 0, y: -20 }}
-                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                  className="overflow-hidden w-full max-w-2xl"
-                >
-                  <div className="pt-4 pb-2 px-2">
-                    <div className="bg-[#0a0a12]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-                      {/* Decorations */}
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-[1px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent blur-[1px]" />
-                      <div className="absolute bottom-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
-
-                      {/* Interactive Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-                        {[
-                          {
-                            id: 'data',
-                            title: 'Data Collection',
-                            desc: '50+ Exchanges',
-                            color: '#00f0ff',
-                            icon: Activity,
-                            details: 'We ingest raw tick data from 50+ centralized and decentralized exchanges, normalizing order books and trade history in milliseconds to ensure zero latency in signal generation.'
-                          },
-                          {
-                            id: 'ai',
-                            title: 'AI Analysis',
-                            desc: 'Momentum & Volatility',
-                            color: '#a855f7',
-                            icon: Cpu,
-                            details: 'Our proprietary transformer models process price action to detect institutional accumulation, identifying anomalies that standard technical indicators miss.'
-                          },
-                          {
-                            id: 'trend',
-                            title: 'Trend Detection',
-                            desc: 'Breakout Signals',
-                            color: '#10b981',
-                            icon: TrendingUp,
-                            details: 'Multi-timeframe analysis confirms trend strength. We filter out false positives by cross-referencing volume profiles with historical breakout patterns.'
-                          },
-                          {
-                            id: 'risk',
-                            title: 'Risk Assessment',
-                            desc: 'Downside Protection',
-                            color: '#f59e0b',
-                            icon: ShieldCheck,
-                            details: 'Every potential signal is stress-tested against volatility spikes. We calculate dynamic stop-loss levels and liquidity depth to ensure safe entry and exit.'
-                          },
-                          {
-                            id: 'score',
-                            title: 'Score Generation',
-                            desc: '0-100 Zenith Score',
-                            color: '#f72585',
-                            icon: Zap,
-                            details: 'All metrics synthesize into a single, actionable Zenith Score. >80 indicates strong bullish momentum, while <20 signals oversold capitulation.'
-                          },
-                          {
-                            id: 'update',
-                            title: 'Real-Time Updates',
-                            desc: 'Every 15 Seconds',
-                            color: '#06b6d4',
-                            icon: History,
-                            details: 'Markets never sleep. Our engine re-evaluates every asset every 15 seconds, instantly updating scores as new tick data arrives.'
-                          },
-                        ].map((step, i) => (
-                          <motion.button
-                            key={step.id}
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent closing the expander
-                              setActiveScanningStep(activeScanningStep === step.id ? null : step.id);
-                            }}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: i * 0.05 + 0.1 }}
-                            className={`relative flex items-center gap-3 p-3 rounded-xl border transition-all duration-300 text-left w-full group overflow-hidden ${activeScanningStep === step.id
-                              ? 'bg-white/10 border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.05)]'
-                              : 'bg-white/5 border-white/5 hover:border-white/10 hover:bg-white/[0.07]'
-                              }`}
-                          >
-                            {/* Active Glow Background */}
-                            {activeScanningStep === step.id && (
-                              <div
-                                className="absolute inset-0 opacity-20"
-                                style={{ background: `linear-gradient(90deg, ${step.color}00, ${step.color}40)` }}
-                              />
-                            )}
-
-                            <div
-                              className={`p-2 rounded-lg transition-colors duration-300 ${activeScanningStep === step.id ? 'bg-white/10' : 'bg-white/5'
-                                }`}
-                              style={{ color: step.color }}
-                            >
-                              <step.icon size={18} className={activeScanningStep === step.id ? 'drop-shadow-[0_0_8px_currentColor]' : ''} />
-                            </div>
-                            <div className="relative z-10">
-                              <div className={`text-xs font-bold transition-colors ${activeScanningStep === step.id ? 'text-white' : 'text-gray-200'}`}>
-                                {step.title}
-                              </div>
-                              <div className="text-[10px] text-gray-400 group-hover:text-gray-300 transition-colors">
-                                {step.desc}
-                              </div>
-                            </div>
-
-                            {/* Active Indicator Arrow */}
-                            <motion.div
-                              animate={{
-                                opacity: activeScanningStep === step.id ? 1 : 0,
-                                x: activeScanningStep === step.id ? 0 : -10
-                              }}
-                              className="ml-auto text-white"
-                            >
-                              <ChevronDown size={14} className="rotate-270" />
-                            </motion.div>
-                          </motion.button>
-                        ))}
-                      </div>
-
-                      {/* Detail View Container */}
-                      <AnimatePresence mode="wait">
-                        {activeScanningStep && (() => {
-                          const step = [
-                            { id: 'data', details: 'We ingest raw tick data from 50+ centralized and decentralized exchanges, normalizing order books and trade history in milliseconds to ensure zero latency in signal generation.', color: '#00f0ff' },
-                            { id: 'ai', details: 'Our proprietary transformer models process price action to detect institutional accumulation, identifying anomalies that standard technical indicators miss.', color: '#a855f7' },
-                            { id: 'trend', details: 'Multi-timeframe analysis confirms trend strength. We filter out false positives by cross-referencing volume profiles with historical breakout patterns.', color: '#10b981' },
-                            { id: 'risk', details: 'Every potential signal is stress-tested against volatility spikes. We calculate dynamic stop-loss levels and liquidity depth to ensure safe entry and exit.', color: '#f59e0b' },
-                            { id: 'score', details: 'All metrics synthesize into a single, actionable Zenith Score. >80 indicates strong bullish momentum, while <20 signals oversold capitulation.', color: '#f72585' },
-                            { id: 'update', details: 'Markets never sleep. Our engine re-evaluates every asset every 15 seconds, instantly updating scores as new tick data arrives.', color: '#06b6d4' },
-                          ].find(s => s.id === activeScanningStep);
-
-                          if (!step) return null;
-
-                          return (
-                            <motion.div
-                              key="detail"
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              className="overflow-hidden"
-                            >
-                              <div
-                                className="p-4 rounded-xl bg-gradient-to-br from-white/5 to-transparent border border-white/5"
-                                style={{ borderLeft: `3px solid ${step.color}` }}
-                              >
-                                <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
-                                  <span style={{ color: step.color }}>///</span> SYSTEM LOGIC
-                                </h4>
-                                <p className="text-xs md:text-sm text-gray-300 leading-relaxed font-mono">
-                                  {step.details}
-                                </p>
-                              </div>
-                            </motion.div>
-                          );
-                        })()}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-            </InteractiveCard>
           </motion.div>
         </div>
 
         {/* Scroll Indicator */}
         <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-50"
           animate={{ y: [0, 10, 0] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          transition={{ duration: 2, repeat: Infinity }}
         >
-          <ChevronDown size={24} className="text-gray-500" />
+          <span className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">Scroll to Initialize</span>
+          <div className="w-[1px] h-12 bg-gradient-to-b from-[var(--text-muted)] to-transparent" />
         </motion.div>
-      </div>
+      </section>
 
-      {/* SECTION 1.2: FEATURED DEEP DIVE */}
-      <div className="container mx-auto px-6 py-24 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 60 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-100px' }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <InteractiveCard
-            className="p-8 lg:p-12"
-            tiltEnabled={true}
-            maxTilt={3}
-            glowColor="rgba(16, 185, 129, 0.2)"
-          >
-            <div className="flex flex-col lg:flex-row items-center gap-12 relative">
-              {/* Background Glow */}
-              <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none" />
+      {/* ====================================
+          FEATURE BENTO GRID
+         ==================================== */}
+      <section className="py-32 relative z-10 border-t border-[rgba(255,255,255,0.05)] bg-[var(--void)]">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
-              {/* Left: Ticker & Score */}
-              <div className="flex-1 text-center lg:text-left relative z-10">
-                <div className="flex items-center justify-center lg:justify-start gap-3 mb-6">
-                  <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20 uppercase tracking-widest shadow-[0_0_10px_rgba(16,185,129,0.2)] flex items-center gap-1">
-                    <Zap size={12} /> Algo Spotlight
-                  </span>
-                  <span className="text-gray-500 text-[10px] font-mono border-l border-white/10 pl-3">DETECTED 4M AGO</span>
+            {/* Feature 1: Score Algorithm (Wide) */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="lg:col-span-2 p-8 rounded-3xl glass-panel relative group overflow-hidden min-h-[300px]"
+            >
+              <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 transition-opacity duration-500">
+                <Activity size={120} />
+              </div>
+              <div className="relative z-10 flex flex-col h-full justify-between">
+                <div>
+                  <div className="w-12 h-12 rounded-xl bg-[var(--accent-mint)] flex items-center justify-center mb-6 text-[var(--void)]">
+                    <Zap size={24} fill="currentColor" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">Zenith Score Algorithm</h3>
+                  <p className="text-[var(--text-secondary)] leading-relaxed max-w-md">
+                    Our proprietary 0-100 scoring engine synthesizes volume, volatility, and trend data into a single actionable metric.
+                  </p>
                 </div>
+                <div className="mt-8">
+                  <div className="h-2 w-full bg-[rgba(255,255,255,0.1)] rounded-full overflow-hidden">
+                    <div className="h-full bg-[var(--accent-mint)] w-[85%] relative">
+                      <div className="absolute right-0 top-0 bottom-0 w-2 bg-white animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="flex justify-between mt-2 text-xs font-mono text-[var(--text-muted)]">
+                    <span>BEARISH</span>
+                    <span>NEUTRAL</span>
+                    <span className="text-[var(--accent-mint)]">BULLISH</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
 
-                <h2 className="text-6xl md:text-7xl font-bold text-white mb-2 tracking-tight">NVDA</h2>
-                <p className="text-xl md:text-2xl text-gray-400 mb-8 font-light">
-                  Nvidia Corporation <span className="text-gray-600 mx-2">ΓÇó</span> AI Hardware
+            {/* Feature 2: Market Analysis */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="p-8 rounded-3xl glass-panel relative group overflow-hidden hover:border-[var(--accent-cyan)] transition-colors"
+            >
+              <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-[var(--accent-cyan)] blur-[60px] opacity-20 group-hover:opacity-30 transition-opacity" />
+              <div className="w-12 h-12 rounded-xl bg-[rgba(0,212,255,0.1)] border border-[rgba(0,212,255,0.2)] flex items-center justify-center mb-6 text-[var(--accent-cyan)]">
+                <BarChart2 size={24} />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Market Regime</h3>
+              <p className="text-sm text-[var(--text-secondary)]">
+                Instantly identify if the market is trending, consolidating, or reversing with our regime detection models.
+              </p>
+            </motion.div>
+
+            {/* Feature 3: Learning Paths */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="p-8 rounded-3xl glass-panel relative group overflow-hidden hover:border-[var(--accent-gold)] transition-colors"
+            >
+              <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-[var(--accent-gold)] blur-[60px] opacity-10 group-hover:opacity-20 transition-opacity" />
+              <div className="w-12 h-12 rounded-xl bg-[rgba(251,191,36,0.1)] border border-[rgba(251,191,36,0.2)] flex items-center justify-center mb-6 text-[var(--accent-gold)]">
+                <BookOpen size={24} />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Learning Paths</h3>
+              <p className="text-sm text-[var(--text-secondary)]">
+                Structured curriculums designed to take you from novice to institutional-grade trader.
+              </p>
+            </motion.div>
+
+            {/* Feature 4: Trading Tools (Wide bottom or small? Logic says small to fill grid if 4 columns) */}
+            {/* Design choice: Make bottom row or just 4 cols. User asked for 4 columns. */}
+
+            {/* Feature 4: Real-time Data */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
+              className="lg:col-span-4 p-12 rounded-3xl glass-panel relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-12"
+            >
+              <div className="max-w-xl relative z-10">
+                <h3 className="text-3xl font-bold mb-4">Real-Time Data Feeds</h3>
+                <p className="text-[var(--text-secondary)] text-lg mb-8">
+                  Direct connection to institutional data providers. Millisecond latency on crypto, forex, and equity markets.
                 </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 max-w-sm mx-auto lg:mx-0">
-                  <div className="bg-white/5 rounded-xl p-4 border border-white/5 backdrop-blur-sm">
-                    <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Momentum</div>
-                    <div className="text-white font-bold text-lg">Extremely High</div>
+                <div className="flex gap-4">
+                  <div className="px-4 py-2 rounded-lg bg-[rgba(255,255,255,0.05)] text-sm font-mono border border-[rgba(255,255,255,0.05)]">
+                    <span className="text-[var(--accent-mint)]">●</span> NASDAQ
                   </div>
-                  <div className="bg-white/5 rounded-xl p-4 border border-white/5 backdrop-blur-sm">
-                    <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Volume Inflow</div>
-                    <div className="text-emerald-400 font-bold text-lg">
-                      +<AnimatedCounter value={240} suffix="%" decimals={0} /> <span className="text-xs font-normal text-gray-500">vs Avg</span>
-                    </div>
+                  <div className="px-4 py-2 rounded-lg bg-[rgba(255,255,255,0.05)] text-sm font-mono border border-[rgba(255,255,255,0.05)]">
+                    <span className="text-[var(--accent-mint)]">●</span> NYSE
+                  </div>
+                  <div className="px-4 py-2 rounded-lg bg-[rgba(255,255,255,0.05)] text-sm font-mono border border-[rgba(255,255,255,0.05)]">
+                    <span className="text-[var(--accent-mint)]">●</span> BINANCE
                   </div>
                 </div>
-
-                <Link
-                  href="/stocks/NVDA"
-                  className="group inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-bold rounded-xl hover:from-cyan-500 hover:to-purple-500 transition-all shadow-[0_0_30px_rgba(0,240,255,0.3)] transform hover:-translate-y-1 duration-300"
-                >
-                  Unlock Full Analysis <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                </Link>
               </div>
 
-              {/* Right: Visual Score */}
-              <div className="flex-1 w-full max-w-md relative z-10">
-                <div className="relative glass-panel rounded-2xl p-8 border border-white/10 flex flex-col items-center bg-black/40 shadow-2xl">
-                  <div className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-white/5 pb-4 w-full text-center">
-                    Live Zenith Score
-                  </div>
-
-                  <div className="relative mb-6">
-                    <div className="absolute inset-0 bg-emerald-500/20 blur-3xl rounded-full animate-[breathing_3s_ease-in-out_infinite]" />
-                    <div className="text-9xl font-black text-white tracking-tighter drop-shadow-2xl relative z-10">
-                      <AnimatedCounter value={92} duration={2} />
-                    </div>
-                  </div>
-
-                  <div className="text-emerald-400 font-bold text-xl mb-8 flex items-center gap-2 bg-emerald-900/20 px-4 py-2 rounded-lg border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                    <TrendingUp size={24} /> Strong Accumulation
-                  </div>
-
-                  <AnimatedProgress
-                    value={92}
-                    max={100}
-                    height={12}
-                    gradientFrom="#059669"
-                    gradientTo="#10b981"
-                    showGlow={true}
-                    className="w-full"
+              {/* Decorative Chart Graphic */}
+              <div className="relative w-full max-w-md h-40 bg-[rgba(0,0,0,0.3)] rounded-xl border border-[rgba(255,255,255,0.05)] flex items-end p-4 gap-1">
+                {[40, 65, 50, 80, 55, 90, 70, 85, 95, 100].map((h, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ height: 0 }}
+                    whileInView={{ height: `${h}%` }}
+                    transition={{ duration: 0.5, delay: i * 0.05 }}
+                    className="flex-1 bg-[var(--accent-mint)] opacity-80 rounded-t-sm"
                   />
-                  <div className="flex justify-between w-full text-[10px] text-gray-500 font-mono mt-2 uppercase">
-                    <span>Bearish</span>
-                    <span>Neutral</span>
-                    <span className="text-white font-bold">Bullish</span>
-                  </div>
-                </div>
+                ))}
               </div>
-            </div>
-          </InteractiveCard>
-        </motion.div>
-      </div>
+            </motion.div>
 
-      {/* SECTION 1.5: MARKET PULSE & FORECAST */}
-      <MarketPulse />
-
-      {/* SECTION 2: HOW ZENITH THINKS */}
-      <div ref={methodologyRef} className="container mx-auto px-6 py-24 relative z-10">
-        <motion.div
-          className="mb-16"
-          initial={{ opacity: 0, y: 30 }}
-          animate={isMethodologyInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-        >
-          <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 font-mono">Methodology</h2>
-          <h3 className="text-3xl font-bold text-white font-sans">How Zenith Thinks</h3>
-        </motion.div>
-
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-3 gap-8"
-          variants={staggerContainer}
-          initial="hidden"
-          animate={isMethodologyInView ? "visible" : "hidden"}
-        >
-          <motion.div variants={scaleInItem}>
-            <InteractiveCard className="p-8 h-full" glowColor="rgba(0, 240, 255, 0.3)">
-              <Cpu className="w-8 h-8 text-cyan-400 mb-6 group-hover:scale-110 transition-transform duration-300" />
-              <h4 className="text-xl font-bold text-white mb-2 font-sans">Market Strength</h4>
-              <p className="text-gray-400 leading-relaxed">
-                Zenith isolates pure price movement from noise, measuring momentum, volume influx, and volatility compression.
-              </p>
-            </InteractiveCard>
-          </motion.div>
-
-          <motion.div variants={scaleInItem}>
-            <InteractiveCard className="p-8 h-full" glowColor="rgba(168, 85, 247, 0.3)">
-              <ShieldCheck className="w-8 h-8 text-purple-400 mb-6 group-hover:scale-110 transition-transform duration-300" />
-              <h4 className="text-xl font-bold text-white mb-2 font-sans">Risk Awareness</h4>
-              <p className="text-gray-400 leading-relaxed">
-                Every score is penalized for downside instability, drawdown frequency, and low liquidity events.
-              </p>
-            </InteractiveCard>
-          </motion.div>
-
-          <motion.div variants={scaleInItem}>
-            <InteractiveCard className="p-8 h-full" glowColor="rgba(16, 185, 129, 0.3)">
-              <History className="w-8 h-8 text-emerald-400 mb-6 group-hover:scale-110 transition-transform duration-300" />
-              <h4 className="text-xl font-bold text-white mb-2 font-sans">Historical Truth</h4>
-              <p className="text-gray-400 leading-relaxed">
-                Zenith does not predict blindly. Current setups are cross-referenced against 5 years of historical outcome data.
-              </p>
-            </InteractiveCard>
-          </motion.div>
-        </motion.div>
-      </div>
-
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import styles from './Tiles.module.css';
+import { ArrowUpRight, Radio } from 'lucide-react';
 
 interface SignalsTileProps {
     onClick: () => void;
@@ -12,7 +12,6 @@ export default function SignalsTile({ onClick }: SignalsTileProps) {
     const [hotSignal, setHotSignal] = useState(1);
 
     useEffect(() => {
-        // Fetch actual signal counts from API
         const fetchSignals = async () => {
             try {
                 const response = await fetch('/api/signals');
@@ -22,30 +21,33 @@ export default function SignalsTile({ onClick }: SignalsTileProps) {
                     setHotSignal(data.highConfidenceCount || 1);
                 }
             } catch (error) {
-                // Use defaults
+                // defaults
             }
         };
         fetchSignals();
     }, []);
 
     return (
-        <div className={`${styles.tile} ${styles.tileMedium}`} onClick={onClick}>
-            <div className={styles.tileHeader}>
-                <div className={styles.tileTitle}>
-                    <span className={styles.tileIcon}>🚨</span>
-                    <span className={styles.tileName}>Signals</span>
+        <div
+            className="w-full h-full glass-panel rounded-2xl p-5 border border-[rgba(255,255,255,0.05)] hover:border-[var(--accent-mint)]/30 transition-all cursor-pointer group flex flex-col justify-between"
+            onClick={onClick}
+        >
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Radio size={18} className="text-[var(--text-muted)] group-hover:text-[var(--accent-mint)] transition-colors" />
+                    <span className="font-bold text-white text-sm">Signals</span>
                 </div>
-                <button className={styles.expandBtn} aria-label="Expand">↗</button>
+                <ArrowUpRight size={14} className="text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
 
-            <div className={styles.tileContent}>
-                <div className={styles.statValue}>{signalCount} Active</div>
-                <div className={styles.statsRow}>
-                    <span className={styles.statItem}>
-                        <span>🔥</span>
-                        <span>{hotSignal} Hot</span>
-                    </span>
-                </div>
+            <div className="mt-4">
+                <div className="text-3xl font-bold text-white font-mono">{signalCount}</div>
+                <div className="text-xs text-[var(--text-secondary)]">Active Signals</div>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2">
+                <span className="text-lg">🔥</span>
+                <span className="text-xs font-bold text-[var(--accent-gold)]">{hotSignal} High Confidence</span>
             </div>
         </div>
     );
