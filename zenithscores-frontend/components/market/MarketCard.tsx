@@ -114,62 +114,96 @@ export default function MarketCard({
         <Link href={href}>
             <div
                 onClick={onClick}
-                className="relative rounded-xl bg-neutral-950 border border-neutral-800 p-4 transition hover:translate-y-[-2px] hover:shadow-lg cursor-pointer"
+                className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 border border-zinc-800/50 p-5 transition-all duration-300 hover:scale-[1.02] hover:border-zinc-700 hover:shadow-2xl cursor-pointer"
+                style={{
+                    boxShadow: `0 4px 20px -4px ${color}15`
+                }}
             >
-                {/* Regime bar */}
+                {/* Regime glow bar */}
                 <div
-                    className="absolute top-0 left-0 h-[2px] w-full rounded-t-xl"
-                    style={{ backgroundColor: color }}
+                    className="absolute top-0 left-0 h-[3px] w-full"
+                    style={{
+                        backgroundColor: color,
+                        boxShadow: `0 0 12px ${color}60, 0 0 24px ${color}30`
+                    }}
+                />
+
+                {/* Subtle gradient overlay on hover */}
+                <div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                    style={{
+                        background: `radial-gradient(circle at top right, ${color}08, transparent 70%)`
+                    }}
                 />
 
                 {/* Header */}
-                <div className="flex items-start justify-between">
+                <div className="relative flex items-start justify-between mb-4">
                     <div>
-                        <div className="text-white font-semibold text-sm">
+                        <div className="text-white font-bold text-base tracking-tight">
                             {symbol}
                         </div>
                         {name && (
-                            <div className="text-xs text-neutral-500">
+                            <div className="text-xs text-zinc-500 mt-0.5">
                                 {name}
                             </div>
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                         <span
-                            className="px-2 py-[2px] text-xs font-semibold rounded-md"
-                            style={{ backgroundColor: color + '22', color }}
+                            className="px-2.5 py-1 text-xs font-bold rounded-lg backdrop-blur-sm"
+                            style={{
+                                backgroundColor: color + '18',
+                                color: color,
+                                border: `1px solid ${color}30`
+                            }}
                         >
                             {confidence}
                         </span>
                         <span
-                            className="px-2 py-[2px] text-xs rounded-md capitalize"
-                            style={{ backgroundColor: color + '22', color }}
+                            className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider rounded-lg backdrop-blur-sm"
+                            style={{
+                                backgroundColor: color + '12',
+                                color: color,
+                                border: `1px solid ${color}25`
+                            }}
                         >
                             {regime}
                         </span>
                     </div>
                 </div>
 
-                {/* Mini chart */}
-                <div className="mt-3">
-                    <Sparkline candles={candles.slice(-60)} color={color} />
+                {/* Mini chart with glow */}
+                <div className="relative mb-4">
+                    <div
+                        className="opacity-90 group-hover:opacity-100 transition-opacity duration-300"
+                        style={{
+                            filter: `drop-shadow(0 2px 8px ${color}20)`
+                        }}
+                    >
+                        <Sparkline candles={candles.slice(-60)} color={color} />
+                    </div>
                 </div>
 
-                {/* Price row */}
-                <div className="mt-3 flex items-end justify-between">
-                    <div className="text-lg font-semibold text-white">
+                {/* Price row with better styling */}
+                <div className="relative flex items-baseline justify-between">
+                    <div className="text-2xl font-bold text-white tracking-tight">
                         ${price.toLocaleString()}
                     </div>
 
                     <div
-                        className={`text-sm font-medium ${changePct >= 0 ? 'text-emerald-400' : 'text-red-400'
+                        className={`flex items-center gap-1 text-sm font-bold px-2.5 py-1 rounded-lg ${changePct >= 0
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                : 'bg-red-500/10 text-red-400 border border-red-500/20'
                             }`}
                     >
-                        {changePct >= 0 ? '+' : ''}
-                        {changePct.toFixed(2)}%
+                        <span className="text-xs">{changePct >= 0 ? '▲' : '▼'}</span>
+                        <span>{Math.abs(changePct).toFixed(2)}%</span>
                     </div>
                 </div>
+
+                {/* Bottom shine effect on hover */}
+                <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </div>
         </Link>
     );
