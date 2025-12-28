@@ -345,7 +345,7 @@ export async function saveCourseNote(
                     moduleTitle: metadata.moduleTitle,
                     capturedAt: new Date().toISOString()
                 } as any,
-                tags: ['course', metadata.courseId, metadata.moduleId].filter(Boolean)
+                tags: ['course', metadata.courseId, metadata.moduleId].filter((t): t is string => !!t)
             }
         });
 
