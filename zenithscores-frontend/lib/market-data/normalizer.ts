@@ -88,9 +88,11 @@ export function normalizeAlphaVantageForex(data: Record<string, any>): OHLCV[] {
     const result: OHLCV[] = [];
 
     for (const [dateStr, values] of Object.entries(data)) {
-        const timestamp = new Date(dateStr).getTime() / 1000;
+        const timestampMs = new Date(dateStr).getTime();
+        const time = Math.floor(timestampMs / 1000);
         result.push({
-            time: timestamp,
+            timestamp: timestampMs,
+            time: time,
             open: parseFloat(values['1. open'] || 0),
             high: parseFloat(values['2. high'] || 0),
             low: parseFloat(values['3. low'] || 0),
