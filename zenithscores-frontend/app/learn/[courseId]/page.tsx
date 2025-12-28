@@ -114,6 +114,10 @@ const COURSES_REGISTRY: Record<string, any> = {
     }
 };
 
+import { saveCourseProgress, getSingleCourseProgress } from '@/lib/actions/learning';
+import { useSession } from 'next-auth/react';
+import { CheckCircle } from 'lucide-react';
+
 export default function CoursePage({ params }: { params: { courseId: string } }) {
     const router = useRouter();
     const courseId = params.courseId;
@@ -123,6 +127,81 @@ export default function CoursePage({ params }: { params: { courseId: string } })
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [readingProgress, setReadingProgress] = useState(0);
 
+    const { data: session } = useSession();
+    const [isLoading, setIsLoading] = useState(true);
+    const [completedModules, setCompletedModules] = useState<string[]>([]);
+
+    // Hydrate progress from DB
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadProgress() {
+            if (!session?.user?.id || !courseId) return;
+
+            try {
+                const progressData = await getSingleCourseProgress(session.user.id, courseId);
+
+                if (isMounted && progressData) {
+                    // Logic: If lastModuleCompleted is found, we assume all previous are done 
+                    // tailored to the "Linear Progression" model for this institutional course.
+                    if (progressData.lastModuleCompleted) {
+                        const modules = course.modules || [];
+                        const lastIndex = modules.findIndex((m: any) => m.id === progressData.lastModuleCompleted);
+
+                        if (lastIndex !== -1) {
+                            const done = modules.slice(0, lastIndex + 1).map((m: any) => m.id);
+                            setCompletedModules(done);
+                            // Auto-navigate to next unfinished module if not done
+                            if (!progressData.completed && lastIndex + 1 < modules.length) {
+                                setActiveModule(lastIndex + 1);
+                            } else {
+                                setActiveModule(lastIndex);
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load course progress", err);
+            } finally {
+                if (isMounted) setIsLoading(false);
+            }
+        }
+
+        loadProgress();
+        return () => { isMounted = false; };
+    }, [session, courseId, course]);
+
+    // Handle Marking Module as Done
+    const handleCompleteModule = async (moduleId: string, moduleIndex: number) => {
+        if (!session?.user?.id) return;
+
+        // Optimistic Update
+        const newCompleted = [...new Set([...completedModules, moduleId])];
+        setCompletedModules(newCompleted);
+
+        // Calculate stats
+        const totalModules = course.modules.length;
+        const currentProgressCount = newCompleted.length; // Approximation or strictly index based
+        // For linear course, we use index
+        const progressPercent = Math.min(100, Math.round(((moduleIndex + 1) / totalModules) * 100));
+        const isCourseComplete = progressPercent === 100;
+
+        // Persist
+        await saveCourseProgress(
+            session.user.id,
+            courseId,
+            progressPercent,
+            moduleId,
+            isCourseComplete
+        );
+
+        // Auto-advance after small delay for UX
+        if (moduleIndex < totalModules - 1) {
+            setTimeout(() => setActiveModule(moduleIndex + 1), 800);
+        }
+    };
+
+    // Scroll progress handler
     useEffect(() => {
         const handleScroll = () => {
             const winScroll = document.documentElement.scrollTop;
@@ -201,18 +280,28 @@ export default function CoursePage({ params }: { params: { courseId: string } })
                         <div className="px-3 py-2 text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-2">
                             Course Structure
                         </div>
-                        {course.modules.map((mod: any, idx: number) => (
-                            <button
-                                key={mod.id}
-                                onClick={() => setActiveModule(idx)}
-                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all group ${activeModule === idx ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5 border border-transparent'}`}
-                            >
-                                <span className={`${activeModule === idx ? 'text-emerald-400' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
-                                    {mod.icon}
-                                </span>
-                                <span className="truncate">{mod.title}</span>
-                            </button>
-                        ))}
+                        {course.modules.map((mod: any, idx: number) => {
+                            const isCompleted = completedModules.includes(mod.id);
+                            const isActive = activeModule === idx;
+
+                            return (
+                                <button
+                                    key={mod.id}
+                                    onClick={() => setActiveModule(idx)}
+                                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group ${isActive ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5 border border-transparent'}`}
+                                >
+                                    <div className="flex items-center gap-3 overflow-hidden">
+                                        <span className={`${isActive ? 'text-emerald-400' : isCompleted ? 'text-emerald-500/50' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
+                                            {isCompleted ? <CheckCircle className="w-4 h-4" /> : mod.icon}
+                                        </span>
+                                        <span className="truncate">{mod.title}</span>
+                                    </div>
+                                    {isCompleted && !isActive && (
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" />
+                                    )}
+                                </button>
+                            );
+                        })}
                     </nav>
                 </aside>
 
@@ -221,20 +310,30 @@ export default function CoursePage({ params }: { params: { courseId: string } })
                     <div className="max-w-4xl mx-auto px-8 md:px-16 py-12 md:py-20 lg:py-24">
                         {renderContent()}
 
+                        {/* Module Completion Action Area */}
+                        <ModuleCompletionAction
+                            isCompleted={completedModules.includes(course.modules[activeModule].id)}
+                            onComplete={() => handleCompleteModule(course.modules[activeModule].id, activeModule)}
+                        />
+
                         {/* Pagination / Navigation Footer */}
-                        <div className="mt-20 pt-12 border-t border-white/10 flex items-center justify-between">
+                        <div className="mt-12 pt-8 border-t border-white/10 flex items-center justify-between">
                             <button
-                                className="flex items-center gap-2 text-zinc-500 hover:text-white transition-all text-sm font-medium"
+                                className={`flex items-center gap-2 text-zinc-500 hover:text-white transition-all text-sm font-medium ${activeModule === 0 ? 'opacity-0 pointer-events-none' : ''}`}
                                 onClick={() => setActiveModule(Math.max(0, activeModule - 1))}
                             >
                                 <ChevronLeft className="w-4 h-4" /> Previous Module
                             </button>
-                            <button
-                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white text-black hover:bg-zinc-200 transition-all text-sm font-bold shadow-xl shadow-white/5"
-                                onClick={() => setActiveModule(Math.min(course.modules.length - 1, activeModule + 1))}
-                            >
-                                Next Module <ChevronRight className="w-4 h-4" />
-                            </button>
+
+                            {/* Only show 'Next' if it's not the last one, otherwise show finish course logic which is handled by completion */}
+                            {activeModule < course.modules.length - 1 && (
+                                <button
+                                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/[0.05] border border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 transition-all text-sm font-bold"
+                                    onClick={() => setActiveModule(Math.min(course.modules.length - 1, activeModule + 1))}
+                                >
+                                    Next Module <ChevronRight className="w-4 h-4" />
+                                </button>
+                            )}
                         </div>
                     </div>
                 </main>
@@ -413,7 +512,51 @@ function TechnicalAnalysisContent() {
                     Learn to identify "Market Structure" shift (MSS). When price breaks the previous impulsive low in an uptrend, the regime has likely transitioned from 'Bullish' to 'Distribution'.
                 </p>
             </section>
+            <section className="mt-20 border-t border-white/5 pt-12">
+                <p className="text-zinc-500 italic text-sm mb-8">
+                    [End of Module 1: The Genesis of Value]
+                </p>
+                <div className="flex items-center gap-4">
+                    {/* This button is injected dynamically for the active module context in the real implementation, 
+                         but for this static content block view, we will rely on the parent container to inject the completion controls 
+                         or wrapper. Since we are inside a static function return, we'll suggest using the parent's control.
+                         
+                         HOWEVER, to make this work seamlessly with the current structure, we will add the button in the main render loop 
+                         or pass a prop. For now, let's allow the user to complete via the main UI footer or specific actions.
+                     */}
+                </div>
+            </section>
         </motion.article>
+    );
+}
+
+// Helper component for the "Complete Module" Action Area
+function ModuleCompletionAction({ onComplete, isCompleted }: { onComplete: () => void, isCompleted: boolean }) {
+    return (
+        <div className="mt-12 p-1 bg-gradient-to-r from-emerald-500/20 to-transparent rounded-2xl">
+            <div className="bg-[#0a0a0c] p-6 rounded-xl border border-emerald-500/20 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div>
+                    <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                        <CheckCircle className={isCompleted ? "text-emerald-500" : "text-zinc-600"} />
+                        {isCompleted ? "Module Completed" : "Ready to Advance?"}
+                    </h3>
+                    <p className="text-zinc-500 text-sm mt-1">
+                        {isCompleted ? "Great job. You've mastered this section." : "Confirm your understanding to proceed to the next module."}
+                    </p>
+                </div>
+                <button
+                    onClick={onComplete}
+                    disabled={isCompleted}
+                    className={`px-8 py-3 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${isCompleted
+                            ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 cursor-default"
+                            : "bg-emerald-500 text-black hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)]"
+                        }`}
+                >
+                    {isCompleted ? "Completed" : "Mark as Complete"}
+                    {!isCompleted && <ArrowRight className="w-4 h-4" />}
+                </button>
+            </div>
+        </div>
     );
 }
 

@@ -10,6 +10,7 @@ import {
     Trophy, BrainCircuit, GraduationCap
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { getUserProgress } from '@/lib/actions/learning';
 
 // Lazy load heavy components
 const AcademyQuiz = dynamic(() => import('@/components/AcademyQuiz'), {
@@ -134,7 +135,26 @@ export default function LearningHubPage() {
         if (session?.user?.email) {
             fetchProgress();
         }
+        if (session?.user?.id) {
+            fetchCourseStats();
+        }
     }, [session]);
+
+    const [realCourseProgress, setRealCourseProgress] = useState<Record<string, { progress: number, completed: boolean }>>({});
+
+    const fetchCourseStats = async () => {
+        if (!session?.user?.id) return;
+        try {
+            const data = await getUserProgress(session.user.id);
+            const map: Record<string, { progress: number, completed: boolean }> = {};
+            data.forEach(p => {
+                map[p.courseId] = { progress: p.progress, completed: p.completed };
+            });
+            setRealCourseProgress(map);
+        } catch (e) {
+            console.error("Failed to load course stats", e);
+        }
+    };
 
     const fetchProgress = async () => {
         setIsLoadingProgress(true);
@@ -163,7 +183,11 @@ export default function LearningHubPage() {
         return false;
     };
 
-    const filteredCourses = COURSES.filter(course =>
+    const filteredCourses = COURSES.map(c => ({
+        ...c,
+        progress: realCourseProgress[c.id]?.progress || 0,
+        isCompleted: realCourseProgress[c.id]?.completed || false
+    })).filter(course =>
         activeFilter === 'all' || course.difficulty === activeFilter
     );
 
@@ -263,7 +287,7 @@ export default function LearningHubPage() {
                                                     </div>
                                                     {course.locked ? (
                                                         <Lock size={16} className="text-[var(--text-muted)]" />
-                                                    ) : course.progress === 100 ? (
+                                                    ) : (course.progress === 100 || course.isCompleted) ? (
                                                         <CheckCircle size={16} className="text-[var(--accent-mint)]" />
                                                     ) : null}
                                                 </div>

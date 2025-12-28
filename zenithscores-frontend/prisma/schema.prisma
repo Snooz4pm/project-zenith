@@ -34,6 +34,9 @@ model User {
   assetViews            UserAssetView[]        @relation("UserAssetViews")
   watchlists            UserWatchlist[]        @relation("UserWatchlists")
   signalInteractions    UserSignalInteraction[] @relation("UserSignalInteractions")
+
+  courseProgress        UserCourseProgress[]    @relation("UserCourseProgress")
+  journals              TradeJournal[]          @relation("UserJournals")
 }
 
 // Required by NextAuth PrismaAdapter for OAuth
@@ -714,3 +717,64 @@ model PriceAlert {
   @@index([createdAt(sort: Desc)], map: "idx_price_alerts_time")
 }
 
+// ========================
+// PHASE 6: LEARNING PROGRESS
+// ========================
+
+model UserCourseProgress {
+  id                  String   @id @default(cuid())
+  userId              String   @db.VarChar(255)
+  courseId            String   @db.VarChar(100)
+  completed           Boolean  @default(false)
+  progress            Int      @default(0) // 0-100
+  lastModuleCompleted String?  @db.VarChar(100)
+  updatedAt           DateTime @default(now()) @updatedAt
+
+  user User? @relation("UserCourseProgress", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+// ========================
+// NOTEBOOK SYSTEM (Flight Recorder)
+// ========================
+
+model TradeJournal {
+  id          String   @id @default(cuid())
+  userId      String   @db.VarChar(255)
+  title       String?  @db.VarChar(255)
+  assetSymbol String?  @db.VarChar(20)
+  
+  // Phase Locks: BRIEFING -> LIVE -> DEBRIEF -> ARCHIVED
+  status      String   @default("BRIEFING") @db.VarChar(20)
+  
+  // Content Blocks (Using JSON for flexible structured data)
+  // Thesis: Array of { type: 'hypothesis'|'fact'|'intuition'|'rule', content: string, conviction: number }
+  thesis      Json?    @default("[]")
+  
+  // The Flight Recorder: Append-only log during execution
+  // LiveLog: Array of { id: string, timestamp: Date, content: string, sentiment: 'fear'|'neutral'|'greed'|'confidence' }
+  liveLog     Json?    @default("[]")
+  
+  // The Scorecard (Post-Trade)
+  outcome        String?  @db.VarChar(20) // WIN / LOSS / BE
+  disciplineScore Int?     @default(0)    // 0-100
+  reviewNotes    String?  @db.Text
+  
+  // Telemetry (Context at creation)
+  marketContext  Json?    // { vix: 14.2, regime: 'BULL_TREND', session: 'NY' }
+  
+  tags           String[] @default([])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User? @relation("UserJournals", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([assetSymbol])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+}
