@@ -5,11 +5,11 @@ import { motion } from 'framer-motion';
 import {
     Book, Plus, Search, Filter, Clock,
     Terminal, Shield, AlertTriangle, CheckCircle,
-    ChevronRight, Lock
+    ChevronRight, Lock, Trash2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { getUserJournals } from '@/lib/actions/notebook'; // We'll implement this hook/action connection
+import { getUserJournals, deleteJournal } from '@/lib/actions/notebook'; // We'll implement this hook/action connection
 
 export default function NotebookPage() {
     const { data: session } = useSession();
@@ -69,43 +69,62 @@ export default function NotebookPage() {
                 {/* Journal Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {journals.map((journal) => (
-                        <Link href={`/notebook/${journal.id}`} key={journal.id}>
-                            <motion.div
-                                whileHover={{ y: -2 }}
-                                className="group relative h-64 p-6 rounded-xl bg-gradient-to-br from-white/[0.03] to-transparent border border-white/5 hover:border-emerald-500/30 transition-all overflow-hidden"
+                        <div key={journal.id} className="relative group">
+                            <Link href={`/notebook/${journal.id}`}>
+                                <motion.div
+                                    whileHover={{ y: -2 }}
+                                    className="h-64 p-6 rounded-xl bg-gradient-to-br from-white/[0.03] to-transparent border border-white/5 hover:border-emerald-500/30 transition-all overflow-hidden flex flex-col justify-between"
+                                >
+                                    {/* Status Badge */}
+                                    <div className="absolute top-6 right-6">
+                                        <StatusBadge status={journal.status} />
+                                    </div>
+
+                                    {/* Content */}
+                                    <div className="flex flex-col h-full justify-between">
+                                        <div>
+                                            <div className="text-[10px] font-mono text-zinc-500 mb-2">
+                                                {new Date(journal.createdAt).toLocaleDateString()} &middot; {new Date(journal.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </div>
+                                            <h3 className="text-lg font-bold text-white mb-1 group-hover:text-emerald-400 transition-colors pr-10">
+                                                {journal.title || "Untitled Operation"}
+                                            </h3>
+                                            {journal.assetSymbol && (
+                                                <span className="inline-block px-2 py-0.5 rounded bg-white/5 text-[10px] font-mono text-zinc-400 border border-white/5">
+                                                    {journal.assetSymbol}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <div className="h-[1px] w-full bg-white/5" />
+                                            <div className="flex items-center justify-between text-xs text-zinc-500">
+                                                <span className="flex items-center gap-1">
+                                                    <Terminal className="w-3 h-3" /> {(journal.liveLog as any[])?.length || 0} Log Entries
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            </Link>
+
+                            {/* Delete Button - Positioned absolute to avoid Link wrapping issues */}
+                            <button
+                                onClick={async (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (confirm('Are you sure you want to delete this journal entry?')) {
+                                        await deleteJournal(journal.id, session?.user?.id as string);
+                                        // Specific Optimistic UI update could go here, but revalidatePath usually handles it fast enough
+                                        setJournals(prev => prev.filter(j => j.id !== journal.id));
+                                    }
+                                }}
+                                className="absolute bottom-6 right-6 p-2 text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 z-10"
+                                title="Delete Entry"
                             >
-                                {/* Status Badge */}
-                                <div className="absolute top-6 right-6">
-                                    <StatusBadge status={journal.status} />
-                                </div>
-
-                                {/* Content */}
-                                <div className="flex flex-col h-full justify-between">
-                                    <div>
-                                        <div className="text-[10px] font-mono text-zinc-500 mb-2">
-                                            {new Date(journal.createdAt).toLocaleDateString()} &middot; {new Date(journal.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </div>
-                                        <h3 className="text-lg font-bold text-white mb-1 group-hover:text-emerald-400 transition-colors">
-                                            {journal.title || "Untitled Operation"}
-                                        </h3>
-                                        {journal.assetSymbol && (
-                                            <span className="inline-block px-2 py-0.5 rounded bg-white/5 text-[10px] font-mono text-zinc-400 border border-white/5">
-                                                {journal.assetSymbol}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <div className="h-[1px] w-full bg-white/5" />
-                                        <div className="flex items-center justify-between text-xs text-zinc-500">
-                                            <span className="flex items-center gap-1">
-                                                <Terminal className="w-3 h-3" /> {(journal.liveLog as any[])?.length || 0} Log Entries
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        </Link>
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </div>
                     ))}
                 </div>
 

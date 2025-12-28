@@ -137,3 +137,29 @@ export async function getUserJournals(userId: string) {
         return [];
     }
 }
+
+/**
+ * Deletes a Trade Journal entry.
+ */
+export async function deleteJournal(journalId: string, userId: string) {
+    try {
+        // Verify ownership first (although deleteMany with where clause is safe too)
+        const journal = await prisma.tradeJournal.findUnique({
+            where: { id: journalId },
+        });
+
+        if (!journal || journal.userId !== userId) {
+            return { success: false, error: 'Unauthorized' };
+        }
+
+        await prisma.tradeJournal.delete({
+            where: { id: journalId },
+        });
+
+        revalidatePath('/notebook');
+        return { success: true };
+    } catch (error) {
+        console.error('Failed to delete journal:', error);
+        return { success: false, error: 'Failed to delete journal' };
+    }
+}
