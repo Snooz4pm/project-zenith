@@ -49,11 +49,12 @@ export default function MissionPanel({ symbol, assetType, currentPrice }: Missio
         setIsLoading(true);
         const data = await getAssetMissions(session.user.id, symbol);
         // Cast Prisma JsonValue to ThesisItem[] and handle date serialization
-        const typedMissions = data.map(m => ({
+        type PrismaMission = Awaited<ReturnType<typeof getAssetMissions>>[number];
+        const typedMissions = data.map((m: PrismaMission) => ({
             ...m,
             thesis: (m.thesis as ThesisItem[] | null) || [],
             createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : String(m.createdAt),
-            missionUpdates: m.missionUpdates.map(u => ({
+            missionUpdates: m.missionUpdates.map((u: PrismaMission['missionUpdates'][number]) => ({
                 ...u,
                 createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : String(u.createdAt)
             }))
