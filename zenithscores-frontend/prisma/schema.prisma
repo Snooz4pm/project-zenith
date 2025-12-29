@@ -17,18 +17,18 @@ model User {
   image         String?   // NextAuth expects 'image', not 'avatar'
   created_at    DateTime  @default(now())
   last_login    DateTime?
-  
+
   // Launch-critical fields
   calibrationCompleted Boolean  @default(false)
   tier                 String   @default("free")
   tradingStyle         Json?
-  
+
   // NextAuth relations
   accounts      Account[]
   sessions      Session[]
   tradingNotes  TradingNote[]
   activities    Activity[]    @relation("UserActivities")
-  
+
   // Personalization relations
   preferences           UserPreferences?       @relation("UserPreferences")
   assetViews            UserAssetView[]        @relation("UserAssetViews")
@@ -430,7 +430,7 @@ model user_badges {
   badge_id   String    @db.VarChar(50)
   earned_at  DateTime  @default(now()) @db.Timestamp(6)
   is_pinned  Boolean   @default(false)
-  
+
   @@unique([user_id, badge_id])
   @@index([user_id], map: "idx_user_badges_user")
 }
@@ -449,7 +449,7 @@ model user_profiles {
   show_badges     Boolean   @default(true)
   created_at      DateTime  @default(now()) @db.Timestamp(6)
   updated_at      DateTime  @default(now()) @db.Timestamp(6)
-  
+
   @@index([career_path], map: "idx_profiles_path")
 }
 
@@ -484,7 +484,7 @@ model UserPreferences {
   id               String   @id @default(cuid())
   userId           String   @unique
   user             User     @relation("UserPreferences", fields: [userId], references: [id], onDelete: Cascade)
-  
+
   // Calibration data
   riskTolerance    Int?     @default(5) // 1-10 scale
   timeHorizon      String?  // "short", "medium", "long"
@@ -492,14 +492,14 @@ model UserPreferences {
   patienceLevel    Int?     // 1-10 scale
   learningBias     Int?     // 1-10 scale (action vs learning)
   userArchetype    String?  // "conservative", "moderate", "aggressive"
-  
+
   // Preferences
   defaultView      String?  @default("market")
   notifications    Json?    @default("{}")
-  
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-  
+
   @@index([userId])
 }
 
@@ -507,21 +507,21 @@ model UserAssetView {
   id               String   @id @default(cuid())
   userId           String
   user             User     @relation("UserAssetViews", fields: [userId], references: [id], onDelete: Cascade)
-  
+
   assetType        String   // "crypto", "stocks", "forex"
   symbol           String   // "BTC", "AAPL", "EURUSD"
   name             String?
-  
+
   // Tracking data
   viewCount        Int      @default(1)
   lastViewed       DateTime @default(now())
   firstViewed      DateTime @default(now())
-  
+
   // Performance tracking (for "Your Edge")
   notes            String?
   userRating       Int?     // 1-5 stars
   winLoss          Boolean? // true = win, false = loss
-  
+
   @@unique([userId, assetType, symbol])
   @@index([userId, lastViewed])
   @@index([assetType, symbol])
@@ -531,13 +531,13 @@ model UserWatchlist {
   id               String   @id @default(cuid())
   userId           String
   user             User     @relation("UserWatchlists", fields: [userId], references: [id], onDelete: Cascade)
-  
+
   assetType        String   // "crypto", "stocks", "forex"
   symbol           String
   name             String?
   addedAt          DateTime @default(now())
   notes            String?
-  
+
   @@unique([userId, assetType, symbol])
   @@index([userId, addedAt])
 }
@@ -546,20 +546,20 @@ model UserSignalInteraction {
   id               String   @id @default(cuid())
   userId           String
   user             User     @relation("UserSignalInteractions", fields: [userId], references: [id], onDelete: Cascade)
-  
+
   signalId         String
   assetType        String
   symbol           String
-  
+
   // Interaction data
   viewed           Boolean  @default(true)
   saved            Boolean  @default(false)
   actedUpon        Boolean? // Did they trade this?
   profitLoss       Float?   // If actedUpon, result
   confidence       Int?     // 1-10 how confident they were
-  
+
   interactedAt     DateTime @default(now())
-  
+
   @@index([userId, interactedAt])
   @@index([signalId])
 }
@@ -572,12 +572,12 @@ model Activity {
   id         String   @id @default(cuid())
   userId     String
   user       User     @relation("UserActivities", fields: [userId], references: [id], onDelete: Cascade)
-  
+
   type       String   // view, note, watchlist, lesson, trade_mock
   targetId   String?  // asset symbol, note id, etc.
   targetType String?  // asset, note, lesson
   metadata   Json?
-  
+
   createdAt  DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -590,18 +590,18 @@ model Activity {
 
 model ChartCache {
   id         String   @id @default(cuid())
-  
+
   symbol     String   @db.VarChar(20)
   assetType  String   @db.VarChar(10)  // stock, crypto, forex
   timeframe  String   @db.VarChar(5)   // 1m, 5m, 15m, 30m, 1H, 1D, 1W, 1M
   range      String   @db.VarChar(5)   // 1D, 1W, 1M, 3M, 6M, 1Y, 5Y, ALL
-  
+
   data       Json     // OHLCV array
   provider   String   @db.VarChar(20)  // finnhub, alpha_vantage, dexscreener
-  
+
   createdAt  DateTime @default(now())
   expiresAt  DateTime
-  
+
   @@unique([symbol, timeframe, range])
   @@index([symbol])
   @@index([expiresAt])
@@ -635,25 +635,25 @@ model AssetLifetimeScore {
   assetType     String   // 'stock', 'crypto', 'forex'
   launchDate    DateTime // IPO date or token launch
   firstPrice    Float    // First recorded price
-  
+
   // Lifetime metrics (calculated once, updated periodically)
   lifetimeReturn  Float    // Total return since launch
   volatilityScore Float    // 0-100, lower volatility = higher score
   consistencyScore Float   // 0-100, how consistent are gains
   recoveryScore   Float    // 0-100, how well it recovers from drawdowns
   volumeScore     Float    // 0-100, lifetime volume consistency
-  
+
   // Timeframe-adjusted weights
   weights         Json     // { daily: 0.2, weekly: 0.3, monthly: 0.5 }
-  
+
   // Final scores
   baseScore       Float    // 0-100, lifetime score
   currentScore    Float    // 0-100, adjusted for current conditions
   trendScore      Float    // -100 to +100, current trend strength
-  
+
   updatedAt      DateTime @updatedAt
   lastCalculated DateTime
-  
+
   @@index([symbol])
   @@index([baseScore])
   @@index([currentScore])
@@ -667,7 +667,7 @@ model TimeframeAnalysis {
   metrics   Json     // Calculated metrics
   score     Float    // Score for this timeframe only
   weight    Float    // How much this timeframe contributes to total
-  
+
   @@unique([symbol, timeframe])
   @@index([symbol])
 }
@@ -699,35 +699,35 @@ model MarketCandle {
 model PriceAlert {
   id            String   @id @default(cuid())
   userId        String   @db.VarChar(255)
-  
+
   // Alert target
   symbol        String   @db.VarChar(20)
   assetType     String   @db.VarChar(10) // stock, crypto, forex
   targetPrice   Decimal  @db.Decimal(20, 8)
   direction     String   @db.VarChar(10) // 'above', 'below', 'cross'
-  
+
   // Alert context
   note          String?  @db.Text // User's thesis/reason
   chartSnapshot String?  @db.Text // Optional base64 or URL
-  
+
   // Prediction tracking (gamification)
   predictedDirection String? @db.VarChar(10) // 'up', 'down', null
   predictedWithin    Int?     // Hours until target should hit
-  
+
   // Status
   status        String   @default("active") @db.VarChar(20) // active, triggered, expired, cancelled
   priceAtCreation Decimal @db.Decimal(20, 8)
   priceAtTrigger  Decimal? @db.Decimal(20, 8)
-  
+
   // Timestamps
   createdAt     DateTime @default(now())
   triggeredAt   DateTime?
   expiresAt     DateTime?
-  
+
   // Scoring (was prediction correct?)
   wasCorrect    Boolean?
   pointsEarned  Int?     @default(0)
-  
+
   @@index([userId], map: "idx_price_alerts_user")
   @@index([symbol], map: "idx_price_alerts_symbol")
   @@index([status], map: "idx_price_alerts_status")
@@ -763,31 +763,31 @@ model TradeJournal {
   userId      String   @db.VarChar(255)
   title       String?  @db.VarChar(255)
   assetSymbol String?  @db.VarChar(20)
-  
+
   // Mission type: 'mission' for live tracking, 'deep_dive' for research
   type        String   @default("mission") @db.VarChar(20)
-  
+
   // Phase Locks: BRIEFING -> LIVE -> DEBRIEF -> ARCHIVED
   status      String   @default("BRIEFING") @db.VarChar(20)
-  
+
   // Content Blocks (Using JSON for flexible structured data)
   // Thesis: Array of { type: 'hypothesis'|'fact'|'intuition'|'rule', content: string, conviction: number }
   thesis      Json?    @default("[]")
-  
+
   // The Flight Recorder: Append-only log during execution
   // LiveLog: Array of { id: string, timestamp: Date, content: string, sentiment: 'fear'|'neutral'|'greed'|'confidence' }
   liveLog     Json?    @default("[]")
-  
+
   // The Scorecard (Post-Trade)
   outcome        String?  @db.VarChar(20) // WIN / LOSS / BE
   disciplineScore Int?     @default(0)    // 0-100
   reviewNotes    String?  @db.Text
-  
+
   // Telemetry (Context at creation)
   marketContext  Json?    // { vix: 14.2, regime: 'BULL_TREND', session: 'NY' }
-  
+
   tags           String[] @default([])
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -805,11 +805,11 @@ model TradeJournal {
 model MissionUpdate {
   id          String   @id @default(cuid())
   journalId   String
-  
+
   price       Float?   // Current price when update was made
   note        String   @db.Text
   source      String   @db.VarChar(20) // 'asset_page' | 'notebook'
-  
+
   createdAt   DateTime @default(now())
 
   journal     TradeJournal @relation(fields: [journalId], references: [id], onDelete: Cascade)
@@ -825,14 +825,14 @@ model MissionUpdate {
 model Portfolio {
   id              String   @id @default(cuid())
   userId          String   @unique @db.VarChar(255)
-  
+
   balance         Float    @default(50000) // Available Cash (USDT) - Default 50k paper
   totalRealizedPnL Float   @default(0)     // Lifetime PnL
-  
+
   positions       Position[]
   trades          Trade[]
   snapshots       PortfolioSnapshot[]
-  
+
   updatedAt       DateTime @updatedAt
   user            User     @relation("UserPortfolio", fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -840,30 +840,30 @@ model Portfolio {
 model Position {
   id              String   @id @default(cuid())
   portfolioId     String
-  
+
   symbol          String   @db.VarChar(20) // BTCUSD, AAPL
   quantity        Float    // Amount held
   avgEntryPrice   Float    // Weighted Average Price
-  
+
   portfolio       Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
-  
+
   @@unique([portfolioId, symbol]) // One position per asset per user
 }
 
 model Trade {
   id              String   @id @default(cuid())
   portfolioId     String
-  
+
   symbol          String   @db.VarChar(20)
   side            String   // 'BUY' or 'SELL'
   quantity        Float    // Always positive
   price           Float    // Execution Price
-  
+
   // For Sells Only:
-  realizedPnL     Float?   
-  
+  realizedPnL     Float?
+
   timestamp       DateTime @default(now())
-  
+
   portfolio       Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
 
   @@index([portfolioId, timestamp])
@@ -1121,48 +1121,3 @@ model RoomJoinRequest {
   @@index([userId])
   @@index([status])
 }
-
- 
- / /   = = = = = = = = = = = = = = = = = = = = = = = =  
- / /   N O T E B O O K   /   M I S S I O N   S Y S T E M  
- / /   = = = = = = = = = = = = = = = = = = = = = = = =  
-  
- m o d e l   T r a d e J o u r n a l   {  
-     i d                         S t r i n g         @ i d   @ d e f a u l t ( c u i d ( ) )  
-     u s e r I d                 S t r i n g  
-     t i t l e                   S t r i n g         @ d b . V a r C h a r ( 2 0 0 )  
-     a s s e t S y m b o l       S t r i n g ?       @ d b . V a r C h a r ( 2 0 )  
-      
-     s t a t u s                 S t r i n g         @ d e f a u l t ( " B R I E F I N G " )   / /   B R I E F I N G ,   L I V E ,   D E B R I E F ,   A R C H I V E D  
-     t y p e                     S t r i n g         @ d e f a u l t ( " j o u r n a l " )     / /   j o u r n a l ,   m i s s i o n ,   c o u r s e _ n o t e  
-      
-     / /   J S O N   B l o b s   f o r   f l e x i b l e   d o c u m e n t   s t r u c t u r e  
-     m a r k e t C o n t e x t   J s o n ?           / /   S n a p s h o t   o f   V I X ,   S e s s i o n ,   P r i c e  
-     t h e s i s                 J s o n ?           / /   A r r a y   o f   {   t y p e :   ' h y p o t h e s i s ' ,   c o n t e n t :   ' . . . ' ,   c o n v i c t i o n :   8 0   }  
-     l i v e L o g               J s o n ?           / /   A r r a y   o f   {   t i m e s t a m p :   ' . . . ' ,   c o n t e n t :   ' . . . ' ,   s e n t i m e n t :   ' n e u t r a l '   }  
-     t a g s                     S t r i n g [ ]     @ d e f a u l t ( [ ] )  
-      
-     c r e a t e d A t           D a t e T i m e     @ d e f a u l t ( n o w ( ) )  
-     u p d a t e d A t           D a t e T i m e     @ u p d a t e d A t  
-  
-     u s e r                     U s e r             @ r e l a t i o n ( " U s e r J o u r n a l s " ,   f i e l d s :   [ u s e r I d ] ,   r e f e r e n c e s :   [ i d ] ,   o n D e l e t e :   C a s c a d e )  
-     m i s s i o n U p d a t e s   M i s s i o n U p d a t e [ ]  
-  
-     @ @ i n d e x ( [ u s e r I d ,   s t a t u s ] )  
-     @ @ i n d e x ( [ a s s e t S y m b o l ] )  
-     @ @ i n d e x ( [ t y p e ] )  
- }  
-  
- m o d e l   M i s s i o n U p d a t e   {  
-     i d                 S t r i n g       @ i d   @ d e f a u l t ( c u i d ( ) )  
-     j o u r n a l I d   S t r i n g  
-     n o t e             S t r i n g       @ d b . T e x t  
-     p r i c e           F l o a t ?  
-     s o u r c e         S t r i n g       @ d e f a u l t ( " n o t e b o o k " )   / /   n o t e b o o k ,   a s s e t _ p a g e  
-     c r e a t e d A t   D a t e T i m e   @ d e f a u l t ( n o w ( ) )  
-  
-     j o u r n a l       T r a d e J o u r n a l   @ r e l a t i o n ( f i e l d s :   [ j o u r n a l I d ] ,   r e f e r e n c e s :   [ i d ] ,   o n D e l e t e :   C a s c a d e )  
-  
-     @ @ i n d e x ( [ j o u r n a l I d ] )  
- }  
- 
