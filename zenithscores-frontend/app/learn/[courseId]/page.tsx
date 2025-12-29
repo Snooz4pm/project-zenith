@@ -475,36 +475,10 @@ export default function CoursePage({ params }: { params: { courseId: string } })
 
                         {/* Module Completion Action Area */}
                         {course.modules[activeModule] && (
-                            <>
-                                <ModuleCompletionAction
-                                    isCompleted={completedModules.includes(course.modules[activeModule].id)}
-                                    onComplete={() => handleCompleteModule(course.modules[activeModule].id, activeModule)}
-                                />
-
-                                {/* Save to Notebook Button */}
-                                <div className="mt-6 flex flex-col sm:flex-row items-center gap-4 p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10">
-                                    <div className="flex-1">
-                                        <h4 className="text-sm font-bold text-blue-400 mb-1 flex items-center gap-2">
-                                            <BookOpen size={16} /> Save Notes to Notebook
-                                        </h4>
-                                        <p className="text-xs text-blue-200/60">
-                                            Keep important insights from this module in your personal Notebook
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={() => setNotebookSyncOpen(true)}
-                                        className="px-6 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium text-sm transition-all shadow-lg hover:shadow-blue-500/20 flex items-center gap-2"
-                                    >
-                                        <BookOpen size={16} />
-                                        Quick Save
-                                    </button>
-                                    {notebookSavedMessage && (
-                                        <span className="text-sm text-emerald-400 font-medium animate-pulse">
-                                            {notebookSavedMessage}
-                                        </span>
-                                    )}
-                                </div>
-                            </>
+                            <ModuleCompletionAction
+                                isCompleted={completedModules.includes(course.modules[activeModule].id)}
+                                onComplete={() => handleCompleteModule(course.modules[activeModule].id, activeModule)}
+                            />
                         )}
 
                         {/* Pagination / Navigation Footer */}
@@ -531,7 +505,30 @@ export default function CoursePage({ params }: { params: { courseId: string } })
 
                 {/* Right Rail Insights */}
                 <aside className="hidden xl:block w-80 bg-[#0a0a0c] border-l border-white/5 p-8 overflow-y-auto sticky top-16 h-[calc(100vh-4rem)]">
-                    <div className="space-y-8">
+                    <div className="space-y-6">
+                        {/* Quick Save to Notebook */}
+                        <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10">
+                            <h4 className="text-xs font-bold text-blue-400 mb-3 flex items-center gap-2">
+                                <BookOpen size={14} /> Course Notes
+                            </h4>
+                            <p className="text-[11px] text-blue-200/60 leading-relaxed mb-4">
+                                Save key insights as you read. Your notes sync to Notebook automatically.
+                            </p>
+                            <button
+                                onClick={() => setNotebookSyncOpen(true)}
+                                className="w-full px-4 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-all shadow-lg hover:shadow-blue-500/20 flex items-center justify-center gap-2"
+                            >
+                                <BookOpen size={16} />
+                                Take Notes
+                            </button>
+                            {notebookSavedMessage && (
+                                <div className="mt-3 text-xs text-emerald-400 font-medium text-center animate-pulse">
+                                    {notebookSavedMessage}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Analyst Tip */}
                         <div className="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
                             <h4 className="text-xs font-bold text-emerald-400 mb-2 flex items-center gap-2">
                                 <Info size={14} /> Analyst Tip
