@@ -1121,3 +1121,89 @@ model RoomJoinRequest {
   @@index([userId])
   @@index([status])
 }
+
+// ========================
+// MARKET CONVICTION: PREDICTIONS SYSTEM
+// ========================
+
+model MarketPrediction {
+  id              String   @id @default(cuid())
+  authorId        String   @db.VarChar(255)
+  
+  // Prediction details
+  symbol          String   @db.VarChar(20)   // BTC, AAPL, EURUSD
+  assetType       String   @db.VarChar(10)   // crypto, stock, forex
+  direction       String   @db.VarChar(10)   // BULLISH, BEARISH
+  targetPrice     Float                       // Target price
+  currentPrice    Float                       // Price when prediction made
+  
+  // Timeframe
+  deadline        DateTime                    // When prediction expires
+  
+  // Thesis
+  thesis          String   @db.VarChar(500)  // Why they think this
+  confidence      Int      @default(50)      // 1-100 confidence level
+  
+  // Voting
+  agreesCount     Int      @default(0)
+  disagreesCount  Int      @default(0)
+  
+  // Resolution
+  status          String   @default("active") @db.VarChar(20) // active, resolved, expired
+  finalPrice      Float?                      // Price at deadline
+  wasCorrect      Boolean?                    // Was the prediction correct?
+  pointsEarned    Int      @default(0)        // Points earned/lost
+  resolvedAt      DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  votes           PredictionVote[]
+  
+  @@index([authorId])
+  @@index([symbol])
+  @@index([status])
+  @@index([deadline])
+  @@index([createdAt(sort: Desc)])
+}
+
+model PredictionVote {
+  id            String   @id @default(cuid())
+  predictionId  String
+  voterId       String   @db.VarChar(255)
+  
+  vote          String   @db.VarChar(10)   // AGREE or DISAGREE
+  
+  createdAt     DateTime @default(now())
+  
+  prediction    MarketPrediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+  
+  @@unique([predictionId, voterId])
+  @@index([predictionId])
+  @@index([voterId])
+}
+
+// User prediction stats (aggregated for performance)
+model UserPredictionStats {
+  id              String   @id @default(cuid())
+  userId          String   @unique @db.VarChar(255)
+  
+  totalPredictions Int     @default(0)
+  correctPredictions Int   @default(0)
+  incorrectPredictions Int @default(0)
+  pendingPredictions Int   @default(0)
+  
+  accuracyRate    Float    @default(0)      // Percentage
+  totalPoints     Int      @default(0)
+  streak          Int      @default(0)      // Current win streak
+  bestStreak      Int      @default(0)      // Best ever streak
+  
+  rank            Int?                       // Leaderboard position
+  
+  updatedAt       DateTime @updatedAt
+  
+  @@index([accuracyRate(sort: Desc)])
+  @@index([totalPoints(sort: Desc)])
+}
+
