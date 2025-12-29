@@ -156,6 +156,10 @@ export default function CoursePage({ params }: { params: { courseId: string } })
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [readingProgress, setReadingProgress] = useState(0);
+    const [notebookSyncOpen, setNotebookSyncOpen] = useState(false);
+    const [notebookNote, setNotebookNote] = useState('');
+    const [isSavingToNotebook, setIsSavingToNotebook] = useState(false);
+    const [notebookSavedMessage, setNotebookSavedMessage] = useState('');
 
     const { data: session } = useSession();
     const [isLoading, setIsLoading] = useState(true);
@@ -241,6 +245,38 @@ export default function CoursePage({ params }: { params: { courseId: string } })
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+
+    // Save current module notes to Notebook
+    const handleSaveToNotebook = async () => {
+        if (!session?.user?.email || !notebookNote.trim()) return;
+
+        setIsSavingToNotebook(true);
+        try {
+            const currentModule = course.modules[activeModule];
+            const noteContent = `# ${course.title} - ${currentModule.title}\n\n${notebookNote}\n\n---\n*Saved from ${course.title}, Module ${activeModule + 1}*`;
+
+            const response = await fetch('/api/notes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userEmail: session.user.email,
+                    content: noteContent,
+                    asset: `COURSE-${courseId}`,
+                }),
+            });
+
+            if (response.ok) {
+                setNotebookSavedMessage('✓ Saved to Notebook!');
+                setNotebookNote('');
+                setNotebookSyncOpen(false);
+                setTimeout(() => setNotebookSavedMessage(''), 3000);
+            }
+        } catch (error) {
+            console.error('Failed to save to notebook:', error);
+        } finally {
+            setIsSavingToNotebook(false);
+        }
+    };
 
     const renderContent = () => {
         switch (courseId) {
@@ -439,10 +475,36 @@ export default function CoursePage({ params }: { params: { courseId: string } })
 
                         {/* Module Completion Action Area */}
                         {course.modules[activeModule] && (
-                            <ModuleCompletionAction
-                                isCompleted={completedModules.includes(course.modules[activeModule].id)}
-                                onComplete={() => handleCompleteModule(course.modules[activeModule].id, activeModule)}
-                            />
+                            <>
+                                <ModuleCompletionAction
+                                    isCompleted={completedModules.includes(course.modules[activeModule].id)}
+                                    onComplete={() => handleCompleteModule(course.modules[activeModule].id, activeModule)}
+                                />
+
+                                {/* Save to Notebook Button */}
+                                <div className="mt-6 flex flex-col sm:flex-row items-center gap-4 p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10">
+                                    <div className="flex-1">
+                                        <h4 className="text-sm font-bold text-blue-400 mb-1 flex items-center gap-2">
+                                            <BookOpen size={16} /> Save Notes to Notebook
+                                        </h4>
+                                        <p className="text-xs text-blue-200/60">
+                                            Keep important insights from this module in your personal Notebook
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setNotebookSyncOpen(true)}
+                                        className="px-6 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium text-sm transition-all shadow-lg hover:shadow-blue-500/20 flex items-center gap-2"
+                                    >
+                                        <BookOpen size={16} />
+                                        Quick Save
+                                    </button>
+                                    {notebookSavedMessage && (
+                                        <span className="text-sm text-emerald-400 font-medium animate-pulse">
+                                            {notebookSavedMessage}
+                                        </span>
+                                    )}
+                                </div>
+                            </>
                         )}
 
                         {/* Pagination / Navigation Footer */}
@@ -489,6 +551,84 @@ export default function CoursePage({ params }: { params: { courseId: string } })
             >
                 <SidebarIcon size={20} />
             </button>
+
+            {/* Notebook Sync Modal */}
+            <AnimatePresence>
+                {notebookSyncOpen && (
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100]"
+                            onClick={() => setNotebookSyncOpen(false)}
+                        />
+
+                        {/* Modal */}
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="fixed inset-0 z-[101] flex items-center justify-center p-4"
+                        >
+                            <div className="bg-[#0a0a0c] border border-white/10 rounded-2xl max-w-2xl w-full p-8 shadow-2xl">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                                        <BookOpen className="text-blue-400" size={24} />
+                                        Save to Notebook
+                                    </h3>
+                                    <button
+                                        onClick={() => setNotebookSyncOpen(false)}
+                                        className="p-2 hover:bg-white/5 rounded-lg transition-colors text-zinc-400 hover:text-white"
+                                    >
+                                        <CloseIcon size={20} />
+                                    </button>
+                                </div>
+
+                                <div className="mb-6">
+                                    <label className="block text-sm font-medium text-zinc-400 mb-3">
+                                        Module: <span className="text-white">{course.title} - {course.modules[activeModule]?.title}</span>
+                                    </label>
+                                    <textarea
+                                        value={notebookNote}
+                                        onChange={(e) => setNotebookNote(e.target.value)}
+                                        placeholder="Write your key takeaways, insights, or questions from this module..."
+                                        className="w-full h-48 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                        autoFocus
+                                    />
+                                    <p className="text-xs text-zinc-500 mt-2">
+                                        💡 Tip: Include specific examples, questions, or action items you want to review later
+                                    </p>
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={handleSaveToNotebook}
+                                        disabled={!notebookNote.trim() || isSavingToNotebook}
+                                        className="flex-1 px-6 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-bold transition-all shadow-lg hover:shadow-blue-500/20 flex items-center justify-center gap-2"
+                                    >
+                                        {isSavingToNotebook ? (
+                                            <>Saving...</>
+                                        ) : (
+                                            <>
+                                                <BookOpen size={18} />
+                                                Save to Notebook
+                                            </>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => setNotebookSyncOpen(false)}
+                                        className="px-6 py-3 rounded-lg border border-white/10 text-zinc-400 hover:text-white hover:bg-white/5 font-medium transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
 
             {/* Course Notes System */}
             {CORE_CONCEPTS[course.modules[activeModule]?.id] && (
