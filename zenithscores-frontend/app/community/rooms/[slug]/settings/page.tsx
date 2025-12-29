@@ -7,13 +7,13 @@ import { ArrowLeft, Save, Trash2, AlertTriangle, Lock, Globe, Shield, Users } fr
 import { getRoomBySlug, updateRoom, deleteRoom, getPendingJoinRequests, approveJoinRequest, rejectJoinRequest } from '@/lib/actions/rooms';
 
 interface SettingsPageProps {
-    params: Promise<{ slug: string }>;
+    params: { slug: string };
 }
 
 export default function RoomSettingsPage({ params }: SettingsPageProps) {
     const { data: session, status } = useSession();
     const router = useRouter();
-    const [slug, setSlug] = useState<string>('');
+    const slug = params.slug; // Direct access, no Promise
 
     // Form State
     const [isLoading, setIsLoading] = useState(true);
@@ -34,12 +34,10 @@ export default function RoomSettingsPage({ params }: SettingsPageProps) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     useEffect(() => {
-        // Resolve params promise
-        params.then(resolvedParams => {
-            setSlug(resolvedParams.slug);
-            loadRoom(resolvedParams.slug);
-        });
-    }, [params]);
+        if (slug) {
+            loadRoom(slug);
+        }
+    }, [slug]);
 
     const loadRoom = async (roomSlug: string) => {
         try {
