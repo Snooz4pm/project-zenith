@@ -11,6 +11,15 @@ import {
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 
+interface SuggestedUser {
+    id: string;
+    name: string;
+    image: string | null;
+    bio: string | null;
+    careerPath: string | null;
+    followersCount: number;
+}
+
 export default function PublicProfilePage() {
     const params = useParams();
     const { data: session } = useSession();
@@ -20,6 +29,7 @@ export default function PublicProfilePage() {
     const [error, setError] = useState<string | null>(null);
     const [isFollowing, setIsFollowing] = useState(false);
     const [followLoading, setFollowLoading] = useState(false);
+    const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
 
     useEffect(() => {
         async function fetchProfile() {
@@ -42,8 +52,21 @@ export default function PublicProfilePage() {
 
         if (userId) {
             fetchProfile();
+            fetchSuggestedUsers();
         }
     }, [userId]);
+
+    const fetchSuggestedUsers = async () => {
+        try {
+            const res = await fetch(`/api/users/suggested?limit=4&exclude=${userId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setSuggestedUsers(data.users || []);
+            }
+        } catch (e) {
+            console.error('Failed to fetch suggested users:', e);
+        }
+    };
 
     const handleFollow = async () => {
         if (!session?.user?.id) return;
@@ -172,8 +195,8 @@ export default function PublicProfilePage() {
                                             onClick={handleFollow}
                                             disabled={followLoading}
                                             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${isFollowing
-                                                    ? 'bg-white/10 text-white border border-white/20 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400'
-                                                    : 'bg-emerald-500 text-black hover:bg-emerald-400'
+                                                ? 'bg-white/10 text-white border border-white/20 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400'
+                                                : 'bg-emerald-500 text-black hover:bg-emerald-400'
                                                 }`}
                                         >
                                             {isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />}
@@ -260,15 +283,15 @@ export default function PublicProfilePage() {
                                             key={badge.id || i}
                                             whileHover={{ scale: 1.05 }}
                                             className={`p-4 rounded-xl text-center border transition-all ${badge.isPinned
-                                                    ? 'bg-amber-500/10 border-amber-500/30'
-                                                    : 'bg-white/[0.02] border-white/5 hover:border-amber-500/20'
+                                                ? 'bg-amber-500/10 border-amber-500/30'
+                                                : 'bg-white/[0.02] border-white/5 hover:border-amber-500/20'
                                                 }`}
                                         >
                                             <div className="text-3xl mb-2">{badge.icon}</div>
                                             <div className="text-xs font-medium text-white truncate">{badge.name}</div>
                                             <div className={`text-[10px] uppercase tracking-wider mt-1 ${badge.rarity === 'legendary' ? 'text-amber-400' :
-                                                    badge.rarity === 'rare' ? 'text-purple-400' :
-                                                        badge.rarity === 'uncommon' ? 'text-blue-400' : 'text-zinc-500'
+                                                badge.rarity === 'rare' ? 'text-purple-400' :
+                                                    badge.rarity === 'uncommon' ? 'text-blue-400' : 'text-zinc-500'
                                                 }`}>{badge.rarity}</div>
                                         </motion.div>
                                     ))}
@@ -383,6 +406,68 @@ export default function PublicProfilePage() {
                                     <span className="font-bold">{profile.learning.coursesCompleted} Completed</span>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Suggested Profiles Widget */}
+                    {suggestedUsers.length > 0 && (
+                        <div className="p-6 rounded-xl bg-white/[0.02] border border-white/5">
+                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                <Users className="text-purple-400" size={20} />
+                                People You May Know
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {suggestedUsers.map((user) => (
+                                    <div
+                                        key={user.id}
+                                        className="p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-purple-500/30 transition-all"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <Link href={`/user/${user.id}`}>
+                                                {user.image ? (
+                                                    <img src={user.image} alt="" className="w-12 h-12 rounded-full" />
+                                                ) : (
+                                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-lg font-bold">
+                                                        {user.name?.charAt(0) || '?'}
+                                                    </div>
+                                                )}
+                                            </Link>
+                                            <div className="flex-1 min-w-0">
+                                                <Link href={`/user/${user.id}`} className="font-medium hover:text-purple-400 transition-colors truncate block">
+                                                    {user.name}
+                                                </Link>
+                                                {user.careerPath && (
+                                                    <div className="text-xs text-purple-400 truncate">{user.careerPath}</div>
+                                                )}
+                                                <div className="text-xs text-zinc-500 mt-1">
+                                                    {user.followersCount} followers
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2 mt-3">
+                                            <Link
+                                                href={`/user/${user.id}`}
+                                                className="flex-1 py-2 px-3 text-xs font-medium text-center bg-purple-500/10 text-purple-400 rounded-lg hover:bg-purple-500/20 transition-all border border-purple-500/20"
+                                            >
+                                                <UserPlus className="inline mr-1" size={12} />
+                                                View Profile
+                                            </Link>
+                                            <Link
+                                                href={`/inbox?user=${user.id}`}
+                                                className="py-2 px-3 text-xs font-medium bg-white/5 text-zinc-400 rounded-lg hover:text-white hover:bg-white/10 transition-all border border-white/5"
+                                            >
+                                                <MessageCircle size={12} />
+                                            </Link>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <button
+                                onClick={fetchSuggestedUsers}
+                                className="w-full mt-4 py-2 text-sm text-zinc-500 hover:text-purple-400 transition-colors"
+                            >
+                                ↻ Show different people
+                            </button>
                         </div>
                     )}
 
