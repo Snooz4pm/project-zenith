@@ -118,7 +118,7 @@ import { saveCourseProgress, getSingleCourseProgress } from '@/lib/actions/learn
 import { useSession } from 'next-auth/react';
 import { CheckCircle } from 'lucide-react';
 
-export default function CoursePage({ params }: { params: Promise<{ courseId: string }> }) {
+export default function CoursePage({ params }: { params: { courseId: string } }) {
     const router = useRouter();
     const [courseId, setCourseId] = useState('trading-fundamentals');
     const [course, setCourse] = useState(COURSES_REGISTRY['trading-fundamentals']);
@@ -131,14 +131,14 @@ export default function CoursePage({ params }: { params: Promise<{ courseId: str
     const [isLoading, setIsLoading] = useState(true);
     const [completedModules, setCompletedModules] = useState<string[]>([]);
 
-    // Resolve params promise
+    // Use params directly (Next.js 14 style)
     useEffect(() => {
-        params.then(resolvedParams => {
-            const id = resolvedParams.courseId;
+        if (params?.courseId) {
+            const id = params.courseId;
             setCourseId(id);
             setCourse(COURSES_REGISTRY[id] || COURSES_REGISTRY['trading-fundamentals']);
-        });
-    }, [params]);
+        }
+    }, [params?.courseId]);
 
     // Hydrate progress from DB
     useEffect(() => {
@@ -1907,8 +1907,8 @@ function ModuleCompletionAction({ onComplete, isCompleted }: { onComplete: () =>
                     onClick={onComplete}
                     disabled={isCompleted}
                     className={`px-8 py-3 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${isCompleted
-                            ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 cursor-default"
-                            : "bg-emerald-500 text-black hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)]"
+                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 cursor-default"
+                        : "bg-emerald-500 text-black hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)]"
                         }`}
                 >
                     {isCompleted ? "Completed" : "Mark as Complete"}
@@ -2023,10 +2023,10 @@ function RiskManagementContent() {
 
                 <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/10 mb-8">
                     <p className="text-zinc-400 mb-4">
-                        Account size: $100,000<br/>
-                        Risk per trade: 1% = $1,000<br/>
-                        Entry price: $50<br/>
-                        Stop loss: $48<br/>
+                        Account size: $100,000<br />
+                        Risk per trade: 1% = $1,000<br />
+                        Entry price: $50<br />
+                        Stop loss: $48<br />
                         Stop loss distance: $2
                     </p>
                     <p className="text-white font-mono mb-4">
