@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { Suspense, useRef } from 'react';
 import Link from 'next/link';
@@ -208,13 +208,13 @@ export default function LandingPage() {
                 </p>
                 <div className="flex gap-4">
                   <div className="px-4 py-2 rounded-lg bg-[rgba(255,255,255,0.05)] text-sm font-mono border border-[rgba(255,255,255,0.05)]">
-                    <span className="text-[var(--accent-mint)]">●</span> NASDAQ
+                    <span className="text-[var(--accent-mint)]">?</span> NASDAQ
                   </div>
                   <div className="px-4 py-2 rounded-lg bg-[rgba(255,255,255,0.05)] text-sm font-mono border border-[rgba(255,255,255,0.05)]">
-                    <span className="text-[var(--accent-mint)]">●</span> NYSE
+                    <span className="text-[var(--accent-mint)]">?</span> NYSE
                   </div>
                   <div className="px-4 py-2 rounded-lg bg-[rgba(255,255,255,0.05)] text-sm font-mono border border-[rgba(255,255,255,0.05)]">
-                    <span className="text-[var(--accent-mint)]">●</span> BINANCE
+                    <span className="text-[var(--accent-mint)]">?</span> BINANCE
                   </div>
                 </div>
               </div>

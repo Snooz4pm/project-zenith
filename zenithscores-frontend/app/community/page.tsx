@@ -103,7 +103,7 @@ export default function CommunityPage() {
         if (authorId === session.user.id) return;
 
         const conversation = await getOrCreateConversation(session.user.id, authorId);
-        router.push(`/inbox?conversation=${conversation.id}`);
+        router.push(`/messages/${conversation.id}`);
     };
 
     const filteredPosts = filter === 'all'

@@ -306,7 +306,7 @@ export async function sendMessage(userId: string, conversationId: string, body: 
         }
     });
 
-    revalidatePath('/inbox');
+    revalidatePath('/messages');
     return message;
 }
 

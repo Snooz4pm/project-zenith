@@ -33,11 +33,13 @@ interface MessageData {
 // Quick emoji picker
 const QUICK_EMOJIS = ['👍', '🎯', '💡', '📈', '🤔', '🔥', '👏', '💪'];
 
-export default function InboxPage() {
+export default function MessagesPage({ params }: { params?: { conversationId?: string } }) {
     const { data: session, status } = useSession();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const activeConversationId = searchParams.get('conversation');
+
+    // Support both query param (?conversation=) and dynamic route (/messages/[id])
+    const activeConversationId = params?.conversationId || searchParams.get('conversation');
 
     const [conversations, setConversations] = useState<ConversationData[]>([]);
     const [messages, setMessages] = useState<MessageData[]>([]);
@@ -48,6 +50,17 @@ export default function InboxPage() {
     const [showMobileConversation, setShowMobileConversation] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Focus input when conversation changes
+    useEffect(() => {
+        if (activeConversationId && !isLoading) {
+            // Short delay to ensure DOM is ready
+            const timer = setTimeout(() => {
+                inputRef.current?.focus();
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [activeConversationId, isLoading]);
 
     // Load conversations
     const loadConversations = useCallback(async () => {
@@ -148,6 +161,8 @@ export default function InboxPage() {
             setNewMessage(messageBody); // Restore text
         } finally {
             setIsSending(false);
+            // Re-focus input after sending
+            inputRef.current?.focus();
         }
     };
 
@@ -159,7 +174,7 @@ export default function InboxPage() {
 
     const handleBackToList = () => {
         setShowMobileConversation(false);
-        router.push('/inbox');
+        router.push('/messages');
     };
 
     const activeConversation = conversations.find(c => c.id === activeConversationId);
@@ -181,14 +196,14 @@ export default function InboxPage() {
     };
 
     if (status === 'loading' || isLoading) {
-        return <PageLoader pageName="Inbox" />;
+        return <PageLoader pageName="Messages" />;
     }
 
     return (
         <div className="min-h-screen bg-[var(--void)] text-white">
             <div className="max-w-5xl mx-auto px-4 py-8">
                 <div className="flex items-center justify-between mb-6">
-                    <h1 className="text-2xl font-bold">Inbox</h1>
+                    <h1 className="text-2xl font-bold">Messages</h1>
                     {conversations.length > 0 && (
                         <span className="text-sm text-zinc-500">
                             {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
@@ -220,7 +235,7 @@ export default function InboxPage() {
                                     return (
                                         <button
                                             key={conv.id}
-                                            onClick={() => router.push(`/inbox?conversation=${conv.id}`)}
+                                            onClick={() => router.push(`/messages/${conv.id}`)}
                                             className={`w-full p-4 text-left hover:bg-white/5 transition-colors relative ${isActive ? 'bg-white/5 border-l-2 border-[var(--accent-mint)]' : ''}`}
                                         >
                                             <div className="flex items-center gap-3">
@@ -377,7 +392,6 @@ export default function InboxPage() {
                                             type="text"
                                             value={newMessage}
                                             onChange={(e) => setNewMessage(e.target.value)}
-                                            placeholder="Type a message..."
                                             maxLength={2000}
                                             className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-zinc-600 focus:outline-none focus:border-[var(--accent-mint)]/50"
                                         />

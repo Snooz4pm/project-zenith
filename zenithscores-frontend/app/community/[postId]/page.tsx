@@ -120,7 +120,7 @@ export default function PostDetailPage() {
         if (authorId === session.user.id) return;
 
         const conversation = await getOrCreateConversation(session.user.id, authorId);
-        router.push(`/inbox?conversation=${conversation.id}`);
+        router.push(`/messages/${conversation.id}`);
     };
 
     if (status === 'loading' || isLoading) {

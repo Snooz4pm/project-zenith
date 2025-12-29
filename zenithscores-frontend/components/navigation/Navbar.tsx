@@ -178,9 +178,9 @@ export default function Navbar() {
               <div className="hidden md:flex items-center gap-3">
                 {/* Inbox Link */}
                 <Link
-                  href="/inbox"
+                  href="/messages"
                   className="p-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-                  title="Inbox"
+                  title="Messages"
                 >
                   <Mail size={18} />
                 </Link>

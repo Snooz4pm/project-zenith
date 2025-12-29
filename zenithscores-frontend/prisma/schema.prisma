@@ -54,6 +54,9 @@ model User {
   createdRooms          Room[]                  @relation("CreatedRooms")
   roomMemberships       RoomMembership[]        @relation("UserRoomMemberships")
   roomJoinRequests      RoomJoinRequest[]       @relation("UserRoomJoinRequests")
+  
+  // Decision Lab
+  decisionAttempts      DecisionAttempt[]
 }
 
 // Required by NextAuth PrismaAdapter for OAuth
@@ -467,6 +470,10 @@ model TradingNote {
   stressLevel  Int?     @default(3)      // 1-5 scale
   mood         String?  @db.VarChar(10)  // Emoji
   snapshotUrl  String?  @db.Text         // Image link or base64
+  
+  // New field for Decision Lab & structured data
+  metadata     Json?    
+  
   createdAt    DateTime @default(now()) @db.Timestamp(6)
   updatedAt    DateTime @default(now()) @updatedAt @db.Timestamp(6)
 
@@ -1206,5 +1213,60 @@ model UserPredictionStats {
   
   @@index([accuracyRate(sort: Desc)])
   @@index([totalPoints(sort: Desc)])
+}
+
+// ========================
+// DECISION LAB MODELS
+// ========================
+
+model DecisionScenario {
+  id               String   @id @default(uuid())
+  title            String   @db.VarChar(255)
+  description      String?  @db.Text
+  marketType       String   @db.VarChar(20)  // crypto, forex, stocks
+  symbol           String   @db.VarChar(20)
+  timeframe        String   @db.VarChar(10)
+  difficulty       String   @default("medium") @db.VarChar(20)
+  isPremium        Boolean  @default(false)
+  
+  source           String   @db.VarChar(50)  // finnhub, alpha_vantage, dexscreener
+  startTime        DateTime @db.Timestamp(6)
+  pauseTime        DateTime @db.Timestamp(6)
+  endTime          DateTime @db.Timestamp(6)
+  
+  // Immutable Data Snapshots
+  chartData        Json     // Full candle array [start -> end]
+  annotations      Json?    // Levels, zones, notes
+  
+  // Explanations
+  explanationSetup   String? @db.Text
+  explanationOutcome String? @db.Text
+  
+  createdAt        DateTime @default(now()) @db.Timestamp(6)
+  updatedAt        DateTime @default(now()) @updatedAt @db.Timestamp(6)
+
+  attempts         DecisionAttempt[]
+  
+  @@index([marketType], map: "idx_scenarios_market")
+  @@index([difficulty], map: "idx_scenarios_difficulty")
+  @@index([isPremium], map: "idx_scenarios_premium")
+}
+
+model DecisionAttempt {
+  id               String   @id @default(uuid())
+  scenarioId       String
+  userId           String
+  
+  choice           String   @db.VarChar(20)  // BUY, SELL, STAY_OUT
+  timeToDecisionMs Int      // Critical for behavioral analysis
+  decidedAt        DateTime @default(now()) @db.Timestamp(6)
+  
+  scenario         DecisionScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Idempotency: One attempt per user per scenario (for now)
+  @@unique([userId, scenarioId])
+  @@index([userId], map: "idx_attempts_user")
+  @@index([scenarioId], map: "idx_attempts_scenario")
 }
 

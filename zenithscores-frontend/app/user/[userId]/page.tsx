@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
     User, Trophy, TrendingUp, TrendingDown, BookOpen, ArrowLeft,
@@ -21,6 +21,7 @@ interface SuggestedUser {
 }
 
 export default function PublicProfilePage() {
+    const router = useRouter();
     const params = useParams();
     const { data: session } = useSession();
     const userId = params.userId as string;
@@ -36,6 +37,8 @@ export default function PublicProfilePage() {
     const [newPostContent, setNewPostContent] = useState('');
     const [newPostType, setNewPostType] = useState<'insight' | 'thesis' | 'question'>('insight');
     const [postingLoading, setPostingLoading] = useState(false);
+    const [isStartingConversation, setIsStartingConversation] = useState(false);
+
 
     useEffect(() => {
         async function fetchProfile() {
@@ -154,6 +157,36 @@ export default function PublicProfilePage() {
         }
     };
 
+    const openDirectMessage = async (targetId: string) => {
+        if (!session?.user?.id) {
+            router.push('/auth/login');
+            return;
+        }
+
+        setIsStartingConversation(true);
+        try {
+            const res = await fetch('/api/conversations/direct', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetUserId: targetId })
+            });
+
+            if (res.ok) {
+                const { conversationId } = await res.json();
+                // Ensure the folder exists and router push works
+                router.push(`/messages/${conversationId}`);
+            } else {
+                const errorData = await res.json();
+                alert(errorData.error || 'Failed to start conversation');
+                setIsStartingConversation(false);
+            }
+        } catch (e) {
+            console.error('Failed to start conversation:', e);
+            alert('Something went wrong. Please try again.');
+            setIsStartingConversation(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-[#0a0a0c] flex items-center justify-center">
@@ -245,19 +278,30 @@ export default function PublicProfilePage() {
                                         </div>
                                     </div>
 
-                                    {/* Follow Button */}
+                                    {/* Actions */}
                                     {!isOwnProfile && session?.user?.id && (
-                                        <button
-                                            onClick={handleFollow}
-                                            disabled={followLoading}
-                                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${isFollowing
-                                                ? 'bg-white/10 text-white border border-white/20 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400'
-                                                : 'bg-emerald-500 text-black hover:bg-emerald-400'
-                                                }`}
-                                        >
-                                            {isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />}
-                                            {followLoading ? '...' : isFollowing ? 'Following' : 'Follow'}
-                                        </button>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={handleFollow}
+                                                disabled={followLoading}
+                                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${isFollowing
+                                                    ? 'bg-white/10 text-white border border-white/20 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400'
+                                                    : 'bg-emerald-500 text-black hover:bg-emerald-400'
+                                                    }`}
+                                            >
+                                                {isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />}
+                                                {followLoading ? '...' : isFollowing ? 'Following' : 'Follow'}
+                                            </button>
+
+                                            <button
+                                                onClick={() => openDirectMessage(userId)}
+                                                disabled={isStartingConversation}
+                                                className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl font-bold text-sm text-white hover:bg-white/10 transition-all"
+                                            >
+                                                <MessageCircle size={16} />
+                                                {isStartingConversation ? 'Starting Chat...' : 'Message'}
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
 
@@ -564,12 +608,13 @@ export default function PublicProfilePage() {
                                                 <UserPlus className="inline mr-1" size={12} />
                                                 View Profile
                                             </Link>
-                                            <Link
-                                                href={`/inbox?user=${user.id}`}
-                                                className="py-2 px-3 text-xs font-medium bg-white/5 text-zinc-400 rounded-lg hover:text-white hover:bg-white/10 transition-all border border-white/5"
+                                            <button
+                                                onClick={() => openDirectMessage(user.id)}
+                                                disabled={isStartingConversation}
+                                                className="py-2 px-3 text-xs font-medium bg-white/5 text-zinc-400 rounded-lg hover:text-white hover:bg-white/10 transition-all border border-white/5 disabled:opacity-50"
                                             >
                                                 <MessageCircle size={12} />
-                                            </Link>
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
