@@ -344,10 +344,12 @@ export default function CoursePage({ params }: { params: Promise<{ courseId: str
                         {renderContent()}
 
                         {/* Module Completion Action Area */}
-                        <ModuleCompletionAction
-                            isCompleted={completedModules.includes(course.modules[activeModule].id)}
-                            onComplete={() => handleCompleteModule(course.modules[activeModule].id, activeModule)}
-                        />
+                        {course.modules[activeModule] && (
+                            <ModuleCompletionAction
+                                isCompleted={completedModules.includes(course.modules[activeModule].id)}
+                                onComplete={() => handleCompleteModule(course.modules[activeModule].id, activeModule)}
+                            />
+                        )}
 
                         {/* Pagination / Navigation Footer */}
                         <div className="mt-12 pt-8 border-t border-white/10 flex items-center justify-between">

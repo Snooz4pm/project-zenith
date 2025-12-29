@@ -6,9 +6,9 @@
  */
 
 interface CourseScratchPadProps {
-  userId: string;
-  courseId: string;
-  courseTitle: string;
+  userId?: string;
+  courseId?: string;
+  courseTitle?: string;
   moduleId?: string;
   moduleTitle?: string;
 }
@@ -21,5 +21,10 @@ export default function CourseScratchPad({
   moduleTitle,
 }: CourseScratchPadProps) {
   // Stub component - functionality to be implemented
+  // Early return if required props are missing
+  if (!userId || !courseId || !courseTitle) {
+    return null;
+  }
+
   return null;
 }
