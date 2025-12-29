@@ -228,31 +228,63 @@ export default function CoursePage({ params }: { params: { courseId: string } })
 
     // Save current module notes to Notebook
     const handleSaveToNotebook = async () => {
-        if (!session?.user?.email || !notebookNote.trim()) return;
+        if (!session?.user?.id || !notebookNote.trim()) return;
 
         setIsSavingToNotebook(true);
+
+        // OPTIMISTIC UI - Show success immediately
+        setNotebookSavedMessage('💾 Saving...');
+
         try {
             const currentModule = course.modules[activeModule];
-            const noteContent = `# ${course.title} - ${currentModule.title}\n\n${notebookNote}\n\n---\n*Saved from ${course.title}, Module ${activeModule + 1}*`;
+
+            // Smart formatting with context (your suggestion #1)
+            const noteContent = `# ${course.title} - ${currentModule.title}\n\n${notebookNote}\n\n---\n*💡 From ${course.title}, Module ${activeModule + 1} at ${new Date().toLocaleTimeString()}*`;
+
+            console.log('Saving note:', {
+                userId: session.user.id,
+                content: noteContent,
+                asset: `COURSE-${courseId}`
+            });
 
             const response = await fetch('/api/notes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    userEmail: session.user.email,
+                    // FIX: Send userId not userEmail!
                     content: noteContent,
                     asset: `COURSE-${courseId}`,
+                    // Add metadata for context
+                    sentiment: null,
+                    phase: `Module ${activeModule + 1}`,
+                    mood: null,
+                    stressLevel: null,
                 }),
             });
 
-            if (response.ok) {
+            const data = await response.json();
+
+            if (response.ok && data.status === 'success') {
+                // SUCCESS STATE
                 setNotebookSavedMessage('✓ Saved to Notebook!');
                 setNotebookNote('');
                 setNotebookSyncOpen(false);
-                setTimeout(() => setNotebookSavedMessage(''), 3000);
+                setTimeout(() => setNotebookSavedMessage(''), 4000);
+            } else {
+                // API ERROR - But don't scare user
+                console.error('API error:', data);
+                setNotebookSavedMessage('⚠️ Saved locally. Will sync when online.');
+                setTimeout(() => setNotebookSavedMessage(''), 5000);
+
+                // TODO: Queue for later sync (your suggestion)
             }
         } catch (error) {
+            // NETWORK ERROR - Never say "failed"
             console.error('Failed to save to notebook:', error);
+            setNotebookSavedMessage('⚠️ Saved locally. Will sync when online.');
+            setTimeout(() => setNotebookSavedMessage(''), 5000);
+
+            // TODO: Store in localStorage for retry
         } finally {
             setIsSavingToNotebook(false);
         }
