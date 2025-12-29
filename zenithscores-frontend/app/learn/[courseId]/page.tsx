@@ -125,27 +125,7 @@ import { CheckCircle } from 'lucide-react';
 
 // Course Notes System
 import CourseScratchPad from '@/components/learning/CourseScratchPad';
-import CoreConceptsPanel from '@/components/learning/CoreConceptsPanel';
 import ScrollNudge from '@/components/learning/ScrollNudge';
-
-// Core Concepts by Module
-const CORE_CONCEPTS: Record<string, Array<{ term: string; definition: string; importance: 'critical' | 'important' | 'good-to-know' }>> = {
-    'liquidity': [
-        { term: 'Market Depth', definition: 'The market\'s ability to sustain large orders without causing significant price movement.', importance: 'critical' },
-        { term: 'Bid-Ask Spread', definition: 'The difference between the highest bid and lowest ask. Tighter spreads indicate higher liquidity.', importance: 'critical' },
-        { term: 'Slippage', definition: 'The difference between expected and actual execution price. More common in illiquid markets.', importance: 'important' },
-    ],
-    'order-types': [
-        { term: 'Market Order', definition: 'Executes immediately at best available price. Guarantees execution but not price.', importance: 'critical' },
-        { term: 'Limit Order', definition: 'Only executes at specified price or better. Guarantees price but not execution.', importance: 'critical' },
-        { term: 'Stop-Loss Order', definition: 'Triggers a market order when price reaches a specified level. Used to limit downside risk.', importance: 'important' },
-    ],
-    'risk-intro': [
-        { term: 'Position Sizing', definition: 'The dollar amount or percentage of capital allocated to a single trade.', importance: 'critical' },
-        { term: 'Risk-Reward Ratio', definition: 'The relationship between potential profit and potential loss. Target minimum 2:1.', importance: 'critical' },
-        { term: 'Maximum Drawdown', definition: 'The largest peak-to-trough decline in account value.', importance: 'important' },
-    ],
-};
 
 export default function CoursePage({ params }: { params: { courseId: string } }) {
     const router = useRouter();
