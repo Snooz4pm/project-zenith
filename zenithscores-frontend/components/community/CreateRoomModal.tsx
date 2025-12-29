@@ -58,11 +58,8 @@ export default function CreateRoomModal({ isOpen, onClose, onSubmit }: CreateRoo
       });
       handleClose();
     } catch (error: any) {
-      if (error?.message?.includes('slug')) {
-        setError('A room with this name/URL already exists. Please choose another.');
-      } else {
-        setError(error?.message || 'Failed to create room');
-      }
+      console.error('Room creation error:', error);
+      setError(error?.message || 'Failed to create room. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

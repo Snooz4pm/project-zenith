@@ -1,8 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import CreateRoomModal from '@/components/community/CreateRoomModal';
 import { createRoom } from '@/lib/actions/rooms';
@@ -10,25 +10,6 @@ import { createRoom } from '@/lib/actions/rooms';
 export default function CreateRoomPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [isModalOpen, setIsModalOpen] = useState(true);
-
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login');
-    }
-  }, [status, router]);
-
-  async function handleCreateRoom(data: any) {
-    if (!session?.user?.id) return;
-
-    const room = await createRoom(session.user.id, data);
-    router.push(`/community/rooms/${room.slug}`);
-  }
-
-  function handleClose() {
-    setIsModalOpen(false);
-    router.push('/community');
-  }
 
   if (status === 'loading') {
     return (
@@ -38,20 +19,42 @@ export default function CreateRoomPage() {
     );
   }
 
+  if (!session) {
+    router.push('/auth/login');
+    return null;
+  }
+
+  async function handleCreateRoom(data: {
+    name: string;
+    slug: string;
+    description: string;
+    marketType: 'crypto' | 'stock' | 'forex';
+    isPublic: boolean;
+    requiresApproval: boolean;
+    maxMembers?: number;
+  }) {
+    try {
+      const room = await createRoom(session.user.id, data);
+      router.push(\`/community/rooms/\${room.slug}\`);
+    } catch (error: any) {
+      throw error;
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[var(--void)] text-white">
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto p-6">
         <button
           onClick={() => router.push('/community')}
-          className="flex items-center gap-2 text-zinc-500 hover:text-white mb-6 transition-colors"
+          className="flex items-center gap-2 text-zinc-400 hover:text-white mb-8 transition-colors"
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={18} />
           Back to Community
         </button>
 
         <CreateRoomModal
-          isOpen={isModalOpen}
-          onClose={handleClose}
+          isOpen={true}
+          onClose={() => router.push('/community')}
           onSubmit={handleCreateRoom}
         />
       </div>

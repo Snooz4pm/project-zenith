@@ -124,7 +124,9 @@ export async function createRoom(
 
   // Check if slug is already taken
   const existing = await prisma.room.findUnique({ where: { slug: data.slug } });
-  if (existing) throw new Error('Room slug already taken');
+  if (existing) {
+    throw new Error(`A room with the name "${data.name}" already exists. Please choose a different name.`);
+  }
 
   // Create room and auto-join creator
   const room = await prisma.$transaction(async (tx) => {
