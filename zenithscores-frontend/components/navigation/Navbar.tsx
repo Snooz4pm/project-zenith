@@ -66,6 +66,19 @@ export default function Navbar() {
     setActiveDropdown(null);
   }, [pathname]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (activeDropdown && !target.closest('.user-dropdown')) {
+        setActiveDropdown(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [activeDropdown]);
+
   const isActive = (href: string) => {
     if (href === '/command-center') return pathname === '/command-center' || pathname === '/';
     return pathname.startsWith(href);
@@ -176,10 +189,7 @@ export default function Navbar() {
                 <NotificationBell />
 
                 {/* User Menu Dropdown */}
-                <div
-                  className="relative"
-                  onMouseLeave={() => setActiveDropdown(null)}
-                >
+                <div className="relative user-dropdown">
                   <button
                     className="flex items-center gap-3 px-4 py-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)] hover:border-[var(--accent-mint)] transition-all"
                     onClick={() => setActiveDropdown(activeDropdown === 'user' ? null : 'user')}
