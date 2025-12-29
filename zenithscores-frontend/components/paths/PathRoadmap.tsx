@@ -15,6 +15,9 @@ interface PathRoadmapProps {
 }
 
 export default function PathRoadmap({ pathId }: PathRoadmapProps) {
+    const router = useRouter();
+    const content: PathContent | undefined = PATHS_CONTENT[pathId];
+
     const [showExam, setShowExam] = useState(false);
     const [examPassed, setExamPassed] = useState(false);
 
