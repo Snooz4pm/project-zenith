@@ -38,6 +38,7 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile | 
                 isProfilePublic: true,
                 created_at: true,
                 roomMemberships: {
+                    where: { leftAt: null },
                     include: {
                         room: {
                             select: { id: true, name: true, slug: true }
