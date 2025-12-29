@@ -39,16 +39,12 @@ export async function GET(
             );
         }
 
-        // Fetch User Balance for Prop Firm Context
-        const user = await prisma.user.findUnique({
-            where: { id: session.user.id },
-            // @ts-ignore: Prisma Client sync issue
-            select: { virtualBalance: true }
-        });
+        // Option A: Simulated Balance (Fast Fix)
+        const userBalance = 50000;
 
         return NextResponse.json({
             ...scenario,
-            userBalance: user?.virtualBalance || 50000
+            userBalance: userBalance
         });
     } catch (error) {
         console.error('Failed to fetch scenario details:', error);

@@ -69,17 +69,8 @@ export async function POST(request: Request) {
 
             if (existing) throw new Error('ALREADY_ATTEMPTED');
 
-            // Update User Balance
-            const user = await tx.user.update({
-                where: { id: session.user.id },
-                // @ts-ignore: Prisma Client sync issue
-                data: {
-                    virtualBalance: { increment: pnl },
-                    // Track max daily loss? (Future V2)
-                },
-                // @ts-ignore
-                select: { virtualBalance: true }
-            });
+            // Option A: Skip database balance update for now (Simulation Mode)
+            const newBalance = 50000 + pnl;
 
             // Create Attempt
             const newAttempt = await tx.decisionAttempt.create({
@@ -94,7 +85,7 @@ export async function POST(request: Request) {
                 }
             });
 
-            return { ...newAttempt, newBalance: user.virtualBalance };
+            return { ...newAttempt, newBalance: newBalance };
         });
 
         return NextResponse.json(attempt);
