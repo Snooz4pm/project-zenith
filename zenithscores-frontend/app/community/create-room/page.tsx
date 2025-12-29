@@ -33,6 +33,8 @@ export default function CreateRoomPage() {
     requiresApproval: boolean;
     maxMembers?: number;
   }) {
+    if (!session?.user?.id) return;
+
     try {
       const room = await createRoom(session.user.id, data);
       router.push(`/community/rooms/${room.slug}`);

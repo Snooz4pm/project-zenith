@@ -16,7 +16,6 @@ import { useSession } from 'next-auth/react';
 import CourseScratchPad from '@/components/learning/CourseScratchPad';
 import CoreConceptsPanel from '@/components/learning/CoreConceptsPanel';
 import ScrollNudge from '@/components/learning/ScrollNudge';
-import { saveCourseNote } from '@/lib/actions/notebook';
 
 // Example Core Concepts Data (customize per module)
 const CORE_CONCEPTS_BY_MODULE: Record<string, any[]> = {
@@ -99,29 +98,13 @@ export default function CoursePageExample({ params }: { params: { courseId: stri
     ]
   };
 
-  // Handler for saving notes
-  async function handleSaveNote(content: string, metadata: any) {
-    if (!session?.user?.id) {
-      alert('Please log in to save notes');
-      return;
-    }
-
-    const result = await saveCourseNote(session.user.id, content, {
-      ...metadata,
-      timestamp: Date.now()
-    });
-
-    if (result.success) {
-      // Success feedback (optional toast instead of alert)
-      alert('✓ Note saved to your Notebook');
-    } else {
-      alert('Failed to save note. Please try again.');
-    }
-  }
-
   // Get concepts for active module
   const currentModule = course.modules[activeModule];
   const currentConcepts = CORE_CONCEPTS_BY_MODULE[currentModule.id] || [];
+
+  if (!session) {
+    return <div>Please log in to access course content</div>;
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-white">
@@ -144,27 +127,24 @@ export default function CoursePageExample({ params }: { params: { courseId: stri
       {currentConcepts.length > 0 && (
         <CoreConceptsPanel
           concepts={currentConcepts}
-          moduleTitle={currentModule.title}
         />
       )}
 
       {/* 2. Scratch Pad - Bottom Right */}
-      <CourseScratchPad
-        courseId={courseId}
-        courseTitle={course.title}
-        moduleId={currentModule.id}
-        moduleTitle={currentModule.title}
-        onSaveToNotebook={handleSaveNote}
-      />
+      {session?.user?.id && (
+        <CourseScratchPad
+          userId={session.user.id}
+          courseId={courseId}
+          courseTitle={course.title}
+          moduleId={currentModule.id}
+          moduleTitle={currentModule.title}
+        />
+      )}
 
-      {/* 3. Scroll Nudge - Bottom Center (OPTIONAL) */}
+      {/* 3. Scroll Nudge - Top Center (OPTIONAL) */}
       <ScrollNudge
-        onTriggerNotes={() => {
-          // Optional: Add logic to programmatically open scratchpad
-          // For now, nudge just suggests - user clicks button themselves
-        }}
-        threshold={1200}     // Show after 1200px scroll
-        cooldown={45000}     // 45 seconds between nudges
+        fastScrollThreshold={100}  // Pixels per scroll event
+        triggerCount={3}            // Number of fast scrolls before showing
       />
     </div>
   );
@@ -173,9 +153,10 @@ export default function CoursePageExample({ params }: { params: { courseId: stri
 /**
  * CUSTOMIZATION TIPS:
  *
- * 1. Adjust Scroll Nudge threshold per module complexity:
- *    - Short modules (< 2000 words): threshold={800}
- *    - Long modules (> 5000 words): threshold={2000}
+ * 1. Adjust Scroll Nudge sensitivity per module:
+ *    - Less sensitive (fewer nudges): fastScrollThreshold={150}, triggerCount={5}
+ *    - More sensitive (more nudges): fastScrollThreshold={50}, triggerCount={2}
+ *    - Default settings: fastScrollThreshold={100}, triggerCount={3}
  *
  * 2. Define concepts per module difficulty:
  *    - Beginner modules: More 'critical' concepts

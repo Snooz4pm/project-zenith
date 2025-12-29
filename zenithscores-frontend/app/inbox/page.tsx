@@ -99,18 +99,52 @@ export default function InboxPage() {
         }
     }, [status, router]);
 
+    // Polling for new messages (every 3 seconds)
+    useEffect(() => {
+        if (!activeConversationId || isSending) return;
+
+        const interval = setInterval(() => {
+            loadMessages();
+        }, 3000);
+
+        return () => clearInterval(interval);
+    }, [activeConversationId, loadMessages, isSending]);
+
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!session?.user?.id || !activeConversationId || !newMessage.trim() || isSending) return;
 
+        // 1. Optimistic UI Update
+        const optimisticId = crypto.randomUUID();
+        const messageBody = newMessage.trim();
+
+        const optimisticMessage: MessageData = {
+            id: optimisticId,
+            body: messageBody,
+            createdAt: new Date().toISOString(),
+            sender: {
+                id: session.user.id,
+                name: session.user.name || 'You',
+                image: session.user.image || null
+            }
+        };
+
+        setMessages(prev => [...prev, optimisticMessage]);
+        setNewMessage('');
+
+        // 2. Network Request
         setIsSending(true);
         try {
-            const sentMessage = await sendMessage(session.user.id, activeConversationId, newMessage.trim());
-            setMessages(prev => [...prev, sentMessage as MessageData]);
-            setNewMessage('');
-            loadConversations(); // Refresh to update lastMessage
+            await sendMessage(session.user.id, activeConversationId, messageBody);
+            // Sync with server state immediately to replace optimistic ID with real ID
+            await loadMessages();
+            loadConversations(); // Refresh specific conv list to update lastMessage snippet
         } catch (error) {
             console.error('Failed to send message:', error);
+            // Rollback on error
+            setMessages(prev => prev.filter(m => m.id !== optimisticId));
+            alert('Failed to send message. Please try again.');
+            setNewMessage(messageBody); // Restore text
         } finally {
             setIsSending(false);
         }
@@ -296,8 +330,8 @@ export default function InboxPage() {
                                                     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                                                         <div
                                                             className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${isOwn
-                                                                    ? 'bg-[var(--accent-mint)] text-[var(--void)] rounded-br-md'
-                                                                    : 'bg-white/5 text-white rounded-bl-md'
+                                                                ? 'bg-[var(--accent-mint)] text-[var(--void)] rounded-br-md'
+                                                                : 'bg-white/5 text-white rounded-bl-md'
                                                                 }`}
                                                         >
                                                             <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>
