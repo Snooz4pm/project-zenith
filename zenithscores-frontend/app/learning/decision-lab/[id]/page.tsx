@@ -47,7 +47,7 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
         }
     }, [params.id, router]);
 
-    const handleDecision = async (choice: string, timeToDecisionMs: number) => {
+    const handleDecision = async (choice: string, timeToDecisionMs: number, leverage: number = 1) => {
         if (!scenario) return;
 
         const res = await fetch('/api/decision-lab/attempt', {
@@ -56,7 +56,8 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
             body: JSON.stringify({
                 scenarioId: scenario.id,
                 choice,
-                timeToDecisionMs
+                timeToDecisionMs,
+                leverage
             })
         });
 
@@ -64,6 +65,8 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
             const data = await res.json();
             throw new Error(data.error || 'Failed to log decision');
         }
+
+        return res.json(); // Return the result (PnL, newBalance)
     };
 
     if (isLoading) return <PageLoader pageName="Simulation" />;
@@ -102,9 +105,9 @@ function DecisionEngineWrapper({ scenario, onDecision }: { scenario: any, onDeci
     const router = useRouter();
     const [choice, setChoice] = useState<string | null>(null);
 
-    const handleDecisionInternal = async (c: string, t: number) => {
+    const handleDecisionInternal = async (c: string, t: number, l: number) => {
         setChoice(c);
-        await onDecision(c, t);
+        return await onDecision(c, t, l);
     };
 
     const handleReflectInternal = async (content: string) => {

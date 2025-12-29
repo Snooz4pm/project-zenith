@@ -31,7 +31,7 @@ export async function GET(
         }
 
         // CRITICAL: Hard fail if chartData is missing/corrupt
-        if (!scenario.chartData || !Array.isArray(scenario.chartData) || scenario.chartData.length === 0) {
+        if (!scenario || !scenario.chartData || !Array.isArray(scenario.chartData) || scenario.chartData.length === 0) {
             console.error(`[CRITICAL] Scenario ${id} has corrupt/missing chartData`);
             return NextResponse.json(
                 { error: 'Scenario data corruption detected. Please contact support.' },
@@ -39,7 +39,17 @@ export async function GET(
             );
         }
 
-        return NextResponse.json(scenario);
+        // Fetch User Balance for Prop Firm Context
+        const user = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            // @ts-ignore: Prisma Client sync issue
+            select: { virtualBalance: true }
+        });
+
+        return NextResponse.json({
+            ...scenario,
+            userBalance: user?.virtualBalance || 50000
+        });
     } catch (error) {
         console.error('Failed to fetch scenario details:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

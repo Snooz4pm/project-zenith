@@ -1209,6 +1209,10 @@ model UserPredictionStats {
   
   rank            Int?                       // Leaderboard position
   
+  // Prop Firm Gamification
+  virtualBalance  Float    @default(50000)   // Starting $50k
+  maxDailyLoss    Float    @default(0)       // Track daily drawdown
+  
   updatedAt       DateTime @updatedAt
   
   @@index([accuracyRate(sort: Desc)])
@@ -1261,6 +1265,12 @@ model DecisionAttempt {
   
   choice           String   @db.VarChar(20)  // BUY, SELL, STAY_OUT
   timeToDecisionMs Int      // Critical for behavioral analysis
+  
+  // Financial Result
+  pnl              Float?   // Profit/Loss in dollars
+  returnPercentage Float?   // ROI %
+  leverage         Int      @default(1) // 1x or 2x (Conviction)
+  
   decidedAt        DateTime @default(now()) @db.Timestamp(6)
   
   scenario         DecisionScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
