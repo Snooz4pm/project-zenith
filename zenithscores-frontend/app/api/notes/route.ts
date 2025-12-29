@@ -40,12 +40,23 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
     try {
+        console.log('[NOTES API] POST request received');
+
         const session = await getServerSession(authOptions);
+        console.log('[NOTES API] Session:', {
+            exists: !!session,
+            userId: session?.user?.id,
+            userEmail: session?.user?.email
+        });
+
         if (!session?.user?.id) {
+            console.log('[NOTES API] Unauthorized - no session');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const body = await request.json();
+        console.log('[NOTES API] Request body:', body);
+
         const {
             content,
             sentiment,
@@ -57,8 +68,11 @@ export async function POST(request: NextRequest) {
         } = body;
 
         if (!content || content.trim().length === 0) {
+            console.log('[NOTES API] No content provided');
             return NextResponse.json({ error: 'Content is required' }, { status: 400 });
         }
+
+        console.log('[NOTES API] Creating note for user:', session.user.id);
 
         const note = await prisma.tradingNote.create({
             data: {
@@ -73,6 +87,8 @@ export async function POST(request: NextRequest) {
             }
         });
 
+        console.log('[NOTES API] Note created successfully:', note.id);
+
         // Log activity
         await prisma.activity.create({
             data: {
@@ -84,10 +100,11 @@ export async function POST(request: NextRequest) {
             }
         });
 
+        console.log('[NOTES API] Returning success');
         return NextResponse.json({ status: 'success', data: note });
     } catch (error) {
-        console.error('Error creating note:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        console.error('[NOTES API] Error creating note:', error);
+        return NextResponse.json({ error: 'Internal Server Error', details: String(error) }, { status: 500 });
     }
 }
 
