@@ -602,12 +602,20 @@ export default function CoursePage({ params }: { params: { courseId: string } })
                                     <textarea
                                         value={notebookNote}
                                         onChange={(e) => setNotebookNote(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            // Auto-save on Ctrl+Enter (Windows/Linux) or Cmd+Enter (Mac)
+                                            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleSaveToNotebook();
+                                            }
+                                        }}
                                         placeholder="Write your key takeaways, insights, or questions from this module..."
                                         className="w-full h-48 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                                         autoFocus
                                     />
-                                    <p className="text-xs text-zinc-500 mt-2">
-                                        💡 Tip: Include specific examples, questions, or action items you want to review later
+                                    <p className="text-xs text-zinc-500 mt-2 flex items-center gap-2">
+                                        <span>💡 Tip: Include specific examples or questions you want to review later</span>
+                                        <span className="ml-auto text-zinc-600">Press Ctrl+Enter to save quickly</span>
                                     </p>
                                 </div>
 
@@ -638,11 +646,6 @@ export default function CoursePage({ params }: { params: { courseId: string } })
                     </>
                 )}
             </AnimatePresence>
-
-            {/* Course Notes System */}
-            {CORE_CONCEPTS[course.modules[activeModule]?.id] && (
-                <CoreConceptsPanel concepts={CORE_CONCEPTS[course.modules[activeModule].id]} />
-            )}
 
             {session?.user?.id && (
                 <CourseScratchPad
