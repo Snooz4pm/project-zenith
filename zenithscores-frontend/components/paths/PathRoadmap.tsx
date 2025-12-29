@@ -1,20 +1,29 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
     ArrowLeft, CheckCircle2, BookOpen, GraduationCap,
-    Briefcase, BrainCircuit, Lock
+    Briefcase, BrainCircuit, Lock, Award
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { PATHS_CONTENT, PathContent } from '@/lib/paths-content';
+import FinalExam from './FinalExam';
 
 interface PathRoadmapProps {
     pathId: string;
 }
 
 export default function PathRoadmap({ pathId }: PathRoadmapProps) {
-    const router = useRouter();
-    const content: PathContent | undefined = PATHS_CONTENT[pathId];
+    const [showExam, setShowExam] = useState(false);
+    const [examPassed, setExamPassed] = useState(false);
+
+    const handleExamComplete = (passed: boolean, score: number) => {
+        if (passed) {
+            setExamPassed(true);
+            // In a real app, we would save the result to the database here
+        }
+    };
 
     if (!content) {
         return (
@@ -31,6 +40,24 @@ export default function PathRoadmap({ pathId }: PathRoadmapProps) {
     }
 
     const Icon = content.icon;
+
+    if (showExam) {
+        return (
+            <div className="max-w-4xl mx-auto px-4 py-8">
+                <button
+                    onClick={() => setShowExam(false)}
+                    className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6 transition-colors"
+                >
+                    <ArrowLeft size={18} />
+                    <span>Back to Roadmap</span>
+                </button>
+                <FinalExam
+                    pathId={pathId}
+                    onComplete={handleExamComplete}
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-6xl mx-auto px-4 py-8">
@@ -52,6 +79,13 @@ export default function PathRoadmap({ pathId }: PathRoadmapProps) {
                         <div className="text-sm font-bold text-white/80 uppercase tracking-widest mb-2">Career Roadmap</div>
                         <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">{content.name}</h1>
                         <p className="text-xl text-white/90 max-w-2xl leading-relaxed">{content.tagline}</p>
+
+                        {examPassed && (
+                            <div className="mt-6 flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-md rounded-lg w-fit">
+                                <Award className="text-yellow-300" size={20} />
+                                <span className="font-bold text-white">Path Certified</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -132,7 +166,7 @@ export default function PathRoadmap({ pathId }: PathRoadmapProps) {
                             <h3 className="text-xl font-bold text-white">Your Execution Plan</h3>
                         </div>
 
-                        <div className="space-y-8 relative">
+                        <div className="space-y-8 relative mb-8">
                             {/* Connector Line */}
                             <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-white/10" />
 
@@ -152,8 +186,16 @@ export default function PathRoadmap({ pathId }: PathRoadmapProps) {
                             ))}
                         </div>
 
-                        <button className="w-full mt-8 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors">
+                        <button className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors mb-3">
                             Start Module 1
+                        </button>
+
+                        <button
+                            onClick={() => setShowExam(true)}
+                            className="w-full py-3 bg-[var(--accent-mint)]/10 text-[var(--accent-mint)] font-bold rounded-xl border border-[var(--accent-mint)]/20 hover:bg-[var(--accent-mint)]/20 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Award size={18} />
+                            Take Final Exam
                         </button>
                     </div>
                 </div>

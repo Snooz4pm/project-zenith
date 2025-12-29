@@ -52,6 +52,22 @@ export default function ActiveTradesTile({ onClick }: ActiveTradesTileProps) {
         return () => clearInterval(interval);
     }, []);
 
+    const handleCloseTrade = async (symbol: string) => {
+        try {
+            const response = await fetch('/api/trading/close', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol })
+            });
+            if (response.ok) {
+                // Remove trade from UI immediately
+                setTrades(prev => prev.filter(t => t.symbol !== symbol));
+            }
+        } catch (e) {
+            console.error('Failed to close trade:', e);
+        }
+    };
+
     const moreCount = Math.max(0, trades.length - 3);
 
     return (
@@ -83,21 +99,36 @@ export default function ActiveTradesTile({ onClick }: ActiveTradesTileProps) {
                     <>
                         <div className="space-y-3 flex-1">
                             {trades.slice(0, 3).map((trade, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)]">
+                                <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)] group/trade">
                                     <div className="flex items-center gap-3">
                                         <div className="font-bold text-white">{trade.symbol}</div>
                                         <div className={`text-xs uppercase px-1.5 py-0.5 rounded font-bold ${trade.direction === 'long' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
                                             {trade.direction.toUpperCase()}
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className={`font-mono text-sm font-bold ${trade.pnl >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-danger)]'}`}>
-                                            {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toFixed(0)}
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-right">
+                                            <div className={`font-mono text-sm font-bold ${trade.pnl >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-danger)]'}`}>
+                                                {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toFixed(0)}
+                                            </div>
+                                            <div className={`text-xs flex items-center justify-end gap-1 ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {trade.pnlPercent >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                                                {Math.abs(trade.pnlPercent).toFixed(1)}%
+                                            </div>
                                         </div>
-                                        <div className={`text-xs flex items-center justify-end gap-1 ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                            {trade.pnlPercent >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                                            {Math.abs(trade.pnlPercent).toFixed(1)}%
-                                        </div>
+                                        {/* Close Trade Button */}
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleCloseTrade(trade.symbol);
+                                            }}
+                                            className="p-1.5 rounded-lg bg-red-500/10 text-red-400 opacity-0 group-hover/trade:opacity-100 hover:bg-red-500/20 transition-all"
+                                            title="Close Trade"
+                                        >
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M18 6L6 18M6 6l12 12" />
+                                            </svg>
+                                        </button>
                                     </div>
                                 </div>
                             ))}

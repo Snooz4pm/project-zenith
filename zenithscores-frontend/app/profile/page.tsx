@@ -241,43 +241,63 @@ export default function ProfilePage() {
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="md:col-span-1 md:row-span-2 bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-white/10 rounded-2xl p-6 backdrop-blur-xl"
+                        className="md:col-span-1 md:row-span-2 bg-[#0c0c10] border border-[var(--accent-mint)]/10 rounded-2xl p-6 relative overflow-hidden"
                     >
-                        <div className="flex flex-col items-center h-full">
+                        {/* Zenith Glow Effect */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent-mint)]/5 blur-3xl pointer-events-none" />
+
+                        <div className="flex flex-col items-center h-full relative z-10">
                             {/* Profile Picture */}
-                            {session.user?.image ? (
-                                <img
-                                    src={session.user.image}
-                                    alt={session.user.name || 'User'}
-                                    className="w-20 h-20 rounded-full border-4 border-cyan-500/50 shadow-lg shadow-cyan-500/20 mb-4"
-                                />
-                            ) : (
-                                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center text-2xl font-bold text-white mb-4 shadow-lg shadow-cyan-500/20">
-                                    {session.user?.name?.[0]?.toUpperCase() || 'U'}
+                            <div className="relative mb-4">
+                                {session.user?.image ? (
+                                    <img
+                                        src={session.user.image}
+                                        alt={session.user.name || 'User'}
+                                        className="w-24 h-24 rounded-full border-3 border-[var(--accent-mint)]/30 shadow-lg shadow-[var(--accent-mint)]/10"
+                                    />
+                                ) : (
+                                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[var(--accent-mint)]/30 to-cyan-500/30 flex items-center justify-center text-3xl font-bold text-white shadow-lg">
+                                        {session.user?.name?.[0]?.toUpperCase() || 'U'}
+                                    </div>
+                                )}
+                                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full border-2 border-[#0c0c10] flex items-center justify-center">
+                                    <CheckCircle size={12} className="text-white" />
                                 </div>
-                            )}
+                            </div>
 
                             <h2 className="text-xl font-bold text-white mb-1">{session.user?.name}</h2>
-                            <p className="text-sm text-gray-400 mb-4">{session.user?.email}</p>
+                            <p className="text-sm text-zinc-500 mb-4">{session.user?.email}</p>
 
-                            <div className="w-full space-y-3 mt-auto">
-                                <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
-                                    <Shield className="text-emerald-400" size={16} />
-                                    <span className="text-sm text-gray-300">Google Account</span>
+                            <div className="w-full space-y-2 mt-auto">
+                                {/* Account Status */}
+                                <div className="flex items-center gap-3 p-3 bg-[var(--accent-mint)]/5 border border-[var(--accent-mint)]/10 rounded-lg">
+                                    <Shield className="text-[var(--accent-mint)]" size={16} />
+                                    <span className="text-sm text-zinc-300">Google Account</span>
+                                    <span className="ml-auto text-[10px] text-[var(--accent-mint)] font-medium bg-[var(--accent-mint)]/10 px-2 py-0.5 rounded">VERIFIED</span>
                                 </div>
 
                                 {/* View Public Profile */}
-                                <a
+                                <Link
                                     href={`/user/${session.user?.id}`}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-cyan-500/10 text-cyan-400 rounded-lg hover:bg-cyan-500/20 transition-colors"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20 text-[var(--accent-mint)] rounded-lg hover:bg-[var(--accent-mint)]/20 transition-colors font-medium text-sm"
                                 >
-                                    <ArrowUpRight size={16} />
+                                    <User size={16} />
                                     View Public Profile
-                                </a>
+                                </Link>
 
+                                {/* Account Settings */}
+                                <Link
+                                    href="/profile/settings"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-zinc-300 rounded-lg hover:bg-white/10 transition-colors text-sm"
+                                >
+                                    <Settings size={16} />
+                                    Account Settings
+                                </Link>
+
+                                {/* Sign Out */}
                                 <button
                                     onClick={() => signOut({ callbackUrl: '/' })}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500/5 border border-red-500/10 text-red-400 rounded-lg hover:bg-red-500/10 transition-colors text-sm"
                                 >
                                     <LogOut size={16} />
                                     Sign Out
