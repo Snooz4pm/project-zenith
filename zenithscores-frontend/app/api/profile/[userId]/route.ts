@@ -161,26 +161,35 @@ export async function GET(
             console.log('[PROFILE API] shared_trades not available');
         }
 
-        // Fetch recent community posts
+        // Fetch recent and pinned community posts
         let recentPosts: any[] = [];
+        let pinnedPosts: any[] = [];
         try {
             const posts = await prisma.communityPost.findMany({
                 where: { authorId: userId },
-                orderBy: { createdAt: 'desc' },
-                take: 5,
+                orderBy: [
+                    { isPinned: 'desc' },
+                    { createdAt: 'desc' }
+                ],
+                take: 10,
                 include: {
                     _count: { select: { comments: true } }
                 }
             });
 
-            recentPosts = posts.map(p => ({
+            const formattedPosts = posts.map(p => ({
                 id: p.id,
                 title: p.title,
+                body: p.body,
                 postType: p.postType,
                 asset: p.asset,
                 commentsCount: p._count.comments,
-                createdAt: p.createdAt
+                createdAt: p.createdAt,
+                isPinned: p.isPinned
             }));
+
+            recentPosts = formattedPosts.filter(p => !p.isPinned);
+            pinnedPosts = formattedPosts.filter(p => p.isPinned);
         } catch (e) {
             console.log('[PROFILE API] CommunityPost not available');
         }
@@ -214,9 +223,11 @@ export async function GET(
             // Shared Trades
             sharedTrades,
 
-            // Recent Activity
-            recentPosts
+            // Posts
+            recentPosts,
+            pinnedPosts
         };
+
 
         console.log('[PROFILE API] Profile fetched successfully');
         return NextResponse.json(publicProfile);

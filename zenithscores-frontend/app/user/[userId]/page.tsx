@@ -24,12 +24,18 @@ export default function PublicProfilePage() {
     const params = useParams();
     const { data: session } = useSession();
     const userId = params.userId as string;
+    const isOwnProfile = session?.user?.id === userId;
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isFollowing, setIsFollowing] = useState(false);
     const [followLoading, setFollowLoading] = useState(false);
     const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
+
+    // Post creation state (for own profile)
+    const [newPostContent, setNewPostContent] = useState('');
+    const [newPostType, setNewPostType] = useState<'insight' | 'thesis' | 'question'>('insight');
+    const [postingLoading, setPostingLoading] = useState(false);
 
     useEffect(() => {
         async function fetchProfile() {
@@ -65,6 +71,58 @@ export default function PublicProfilePage() {
             }
         } catch (e) {
             console.error('Failed to fetch suggested users:', e);
+        }
+    };
+
+    const handleCreatePost = async () => {
+        if (!session?.user?.id || !newPostContent.trim()) return;
+        setPostingLoading(true);
+
+        try {
+            const res = await fetch('/api/community', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: newPostContent.substring(0, 100),
+                    body: newPostContent,
+                    postType: newPostType
+                })
+            });
+
+            if (res.ok) {
+                setNewPostContent('');
+                // Refresh profile to get new post
+                const profileRes = await fetch(`/api/profile/${userId}`);
+                if (profileRes.ok) {
+                    const data = await profileRes.json();
+                    setProfile(data);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to create post:', e);
+        } finally {
+            setPostingLoading(false);
+        }
+    };
+
+    const handleTogglePin = async (postId: string) => {
+        try {
+            const res = await fetch('/api/community/pin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ postId })
+            });
+
+            if (res.ok) {
+                // Refresh profile to see updated pinning
+                const profileRes = await fetch(`/api/profile/${userId}`);
+                if (profileRes.ok) {
+                    const data = await profileRes.json();
+                    setProfile(data);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to toggle pin:', e);
         }
     };
 
@@ -123,8 +181,6 @@ export default function PublicProfilePage() {
             </div>
         );
     }
-
-    const isOwnProfile = session?.user?.id === userId;
 
     return (
         <div className="min-h-screen bg-[#0a0a0c] text-white">
@@ -267,6 +323,49 @@ export default function PublicProfilePage() {
                         </div>
                     </div>
 
+                    {/* Create Post Section (Own Profile Only) */}
+                    {isOwnProfile && (
+                        <div className="p-6 rounded-xl bg-gradient-to-br from-emerald-500/10 via-transparent to-blue-500/10 border border-emerald-500/20">
+                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                <MessageCircle className="text-emerald-400" size={20} />
+                                Share Your Thoughts
+                            </h3>
+                            <div className="space-y-4">
+                                <textarea
+                                    value={newPostContent}
+                                    onChange={(e) => setNewPostContent(e.target.value)}
+                                    placeholder="What's on your mind? Share a thesis, insight, or question..."
+                                    rows={3}
+                                    maxLength={2000}
+                                    className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl focus:border-emerald-500/50 focus:outline-none text-white placeholder-zinc-500 resize-none"
+                                />
+                                <div className="flex items-center justify-between">
+                                    <div className="flex gap-2">
+                                        {(['insight', 'thesis', 'question'] as const).map(type => (
+                                            <button
+                                                key={type}
+                                                onClick={() => setNewPostType(type)}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${newPostType === type
+                                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                                    : 'bg-white/5 text-zinc-400 border border-white/5 hover:border-white/20'
+                                                    }`}
+                                            >
+                                                {type === 'insight' ? '💡' : type === 'thesis' ? '📊' : '❓'} {type.charAt(0).toUpperCase() + type.slice(1)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={handleCreatePost}
+                                        disabled={!newPostContent.trim() || postingLoading}
+                                        className="px-5 py-2 bg-emerald-500 text-black font-bold rounded-xl hover:bg-emerald-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {postingLoading ? 'Posting...' : 'Post'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Two Column Layout */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -303,38 +402,51 @@ export default function PublicProfilePage() {
                             )}
                         </div>
 
-                        {/* Recent Activity */}
+                        {/* Thoughts & Feed Section */}
                         <div className="p-6 rounded-xl bg-white/[0.02] border border-white/5">
                             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                                 <MessageCircle className="text-blue-400" size={20} />
-                                Recent Activity
+                                Pinned & Recent Thoughts
                             </h3>
-                            {profile.recentPosts && profile.recentPosts.length > 0 ? (
-                                <div className="space-y-3">
-                                    {profile.recentPosts.map((post: any) => (
-                                        <Link key={post.id} href={`/community/post/${post.id}`}>
-                                            <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5 hover:border-blue-500/30 transition-all cursor-pointer">
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="text-sm font-medium text-white truncate">{post.title}</div>
-                                                        <div className="flex items-center gap-2 mt-1 text-xs text-zinc-500">
-                                                            {post.asset && <span className="text-emerald-400">{post.asset}</span>}
-                                                            <span>{post.commentsCount} comments</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-xs text-zinc-600">
-                                                        {new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </Link>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="py-8 text-center text-zinc-500 text-sm">
-                                    No community posts yet
-                                </div>
-                            )}
+                            <div className="space-y-4">
+                                {/* Pinned Posts First */}
+                                {profile.pinnedPosts && profile.pinnedPosts.length > 0 && (
+                                    <div className="space-y-3">
+                                        <div className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold ml-1">Pinned</div>
+                                        {profile.pinnedPosts.map((post: any) => (
+                                            <PostCard
+                                                key={post.id}
+                                                post={post}
+                                                isOwnProfile={isOwnProfile}
+                                                onTogglePin={() => handleTogglePin(post.id)}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Recent Posts */}
+                                {profile.recentPosts && profile.recentPosts.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {profile.pinnedPosts && profile.pinnedPosts.length > 0 && (
+                                            <div className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold ml-1 pt-2">Recent</div>
+                                        )}
+                                        {profile.recentPosts.map((post: any) => (
+                                            <PostCard
+                                                key={post.id}
+                                                post={post}
+                                                isOwnProfile={isOwnProfile}
+                                                onTogglePin={() => handleTogglePin(post.id)}
+                                            />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    !(profile.pinnedPosts && profile.pinnedPosts.length > 0) && (
+                                        <div className="py-8 text-center text-zinc-500 text-sm">
+                                            No thoughts shared yet
+                                        </div>
+                                    )
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -472,6 +584,54 @@ export default function PublicProfilePage() {
                     )}
 
                 </motion.div>
+            </div>
+        </div>
+    );
+}
+// Helper component for Post items
+function PostCard({ post, isOwnProfile, onTogglePin }: { post: any, isOwnProfile: boolean, onTogglePin: () => void }) {
+    const typeIcon = post.postType === 'thesis' ? '📊' : post.postType === 'insight' ? '💡' : '❓';
+
+    return (
+        <div className={`p-4 rounded-xl border transition-all ${post.isPinned ? 'bg-blue-500/5 border-blue-500/30' : 'bg-white/[0.02] border-white/5 hover:border-white/10'}`}>
+            <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg">{typeIcon}</span>
+                        <div className="text-[10px] uppercase font-bold tracking-widest text-zinc-500">{post.postType}</div>
+                    </div>
+                    <Link href={`/community/post/${post.id}`}>
+                        <div className="text-sm font-bold text-white mb-2 hover:text-blue-400 cursor-pointer transition-colors line-clamp-2">
+                            {post.title}
+                        </div>
+                    </Link>
+                    <p className="text-xs text-zinc-400 line-clamp-3 mb-3 leading-relaxed">
+                        {post.body}
+                    </p>
+                    <div className="flex items-center gap-4 text-[10px] text-zinc-600">
+                        <div className="flex items-center gap-1">
+                            <MessageCircle size={10} />
+                            {post.commentsCount} comments
+                        </div>
+                        {post.asset && (
+                            <div className="text-emerald-400 font-bold uppercase">{post.asset}</div>
+                        )}
+                        <div>{new Date(post.createdAt).toLocaleDateString()}</div>
+                    </div>
+                </div>
+
+                {isOwnProfile && (
+                    <button
+                        onClick={(e) => {
+                            e.preventDefault();
+                            onTogglePin();
+                        }}
+                        className={`p-2 rounded-lg transition-all ${post.isPinned ? 'text-blue-400 bg-blue-500/10' : 'text-zinc-600 hover:text-white hover:bg-white/5'}`}
+                        title={post.isPinned ? "Unpin from profile" : "Pin to top of profile"}
+                    >
+                        <Zap size={14} fill={post.isPinned ? "currentColor" : "none"} />
+                    </button>
+                )}
             </div>
         </div>
     );

@@ -961,6 +961,7 @@ model CommunityPost {
   body        String   @db.VarChar(2000)
   imageUrl    String?  @db.Text
   resolved    Boolean  @default(false) // For questions
+  isPinned    Boolean  @default(false) // Pin to top of profile
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
