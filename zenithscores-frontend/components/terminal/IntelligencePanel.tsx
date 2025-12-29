@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { TrendingUp, AlertTriangle, Target, Activity, Info, BookOpen, Save } from 'lucide-react';
+import MiniJournal from '@/components/terminal/MiniJournal';
 import type { RegimeType } from '@/lib/types/market';
 
 interface IntelligencePanelProps {
@@ -244,7 +245,7 @@ export default function IntelligencePanel({
                             {regimeDisplay.label}
                         </span>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right hidden">
                         <div className="text-2xl font-bold text-white">{convictionScore}</div>
                         <div className="text-[10px] text-gray-500 uppercase">Score</div>
                     </div>
@@ -323,6 +324,20 @@ export default function IntelligencePanel({
             <div className="text-[10px] text-gray-600 text-center">
                 Model v2.1 • Updated just now
             </div>
+
+            {/* Deep Dive Button (Fallback Mode) */}
+            {onDeepDive && (
+                <button
+                    onClick={onDeepDive}
+                    className="w-full mt-3 py-2 px-3 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 rounded-lg text-xs font-medium text-purple-300 transition-colors flex items-center justify-center gap-2 group"
+                >
+                    <BookOpen size={14} />
+                    Read Professor's Deep Dive
+                </button>
+            )}
+
+            {/* Notes Section (Common) */}
+            <MiniJournal symbol={symbol} />
         </div>
     );
 }

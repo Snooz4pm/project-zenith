@@ -298,10 +298,10 @@ export default function TerminalView({
 
             {/* Main 3-Panel Layout */}
             <div className="max-w-[1800px] mx-auto px-4 py-4">
-                <div className="grid grid-cols-12 gap-4 h-[calc(100vh-120px)]">
+                <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 h-auto lg:h-[calc(100vh-120px)]">
 
                     {/* Left Panel: Market Movers */}
-                    <div className="col-span-2 overflow-y-auto">
+                    <div className="order-3 lg:order-1 lg:col-span-2 overflow-y-auto min-h-[300px] lg:min-h-0">
                         <div className="sticky top-0 p-4 rounded-xl border border-white/[0.06] bg-white/[0.02]">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Market Pulse</h3>
@@ -321,7 +321,7 @@ export default function TerminalView({
                     </div>
 
                     {/* Center Panel: Chart */}
-                    <div className="col-span-7">
+                    <div className="order-1 lg:order-2 lg:col-span-7 h-[500px] lg:h-full">
                         <div className="h-full rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 flex flex-col">
                             {/* Chart Header */}
                             <div className="flex items-center justify-between mb-4">
@@ -381,7 +381,7 @@ export default function TerminalView({
                     </div>
 
                     {/* Right Panel: Intelligence */}
-                    <div className="col-span-3 overflow-y-auto">
+                    <div className="order-2 lg:order-3 lg:col-span-3 overflow-y-auto min-h-[400px] lg:min-h-0">
                         <IntelligencePanel
                             symbol={symbol}
                             regime={regime}

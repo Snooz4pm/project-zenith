@@ -165,8 +165,8 @@ export default function FinalExam({ pathId, onComplete }: FinalExamProps) {
                             {question.skillArea}
                         </span>
                         <span className={`px-2 py-0.5 rounded text-xs ${question.difficulty === 'hard'
-                                ? 'bg-red-500/20 text-red-400'
-                                : 'bg-amber-500/20 text-amber-400'
+                            ? 'bg-red-500/20 text-red-400'
+                            : 'bg-amber-500/20 text-amber-400'
                             }`}>
                             {question.difficulty.toUpperCase()}
                         </span>
@@ -202,8 +202,8 @@ export default function FinalExam({ pathId, onComplete }: FinalExamProps) {
                                     key={idx}
                                     onClick={() => handleSelectAnswer(question.id, letter)}
                                     className={`w-full p-4 text-left rounded-xl border transition-all ${isSelected
-                                            ? 'bg-[var(--accent-mint)]/10 border-[var(--accent-mint)]/50 text-white'
-                                            : 'bg-white/5 border-white/10 text-zinc-300 hover:bg-white/10 hover:border-white/20'
+                                        ? 'bg-[var(--accent-mint)]/10 border-[var(--accent-mint)]/50 text-white'
+                                        : 'bg-white/5 border-white/10 text-zinc-300 hover:bg-white/10 hover:border-white/20'
                                         }`}
                                 >
                                     <span className="font-mono text-sm text-zinc-500 mr-3">{letter.toUpperCase()}.</span>
@@ -225,16 +225,16 @@ export default function FinalExam({ pathId, onComplete }: FinalExamProps) {
                         Previous
                     </button>
 
-                    <div className="flex items-center gap-2">
+                    <div className="hidden md:flex items-center gap-2">
                         {examConfig.questions.map((_, idx) => (
                             <button
                                 key={idx}
                                 onClick={() => setCurrentQuestion(idx)}
                                 className={`w-3 h-3 rounded-full transition-colors ${answers[examConfig.questions[idx].id]
-                                        ? 'bg-[var(--accent-mint)]'
-                                        : idx === currentQuestion
-                                            ? 'bg-white'
-                                            : 'bg-white/20'
+                                    ? 'bg-[var(--accent-mint)]'
+                                    : idx === currentQuestion
+                                        ? 'bg-white'
+                                        : 'bg-white/20'
                                     }`}
                             />
                         ))}
@@ -365,10 +365,10 @@ export default function FinalExam({ pathId, onComplete }: FinalExamProps) {
                                 <div
                                     key={idx}
                                     className={`p-4 rounded-xl border ${isCorrectAnswer
-                                            ? 'bg-emerald-500/10 border-emerald-500/50'
-                                            : isUserAnswer && !isCorrect
-                                                ? 'bg-red-500/10 border-red-500/50'
-                                                : 'bg-white/5 border-white/10'
+                                        ? 'bg-emerald-500/10 border-emerald-500/50'
+                                        : isUserAnswer && !isCorrect
+                                            ? 'bg-red-500/10 border-red-500/50'
+                                            : 'bg-white/5 border-white/10'
                                         }`}
                                 >
                                     <span className="font-mono text-sm text-zinc-500 mr-3">{letter.toUpperCase()}.</span>

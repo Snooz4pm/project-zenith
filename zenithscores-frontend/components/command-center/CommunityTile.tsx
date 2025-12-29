@@ -27,12 +27,13 @@ export default function CommunityTile({ onClick }: CommunityTileProps) {
                     setUnreadCount(data.unreadCount || 0);
                 }
             } catch (error) {
-                // Use mock data
+                // Use realistic mock data for demo if API fails
                 setNotifications([
-                    { type: 'mention', message: '@joe: "Nice trade!"' },
-                    { type: 'like', message: '2 likes on your post' },
+                    { type: 'mention', message: '@SarahK: "What do you think of $BTC here?"' },
+                    { type: 'like', message: 'AlexT liked your $NVDA setup' },
+                    { type: 'follow', message: 'Variables.Eth started following you' },
                 ]);
-                setUnreadCount(3);
+                setUnreadCount(5);
             }
         };
         fetchNotifications();

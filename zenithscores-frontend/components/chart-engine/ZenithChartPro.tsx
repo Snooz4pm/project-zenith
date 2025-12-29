@@ -152,7 +152,7 @@ export default function ZenithChartPro({
     const [isDragging, setIsDragging] = useState(false);
     const [lastMouse, setLastMouse] = useState<{ x: number, y: number } | null>(null);
     const [crosshairPos, setCrosshairPos] = useState<{ x: number; y: number; price: number; time: Date | null } | null>(null);
-    const [showIndicatorsPanel, setShowIndicatorsPanel] = useState(true);
+    const [showIndicatorsPanel, setShowIndicatorsPanel] = useState(false); // Default hidden as per user request
     const [showDrawingToolbar, setShowDrawingToolbar] = useState(true);
 
     // Alert system state

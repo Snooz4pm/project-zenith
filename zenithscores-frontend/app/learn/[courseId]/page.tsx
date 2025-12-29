@@ -30,9 +30,14 @@ import {
     Layers,
     Cpu,
     Unlink,
-    Maximize2
+    Maximize2,
+    Menu,
+    XIcon as CloseIcon
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Dialog, Transition } from '@headlessui/react';
+import { Fragment } from 'react';
+
 
 // Mock Course Data Structure
 const COURSES_REGISTRY: Record<string, any> = {
@@ -149,6 +154,7 @@ export default function CoursePage({ params }: { params: { courseId: string } })
 
     const [activeModule, setActiveModule] = useState(0);
     const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [readingProgress, setReadingProgress] = useState(0);
 
     const { data: session } = useSession();
@@ -173,8 +179,6 @@ export default function CoursePage({ params }: { params: { courseId: string } })
                 const progressData = await getSingleCourseProgress(session.user.id, courseId);
 
                 if (isMounted && progressData) {
-                    // Logic: If lastModuleCompleted is found, we assume all previous are done 
-                    // tailored to the "Linear Progression" model for this institutional course.
                     if (progressData.lastModuleCompleted) {
                         const modules = course.modules || [];
                         const lastIndex = modules.findIndex((m: any) => m.id === progressData.lastModuleCompleted);
@@ -182,7 +186,6 @@ export default function CoursePage({ params }: { params: { courseId: string } })
                         if (lastIndex !== -1) {
                             const done = modules.slice(0, lastIndex + 1).map((m: any) => m.id);
                             setCompletedModules(done);
-                            // Auto-navigate to next unfinished module if not done
                             if (!progressData.completed && lastIndex + 1 < modules.length) {
                                 setActiveModule(lastIndex + 1);
                             } else {
@@ -206,18 +209,13 @@ export default function CoursePage({ params }: { params: { courseId: string } })
     const handleCompleteModule = async (moduleId: string, moduleIndex: number) => {
         if (!session?.user?.id) return;
 
-        // Optimistic Update
         const newCompleted = [...new Set([...completedModules, moduleId])];
         setCompletedModules(newCompleted);
 
-        // Calculate stats
         const totalModules = course.modules.length;
-        const currentProgressCount = newCompleted.length; // Approximation or strictly index based
-        // For linear course, we use index
         const progressPercent = Math.min(100, Math.round(((moduleIndex + 1) / totalModules) * 100));
         const isCourseComplete = progressPercent === 100;
 
-        // Persist
         await saveCourseProgress(
             session.user.id,
             courseId,
@@ -226,7 +224,6 @@ export default function CoursePage({ params }: { params: { courseId: string } })
             isCourseComplete
         );
 
-        // Auto-advance after small delay for UX
         if (moduleIndex < totalModules - 1) {
             setTimeout(() => setActiveModule(moduleIndex + 1), 800);
         }
@@ -267,6 +264,95 @@ export default function CoursePage({ params }: { params: { courseId: string } })
     return (
         <div className="min-h-screen bg-[#0a0a0c] text-zinc-300 font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
 
+            {/* Mobile Sidebar (Drawer) */}
+            <Transition.Root show={mobileMenuOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-50 lg:hidden" onClose={setMobileMenuOpen}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="transition-opacity ease-linear duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="transition-opacity ease-linear duration-300"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black/80" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 flex">
+                        <Transition.Child
+                            as={Fragment}
+                            enter="transition ease-in-out duration-300 transform"
+                            enterFrom="-translate-x-full"
+                            enterTo="translate-x-0"
+                            leave="transition ease-in-out duration-300 transform"
+                            leaveFrom="translate-x-0"
+                            leaveTo="-translate-x-full"
+                        >
+                            <Dialog.Panel className="relative mr-16 flex w-full max-w-xs flex-1">
+                                <Transition.Child
+                                    as={Fragment}
+                                    enter="ease-in-out duration-300"
+                                    enterFrom="opacity-0"
+                                    enterTo="opacity-100"
+                                    leave="ease-in-out duration-300"
+                                    leaveFrom="opacity-100"
+                                    leaveTo="opacity-0"
+                                >
+                                    <div className="absolute left-full top-0 flex w-16 justify-center pt-5">
+                                        <button type="button" className="-m-2.5 p-2.5" onClick={() => setMobileMenuOpen(false)}>
+                                            <span className="sr-only">Close sidebar</span>
+                                            <CloseIcon className="h-6 w-6 text-white" aria-hidden="true" />
+                                        </button>
+                                    </div>
+                                </Transition.Child>
+                                {/* Sidebar Component for Mobile */}
+                                <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-[#0a0a0c] px-6 pb-4 ring-1 ring-white/10">
+                                    <div className="flex h-16 shrink-0 items-center">
+                                        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">
+                                            Course Structure
+                                        </div>
+                                    </div>
+                                    <nav className="flex flex-1 flex-col">
+                                        <ul role="list" className="flex flex-1 flex-col gap-y-7">
+                                            <li>
+                                                <ul role="list" className="-mx-2 space-y-1">
+                                                    {course.modules.map((mod: any, idx: number) => {
+                                                        const isCompleted = completedModules.includes(mod.id);
+                                                        const isActive = activeModule === idx;
+                                                        return (
+                                                            <li key={mod.id}>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setActiveModule(idx);
+                                                                        setMobileMenuOpen(false);
+                                                                    }}
+                                                                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group ${isActive ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5 border border-transparent'}`}
+                                                                >
+                                                                    <div className="flex items-center gap-3 overflow-hidden">
+                                                                        <span className={`${isActive ? 'text-emerald-400' : isCompleted ? 'text-emerald-500/50' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
+                                                                            {isCompleted ? <CheckCircle className="w-4 h-4" /> : mod.icon}
+                                                                        </span>
+                                                                        <span className="truncate">{mod.title}</span>
+                                                                    </div>
+                                                                    {isCompleted && !isActive && (
+                                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" />
+                                                                    )}
+                                                                </button>
+                                                            </li>
+                                                        );
+                                                    })}
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    </nav>
+                                </div>
+                            </Dialog.Panel>
+                        </Transition.Child>
+                    </div>
+                </Dialog>
+            </Transition.Root>
+
             {/* Progress Bar */}
             <div className="fixed top-0 left-0 w-full h-1 z-50 bg-zinc-900">
                 <motion.div
@@ -276,17 +362,27 @@ export default function CoursePage({ params }: { params: { courseId: string } })
             </div>
 
             {/* Header */}
-            <header className="h-16 border-b border-white/5 bg-[#0a0a0c]/80 backdrop-blur-xl sticky top-0 z-40 px-6 flex items-center justify-between">
-                <div className="flex items-center gap-4">
+            <header className="h-16 border-b border-white/5 bg-[#0a0a0c]/80 backdrop-blur-xl sticky top-0 z-40 px-4 md:px-6 flex items-center justify-between">
+                <div className="flex items-center gap-3 md:gap-4">
+                    {/* Mobile Menu Button */}
+                    <button
+                        type="button"
+                        className="-m-2.5 p-2.5 text-zinc-400 lg:hidden"
+                        onClick={() => setMobileMenuOpen(true)}
+                    >
+                        <span className="sr-only">Open sidebar</span>
+                        <Menu className="h-6 w-6" aria-hidden="true" />
+                    </button>
+
                     <button
                         onClick={() => router.back()}
-                        className="p-2 hover:bg-white/5 rounded-lg text-zinc-500 hover:text-white transition-all"
+                        className="hidden md:flex p-2 hover:bg-white/5 rounded-lg text-zinc-500 hover:text-white transition-all"
                     >
                         <ChevronLeft className="w-5 h-5" />
                     </button>
-                    <div className="h-4 w-[1px] bg-white/10" />
-                    <h1 className="text-sm font-bold tracking-tight text-white uppercase font-display">
-                        {course.title} <span className="text-zinc-500 font-normal ml-2">/ {course.level}</span>
+                    <div className="hidden md:block h-4 w-[1px] bg-white/10" />
+                    <h1 className="text-sm font-bold tracking-tight text-white uppercase font-display truncate max-w-[200px] md:max-w-none">
+                        {course.title} <span className="hidden md:inline text-zinc-500 font-normal ml-2">/ {course.level}</span>
                     </h1>
                 </div>
 
@@ -303,9 +399,9 @@ export default function CoursePage({ params }: { params: { courseId: string } })
             </header>
 
             <div className="flex">
-                {/* Sidebar Navigation */}
+                {/* Desktop Sidebar Navigation */}
                 <aside
-                    className={`fixed left-0 top-16 bottom-0 z-30 bg-[#0a0a0c] border-r border-white/5 transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-72' : 'w-0 overflow-hidden'}`}
+                    className={`hidden lg:block fixed left-0 top-16 bottom-0 z-30 bg-[#0a0a0c] border-r border-white/5 transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-72' : 'w-0 overflow-hidden'}`}
                 >
                     <nav className="p-4 h-full overflow-y-auto space-y-1">
                         <div className="px-3 py-2 text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-2">
@@ -337,7 +433,7 @@ export default function CoursePage({ params }: { params: { courseId: string } })
                 </aside>
 
                 {/* Main Content Area */}
-                <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-72' : 'ml-0'}`}>
+                <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'lg:ml-72' : 'lg:ml-0'} ml-0`}>
                     <div className="max-w-4xl mx-auto px-8 md:px-16 py-12 md:py-20 lg:py-24">
                         {renderContent()}
 
@@ -403,7 +499,7 @@ export default function CoursePage({ params }: { params: { courseId: string } })
             {/* Floating Sidebar Toggle */}
             <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="fixed bottom-8 left-8 p-3 rounded-full bg-[#121214] border border-white/10 text-zinc-400 hover:text-white shadow-2xl z-50 hover:scale-110 transition-all"
+                className="hidden lg:block fixed bottom-8 left-8 p-3 rounded-full bg-[#121214] border border-white/10 text-zinc-400 hover:text-white shadow-2xl z-50 hover:scale-110 transition-all"
             >
                 <SidebarIcon size={20} />
             </button>

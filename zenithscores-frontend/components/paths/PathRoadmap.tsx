@@ -73,14 +73,14 @@ export default function PathRoadmap({ pathId }: PathRoadmapProps) {
                 <span>Back to Dashboard</span>
             </button>
 
-            <div className={`rounded-3xl p-8 md:p-12 mb-12 bg-gradient-to-br ${content.startColor} ${content.endColor} relative overflow-hidden`}>
+            <div className={`rounded-3xl p-6 md:p-12 mb-8 md:mb-12 bg-gradient-to-br ${content.startColor} ${content.endColor} relative overflow-hidden`}>
                 <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start">
                     <div className="p-6 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
                         <Icon size={48} className="text-white" />
                     </div>
                     <div>
                         <div className="text-sm font-bold text-white/80 uppercase tracking-widest mb-2">Career Roadmap</div>
-                        <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">{content.name}</h1>
+                        <h1 className="text-3xl md:text-5xl font-bold text-white mb-4">{content.name}</h1>
                         <p className="text-xl text-white/90 max-w-2xl leading-relaxed">{content.tagline}</p>
 
                         {examPassed && (
@@ -136,22 +136,24 @@ export default function PathRoadmap({ pathId }: PathRoadmapProps) {
                         </div>
 
                         <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-                            <div className="grid grid-cols-12 gap-4 p-4 border-b border-white/10 bg-white/5 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                            <div className="hidden md:grid grid-cols-12 gap-4 p-4 border-b border-white/10 bg-white/5 text-xs font-bold text-gray-500 uppercase tracking-wider">
                                 <div className="col-span-4">Required Skill</div>
                                 <div className="col-span-6">Training Component</div>
                                 <div className="col-span-2 text-center">Status</div>
                             </div>
 
                             {content.deepDive.skills.map((skill, idx) => (
-                                <div key={idx} className="grid grid-cols-12 gap-4 p-5 border-b border-white/5 items-center hover:bg-white/5 transition-colors">
-                                    <div className="col-span-4 font-medium text-white">
+                                <div key={idx} className="flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4 p-4 md:p-5 border-b border-white/5 md:items-center hover:bg-white/5 transition-colors">
+                                    <div className="md:col-span-4 font-medium text-white text-sm md:text-base">
+                                        <span className="md:hidden text-xs text-gray-500 uppercase block mb-1">Skill</span>
                                         {skill.name}
                                     </div>
-                                    <div className="col-span-6 flex items-center gap-2">
-                                        <BookOpen size={14} className="text-gray-500" />
+                                    <div className="md:col-span-6 flex items-center gap-2">
+                                        <BookOpen size={14} className="text-gray-500 shrink-0" />
                                         <span className="text-sm text-gray-300">{skill.module}</span>
                                     </div>
-                                    <div className="col-span-2 flex justify-center">
+                                    <div className="md:col-span-2 flex items-center md:justify-center gap-2 md:gap-0 mt-2 md:mt-0">
+                                        <span className="md:hidden text-xs text-gray-500 uppercase mr-auto">Status</span>
                                         {/* Placeholder status - would be connected to real user progress later */}
                                         <Lock size={16} className="text-gray-600" />
                                     </div>

@@ -108,6 +108,39 @@ export default function TradingPage() {
         setIsExecuting(false);
     };
 
+    const handleClosePosition = async (pos: any) => {
+        if (!authSession?.user?.id || !confirm(`Are you sure you want to CLOSE your position in ${pos.symbol}?`)) return;
+
+        setIsExecuting(true);
+        try {
+            // Fetch latest price for execution
+            const assetType = pos.assetType || 'CRYPTO'; // Fallback if type not stored, usually crypto in this demo
+            const liveData = await fetchLivePrice(pos.symbol, assetType);
+            const price = liveData?.price || pos.currentPrice || pos.avgEntryPrice; // Best effort price
+
+            const res = await executeTrade(
+                authSession.user.id,
+                pos.symbol,
+                'SELL', // Closing a long position means selling
+                pos.quantity,
+                price
+            );
+
+            if (res.success) {
+                setTradeSuccess(`Closed position ${pos.symbol}`);
+                setTimeout(() => setTradeSuccess(null), 3000);
+                await refreshPortfolio();
+            } else {
+                alert(res.error || "Failed to close position");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error closing position");
+        } finally {
+            setIsExecuting(false);
+        }
+    };
+
     const handleReset = async () => {
         if (!authSession?.user?.id) return;
         if (confirm("Reset account to $50,000? History will be wiped.")) {
@@ -306,9 +339,16 @@ export default function TradingPage() {
                                             </div>
                                             <div className="text-right">
                                                 <div className="font-bold text-white">{formatCurrency(value)}</div>
-                                                <div className={`text-xs font-bold ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                <div className={`text-xs font-bold ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'} mb-1`}>
                                                     {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)} ({!isNaN(pnlPercent) ? pnlPercent.toFixed(2) : '0.00'}%)
                                                 </div>
+                                                <button
+                                                    onClick={() => handleClosePosition(pos)}
+                                                    disabled={isExecuting}
+                                                    className="px-2 py-1 bg-white/5 hover:bg-red-500/20 text-xs text-zinc-400 hover:text-red-400 rounded border border-white/5 hover:border-red-500/30 transition-all font-medium"
+                                                >
+                                                    Close
+                                                </button>
                                             </div>
                                         </div>
                                     );

@@ -77,7 +77,7 @@ export default function CommandCenterPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[var(--void)] text-[var(--text-primary)] flex flex-col h-screen overflow-hidden">
+        <div className="min-h-screen bg-[var(--void)] text-[var(--text-primary)] flex flex-col md:h-screen md:overflow-hidden">
 
             {/* Background Atmosphere */}
             <div className="absolute inset-0 pointer-events-none z-0">
@@ -111,8 +111,8 @@ export default function CommandCenterPage() {
             </header>
 
             {/* Bento Grid layout */}
-            <main className="flex-1 p-6 relative z-10 overflow-y-auto">
-                <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-4 max-w-7xl mx-auto h-[calc(100vh-8rem)]">
+            <main className="flex-1 p-4 md:p-6 relative z-10 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-4 max-w-7xl mx-auto h-auto md:h-[calc(100vh-8rem)] pb-20 md:pb-0">
                     {/* Row 1: Hero Zone (Top Left & Center) */}
                     <div className="md:col-span-2 md:row-span-2">
                         <ActiveTradesTile onClick={() => handleTileClick('trades')} />
@@ -146,7 +146,7 @@ export default function CommandCenterPage() {
             </main>
 
             {/* Quick Actions Bar */}
-            <footer className="h-16 px-6 border-t border-[rgba(255,255,255,0.05)] bg-[rgba(0,0,0,0.6)] backdrop-blur-md flex items-center justify-center shrink-0 relative z-20">
+            <footer className="fixed bottom-0 left-0 right-0 md:static h-16 px-6 border-t border-[rgba(255,255,255,0.05)] bg-[rgba(0,0,0,0.8)] md:bg-[rgba(0,0,0,0.6)] backdrop-blur-md flex items-center justify-center shrink-0 relative z-50">
                 <div className="flex gap-4">
                     {quickActions.map((action, index) => (
                         <button
