@@ -265,6 +265,16 @@ export default function ProfilePage() {
                                     <Shield className="text-emerald-400" size={16} />
                                     <span className="text-sm text-gray-300">Google Account</span>
                                 </div>
+
+                                {/* View Public Profile */}
+                                <a
+                                    href={`/user/${session.user?.id}`}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-cyan-500/10 text-cyan-400 rounded-lg hover:bg-cyan-500/20 transition-colors"
+                                >
+                                    <ArrowUpRight size={16} />
+                                    View Public Profile
+                                </a>
+
                                 <button
                                     onClick={() => signOut({ callbackUrl: '/' })}
                                     className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors"
