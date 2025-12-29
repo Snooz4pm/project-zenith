@@ -12,7 +12,7 @@ export async function GET() {
         }
 
         // Get user's course progress
-        const progress = await prisma.courseProgress.findFirst({
+        const progress = await prisma.userCourseProgress.findFirst({
             where: {
                 userId: session.user.id,
                 completed: false
@@ -33,7 +33,7 @@ export async function GET() {
         }
 
         // Check for any completed courses
-        const completedCount = await prisma.courseProgress.count({
+        const completedCount = await prisma.userCourseProgress.count({
             where: {
                 userId: session.user.id,
                 completed: true
