@@ -35,7 +35,7 @@ export default function CreateRoomPage() {
   }) {
     try {
       const room = await createRoom(session.user.id, data);
-      router.push(\`/community/rooms/\${room.slug}\`);
+      router.push(`/community/rooms/${room.slug}`);
     } catch (error: any) {
       throw error;
     }
