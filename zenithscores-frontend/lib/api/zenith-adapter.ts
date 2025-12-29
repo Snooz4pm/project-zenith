@@ -55,8 +55,8 @@ async function getRealPrice(symbol: string, market: MarketType): Promise<{ price
 }
 
 /**
- * Generate synthetic OHLCV from current price (for chart display)
- * This is temporary until we have historical data API
+ * Generate synthetic OHLCV from current price (FALLBACK ONLY)
+ * Used when real historical data API fails or returns empty
  */
 function generateOHLCVFromPrice(price: number, days: number = 30): OHLCV[] {
     const data: OHLCV[] = [];
@@ -116,8 +116,23 @@ export async function fetchAssetSnapshot(
         return null;
     }
 
-    // Generate OHLCV based on real current price
-    const ohlcv = generateOHLCVFromPrice(priceData.price, 30);
+    // Fetch REAL historical OHLCV data from market-data resolver
+    let ohlcv: OHLCV[] = [];
+    try {
+        const ohlcvResponse = await getOHLCV(symbol, '1D', '1M', market as any);
+        if (ohlcvResponse.data && ohlcvResponse.data.length > 0) {
+            ohlcv = ohlcvResponse.data;
+            console.log(`[zenith-adapter] ${symbol}: Fetched ${ohlcv.length} real candles from ${ohlcvResponse.provider}`);
+        } else {
+            // Fallback to generated data if API returns empty
+            ohlcv = generateOHLCVFromPrice(priceData.price, 30);
+            console.log(`[zenith-adapter] ${symbol}: Using generated OHLCV (no historical data)`);
+        }
+    } catch (error) {
+        console.warn(`[zenith-adapter] ${symbol}: OHLCV fetch failed, using generated data`, error);
+        ohlcv = generateOHLCVFromPrice(priceData.price, 30);
+    }
+
     const convictionScore = getConvictionScore(symbol);
 
     // v2 Derived (from OHLCV)
