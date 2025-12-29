@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Newspaper, Book, Users, Mail } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Newspaper, Book, Users, Mail, Settings } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import NotificationBell from '@/components/community/NotificationBell';
 
@@ -175,18 +175,63 @@ export default function Navbar() {
                 {/* Notification Bell */}
                 <NotificationBell />
 
-                <div className="flex items-center gap-3 px-4 py-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)]">
-                  <div className="w-2 h-2 rounded-full bg-[var(--accent-mint)] animate-pulse" />
-                  <span className="text-sm text-[var(--text-secondary)]" style={{ fontFamily: "var(--font-body)" }}>
-                    {session.user?.name || 'Operator'}
-                  </span>
-                </div>
-                <button
-                  onClick={() => signOut()}
-                  className="w-10 h-10 flex items-center justify-center rounded-full text-[var(--text-muted)] hover:text-[var(--accent-danger)] hover:bg-[rgba(239,68,68,0.1)] transition-all"
+                {/* User Menu Dropdown */}
+                <div
+                  className="relative"
+                  onMouseLeave={() => setActiveDropdown(null)}
                 >
-                  <LogOut size={18} />
-                </button>
+                  <button
+                    className="flex items-center gap-3 px-4 py-2 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)] hover:border-[var(--accent-mint)] transition-all"
+                    onClick={() => setActiveDropdown(activeDropdown === 'user' ? null : 'user')}
+                  >
+                    {session.user?.image ? (
+                      <img src={session.user.image} alt={session.user.name || 'User'} className="w-6 h-6 rounded-full" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-[var(--accent-mint)]/20 text-[var(--accent-mint)] flex items-center justify-center text-xs font-bold">
+                        {session.user?.name?.[0]?.toUpperCase() || 'U'}
+                      </div>
+                    )}
+                    <span className="text-sm text-[var(--text-secondary)]" style={{ fontFamily: "var(--font-body)" }}>
+                      {session.user?.name || 'Operator'}
+                    </span>
+                    <ChevronDown size={12} className={`text-zinc-500 transition-transform ${activeDropdown === 'user' ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  <div className={`absolute top-full right-0 mt-2 w-56 p-2 rounded-xl glass-panel origin-top-right transition-all duration-200 ${activeDropdown === 'user' ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'
+                    }`}>
+                    <Link
+                      href={`/user/${session.user?.id}`}
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[rgba(255,255,255,0.03)] transition-colors group/item"
+                      onClick={() => setActiveDropdown(null)}
+                    >
+                      <User size={16} className="text-[var(--accent-mint)]" />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-white group-hover/item:text-[var(--accent-mint)] transition-colors">Public Profile</div>
+                        <div className="text-xs text-[var(--text-muted)]">View your profile</div>
+                      </div>
+                    </Link>
+
+                    <Link
+                      href="/profile"
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[rgba(255,255,255,0.03)] transition-colors group/item"
+                      onClick={() => setActiveDropdown(null)}
+                    >
+                      <Settings size={16} className="text-zinc-400 group-hover/item:text-white transition-colors" />
+                      <div className="text-sm text-white">Settings</div>
+                    </Link>
+
+                    <div className="my-2 h-px bg-white/5" />
+
+                    <button
+                      onClick={() => signOut()}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[rgba(239,68,68,0.1)] transition-colors text-left group/item"
+                    >
+                      <LogOut size={16} className="text-[var(--accent-danger)]" />
+                      <div className="text-sm text-[var(--accent-danger)] group-hover/item:text-red-400 transition-colors">Sign Out</div>
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="hidden md:flex items-center gap-4">
