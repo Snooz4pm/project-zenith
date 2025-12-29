@@ -14,17 +14,31 @@ import { getUserJournals, deleteJournal } from '@/lib/actions/notebook'; // We'l
 export default function NotebookPage() {
     const { data: session } = useSession();
     const [journals, setJournals] = useState<any[]>([]);
+    const [notes, setNotes] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        async function fetchDocs() {
+        async function fetchData() {
             if (session?.user?.id) {
-                const data = await getUserJournals(session.user.id);
-                setJournals(data);
+                // Fetch journals
+                const journalData = await getUserJournals(session.user.id);
+                setJournals(journalData);
+
+                // Fetch course notes
+                try {
+                    const notesResponse = await fetch('/api/notes');
+                    if (notesResponse.ok) {
+                        const notesData = await notesResponse.json();
+                        setNotes(notesData.data || []);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch notes:', error);
+                }
+
                 setIsLoading(false);
             }
         }
-        fetchDocs();
+        fetchData();
     }, [session]);
 
     return (
@@ -50,8 +64,56 @@ export default function NotebookPage() {
             {/* Main Grid */}
             <main className="max-w-7xl mx-auto px-6 py-12">
 
+                {/* Course Notes Section */}
+                {notes.length > 0 && (
+                    <div className="mb-12">
+                        <div className="flex items-center gap-3 mb-6">
+                            <Book className="w-5 h-5 text-blue-400" />
+                            <h2 className="text-lg font-bold text-white">Course Notes</h2>
+                            <span className="text-xs text-zinc-500">({notes.length})</span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {notes.map((note) => (
+                                <motion.div
+                                    key={note.id}
+                                    whileHover={{ y: -2 }}
+                                    className="p-5 rounded-xl bg-gradient-to-br from-blue-500/[0.05] to-transparent border border-blue-500/10 hover:border-blue-500/30 transition-all"
+                                >
+                                    <div className="text-[10px] font-mono text-zinc-500 mb-2">
+                                        {new Date(note.createdAt).toLocaleDateString()} · {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                    {note.asset && (
+                                        <div className="inline-block px-2 py-0.5 rounded bg-blue-500/10 text-[10px] font-mono text-blue-400 border border-blue-500/20 mb-3">
+                                            {note.asset.replace('COURSE-', '')}
+                                        </div>
+                                    )}
+                                    <div className="text-sm text-zinc-300 line-clamp-4 whitespace-pre-wrap">
+                                        {note.content}
+                                    </div>
+                                    {note.phase && (
+                                        <div className="mt-3 text-xs text-zinc-500">
+                                            {note.phase}
+                                        </div>
+                                    )}
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Trading Journals Section */}
+                {journals.length > 0 && (
+                    <div className="mb-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <Terminal className="w-5 h-5 text-emerald-400" />
+                            <h2 className="text-lg font-bold text-white">Trading Journals</h2>
+                            <span className="text-xs text-zinc-500">({journals.length})</span>
+                        </div>
+                    </div>
+                )}
+
                 {/* Empty State */}
-                {!isLoading && journals.length === 0 && (
+                {!isLoading && journals.length === 0 && notes.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-24 border border-dashed border-white/10 rounded-2xl bg-white/[0.02]">
                         <Terminal className="w-12 h-12 text-zinc-700 mb-4" />
                         <h3 className="text-lg font-bold text-white mb-2">No Flight Logs Found</h3>
