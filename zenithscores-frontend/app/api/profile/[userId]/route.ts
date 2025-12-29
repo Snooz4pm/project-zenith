@@ -33,23 +33,38 @@ export async function GET(
             );
         }
 
-        // Fetch user profile info
-        const profile = await prisma.user_profiles.findUnique({
-            where: { user_id: userId }
-        });
+        // Fetch user profile info - wrap in try-catch
+        let profile = null;
+        try {
+            profile = await prisma.user_profiles.findUnique({
+                where: { user_id: userId }
+            });
+        } catch (e) {
+            console.log('[PROFILE API] user_profiles not available:', e);
+        }
 
-        // Fetch badges
-        const badges = await prisma.user_badges.findMany({
-            where: { user_id: userId }
-        });
+        // Fetch badges - wrap in try-catch
+        let badges: any[] = [];
+        try {
+            badges = await prisma.user_badges.findMany({
+                where: { user_id: userId }
+            });
+        } catch (e) {
+            console.log('[PROFILE API] user_badges not available:', e);
+        }
 
-        // Count completed courses
-        const coursesCompleted = await prisma.userCourseProgress.count({
-            where: {
-                userId: userId,
-                completed: true
-            }
-        });
+        // Count completed courses - wrap in try-catch in case model doesn't exist
+        let coursesCompleted = 0;
+        try {
+            coursesCompleted = await prisma.userCourseProgress.count({
+                where: {
+                    userId: userId,
+                    completed: true
+                }
+            });
+        } catch (e) {
+            console.log('[PROFILE API] UserCourseProgress model not available:', e);
+        }
 
         const publicProfile = {
             id: user.id,
