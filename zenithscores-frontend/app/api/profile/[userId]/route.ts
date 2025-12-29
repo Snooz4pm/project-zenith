@@ -22,8 +22,6 @@ export async function GET(
                 name: true,
                 email: true,
                 image: true,
-                emailVerified: true,
-                createdAt: true,
             }
         });
 
@@ -42,10 +40,7 @@ export async function GET(
 
         // Fetch badges
         const badges = await prisma.user_badges.findMany({
-            where: { user_id: userId },
-            include: {
-                badge: true
-            }
+            where: { user_id: userId }
         });
 
         // Count completed courses
@@ -60,16 +55,11 @@ export async function GET(
             id: user.id,
             name: user.name,
             image: user.image,
-            createdAt: user.createdAt,
             bio: profile?.bio || null,
             careerPath: profile?.career_path || null,
             experienceLevel: profile?.experience_level || 'beginner',
             badges: badges.map(b => ({
-                id: b.badge.id,
-                name: b.badge.name,
-                icon: b.badge.icon,
-                category: b.badge.category,
-                rarity: b.badge.rarity,
+                id: b.badge_id,
                 earnedAt: b.earned_at
             })),
             coursesCompleted,
