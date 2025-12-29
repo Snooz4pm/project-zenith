@@ -336,18 +336,6 @@ export default function TerminalView({
                                         </span>
                                     )}
                                 </div>
-
-                                {/* Indicators legend */}
-                                <div className="flex items-center gap-2 text-[10px] text-gray-500">
-                                    <div className="flex items-center gap-1">
-                                        <div className="w-3 h-0.5 bg-[#00d4ff]" />
-                                        <span>EMA 20</span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                        <div className="w-3 h-0.5 bg-[#ff6b35]" />
-                                        <span>EMA 50</span>
-                                    </div>
-                                </div>
                             </div>
 
                             {/* Chart */}

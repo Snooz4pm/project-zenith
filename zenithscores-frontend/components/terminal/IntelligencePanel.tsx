@@ -143,10 +143,6 @@ export default function IntelligencePanel({
                                 {regimeDisplay.label}
                             </span>
                         </div>
-                        <div className="text-right">
-                            <div className="text-2xl font-bold text-white">{convictionScore}</div>
-                            <div className="text-[10px] text-gray-500 uppercase">Score</div>
-                        </div>
                     </div>
                     {/* Deep Dive Button */}
                     {onDeepDive && (
