@@ -470,20 +470,6 @@ export default function CoursePage({ params }: { params: { courseId: string } })
                 {/* Right Rail Insights */}
                 <aside className="hidden xl:block w-80 bg-[#0a0a0c] border-l border-white/5 p-8 overflow-y-auto sticky top-16 h-[calc(100vh-4rem)]">
                     <div className="space-y-8">
-                        <div>
-                            <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Core Concepts</h4>
-                            <div className="space-y-4">
-                                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                                    <div className="text-[10px] text-zinc-500 mb-1">LIQUIDITY</div>
-                                    <p className="text-xs text-zinc-400 leading-snug">The ability to buy or sell an asset without causing significant price movement.</p>
-                                </div>
-                                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                                    <div className="text-[10px] text-zinc-500 mb-1">SLIPPAGE</div>
-                                    <p className="text-xs text-zinc-400 leading-snug">The difference between the expected price of a trade and the price at which it's executed.</p>
-                                </div>
-                            </div>
-                        </div>
-
                         <div className="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
                             <h4 className="text-xs font-bold text-emerald-400 mb-2 flex items-center gap-2">
                                 <Info size={14} /> Analyst Tip
