@@ -1,33 +1,52 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { User, Trophy, TrendingUp, BookOpen, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 
 export default function PublicProfilePage() {
     const params = useParams();
+    const router = useRouter();
+    const { data: session, status } = useSession();
     const userId = params.userId as string;
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        // If viewing your own profile, redirect to /profile
+        if (status === 'authenticated' && session?.user?.id === userId) {
+            router.push('/profile');
+            return;
+        }
+
         async function fetchProfile() {
             try {
+                console.log('[PUBLIC PROFILE] Fetching for userId:', userId);
                 const res = await fetch(`/api/profile/${userId}`);
+                const data = await res.json();
+                console.log('[PUBLIC PROFILE] Response:', res.status, data);
+
                 if (res.ok) {
-                    const data = await res.json();
                     setProfile(data);
+                } else {
+                    setError(data.error || 'Failed to load profile');
                 }
-            } catch (error) {
-                console.error('Failed to fetch profile:', error);
+            } catch (err) {
+                console.error('[PUBLIC PROFILE] Error:', err);
+                setError('Network error');
             } finally {
                 setLoading(false);
             }
         }
-        fetchProfile();
-    }, [userId]);
+
+        if (userId && status !== 'loading') {
+            fetchProfile();
+        }
+    }, [userId, session, status, router]);
 
     if (loading) {
         return (
