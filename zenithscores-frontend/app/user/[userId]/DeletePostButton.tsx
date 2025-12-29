@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Trash2 } from 'lucide-react';
 import { deletePost } from '@/lib/actions/community';
 
-export default function DeletePostButton({ postId }: { postId: string }) {
+export default function DeletePostButton({ postId, userId }: { postId: string; userId: string }) {
     const [confirming, setConfirming] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const router = useRouter();
@@ -13,7 +13,7 @@ export default function DeletePostButton({ postId }: { postId: string }) {
     const handleDelete = async () => {
         setDeleting(true);
         try {
-            const result = await deletePost(postId);
+            const result = await deletePost(userId, postId);
             if (result.success) {
                 router.refresh();
             }

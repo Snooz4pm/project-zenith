@@ -1,6 +1,6 @@
 import { getPublicProfile } from '@/lib/actions/profile';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, MessageCircle, Calendar, Users, Edit2 } from 'lucide-react';
@@ -134,7 +134,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
                                                     >
                                                         <Edit2 size={14} />
                                                     </Link>
-                                                    <DeletePostButton postId={post.id} />
+                                                    <DeletePostButton postId={post.id} userId={session?.user?.id || ''} />
                                                 </div>
                                             )}
                                         </div>
