@@ -1241,6 +1241,8 @@ model DecisionScenario {
   // Explanations
   explanationSetup   String? @db.Text
   explanationOutcome String? @db.Text
+  decisionPrompt     String? @db.Text  // "Do you catch the knife?"
+  eventName          String? @db.VarChar(255) // "COVID-19 market panic"
   
   createdAt        DateTime @default(now()) @db.Timestamp(6)
   updatedAt        DateTime @default(now()) @updatedAt @db.Timestamp(6)
