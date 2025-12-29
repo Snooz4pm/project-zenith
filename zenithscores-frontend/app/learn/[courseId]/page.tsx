@@ -142,7 +142,7 @@ const CORE_CONCEPTS: Record<string, Array<{ term: string; definition: string; im
     ],
 };
 
-export default function CoursePage({ params }: { params: { courseId: string } }) {
+export default function CoursePage({ params }: { params: Promise<{ courseId: string }> }) {
     const router = useRouter();
     const [courseId, setCourseId] = useState('trading-fundamentals');
     const [course, setCourse] = useState(COURSES_REGISTRY['trading-fundamentals']);
@@ -155,14 +155,14 @@ export default function CoursePage({ params }: { params: { courseId: string } })
     const [isLoading, setIsLoading] = useState(true);
     const [completedModules, setCompletedModules] = useState<string[]>([]);
 
-    // Use params directly (Next.js 14 style)
+    // Resolve params promise
     useEffect(() => {
-        if (params?.courseId) {
-            const id = params.courseId;
+        params.then(resolvedParams => {
+            const id = resolvedParams.courseId;
             setCourseId(id);
             setCourse(COURSES_REGISTRY[id] || COURSES_REGISTRY['trading-fundamentals']);
-        }
-    }, [params?.courseId]);
+        });
+    }, [params]);
 
     // Hydrate progress from DB
     useEffect(() => {

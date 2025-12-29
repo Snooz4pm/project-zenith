@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatDistanceToNow, format } from 'date-fns';
 import { User, Send, ArrowLeft, MessageSquare, Smile, Link2, Inbox } from 'lucide-react';
+import PageLoader from '@/components/ui/PageLoader';
 import {
     getConversations,
     getMessages,
@@ -180,11 +181,7 @@ export default function InboxPage() {
     };
 
     if (status === 'loading' || isLoading) {
-        return (
-            <div className="min-h-screen bg-[var(--void)] flex items-center justify-center">
-                <div className="text-zinc-500">Loading...</div>
-            </div>
-        );
+        return <PageLoader pageName="Inbox" />;
     }
 
     return (
@@ -305,19 +302,6 @@ export default function InboxPage() {
                                                 Started from {activeConversation.contextType}
                                             </p>
                                         )}
-                                    </div>
-                                </div>
-
-                                {/* Safety Disclaimer - Always visible */}
-                                <div className="px-4 py-2 bg-amber-500/5 border-b border-amber-500/10">
-                                    <div className="flex items-start gap-2">
-                                        <span className="text-amber-500 text-xs mt-0.5">⚠️</span>
-                                        <div>
-                                            <p className="text-[10px] font-medium text-amber-400/80 uppercase tracking-wide">Safety Notice</p>
-                                            <p className="text-[11px] text-zinc-500 leading-relaxed mt-0.5">
-                                                Never share bank details, passwords, or private financial information. ZenithScores users should never request funds or offer investment opportunities. Report suspicious behavior immediately.
-                                            </p>
-                                        </div>
                                     </div>
                                 </div>
 

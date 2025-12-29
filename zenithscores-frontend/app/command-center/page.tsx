@@ -12,7 +12,6 @@ import LearningTile from '@/components/command-center/LearningTile';
 import NewsTile from '@/components/command-center/NewsTile';
 import NotebookTile from '@/components/command-center/NotebookTile';
 import NotesTile from '@/components/command-center/NotesTile';
-import HubTile from '@/components/command-center/HubTile';
 import SlideOutPanel from '@/components/command-center/SlideOutPanel';
 import { IntelligenceDrawer } from '@/components/intelligence';
 import { Bell, Settings, Zap, BarChart2, FileText, Users, BookOpen, Newspaper } from 'lucide-react';
@@ -130,15 +129,15 @@ export default function CommandCenterPage() {
                         <PerformanceTile onClick={() => handleTileClick('performance')} />
                     </div>
 
-                    {/* Row 3: Community, Learning, Hub */}
+                    {/* Row 3: Community & Learning */}
                     <div className="md:col-span-1 md:row-span-1">
                         <CommunityTile onClick={() => handleTileClick('community')} />
                     </div>
                     <div className="md:col-span-1 md:row-span-1">
-                        <HubTile />
+                        <LearningTile onClick={() => handleTileClick('learning')} />
                     </div>
                     <div className="md:col-span-1 md:row-span-1">
-                        <LearningTile onClick={() => handleTileClick('learning')} />
+                        <NotebookTile onClick={() => router.push('/notebook')} />
                     </div>
                     <div className="md:col-span-1 md:row-span-1">
                         <NewsTile onClick={() => handleTileClick('news')} />

@@ -10,6 +10,7 @@ import {
     CheckCircle, History, Zap, Bell, Heart, MessageCircle, FileText,
     BookOpen, Settings, Users, ArrowUpRight, Clock, LineChart
 } from 'lucide-react';
+import PageLoader from '@/components/ui/PageLoader';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
 
@@ -203,15 +204,9 @@ export default function ProfilePage() {
         setShowAdvancedNotes(true);
     };
 
-    // Not authenticated
+    // Loading state
     if (status === 'loading' || loading) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="text-2xl font-bold text-white/50 animate-pulse">Loading Profile...</div>
-                </div>
-            </div>
-        );
+        return <PageLoader pageName="Profile" />;
     }
 
     if (!session) {

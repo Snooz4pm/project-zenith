@@ -8,6 +8,7 @@ import PostCard from '@/components/community/PostCard';
 import CreatePostModal from '@/components/community/CreatePostModal';
 import RoomBrowser from '@/components/community/RoomBrowser';
 import { getPosts, createPost, deletePost, getOrCreateConversation } from '@/lib/actions/community';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface PostData {
     id: string;
@@ -110,11 +111,7 @@ export default function CommunityPage() {
         : posts.filter(p => p.postType === filter);
 
     if (status === 'loading' || isLoading) {
-        return (
-            <div className="min-h-screen bg-[var(--void)] flex items-center justify-center">
-                <div className="text-zinc-500">Loading...</div>
-            </div>
-        );
+        return <PageLoader pageName="Community" />;
     }
 
     return (
