@@ -21,6 +21,7 @@ import { computeFactorStack, computeScores } from '@/lib/analysis/factors';
 
 // REAL API imports
 import { fetchAssetPrice } from '@/lib/market/price-source';
+import { getOHLCV } from '@/lib/market-data/resolver';
 
 // ============================================
 // REAL PRICE FETCHERS
