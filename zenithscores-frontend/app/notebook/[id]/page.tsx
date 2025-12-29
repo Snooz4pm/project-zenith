@@ -4,16 +4,18 @@ import JournalEditor from '@/components/notebook/JournalEditor';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth'; // Assumptions on auth path
 
-export default async function JournalPage({ params }: { params: { id: string } }) {
+export default async function JournalPage({ params }: { params: Promise<{ id: string }> }) {
     const session: any = await getServerSession(authOptions as any);
 
     if (!session?.user?.email) {
         return <div>Access Denied</div>;
     }
 
+    const { id } = await params;
+
     // We verify ownership here for safety before passing data
     const journal = await (prisma as any).tradeJournal.findUnique({
-        where: { id: params.id },
+        where: { id },
     });
 
     if (!journal) {

@@ -118,10 +118,10 @@ import { saveCourseProgress, getSingleCourseProgress } from '@/lib/actions/learn
 import { useSession } from 'next-auth/react';
 import { CheckCircle } from 'lucide-react';
 
-export default function CoursePage({ params }: { params: { courseId: string } }) {
+export default function CoursePage({ params }: { params: Promise<{ courseId: string }> }) {
     const router = useRouter();
-    const courseId = params.courseId;
-    const course = COURSES_REGISTRY[courseId] || COURSES_REGISTRY['trading-fundamentals'];
+    const [courseId, setCourseId] = useState('trading-fundamentals');
+    const [course, setCourse] = useState(COURSES_REGISTRY['trading-fundamentals']);
 
     const [activeModule, setActiveModule] = useState(0);
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -130,6 +130,15 @@ export default function CoursePage({ params }: { params: { courseId: string } })
     const { data: session } = useSession();
     const [isLoading, setIsLoading] = useState(true);
     const [completedModules, setCompletedModules] = useState<string[]>([]);
+
+    // Resolve params promise
+    useEffect(() => {
+        params.then(resolvedParams => {
+            const id = resolvedParams.courseId;
+            setCourseId(id);
+            setCourse(COURSES_REGISTRY[id] || COURSES_REGISTRY['trading-fundamentals']);
+        });
+    }, [params]);
 
     // Hydrate progress from DB
     useEffect(() => {
