@@ -308,6 +308,19 @@ export default function InboxPage() {
                                     </div>
                                 </div>
 
+                                {/* Safety Disclaimer - Always visible */}
+                                <div className="px-4 py-2 bg-amber-500/5 border-b border-amber-500/10">
+                                    <div className="flex items-start gap-2">
+                                        <span className="text-amber-500 text-xs mt-0.5">⚠️</span>
+                                        <div>
+                                            <p className="text-[10px] font-medium text-amber-400/80 uppercase tracking-wide">Safety Notice</p>
+                                            <p className="text-[11px] text-zinc-500 leading-relaxed mt-0.5">
+                                                Never share bank details, passwords, or private financial information. ZenithScores users should never request funds or offer investment opportunities. Report suspicious behavior immediately.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* Messages */}
                                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                                     {messages.length === 0 ? (

@@ -380,3 +380,158 @@ export async function markConversationNotificationsRead(userId: string, conversa
     });
     return { success: true };
 }
+
+// ========================
+// HUB - Relevant Users Widget
+// ========================
+
+/**
+ * Get relevant users for the Hub widget.
+ * Selection logic:
+ * 1. Users who share at least one room with the current user
+ * 2. Users who posted/commented in the last 7 days
+ * 3. Exclude the current user
+ * 4. Limit to 5 users
+ */
+export async function getRelevantUsersForHub(userId: string) {
+    if (!userId) return [];
+
+    try {
+        // Get rooms the current user is in
+        const userRooms = await prisma.roomMembership.findMany({
+            where: { userId },
+            select: { roomId: true }
+        });
+        const roomIds = userRooms.map(r => r.roomId);
+
+        // Find users who:
+        // 1. Are in the same rooms OR
+        // 2. Have posted/commented recently
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        // Get users from shared rooms
+        const roomMembers = roomIds.length > 0 ? await prisma.roomMembership.findMany({
+            where: {
+                roomId: { in: roomIds },
+                userId: { not: userId }
+            },
+            select: {
+                userId: true,
+                room: { select: { name: true } },
+                updatedAt: true
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: 10
+        }) : [];
+
+        // Get recent active users (posted or commented)
+        const recentPosters = await prisma.communityPost.findMany({
+            where: {
+                createdAt: { gte: sevenDaysAgo },
+                authorId: { not: userId }
+            },
+            select: {
+                authorId: true,
+                createdAt: true
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 10
+        });
+
+        // Combine and dedupe user IDs
+        const userMap = new Map<string, { lastActive: Date; rooms: Set<string> }>();
+
+        for (const member of roomMembers) {
+            const existing = userMap.get(member.userId);
+            if (existing) {
+                existing.rooms.add(member.room.name);
+                if (new Date(member.updatedAt) > existing.lastActive) {
+                    existing.lastActive = new Date(member.updatedAt);
+                }
+            } else {
+                userMap.set(member.userId, {
+                    lastActive: new Date(member.updatedAt),
+                    rooms: new Set([member.room.name])
+                });
+            }
+        }
+
+        for (const post of recentPosters) {
+            const existing = userMap.get(post.authorId);
+            if (existing) {
+                if (new Date(post.createdAt) > existing.lastActive) {
+                    existing.lastActive = new Date(post.createdAt);
+                }
+            } else {
+                userMap.set(post.authorId, {
+                    lastActive: new Date(post.createdAt),
+                    rooms: new Set()
+                });
+            }
+        }
+
+        // Get top 5 by most recent activity
+        const sortedUserIds = Array.from(userMap.entries())
+            .sort((a, b) => b[1].lastActive.getTime() - a[1].lastActive.getTime())
+            .slice(0, 5)
+            .map(([id]) => id);
+
+        if (sortedUserIds.length === 0) return [];
+
+        // Fetch user details
+        const users = await prisma.user.findMany({
+            where: { id: { in: sortedUserIds } },
+            select: { id: true, name: true }
+        });
+
+        // Format response
+        return sortedUserIds.map(id => {
+            const user = users.find(u => u.id === id);
+            const data = userMap.get(id)!;
+            return {
+                id,
+                name: user?.name || null,
+                activeRooms: Array.from(data.rooms),
+                lastActive: data.lastActive.toISOString()
+            };
+        });
+    } catch (error) {
+        console.error('Failed to get hub users:', error);
+        return [];
+    }
+}
+
+/**
+ * Start a conversation from the Hub (or elsewhere).
+ * Reuses existing conversation if one exists.
+ */
+export async function startConversation(
+    userId: string,
+    otherUserId: string,
+    contextType?: string,
+    contextId?: string | null
+) {
+    if (!userId || !otherUserId) throw new Error('Missing user IDs');
+    if (userId === otherUserId) throw new Error('Cannot message yourself');
+
+    const [participantA, participantB] = [userId, otherUserId].sort();
+
+    // Try to find existing conversation
+    let conversation = await prisma.conversation.findUnique({
+        where: { participantA_participantB: { participantA, participantB } }
+    });
+
+    if (!conversation) {
+        conversation = await prisma.conversation.create({
+            data: {
+                participantA,
+                participantB,
+                contextType: contextType || null,
+                contextId: contextId || null
+            }
+        });
+    }
+
+    return conversation;
+}
