@@ -253,10 +253,11 @@ export default function CoursePage({ params }: { params: { courseId: string } })
                 body: JSON.stringify({
                     // FIX: Send userId not userEmail!
                     content: noteContent,
-                    asset: `COURSE-${courseId}`,
+                    // FIX: asset column is VARCHAR(20) - must be ≤ 20 chars
+                    asset: courseId.substring(0, 19), // e.g., "trading-fundamental"
                     // Add metadata for context
                     sentiment: null,
-                    phase: `Module ${activeModule + 1}`,
+                    phase: `Mod ${activeModule + 1}`, // Shortened to fit VARCHAR(20)
                     mood: null,
                     stressLevel: null,
                 }),
