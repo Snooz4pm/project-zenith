@@ -76,7 +76,7 @@ export default function Paywall({ isOpen, onClose, featureName = 'this feature' 
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: 'spring', duration: 0.4 }}
-              className="relative w-full max-w-sm bg-[var(--void)] rounded-2xl shadow-2xl overflow-hidden pointer-events-auto border border-[var(--accent-mint)]/20"
+              className="relative w-full h-[100dvh] md:h-auto md:max-w-sm flex flex-col justify-center bg-[var(--void)] md:rounded-2xl shadow-2xl overflow-hidden pointer-events-auto border-none md:border border-[var(--accent-mint)]/20"
             >
               {/* Close button */}
               <button
@@ -126,7 +126,7 @@ export default function Paywall({ isOpen, onClose, featureName = 'this feature' 
                 <button
                   onClick={handleUpgrade}
                   disabled={isCreatingSubscription}
-                  className="w-full py-3 rounded-xl font-bold text-sm text-[var(--void)] bg-[var(--accent-mint)] hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3.5 rounded-xl font-bold text-sm text-[var(--void)] bg-[var(--accent-mint)] hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(20,241,149,0.3)] mb-3"
                 >
                   {isCreatingSubscription ? (
                     <span className="flex items-center justify-center gap-2">
@@ -136,16 +136,23 @@ export default function Paywall({ isOpen, onClose, featureName = 'this feature' 
                   ) : (
                     <span className="flex items-center justify-center gap-2">
                       <Zap className="w-4 h-4" />
-                      Upgrade to Premium
+                      Unlock Full Access
                     </span>
                   )}
                 </button>
 
+                {/* Secondary CTA */}
+                <button
+                  onClick={onClose}
+                  className="w-full py-2.5 rounded-xl text-xs font-medium text-zinc-500 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Continue Free (Limited)
+                </button>
+
                 {/* Trust */}
-                <div className="mt-3 flex items-center justify-center gap-4 text-[10px] text-zinc-600">
-                  <span>🔒 Secure</span>
-                  <span>⚡ Instant</span>
-                  <span>✓ Cancel Anytime</span>
+                <div className="mt-6 flex items-center justify-center gap-4 text-[10px] text-zinc-600">
+                  <span>🔒 Secure Payment</span>
+                  <span>⚡ Instant Access</span>
                 </div>
               </div>
             </motion.div>

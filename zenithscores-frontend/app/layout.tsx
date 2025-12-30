@@ -20,6 +20,11 @@ const TermsAcceptanceModal = dynamic(
   { ssr: false }
 );
 
+const MobileBottomNav = dynamic(
+  () => import("@/components/navigation/MobileBottomNav"),
+  { ssr: false }
+);
+
 // AuthProvider must wrap everything but can stay server-side
 import AuthProvider from "@/components/AuthProvider";
 import { Providers } from "./providers";
@@ -68,6 +73,7 @@ export default function RootLayout({
           <Providers>
             {/* Modern fixed navigation */}
             <Navbar />
+            <MobileBottomNav />
 
             {/* Suspense wraps children for instant navigation */}
             <Suspense fallback={
@@ -81,13 +87,13 @@ export default function RootLayout({
                 </div>
               </div>
             }>
-              {/* pt-16 accounts for fixed navbar height */}
-              <main className="min-h-screen flex flex-col pt-16">
+              {/* pt-16 accounts for fixed navbar height, pb-20 for mobile nav */}
+              <main className="min-h-screen flex flex-col pt-16 pb-20 md:pb-0">
                 <div className="flex-grow">
                   {children}
                 </div>
                 {/* Terminal Footer */}
-                <footer className="bg-[var(--void)] border-t border-[rgba(255,255,255,0.05)] mt-20">
+                <footer className="bg-[var(--void)] border-t border-[rgba(255,255,255,0.05)] mt-20 md:mb-0 mb-16">
                   <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
                     <div className="text-center max-w-4xl mx-auto">
                       <p className="text-[10px] text-cyan-600 uppercase tracking-[0.2em] font-mono font-semibold mb-4">
