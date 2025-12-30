@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAccount, useSendTransaction, useSwitchChain } from 'wagmi';
 import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { NormalizedToken } from '@/lib/dexscreener';
-import { getZeroExQuote } from '@/lib/trading/zero-ex';
+import { get0xQuote } from '@/lib/trading/zero-ex';
 import { X, Loader2, ExternalLink, AlertCircle, Wallet, ArrowRight, RefreshCw } from 'lucide-react';
 // @ts-ignore
 import { parseUnits, formatUnits } from 'viem';
@@ -40,16 +40,21 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
             setError(null);
 
             try {
-                // Convert amount to USDC units (6 decimals)
-                const amountInWei = parseUnits(amount, 6).toString();
+                // Map chain slug to ID
+                const CHAIN_SLUG_TO_ID: Record<string, number> = {
+                    'ethereum': 1,
+                    'base': 8453,
+                    'arbitrum': 42161
+                };
 
-                const data = await getZeroExQuote({
-                    sellToken: USDC_ADDRESS,
+                const chainId = CHAIN_SLUG_TO_ID[token.chainId?.toLowerCase()] || 1;
+
+                // getZeroExQuote now expects raw number amount (it handles conversion)
+                const data = await get0xQuote({
                     buyToken: token.address,
-                    sellAmount: amountInWei,
+                    amount: parseFloat(amount),
                     takerAddress: address,
-                    slippagePercentage: 0.01,
-                    chainId: token.chainId
+                    chainId: chainId
                 });
 
                 setQuote(data);
