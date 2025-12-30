@@ -91,39 +91,45 @@ export function getPayPalBaseURL(): string {
 
 // Helper: Create subscription
 export async function createSubscription(planId: string, userId: string) {
-  const accessToken = await getAccessToken();
   const baseURL = getPayPalBaseURL();
+  const clientId = process.env.PAYPAL_CLIENT_ID!;
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET!;
 
-  console.log('[PayPal] Creating subscription:', { planId, userId, baseURL });
+  // EXACT BODY AS SPECIFIED
+  const body = {
+    plan_id: planId,
+    custom_id: userId, // REQUIRED: Links webhook events to user
+    application_context: {
+      brand_name: "ZenithScores",
+      user_action: "SUBSCRIBE_NOW",
+      return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/paypal/success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/paypal/cancel`
+    }
+  };
+
+  // LOG BEFORE SENDING - CHECK FOR UNDEFINED
+  console.log("PAYPAL BODY:", JSON.stringify(body, null, 2));
+  console.log("PLAN_ID VALUE:", planId);
+  console.log("USER_ID VALUE:", userId);
 
   const response = await fetch(`${baseURL}/v1/billing/subscriptions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`,
+      'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
     },
-    body: JSON.stringify({
-      plan_id: planId,
-      custom_id: userId, // Store user ID for webhook processing
-      application_context: {
-        brand_name: 'ZenithScores Premium',
-        locale: 'en-US',
-        shipping_preference: 'NO_SHIPPING',
-        user_action: 'SUBSCRIBE_NOW',
-        return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/profile/subscription?success=true`,
-        cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/profile/subscription?canceled=true`,
-      },
-    }),
+    body: JSON.stringify(body),
   });
 
   const data = await response.json();
 
-  console.log('[PayPal] Response status:', response.status);
-  console.log('[PayPal] Response data:', JSON.stringify(data, null, 2));
+  // LOG RESPONSE
+  console.log("PAYPAL RESPONSE STATUS:", response.status);
+  console.log("PAYPAL RESPONSE:", JSON.stringify(data, null, 2));
 
   if (!response.ok) {
-    console.error('[PayPal] ERROR:', data);
-    throw new Error(`PayPal API Error: ${JSON.stringify(data)}`);
+    console.error("PAYPAL ERROR:", data);
+    throw new Error(`PayPal subscription failed: ${JSON.stringify(data)}`);
   }
 
   return data;
