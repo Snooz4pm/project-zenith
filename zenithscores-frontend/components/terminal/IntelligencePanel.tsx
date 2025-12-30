@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { TrendingUp, AlertTriangle, Target, Activity, Info, BookOpen, Save } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Target, Activity, Info, Crosshair, Save } from 'lucide-react';
 import MiniJournal from '@/components/terminal/MiniJournal';
 import type { RegimeType } from '@/lib/types/market';
 
@@ -25,7 +25,7 @@ interface IntelligencePanelProps {
     whatBreaks?: string;
     aiAnalysis?: string | null;
     isLoadingAI?: boolean;
-    onDeepDive?: () => void; // Trigger Deep Dive
+    onLinkMission?: () => void; // Link to Mission (replaces Deep Dive)
     onJournal?: () => void; // Trigger Journal
     className?: string;
 }
@@ -118,7 +118,7 @@ export default function IntelligencePanel({
     whatBreaks,
     aiAnalysis,
     isLoadingAI,
-    onDeepDive,
+    onLinkMission,
     onJournal,
     className = '',
 }: IntelligencePanelProps) {
@@ -145,14 +145,14 @@ export default function IntelligencePanel({
                             </span>
                         </div>
                     </div>
-                    {/* Deep Dive Button */}
-                    {onDeepDive && (
+                    {/* Link Mission Button (replaces Deep Dive) */}
+                    {onLinkMission && (
                         <button
-                            onClick={onDeepDive}
-                            className="w-full mt-3 py-2 px-3 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 rounded-lg text-xs font-medium text-purple-300 transition-colors flex items-center justify-center gap-2 group"
+                            onClick={onLinkMission}
+                            className="w-full mt-3 py-2 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs font-medium text-white transition-colors flex items-center justify-center gap-2 group"
                         >
-                            <BookOpen size={14} />
-                            Read Professor's Deep Dive
+                            <Crosshair size={14} />
+                            Link Mission
                         </button>
                     )}
 
@@ -325,14 +325,14 @@ export default function IntelligencePanel({
                 Model v2.1 • Updated just now
             </div>
 
-            {/* Deep Dive Button (Fallback Mode) */}
-            {onDeepDive && (
+            {/* Link Mission Button (Fallback Mode) */}
+            {onLinkMission && (
                 <button
-                    onClick={onDeepDive}
-                    className="w-full mt-3 py-2 px-3 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 rounded-lg text-xs font-medium text-purple-300 transition-colors flex items-center justify-center gap-2 group"
+                    onClick={onLinkMission}
+                    className="w-full mt-3 py-2 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-xs font-medium text-white transition-colors flex items-center justify-center gap-2 group"
                 >
-                    <BookOpen size={14} />
-                    Read Professor's Deep Dive
+                    <Crosshair size={14} />
+                    Link Mission
                 </button>
             )}
 

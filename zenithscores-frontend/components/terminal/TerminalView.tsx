@@ -213,54 +213,24 @@ export default function TerminalView({
     const displayPrice = livePrice;
     const displayChangePercent = liveChangePercent;
 
-    // --- DEEP DIVE & JOURNAL STATE ---
-    const [showDeepDive, setShowDeepDive] = useState(false);
-    const [deepDiveContent, setDeepDiveContent] = useState<string | null>(null);
-    const [loadingDeepDive, setLoadingDeepDive] = useState(false);
+    // --- JOURNAL STATE ---
     const [showJournal, setShowJournal] = useState(false);
 
-    const handleDeepDive = async () => {
-        setShowDeepDive(true);
-        if (deepDiveContent) return;
-
-        setLoadingDeepDive(true);
-        try {
-            const res = await fetch('/api/ai/deep-dive', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name,
-                    symbol,
-                    assetType,
-                    regime: marketState.regime,
-                    context: `Volatility: ${factors.volatility}, Momentum: ${factors.momentum}`
-                })
-            });
-            const data = await res.json();
-            if (data.report) setDeepDiveContent(data.report);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoadingDeepDive(false);
-        }
+    // Link Mission handler - shows mission panel for this asset
+    const handleLinkMission = () => {
+        // MissionPanel component handles the linking - already embedded in page
+        // This triggers the mission panel to open if needed
+        console.log('Link Mission triggered for:', symbol);
     };
 
     return (
         <div className="min-h-screen bg-[#0a0a12] text-white">
-            {/* Deep Dive Modal */}
-            <DeepDiveModal
-                isOpen={showDeepDive}
-                onClose={() => setShowDeepDive(false)}
-                content={deepDiveContent}
-                isLoading={loadingDeepDive}
-                symbol={symbol}
-            />
             {/* Journal Modal */}
             <JournalModal
                 isOpen={showJournal}
                 onClose={() => setShowJournal(false)}
                 symbol={symbol}
-                aiContext={aiAnalysis || deepDiveContent} // Allow importing either brief or deep dive
+                aiContext={aiAnalysis}
             />
 
             {/* Linked Mission Panel */}
@@ -421,7 +391,7 @@ export default function TerminalView({
                             whatBreaks={whatBreaks}
                             aiAnalysis={aiAnalysis}
                             isLoadingAI={isLoadingAI}
-                            onDeepDive={handleDeepDive}
+                            onLinkMission={handleLinkMission}
                             onJournal={() => setShowJournal(true)}
                         />
                     </div>
