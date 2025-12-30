@@ -22,6 +22,7 @@ const TermsAcceptanceModal = dynamic(
 
 // AuthProvider must wrap everything but can stay server-side
 import AuthProvider from "@/components/AuthProvider";
+import { Providers } from "./providers";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -64,6 +65,7 @@ export default function RootLayout({
         <div className="fixed inset-0 z-[-1] pointer-events-none bg-[radial-gradient(circle_at_top_center,_rgba(20,241,149,0.03),_transparent_70%)]" />
         <div className="fixed inset-0 z-[-1] pointer-events-none bg-[radial-gradient(circle_at_bottom_left,_rgba(0,212,255,0.03),_transparent_70%)]" />
         <AuthProvider>
+        <Providers>
           {/* Modern fixed navigation */}
           <Navbar />
 
@@ -112,6 +114,7 @@ export default function RootLayout({
           </Suspense>
           <TermsAcceptanceModal />
           <FloatingCommandButton />
+        </Providers>
         </AuthProvider>
       </body>
     </html>

@@ -10,38 +10,29 @@ export async function GET() {
         const session = await getServerSession(authOptions);
 
         if (!session?.user?.id) {
-            return NextResponse.json({
-                todayPnL: 0,
-                winRate: 0,
-                streak: 0,
-            });
+            return NextResponse.json({ todayPnL: 0, winRate: 0, streak: 0 });
         }
 
-        // UTC-safe "today"
+        // 1. Get User's Portfolio
+        const portfolio = await prisma.portfolio.findFirst({
+            where: { userId: session.user.id }
+        });
+
+        if (!portfolio) {
+            return NextResponse.json({ todayPnL: 0, winRate: 0, streak: 0 });
+        }
+
+        // 2. UTC-safe "today"
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
 
-        // First get user's portfolios
-        const portfolios = await prisma.portfolio.findMany({
-            where: { userId: session.user.id },
-            select: { id: true }
-        });
-
-        if (portfolios.length === 0) {
-            return NextResponse.json({
-                todayPnL: 0,
-                winRate: 0,
-                streak: 0,
-            });
-        }
-
-        const portfolioIds = portfolios.map(p => p.id);
-
-        // Get today's trades from user's portfolios
+        // 3. Fetch realized trades for today
         const trades = await prisma.trade.findMany({
             where: {
-                portfolioId: { in: portfolioIds },
+                portfolioId: portfolio.id,
                 timestamp: { gte: today },
+                side: 'SELL',
+                realizedPnL: { not: null },
             },
             orderBy: {
                 timestamp: 'desc',
@@ -49,26 +40,18 @@ export async function GET() {
         });
 
         if (trades.length === 0) {
-            return NextResponse.json({
-                todayPnL: 0,
-                winRate: 0,
-                streak: 0,
-            });
+            return NextResponse.json({ todayPnL: 0, winRate: 0, streak: 0 });
         }
 
-        // Calculate P&L from realized trades (SELL trades have realizedPnL)
-        const sellTrades = trades.filter(t => t.side === 'SELL' && t.realizedPnL !== null);
+        const pnls = trades.map(t => t.realizedPnL || 0);
+        const todayPnL = pnls.reduce((a, b) => a + b, 0);
+        const winningTrades = pnls.filter(pnl => pnl > 0).length;
+        const winRate = Math.round((winningTrades / trades.length) * 100);
 
-        const todayPnL = sellTrades.reduce((sum, t) => sum + (t.realizedPnL || 0), 0);
-        const winningTrades = sellTrades.filter(t => (t.realizedPnL || 0) > 0).length;
-        const winRate = sellTrades.length > 0
-            ? Math.round((winningTrades / sellTrades.length) * 100)
-            : 0;
-
-        // Streak: consecutive wins from most recent
+        // Streak from most recent
         let streak = 0;
-        for (const t of sellTrades) {
-            if ((t.realizedPnL || 0) > 0) streak++;
+        for (const pnl of pnls) {
+            if (pnl > 0) streak++;
             else break;
         }
 
@@ -79,10 +62,6 @@ export async function GET() {
         });
     } catch (error) {
         console.error('Performance API error:', error);
-        return NextResponse.json({
-            todayPnL: 0,
-            winRate: 0,
-            streak: 0,
-        });
+        return NextResponse.json({ todayPnL: 0, winRate: 0, streak: 0 });
     }
 }

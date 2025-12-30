@@ -3,25 +3,36 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NormalizedToken, getTrendingTokens } from '@/lib/dexscreener';
 import TokenCard from './TokenCard';
+import { useAccount } from 'wagmi';
 import { RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
 
 interface TrendingGridProps {
     onTokenSelect: (token: NormalizedToken) => void;
 }
 
+const CHAIN_ID_MAP: Record<number, string> = {
+    1: 'ethereum',
+    8453: 'base',
+    42161: 'arbitrum'
+};
+
 export default function TrendingGrid({ onTokenSelect }: TrendingGridProps) {
+    const { chainId, isConnected } = useAccount();
     const [tokens, setTokens] = useState<NormalizedToken[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
+    const activeChainSlug = chainId ? CHAIN_ID_MAP[chainId] : 'ethereum';
+
     const fetchTokens = useCallback(async () => {
         try {
             setError(null);
-            const data = await getTrendingTokens();
+            // Fetch tokens for the specific active chain or default to ethereum
+            const data = await getTrendingTokens(activeChainSlug);
 
             if (data.length === 0) {
-                setError('No tokens available');
+                setError(`No tokens available on ${activeChainSlug.toUpperCase()}`);
             } else {
                 setTokens(data);
                 setLastUpdate(new Date());
@@ -32,13 +43,14 @@ export default function TrendingGrid({ onTokenSelect }: TrendingGridProps) {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [activeChainSlug]);
 
     useEffect(() => {
+        setLoading(true);
         fetchTokens();
 
-        // Auto-refresh every 30 seconds
-        const interval = setInterval(fetchTokens, 30000);
+        // Auto-refresh every 60 seconds
+        const interval = setInterval(fetchTokens, 60000);
         return () => clearInterval(interval);
     }, [fetchTokens]);
 
@@ -75,7 +87,9 @@ export default function TrendingGrid({ onTokenSelect }: TrendingGridProps) {
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                    <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Trending</h2>
+                    <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">
+                        Trending on {activeChainSlug.toUpperCase()}
+                    </h2>
                     <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full font-bold">
                         {tokens.length} PAIRS
                     </span>

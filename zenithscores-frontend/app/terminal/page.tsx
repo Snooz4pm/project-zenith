@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { config } from '@/lib/wagmi';
+import { wagmiConfig } from '@/lib/wagmi';
 import TrendingGrid from '@/components/terminal/TrendingGrid';
 import SwapDrawer from '@/components/terminal/SwapDrawer';
 import { NormalizedToken } from '@/lib/dexscreener';
@@ -60,7 +60,7 @@ function TerminalContent() {
 
 export default function TerminalPage() {
     return (
-        <WagmiProvider config={config}>
+        <WagmiProvider config={wagmiConfig}>
             <QueryClientProvider client={queryClient}>
                 <TerminalContent />
             </QueryClientProvider>

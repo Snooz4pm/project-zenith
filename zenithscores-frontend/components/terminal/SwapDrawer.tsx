@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useSendTransaction, useConnect } from 'wagmi';
+import { useAccount, useSendTransaction, useConnect, useSwitchChain } from 'wagmi';
 import { NormalizedToken } from '@/lib/dexscreener';
 import { getZeroExQuote } from '@/lib/trading/zero-ex';
-import { X, Loader2, ExternalLink, AlertCircle, Wallet } from 'lucide-react';
+import { X, Loader2, ExternalLink, AlertCircle, Wallet, ArrowRight, RefreshCw } from 'lucide-react';
 // @ts-ignore
 import { parseUnits, formatUnits } from 'viem';
 
@@ -17,9 +17,10 @@ const USDC_ADDRESS = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
 const DEFAULT_AMOUNT = '100'; // $100 default
 
 export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
-    const { address, isConnected } = useAccount();
+    const { address, isConnected, chainId: connectedChainId } = useAccount();
     const { connect, connectors, isPending: isConnecting } = useConnect();
-    const { sendTransaction, isPending: isSending } = useSendTransaction();
+    const { sendTransaction, isPending: isSending, data: hash } = useSendTransaction();
+    const { switchChain } = useSwitchChain();
 
     const [amount, setAmount] = useState(DEFAULT_AMOUNT);
     const [quote, setQuote] = useState<any>(null);
@@ -46,7 +47,8 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
                     buyToken: token.address,
                     sellAmount: amountInWei,
                     takerAddress: address,
-                    slippagePercentage: 0.01
+                    slippagePercentage: 0.01,
+                    chainId: token.chainId
                 });
 
                 setQuote(data);
@@ -63,9 +65,29 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
         return () => clearTimeout(debounce);
     }, [token, amount, address, isConnected]);
 
+    const CHAIN_SLUG_TO_ID: Record<string, number> = {
+        'ethereum': 1,
+        'base': 8453,
+        'arbitrum': 42161
+    };
+
+    const targetChainId = CHAIN_SLUG_TO_ID[token?.chainId || 'ethereum'];
+    const isWrongNetwork = isConnected && connectedChainId !== targetChainId;
+
     const handleSwap = () => {
+        if (!isConnected) {
+            handleConnect();
+            return;
+        }
+
+        if (isWrongNetwork) {
+            switchChain({ chainId: targetChainId });
+            return;
+        }
+
         if (!quote || !quote.to) return;
 
+        console.log('Executing 0x swap on chain:', targetChainId);
         sendTransaction({
             to: quote.to,
             data: quote.data,
@@ -74,15 +96,19 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
     };
 
     const handleConnect = () => {
-        console.log('Available connectors:', connectors.map(c => ({ id: c.id, name: c.name })));
-        // Try injected first, then fall back to first available
-        const injected = connectors.find(c => c.id === 'injected' || c.name === 'Injected');
-        const connector = injected || connectors[0];
+        console.log('Connectors found:', connectors.map(c => ({ id: c.id, name: c.name })));
+
+        // Prioritize WalletConnect, then Injected, then anything else
+        const walletConnect = connectors.find(c => c.id === 'walletConnect' || c.id === 'walletConnectLegacy');
+        const injected = connectors.find(c => c.id === 'injected');
+        const connector = walletConnect || injected || connectors[0];
+
         if (connector) {
-            console.log('Connecting with:', connector.id, connector.name);
+            console.log('Attempting connection with:', connector.name);
             connect({ connector });
         } else {
-            console.error('No connectors available');
+            console.error('No wallet connectors discovered. WalletConnect is required.');
+            setError('No wallet found. Please use WalletConnect.');
         }
     };
 
@@ -189,16 +215,49 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
                             </div>
                         )}
 
+                        {/* Success Message */}
+                        {hash && (
+                            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                                <div className="text-emerald-400 text-xs font-bold mb-1">Transaction Sent!</div>
+                                <a
+                                    href={`${token.chainId === 'base' ? 'https://basescan.org' : token.chainId === 'arbitrum' ? 'https://arbiscan.io' : 'https://etherscan.io'}/tx/${hash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[10px] text-zinc-500 hover:text-white flex items-center gap-1 underline underline-offset-2"
+                                >
+                                    View on Explorer <ExternalLink size={10} />
+                                </a>
+                            </div>
+                        )}
+
                         {/* Swap Button */}
                         <button
                             onClick={handleSwap}
-                            disabled={!quote || loading || isSending}
-                            className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${!quote || loading
+                            disabled={(!isConnected ? false : isWrongNetwork ? false : !quote) || loading || isSending}
+                            className={`w-full py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 ${(!isConnected ? false : isWrongNetwork ? false : !quote) || loading
                                 ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                                : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)]'
+                                : isWrongNetwork
+                                    ? 'bg-amber-500 hover:bg-amber-400 text-black shadow-[0_0_20px_rgba(245,158,11,0.3)]'
+                                    : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)]'
                                 }`}
                         >
-                            {isSending ? 'Confirming...' : loading ? 'Loading...' : 'Swap Now'}
+                            {!isConnected ? (
+                                <>
+                                    <Wallet size={20} /> Connect Wallet
+                                </>
+                            ) : isWrongNetwork ? (
+                                <>
+                                    <RefreshCw size={20} className={isConnecting ? 'animate-spin' : ''} /> Switch to {token.chainName}
+                                </>
+                            ) : isSending ? (
+                                <>
+                                    <Loader2 className="animate-spin" size={20} /> Confirm in Wallet
+                                </>
+                            ) : loading ? (
+                                'Getting Quote...'
+                            ) : (
+                                'Swap Now'
+                            )}
                         </button>
                     </div>
                 )}

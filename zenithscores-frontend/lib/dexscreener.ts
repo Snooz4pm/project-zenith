@@ -46,6 +46,7 @@ export interface DexPair {
     };
     fdv?: number;
     marketCap?: number;
+    pairCreatedAt?: number;
 }
 
 export interface TokenProfile {
@@ -174,12 +175,8 @@ export async function getTopTokensByChain(chainId: string, limit: number = 20): 
 export function getChainId(chain: string): string {
     const chainMap: Record<string, string> = {
         'ethereum': 'ethereum',
-        'polygon': 'polygon',
         'arbitrum': 'arbitrum',
         'base': 'base',
-        'solana': 'solana',
-        'bsc': 'bsc',
-        'avalanche': 'avalanche',
     };
     return chainMap[chain.toLowerCase()] || 'ethereum';
 }
@@ -201,19 +198,102 @@ export interface NormalizedToken {
     dexUrl: string;
 }
 
-const CHAIN_DISPLAY: Record<string, string> = {
-    ethereum: 'ETH',
-    base: 'BASE',
-    bsc: 'BSC',
-    solana: 'SOL',
-    arbitrum: 'ARB',
-    polygon: 'MATIC',
+// ========== TRENDING & DISCOVERY ENGINE (EXECUTION FIRST) ==========
+
+interface ChainProfile {
+    minLiquidity: number;
+    minVolume24h: number;
+    minTxns1h?: number;
+    minAgeHours?: number;
+    minFdv?: number;
+}
+
+const CHAIN_PROFILES: Record<string, ChainProfile> = {
+    // Base: Retail execution, high velocity, lower barriers
+    base: {
+        minLiquidity: 15000,
+        minVolume24h: 50000,
+        minTxns1h: 50,
+        minAgeHours: 24
+    },
+    // Arbitrum: Trader execution, higher depth required
+    arbitrum: {
+        minLiquidity: 50000,
+        minVolume24h: 250000
+    },
+    // Ethereum: Whale execution, max trust and depth
+    ethereum: {
+        minLiquidity: 500000,
+        minVolume24h: 1000000,
+        minFdv: 5000000,
+        minAgeHours: 168 // 7 days
+    }
 };
 
-const MIN_LIQUIDITY = 50000;
-const MIN_VOLUME = 100000;
-const MIN_AGE_HOURS = 12;
+/**
+ * Calculates the "Execution Rank" for a pair.
+ * Formula: (Volume Velocity) * (Liquidity Depth) * (Trend Strength)
+ * Prioritizes active, liquid, moving assets.
+ */
+function calculateRankScore(pair: DexPair): number {
+    const vol1h = pair.volume?.h1 || 0;
+    const vol24h = pair.volume?.h24 || 0;
+    const liq = pair.liquidity?.usd || 0;
+    const change1h = Math.abs(pair.priceChange?.h1 || 0);
 
+    // 1. Volume Velocity (Weighted recent activity)
+    // 4x multiplier on 1h volume to capture "now"
+    const velocityScore = (vol1h * 4) + vol24h;
+
+    // 2. Liquidity Depth Factor (Logarithmic)
+    // Prevents massive MCaps from totally dominating, but requires baseline
+    const depthFactor = Math.log10(liq + 1);
+
+    // 3. Trend Strength
+    // Assets in motion get clicks. Min multiplier 1 to avoid zeroing.
+    const trendFactor = Math.max(1, change1h);
+
+    return velocityScore * depthFactor * trendFactor;
+}
+
+/**
+ * Validates if a token is safe and viable for 0x execution
+ */
+function validateTokenQuality(pair: DexPair, profile: ChainProfile): boolean {
+    const liq = pair.liquidity?.usd || 0;
+    const vol = pair.volume?.h24 || 0;
+    const txns1h = (pair.txns?.h1?.buys || 0) + (pair.txns?.h1?.sells || 0);
+    const fdv = pair.fdv || 0;
+    const pairAgeHours = (Date.now() - (pair.pairCreatedAt || 0)) / (1000 * 60 * 60); // Note: pairCreatedAt might need to be fetched or inferred if not in DexPair, falling back if missing
+
+    // 1. Hard Profile Limits
+    if (liq < profile.minLiquidity) return false;
+    if (vol < profile.minVolume24h) return false;
+    if (profile.minTxns1h && txns1h < profile.minTxns1h) return false;
+    if (profile.minFdv && fdv < profile.minFdv) return false;
+
+    // 2. Honeypot / Scam Heuristics
+    // If there are buys but absolutely ZERO sells in 24h, it's likely a honeypot
+    const buys24 = pair.txns?.h24?.buys || 0;
+    const sells24 = pair.txns?.h24?.sells || 0;
+    if (buys24 > 10 && sells24 === 0) return false;
+
+    // 3. Spreads & Routability (Implicit)
+    // We only accept pairs with major quote tokens to ensure 0x routability
+    const validQuotes = ['WETH', 'USDC', 'USDT', 'DAI', 'ETH'];
+    if (!validQuotes.includes(pair.quoteToken.symbol.toUpperCase())) return false;
+
+    return true;
+}
+
+const CHAIN_DISPLAY: Record<string, string> = {
+    ethereum: 'Ethereum',
+    base: 'Base',
+    arbitrum: 'Arbitrum',
+    polygon: 'Polygon',
+    bsc: 'BNB Chain',
+    solana: 'Solana',
+}
 function normalizePair(pair: DexPair): NormalizedToken {
     return {
         id: `${pair.chainId}-${pair.pairAddress}`,
@@ -232,42 +312,63 @@ function normalizePair(pair: DexPair): NormalizedToken {
 }
 
 /**
- * Get trending tokens for the Terminal with strict filtering
+ * Get trending tokens with strict "Execution First" logic.
+ * Returns top 10 ranked tokens for the specific chain.
  */
-export async function getTrendingTokens(): Promise<NormalizedToken[]> {
-    const chains = ['ethereum', 'base', 'bsc', 'solana'];
-    const allTokens: NormalizedToken[] = [];
+export async function getTrendingTokens(targetChain: string = 'base'): Promise<NormalizedToken[]> {
+    const chainId = targetChain.toLowerCase();
+    const profile = CHAIN_PROFILES[chainId];
 
-    for (const chain of chains) {
-        try {
-            const response = await fetch(
-                `${DEXSCREENER_BASE_URL}/dex/pairs/${chain}`,
-                { next: { revalidate: 30 } }
-            );
+    // If chain not configured, return empty (Safe fail)
+    if (!profile) return [];
 
-            if (!response.ok) continue;
+    try {
+        // Fetch broad search for chain to get candidates
+        const response = await fetch(
+            `${DEXSCREENER_BASE_URL}/dex/search?q=${chainId}`,
+            { next: { revalidate: 30 } } // 30s cache for "live" feel
+        );
 
-            const data = await response.json();
-            const pairs: DexPair[] = data.pairs || [];
+        if (!response.ok) return [];
 
-            pairs
-                .filter((p) => {
-                    const liq = p.liquidity?.usd || 0;
-                    const vol = p.volume?.h24 || 0;
-                    return liq >= MIN_LIQUIDITY && vol >= MIN_VOLUME;
-                })
-                .slice(0, 6)
-                .forEach((pair) => {
-                    allTokens.push(normalizePair(pair));
-                });
-        } catch (e) {
-            console.error(`Terminal: Failed to fetch ${chain}:`, e);
+        const data = await response.json();
+        let pairs: DexPair[] = data.pairs || [];
+
+        // 1. Filter: Chain Match + Quality Gates
+        const validPairs = pairs.filter(p =>
+            p.chainId === chainId &&
+            validateTokenQuality(p, profile)
+        );
+
+        // 2. Rank: Execution Score
+        const rankedPairs = validPairs.sort((a, b) => {
+            return calculateRankScore(b) - calculateRankScore(a);
+        });
+
+        // 3. Deduplicate (Keep highest ranked pair for each token symbol)
+        const seenSymbols = new Set<string>();
+        const uniqueTokens: NormalizedToken[] = [];
+
+        for (const pair of rankedPairs) {
+            if (uniqueTokens.length >= 10) break; // Hard limit 10
+
+            const symbol = pair.baseToken.symbol.toUpperCase();
+            if (seenSymbols.has(symbol)) continue;
+
+            // EXCLUDE Wrapped Native (WETH) from trending if it's just the base pair
+            // We want tradeable tokens, not just WETH/USDC volume
+            if (symbol === 'WETH' || symbol === 'ETH') continue;
+
+            seenSymbols.add(symbol);
+            uniqueTokens.push(normalizePair(pair));
         }
-    }
 
-    return allTokens
-        .sort((a, b) => b.volume24hUsd - a.volume24hUsd)
-        .slice(0, 24);
+        return uniqueTokens;
+
+    } catch (e) {
+        console.error(`TrendingEngine: Failed to fetch for ${chainId}`, e);
+        return [];
+    }
 }
 
 // ========== LEGACY PRICE FETCHER ==========

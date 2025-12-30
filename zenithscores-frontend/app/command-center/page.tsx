@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import ActiveTradesTile from '@/components/command-center/ActiveTradesTile';
-import MarketModeTile from '@/components/command-center/MarketModeTile';
+import TrendingWidget from '@/components/terminal/TrendingWidget';
 import SignalsTile from '@/components/command-center/SignalsTile';
 import PerformanceTile from '@/components/command-center/PerformanceTile';
 import CommunityTile from '@/components/command-center/CommunityTile';
@@ -117,10 +117,12 @@ export default function CommandCenterPage() {
                 <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-4 max-w-7xl mx-auto h-auto md:h-[calc(100vh-8rem)] pb-20 md:pb-0">
                     {/* Row 1: Hero Zone (Top Left & Center) */}
                     <div className="md:col-span-2 md:row-span-2">
-                        <ActiveTradesTile onClick={() => handleTileClick('trades')} />
+                        {/* High-Velocity Trending Tokens (Primary Execution Driver) */}
+                        <TrendingWidget className="h-full" />
                     </div>
                     <div className="md:col-span-2 md:row-span-1">
-                        <MarketModeTile onClick={() => handleTileClick('market')} />
+                        {/* Active Trades (Secondary) */}
+                        <ActiveTradesTile onClick={() => handleTileClick('trades')} />
                     </div>
 
                     {/* Row 2: Core Metrics */}
