@@ -1,7 +1,7 @@
 'use client'
 
 import { createConfig, http } from 'wagmi'
-import { mainnet, base, arbitrum } from 'viem/chains'
+import { mainnet, base, arbitrum } from 'wagmi/chains'
 import { walletConnect, injected } from 'wagmi/connectors'
 
 const projectId =

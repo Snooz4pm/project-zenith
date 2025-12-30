@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { createWeb3Modal } from '@web3modal/wagmi'
 import { wagmiConfig } from '@/lib/wagmi'
-import { mainnet, base, arbitrum } from 'viem/chains'
+import { mainnet, base, arbitrum } from 'wagmi/chains'
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? '2a141e8d498f5d1b1fb991c78402c9b6'
 
@@ -15,7 +15,6 @@ export function WalletConnectModal() {
     createWeb3Modal({
       wagmiConfig,
       projectId,
-      chains: [mainnet, base, arbitrum],
       themeMode: 'dark',
       themeVariables: {
         '--w3m-accent': '#14F195',
