@@ -377,7 +377,7 @@ function normalizePair(pair: DexPair): NormalizedToken {
     };
 }
 
-// 4️⃣ FIX getTrendingTokens (CRITICAL)
+// 4️⃣ REVENUE-OPTIMIZED getTrendingTokens (SHOW MORE TOKENS = MORE SWAPS)
 export async function getTrendingTokens(targetChain: ExecutionChain = 'base'): Promise<NormalizedToken[]> {
     const chainId = targetChain.toLowerCase();
 
@@ -390,42 +390,66 @@ export async function getTrendingTokens(targetChain: ExecutionChain = 'base'): P
         // Fetch broad search for chain to get candidates
         const response = await fetch(
             `${DEXSCREENER_BASE_URL}/dex/search?q=${chainId}`,
-            { next: { revalidate: 30 } } // 30s cache for "live" feel
+            { cache: 'no-store' } // No cache for fresh tokens
         );
 
-        if (!response.ok) return [];
+        if (!response.ok) {
+            console.error(`DexScreener API error: ${response.status} for ${chainId}`);
+            return [];
+        }
 
         const data = await response.json();
         let pairs: DexPair[] = data.pairs || [];
 
-        // 1. Filter: Chain Match + Quality Gates
-        const validPairs = pairs.filter(p =>
-            p.chainId === chainId &&
-            validateTokenQuality(p, profile, chainId as ExecutionChain)
-        );
+        console.log(`[${chainId}] Fetched ${pairs.length} pairs from DexScreener`);
 
-        // 2. Rank: Execution Score
+        // 1. Filter: Chain Match ONLY (very permissive)
+        const chainMatched = pairs.filter(p => p.chainId === chainId);
+
+        console.log(`[${chainId}] Chain matched: ${chainMatched.length}`);
+
+        // 2. Apply MINIMAL quality filter (just exclude honeypots)
+        const validPairs = chainMatched.filter(p => {
+            // Only exclude obvious scams
+            const buys24 = p.txns?.h24?.buys || 0;
+            const sells24 = p.txns?.h24?.sells || 0;
+            const isHoneypot = buys24 > 20 && sells24 === 0;
+
+            // Must have basic data
+            const hasData = p.baseToken?.address && p.pairAddress && (p.priceUsd || p.priceNative);
+
+            // Must have valid quote token
+            const validQuotes = ['WETH', 'USDC', 'USDT', 'DAI', 'ETH'];
+            const hasValidQuote = validQuotes.includes(p.quoteToken?.symbol?.toUpperCase() || '');
+
+            return !isHoneypot && hasData && hasValidQuote;
+        });
+
+        console.log(`[${chainId}] After minimal filter: ${validPairs.length}`);
+
+        // 3. Rank: Execution Score
         const rankedPairs = validPairs.sort((a, b) => {
             return calculateRankScore(b) - calculateRankScore(a);
         });
 
-        // 3. Deduplicate (Keep highest ranked pair for each token symbol)
+        // 4. Deduplicate and return MORE tokens (up to 50!)
         const seenSymbols = new Set<string>();
         const uniqueTokens: NormalizedToken[] = [];
 
         for (const pair of rankedPairs) {
-            if (uniqueTokens.length >= 10) break; // Hard limit 10
+            if (uniqueTokens.length >= 50) break; // Increased from 10 to 50!
 
             const symbol = pair.baseToken.symbol.toUpperCase();
             if (seenSymbols.has(symbol)) continue;
 
-            // EXCLUDE Wrapped Native (WETH) from trending if it's just the base pair
-            // We want tradeable tokens, not just WETH/USDC volume
+            // EXCLUDE Wrapped Native (WETH) from trending
             if (symbol === 'WETH' || symbol === 'ETH') continue;
 
             seenSymbols.add(symbol);
             uniqueTokens.push(normalizePair(pair));
         }
+
+        console.log(`[${chainId}] Final unique tokens: ${uniqueTokens.length}`);
 
         return uniqueTokens;
 
