@@ -11,11 +11,6 @@ const Navbar = dynamic(
   { ssr: false }
 );
 
-const FloatingCommandButton = dynamic(
-  () => import("@/components/FloatingCommandButton"),
-  { ssr: false }
-);
-
 const TermsAcceptanceModal = dynamic(
   () => import("@/components/TermsAcceptanceModal"),
   { ssr: false }
@@ -122,7 +117,6 @@ export default function RootLayout({
               </main>
             </Suspense>
             <TermsAcceptanceModal />
-            <FloatingCommandButton />
           </Providers>
         </AuthProvider>
         <Analytics />
