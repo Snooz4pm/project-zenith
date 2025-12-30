@@ -25,23 +25,12 @@ export async function get0xQuote({
     sellToken,
     amount,
     takerAddress,
-    chainId,
-    isSell = false
+    chainId
 }: QuoteParams) {
 
     // Default to USDC for the "other" side of the trade
     const usdcAddress = USDC_ADDRESSES[chainId];
     if (!usdcAddress) throw new Error(`Unsupported chain ID: ${chainId}`);
-
-    const effectiveSellToken = sellToken || usdcAddress;
-    const effectiveBuyToken = buyToken || usdcAddress; // If we are selling, buyToken in param is what we sell, so we buy USDC ?? Wait.
-
-    // RE-LOGIC: 
-    // If buying X: Sell USDC, Buy X. sellAmount = amount of USDC.
-    // If selling X: Sell X, Buy USDC. sellAmount = amount of X.
-
-    // Assuming standard "Buy X with USDC" flow for now based on user context
-    // The user input 41 USDC to buy Token.
 
     const apiBaseUrl = CHAIN_API_URLS[chainId];
     if (!apiBaseUrl) throw new Error(`No 0x API URL for chain ${chainId}`);
@@ -73,6 +62,59 @@ export async function get0xQuote({
     const res = await fetch(url, {
         headers: {
             '0x-api-key': process.env.NEXT_PUBLIC_0X_API_KEY!,
+            'Accept': 'application/json',
+        }
+    });
+
+    if (!res.ok) {
+        const errText = await res.text();
+        let errMsg = errText;
+        try {
+            const jsonErr = JSON.parse(errText);
+            errMsg = jsonErr.reason || jsonErr.message || errText;
+        } catch { }
+
+        console.error('0x Quote Failed:', errMsg);
+        throw new Error(errMsg);
+    }
+
+    return await res.json();
+}
+
+// Wrapper function with simplified parameters for general swap components
+export interface SimpleQuoteParams {
+    sellToken: string;
+    buyToken: string;
+    sellAmount: string;
+    takerAddress: string;
+    slippagePercentage?: number;
+    chainId?: number;
+}
+
+export async function getZeroExQuote(params: SimpleQuoteParams) {
+    const chainId = params.chainId || 1; // Default to Ethereum mainnet
+
+    // Convert sellAmount from wei string to number for amount
+    // For ETH/WETH, 18 decimals; for USDC/USDT, 6 decimals
+    // We'll pass the raw string amount to the API directly
+
+    const apiParams = new URLSearchParams({
+        chainId: chainId.toString(),
+        sellToken: params.sellToken,
+        buyToken: params.buyToken,
+        sellAmount: params.sellAmount,
+        takerAddress: params.takerAddress,
+        slippagePercentage: (params.slippagePercentage || 0.01).toString()
+    });
+
+    const apiBaseUrl = CHAIN_API_URLS[chainId];
+    if (!apiBaseUrl) throw new Error(`No 0x API URL for chain ${chainId}`);
+
+    const url = `${apiBaseUrl}/swap/v1/quote?${apiParams.toString()}`;
+
+    const res = await fetch(url, {
+        headers: {
+            '0x-api-key': process.env.NEXT_PUBLIC_0X_API_KEY || '',
             'Accept': 'application/json',
         }
     });
