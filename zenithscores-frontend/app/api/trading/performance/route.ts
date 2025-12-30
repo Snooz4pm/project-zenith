@@ -5,14 +5,6 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-type Trade = {
-    entryPrice: number;
-    exitPrice: number | null;
-    quantity: number;
-    type: 'BUY' | 'SELL';
-    createdAt: Date;
-};
-
 export async function GET() {
     try {
         const session = await getServerSession(authOptions);
@@ -29,14 +21,30 @@ export async function GET() {
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
 
-        const trades: Trade[] = await prisma.trade.findMany({
+        // First get user's portfolios
+        const portfolios = await prisma.portfolio.findMany({
+            where: { userId: session.user.id },
+            select: { id: true }
+        });
+
+        if (portfolios.length === 0) {
+            return NextResponse.json({
+                todayPnL: 0,
+                winRate: 0,
+                streak: 0,
+            });
+        }
+
+        const portfolioIds = portfolios.map(p => p.id);
+
+        // Get today's trades from user's portfolios
+        const trades = await prisma.trade.findMany({
             where: {
-                userId: session.user.id,
-                createdAt: { gte: today },
-                exitPrice: { not: null },
+                portfolioId: { in: portfolioIds },
+                timestamp: { gte: today },
             },
             orderBy: {
-                createdAt: 'desc',
+                timestamp: 'desc',
             },
         });
 
@@ -48,23 +56,19 @@ export async function GET() {
             });
         }
 
-        const calcPnL = (t: Trade) =>
-            t.type === 'BUY'
-                ? (t.exitPrice! - t.entryPrice) * t.quantity
-                : (t.entryPrice - t.exitPrice!) * t.quantity;
+        // Calculate P&L from realized trades (SELL trades have realizedPnL)
+        const sellTrades = trades.filter(t => t.side === 'SELL' && t.realizedPnL !== null);
 
-        const pnls = trades.map(calcPnL);
+        const todayPnL = sellTrades.reduce((sum, t) => sum + (t.realizedPnL || 0), 0);
+        const winningTrades = sellTrades.filter(t => (t.realizedPnL || 0) > 0).length;
+        const winRate = sellTrades.length > 0
+            ? Math.round((winningTrades / sellTrades.length) * 100)
+            : 0;
 
-        const todayPnL = pnls.reduce((a, b) => a + b, 0);
-
-        const winningTrades = pnls.filter(pnl => pnl > 0).length;
-
-        const winRate = Math.round((winningTrades / trades.length) * 100);
-
-        // ✅ TRUE streak: consecutive wins from most recent trade
+        // Streak: consecutive wins from most recent
         let streak = 0;
-        for (const pnl of pnls) {
-            if (pnl > 0) streak++;
+        for (const t of sellTrades) {
+            if ((t.realizedPnL || 0) > 0) streak++;
             else break;
         }
 
