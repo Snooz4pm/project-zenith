@@ -154,11 +154,12 @@ export default function CreatePostModal({ isOpen, onClose, onSubmit, allowImages
                                     <select
                                         value={marketType}
                                         onChange={(e) => setMarketType(e.target.value)}
-                                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-[var(--accent-mint)]/50"
+                                        className="w-full px-3 py-2 bg-[#0a0a0c] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-[var(--accent-mint)]/50 appearance-none cursor-pointer"
+                                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1.5em 1.5em' }}
                                     >
-                                        <option value="">Select...</option>
+                                        <option value="" className="bg-[#0a0a0c] text-zinc-400">Select...</option>
                                         {marketTypes.map(m => (
-                                            <option key={m.value} value={m.value}>{m.label}</option>
+                                            <option key={m.value} value={m.value} className="bg-[#0a0a0c] text-white">{m.label}</option>
                                         ))}
                                     </select>
                                 </div>
