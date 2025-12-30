@@ -102,8 +102,8 @@ export async function createSubscription(planId: string, userId: string) {
     application_context: {
       brand_name: "ZenithScores",
       user_action: "SUBSCRIBE_NOW",
-      return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/paypal/success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/paypal/cancel`
+      return_url: "https://www.zenithscores.com/profile/subscription?success=true",
+      cancel_url: "https://www.zenithscores.com/profile/subscription?canceled=true"
     }
   };
 
