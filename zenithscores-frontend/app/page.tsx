@@ -79,25 +79,7 @@ export default function LandingPage() {
               Detect accumulation, momentum shifts, and volatility anomalies in real-time.
             </motion.p>
 
-            {/* CTAs */}
-            <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row items-center justify-center gap-6">
-              <Link
-                href="/crypto" // Default market view
-                className="group relative px-8 py-4 bg-[var(--text-primary)] text-[var(--void)] rounded-xl font-bold text-lg overflow-hidden transition-transform hover:scale-105"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent-mint)] to-[var(--accent-cyan)] opacity-0 group-hover:opacity-20 transition-opacity" />
-                <span className="relative flex items-center gap-2">
-                  Explore Markets <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                </span>
-              </Link>
 
-              <Link
-                href="/learning"
-                className="px-8 py-4 rounded-xl border border-[rgba(255,255,255,0.1)] text-[var(--text-primary)] font-medium hover:bg-[rgba(255,255,255,0.05)] transition-colors flex items-center gap-2"
-              >
-                Start Learning <ChevronRight size={18} className="text-[var(--text-muted)]" />
-              </Link>
-            </motion.div>
           </motion.div>
         </div>
 

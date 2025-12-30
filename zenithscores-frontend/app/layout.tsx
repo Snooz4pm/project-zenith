@@ -87,7 +87,7 @@ export default function RootLayout({
                   {children}
                 </div>
                 {/* Terminal Footer */}
-                <footer className="bg-[#111827] border-t border-[#2D3F5A] mt-20">
+                <footer className="bg-[var(--void)] border-t border-[rgba(255,255,255,0.05)] mt-20">
                   <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
                     <div className="text-center max-w-4xl mx-auto">
                       <p className="text-[10px] text-cyan-600 uppercase tracking-[0.2em] font-mono font-semibold mb-4">
