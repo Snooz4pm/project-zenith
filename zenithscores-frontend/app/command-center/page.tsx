@@ -18,6 +18,8 @@ import { Bell, Settings, Zap, BarChart2, FileText, Users, BookOpen, Newspaper } 
 
 type PanelType = 'trades' | 'market' | 'signals' | 'performance' | 'community' | 'learning' | 'news' | 'notes' | null;
 
+export const dynamic = 'force-dynamic';
+
 export default function CommandCenterPage() {
     const { data: session, status } = useSession();
     const router = useRouter();

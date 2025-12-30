@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import {
     TrendingUp, TrendingDown, Wallet, History, Activity,
     ArrowRight, Lock, CheckCircle, Target, RefreshCw
@@ -22,6 +22,8 @@ const formatCurrency = (value: number) => {
         maximumFractionDigits: 2
     }).format(value);
 };
+
+export const dynamic = 'force-dynamic';
 
 export default function TradingPage() {
     const { data: authSession } = useSession();

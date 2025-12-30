@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import {
     BookOpen, TrendingUp, Lightbulb, Target, Shield,
     ChevronRight, Play, CheckCircle, Lock, Star, Zap, Award, Clock,
@@ -13,12 +13,12 @@ import { useSession } from 'next-auth/react';
 import { getUserProgress } from '@/lib/actions/learning';
 
 // Lazy load heavy components
-const AcademyQuiz = dynamic(() => import('@/components/AcademyQuiz'), {
+const AcademyQuiz = nextDynamic(() => import('@/components/AcademyQuiz'), {
     loading: () => <div className="h-64 bg-[rgba(255,255,255,0.05)] rounded-xl animate-pulse" />,
     ssr: false
 });
 
-const PathsDashboard = dynamic(() => import('@/components/paths/PathsDashboard'), {
+const PathsDashboard = nextDynamic(() => import('@/components/paths/PathsDashboard'), {
     loading: () => <div className="h-96 bg-[rgba(255,255,255,0.05)] rounded-xl animate-pulse" />,
     ssr: false
 });
@@ -121,6 +121,8 @@ const QUICK_TIPS = [
     { title: 'Cut losses quickly, let winners run', category: 'Psychology' },
     { title: 'Paper trade before real money', category: 'Strategy' },
 ];
+
+export const dynamic = 'force-dynamic';
 
 export default function LearningHubPage() {
     const { data: session } = useSession();
