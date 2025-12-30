@@ -1,7 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { NormalizedToken, getTrendingTokens } from '@/lib/dexscreener';
+import {
+    NormalizedToken,
+    getTrendingTokens,
+    EXECUTION_CHAINS,
+    type ExecutionChain
+} from '@/lib/dexscreener';
 import TokenCard from './TokenCard';
 import { useAccount } from 'wagmi';
 import { RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
@@ -16,6 +21,11 @@ const CHAIN_ID_MAP: Record<number, string> = {
     42161: 'arbitrum'
 };
 
+// Type guard to safely narrow string to ExecutionChain
+function isExecutionChain(chain: string): chain is ExecutionChain {
+    return EXECUTION_CHAINS.includes(chain as ExecutionChain);
+}
+
 export default function TrendingGrid({ onTokenSelect }: TrendingGridProps) {
     const { chainId, isConnected } = useAccount();
     const [tokens, setTokens] = useState<NormalizedToken[]>([]);
@@ -28,11 +38,24 @@ export default function TrendingGrid({ onTokenSelect }: TrendingGridProps) {
     const fetchTokens = useCallback(async () => {
         try {
             setError(null);
-            // Fetch tokens for the specific active chain or default to ethereum
-            const data = await getTrendingTokens(activeChainSlug);
+
+            // Type-safe chain selection with fallback
+            const chain: ExecutionChain = isExecutionChain(activeChainSlug)
+                ? activeChainSlug
+                : 'ethereum';
+
+            // Show error if user is on unsupported chain
+            if (!isExecutionChain(activeChainSlug)) {
+                setError('Swaps are available on Ethereum, Base, and Arbitrum only.');
+                setLoading(false);
+                return;
+            }
+
+            // Fetch tokens for the specific active chain
+            const data = await getTrendingTokens(chain);
 
             if (data.length === 0) {
-                setError(`No tokens available on ${activeChainSlug.toUpperCase()}`);
+                setError(`No tokens available on ${chain.toUpperCase()}`);
             } else {
                 setTokens(data);
                 setLastUpdate(new Date());
