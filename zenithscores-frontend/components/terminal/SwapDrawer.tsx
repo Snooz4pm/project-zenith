@@ -140,8 +140,8 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
                 onClick={onClose}
             />
 
-            {/* Drawer Panel - Even higher Z-index */}
-            <div className="fixed inset-y-0 right-0 w-full max-w-md bg-[#0a0c10] border-l border-zinc-800 shadow-2xl z-[100] flex flex-col">
+            {/* Compact Bottom Sheet Panel */}
+            <div className="fixed bottom-0 left-0 right-0 bg-[#0a0c10] border-t border-zinc-800 rounded-t-2xl shadow-2xl z-[100] max-h-[80vh] overflow-hidden">
                 {/* Header */}
                 <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -153,44 +153,44 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
                             {token.chainName}
                         </span>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
-                    >
-                        <X size={20} />
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <div className="text-right">
+                            <div className="text-lg font-mono font-bold text-white">
+                                ${token.priceUsd.toFixed(token.priceUsd >= 1 ? 2 : 6)}
+                            </div>
+                            <div className={`text-xs font-bold ${token.priceChange24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}% (24h)
+                            </div>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
                 </div>
 
-                {/* Price Context */}
-                <div className="p-4 border-b border-zinc-800">
-                    <div className="text-2xl font-mono font-bold text-white">
-                        ${token.priceUsd.toFixed(token.priceUsd >= 1 ? 2 : 6)}
-                    </div>
-                    <div className={`text-sm font-bold ${token.priceChange24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}% (24h)
-                    </div>
-                </div>
-
-                {/* Swap Form */}
-                <div className="flex-1 p-4 overflow-auto">
+                {/* Swap Form - Compact */}
+                <div className="p-4">
                     {!isConnected ? (
-                        <div className="text-center py-8">
-                            <Wallet className="mx-auto text-zinc-600 mb-3" size={32} />
-                            <p className="text-zinc-400 mb-4">Connect wallet to swap</p>
+                        <div className="text-center py-6">
+                            <Wallet className="mx-auto text-zinc-600 mb-3" size={28} />
+                            <p className="text-zinc-400 mb-3 text-sm">Connect wallet to swap</p>
                             <button
                                 onClick={handleConnect}
-                                className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-lg transition-colors"
+                                className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-lg transition-colors"
                             >
                                 Connect Wallet
                             </button>
                         </div>
                     ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             {/* Pay Input */}
-                            <div className="bg-[#080a0e] p-4 rounded-lg border border-zinc-800">
-                                <div className="flex justify-between items-center mb-2">
-                                    <div className="text-xs text-zinc-500">YOU PAY</div>
-                                    <div className="text-xs text-zinc-400">
+                            <div className="bg-[#080a0e] p-3 rounded-lg border border-zinc-800">
+                                <div className="flex justify-between items-center mb-1">
+                                    <div className="text-[10px] text-zinc-500 uppercase tracking-wider">You Pay</div>
+                                    <div className="text-[10px] text-zinc-400">
                                         Balance: {usdcBalance ? parseFloat(usdcBalance.formatted).toFixed(2) : '0.00'}
                                         <button
                                             onClick={handleMax}
@@ -205,63 +205,48 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
                                         type="number"
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
-                                        className={`flex-1 bg-transparent text-2xl font-mono outline-none ${insufficientBalance ? 'text-red-500' : 'text-white'}`}
+                                        className={`flex-1 bg-transparent text-xl font-mono outline-none ${insufficientBalance ? 'text-red-500' : 'text-white'}`}
                                         placeholder="0.00"
                                     />
-                                    <span className="text-zinc-400 font-bold">USDC</span>
+                                    <span className="text-zinc-400 font-bold text-sm">USDC</span>
                                 </div>
                             </div>
 
                             {/* Receive Output */}
-                            <div className="bg-[#080a0e] p-4 rounded-lg border border-zinc-800">
-                                <div className="text-xs text-zinc-500 mb-2">YOU RECEIVE</div>
+                            <div className="bg-[#080a0e] p-3 rounded-lg border border-zinc-800">
+                                <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">You Receive</div>
                                 <div className="flex items-center gap-2">
-                                    <div className="flex-1 text-2xl font-mono text-zinc-300">
+                                    <div className="flex-1 text-xl font-mono text-zinc-300">
                                         {loading ? (
-                                            <Loader2 className="animate-spin" size={20} />
+                                            <Loader2 className="animate-spin" size={18} />
                                         ) : quote ? (
                                             parseFloat(formatUnits(BigInt(quote.buyAmount), 18)).toFixed(4)
                                         ) : (
                                             '0.0'
                                         )}
                                     </div>
-                                    <span className="text-zinc-400 font-bold">{token.symbol}</span>
+                                    <span className="text-zinc-400 font-bold text-sm">{token.symbol}</span>
                                 </div>
                             </div>
 
-                            {/* Quote Details */}
-                            {quote && (
-                                <div className="p-3 bg-zinc-900/50 rounded-lg space-y-2 text-xs">
-                                    <div className="flex justify-between text-zinc-400">
-                                        <span>Rate</span>
-                                        <span className="font-mono">1 USDC ≈ {parseFloat(quote.price || '0').toFixed(6)} {token.symbol}</span>
-                                    </div>
-                                    <div className="flex justify-between text-zinc-400">
-                                        <span>Platform Fee</span>
-                                        <span className="text-emerald-500 font-bold">0.5%</span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Insufficient Balance Checking */}
+                            {/* Compact Errors */}
                             {insufficientBalance && (
-                                <div className="flex items-center gap-2 text-red-500 text-xs p-3 bg-red-500/10 rounded-lg">
-                                    <AlertCircle size={14} />
+                                <div className="flex items-center gap-2 text-red-500 text-xs p-2 bg-red-500/10 rounded-lg">
+                                    <AlertCircle size={12} />
                                     Insufficient USDC balance
                                 </div>
                             )}
 
-                            {/* API Error */}
                             {error && !insufficientBalance && (
-                                <div className="flex items-center gap-2 text-red-500 text-xs p-3 bg-red-500/10 rounded-lg">
-                                    <AlertCircle size={14} />
+                                <div className="flex items-center gap-2 text-red-500 text-xs p-2 bg-red-500/10 rounded-lg">
+                                    <AlertCircle size={12} />
                                     {error}
                                 </div>
                             )}
 
                             {/* Success Message */}
                             {hash && (
-                                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                                <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                                     <div className="text-emerald-400 text-xs font-bold mb-1">Transaction Sent!</div>
                                     <a
                                         href={`${token.chainId === 'base' ? 'https://basescan.org' : token.chainId === 'arbitrum' ? 'https://arbiscan.io' : 'https://etherscan.io'}/tx/${hash}`}
@@ -278,24 +263,24 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
                             <button
                                 onClick={handleSwap}
                                 disabled={!isConnected || isWrongNetwork || insufficientBalance || !quote || loading || isSending}
-                                className={`w-full py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 ${(!isConnected || isWrongNetwork || insufficientBalance || !quote || loading)
+                                className={`w-full py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${(!isConnected || isWrongNetwork || insufficientBalance || !quote || loading)
                                     ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                                     : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)]'
                                     }`}
                             >
                                 {!isConnected ? (
                                     <>
-                                        <Wallet size={20} /> Connect Wallet
+                                        <Wallet size={18} /> Connect Wallet
                                     </>
                                 ) : isWrongNetwork ? (
                                     <>
-                                        <RefreshCw size={20} /> Switch to {token.chainName}
+                                        <RefreshCw size={18} /> Switch to {token.chainName}
                                     </>
                                 ) : insufficientBalance ? (
                                     'Insufficient USDC'
                                 ) : isSending ? (
                                     <>
-                                        <Loader2 className="animate-spin" size={20} /> Confirm in Wallet
+                                        <Loader2 className="animate-spin" size={18} /> Confirm in Wallet
                                     </>
                                 ) : loading ? (
                                     'Getting Quote...'
@@ -307,15 +292,15 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
                     )}
                 </div>
 
-                {/* Footer */}
-                <div className="p-4 border-t border-zinc-800">
+                {/* Compact Footer */}
+                <div className="px-4 pb-4">
                     <a
                         href={token.dexUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                        className="flex items-center justify-center gap-2 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
                     >
-                        View on DexScreener <ExternalLink size={12} />
+                        View on DexScreener <ExternalLink size={10} />
                     </a>
                 </div>
             </div>

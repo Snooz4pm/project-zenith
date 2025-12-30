@@ -102,31 +102,30 @@ export default function Paywall({ isOpen, onClose, featureName = 'this feature' 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-50"
           />
 
           {/* Modal */}
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: 'spring', duration: 0.5 }}
-              className="relative w-full max-w-4xl bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto"
+              className="relative w-full max-w-4xl bg-[var(--void)] rounded-2xl shadow-2xl overflow-hidden pointer-events-auto border border-[rgba(255,255,255,0.1)]"
               style={{
-                border: '1px solid rgba(168, 85, 247, 0.3)',
-                boxShadow: '0 0 80px rgba(168, 85, 247, 0.4)',
+                boxShadow: '0 0 80px rgba(20, 241, 149, 0.15)',
               }}
             >
-              {/* Animated gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-blue-500/10 animate-pulse" />
+              {/* Subtle gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-mint)]/5 via-transparent to-[var(--accent-cyan)]/5" />
 
               {/* Close button */}
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
               >
-                <X className="w-5 h-5 text-white" />
+                <X className="w-5 h-5 text-[var(--text-secondary)]" />
               </button>
 
               {/* Content */}
@@ -137,9 +136,9 @@ export default function Paywall({ isOpen, onClose, featureName = 'this feature' 
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ delay: 0.2, type: 'spring' }}
-                    className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 mb-4"
+                    className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20 mb-4"
                   >
-                    <Lock className="w-10 h-10 text-white" />
+                    <Lock className="w-10 h-10 text-[var(--accent-mint)]" />
                   </motion.div>
 
                   <motion.h2
@@ -147,15 +146,16 @@ export default function Paywall({ isOpen, onClose, featureName = 'this feature' 
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
                     className="text-3xl md:text-4xl font-bold text-white mb-2"
+                    style={{ fontFamily: 'var(--font-display)' }}
                   >
-                    Unlock <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">{featureName}</span>
+                    Unlock <span className="text-[var(--accent-mint)]">{featureName}</span>
                   </motion.h2>
 
                   <motion.p
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.4 }}
-                    className="text-gray-300 text-lg"
+                    className="text-[var(--text-secondary)] text-lg"
                   >
                     Get access to the complete ZenithScores toolkit
                   </motion.p>
@@ -174,14 +174,14 @@ export default function Paywall({ isOpen, onClose, featureName = 'this feature' 
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.6 + index * 0.1 }}
-                      className="flex items-start gap-3 p-4 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"
+                      className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-[var(--accent-mint)]/20 transition-all group"
                     >
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <feature.icon className="w-5 h-5 text-purple-400" />
+                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <feature.icon className="w-5 h-5 text-[var(--accent-mint)]" />
                       </div>
                       <div>
                         <h3 className="font-semibold text-white mb-1">{feature.title}</h3>
-                        <p className="text-sm text-gray-400">{feature.description}</p>
+                        <p className="text-sm text-[var(--text-muted)]">{feature.description}</p>
                       </div>
                     </motion.div>
                   ))}
@@ -192,18 +192,16 @@ export default function Paywall({ isOpen, onClose, featureName = 'this feature' 
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 1.2 }}
-                  className="relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 p-[2px] mb-6"
+                  className="relative overflow-hidden rounded-xl bg-white/[0.02] border border-[var(--accent-mint)]/20 p-6 text-center mb-6"
                 >
-                  <div className="bg-slate-900 rounded-xl p-6 text-center">
-                    <div className="inline-block px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-400 text-sm font-semibold mb-3">
-                      LIMITED TIME
-                    </div>
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <span className="text-5xl font-bold text-white">$19.99</span>
-                      <span className="text-gray-400 text-lg">/month</span>
-                    </div>
-                    <p className="text-gray-400 text-sm">Cancel anytime • No hidden fees</p>
+                  <div className="inline-block px-3 py-1 rounded-full bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20 text-[var(--accent-mint)] text-sm font-semibold mb-3 uppercase tracking-wider" style={{ fontFamily: 'var(--font-data)' }}>
+                    Limited Time
                   </div>
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <span className="text-5xl font-bold text-white" style={{ fontFamily: 'var(--font-data)' }}>$19.99</span>
+                    <span className="text-[var(--text-muted)] text-lg">/month</span>
+                  </div>
+                  <p className="text-[var(--text-muted)] text-sm">Cancel anytime • No hidden fees</p>
                 </motion.div>
 
                 {/* CTA Button */}
@@ -213,21 +211,20 @@ export default function Paywall({ isOpen, onClose, featureName = 'this feature' 
                   transition={{ delay: 1.4 }}
                   onClick={handleUpgrade}
                   disabled={isCreatingSubscription}
-                  className="w-full py-4 px-6 rounded-xl font-bold text-lg text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-4 px-6 rounded-xl font-bold text-lg text-[var(--void)] bg-[var(--accent-mint)] hover:brightness-110 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
-                    boxShadow: '0 0 40px rgba(168, 85, 247, 0.5)',
+                    boxShadow: '0 0 40px rgba(20, 241, 149, 0.3)',
                   }}
                 >
                   {isCreatingSubscription ? (
                     <span className="flex items-center justify-center gap-2">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="w-5 h-5 border-2 border-[var(--void)] border-t-transparent rounded-full animate-spin" />
                       Processing...
                     </span>
                   ) : (
                     <span className="flex items-center justify-center gap-2">
-                      <Sparkles className="w-5 h-5" />
+                      <Zap className="w-5 h-5" />
                       Upgrade to Premium
-                      <Sparkles className="w-5 h-5" />
                     </span>
                   )}
                 </motion.button>
@@ -237,18 +234,18 @@ export default function Paywall({ isOpen, onClose, featureName = 'this feature' 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 1.6 }}
-                  className="mt-6 flex items-center justify-center gap-6 text-sm text-gray-400"
+                  className="mt-6 flex items-center justify-center gap-6 text-sm text-[var(--text-muted)]"
                 >
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <div className="w-2 h-2 rounded-full bg-[var(--accent-mint)]" />
                     <span>Secure Payment</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <div className="w-2 h-2 rounded-full bg-[var(--accent-mint)]" />
                     <span>Instant Access</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <div className="w-2 h-2 rounded-full bg-[var(--accent-mint)]" />
                     <span>Cancel Anytime</span>
                   </div>
                 </motion.div>
