@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useSendTransaction, useConnect } from 'wagmi';
+import { useAccount, useSendTransaction } from 'wagmi';
+import { useWeb3Modal } from '@web3modal/wagmi/react';
 // @ts-ignore
 import { parseUnits, formatUnits } from 'viem';
 import { getZeroExQuote } from '@/lib/trading/zero-ex';
@@ -16,7 +17,7 @@ const TOKENS = [
 
 export default function ZeroExSwap() {
     const { address, isConnected } = useAccount();
-    const { connect, connectors, isPending: isConnecting } = useConnect();
+    const { open } = useWeb3Modal();
     const { sendTransaction, data: txHash, isPending } = useSendTransaction();
 
     const [sellToken, setSellToken] = useState(TOKENS[0]); // ETH default
@@ -70,12 +71,8 @@ export default function ZeroExSwap() {
     };
 
     const handleConnect = () => {
-        console.log('Available connectors:', connectors.map(c => ({ id: c.id, name: c.name })));
-        const injected = connectors.find(c => c.id === 'injected' || c.name === 'Injected');
-        const connector = injected || connectors[0];
-        if (connector) {
-            connect({ connector });
-        }
+        console.log('🔵 Opening Web3Modal from trading page...');
+        open();
     };
 
     if (!isConnected) {
@@ -86,10 +83,9 @@ export default function ZeroExSwap() {
                 <p className="text-xs text-zinc-500 mb-4">Connect your Web3 wallet to execute trades directly.</p>
                 <button
                     onClick={handleConnect}
-                    disabled={isConnecting}
-                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded text-sm transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded text-sm transition-colors"
                 >
-                    {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                    Connect Wallet
                 </button>
             </div>
         );

@@ -15,29 +15,33 @@ export default function AccountSettingsPage() {
     const router = useRouter();
 
     const [displayName, setDisplayName] = useState(session?.user?.name || '');
+    const [image, setImage] = useState(session?.user?.image || '');
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
     const handleSaveName = async () => {
-        if (!displayName.trim() || displayName === session?.user?.name) return;
+        // if (!displayName.trim() || (displayName === session?.user?.name && image === session?.user?.image)) return;
 
         setSaving(true);
         try {
             const res = await fetch('/api/user/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: displayName.trim() })
+                body: JSON.stringify({
+                    name: displayName.trim(),
+                    image: image.trim()
+                })
             });
 
             if (res.ok) {
-                await update({ name: displayName.trim() });
+                await update({ name: displayName.trim(), image: image.trim() });
                 setSaved(true);
                 setTimeout(() => setSaved(false), 2000);
             }
         } catch (e) {
-            console.error('Failed to update name:', e);
+            console.error('Failed to update profile:', e);
         } finally {
             setSaving(false);
         }
@@ -101,24 +105,32 @@ export default function AccountSettingsPage() {
                         {/* Avatar */}
                         <div className="flex items-center gap-6 mb-6">
                             <div className="relative">
-                                {session.user?.image ? (
+                                {image ? (
                                     <img
-                                        src={session.user.image}
+                                        src={image}
                                         alt="Profile"
-                                        className="w-20 h-20 rounded-full border-2 border-[var(--accent-mint)]/30"
+                                        className="w-20 h-20 rounded-full border-2 border-[var(--accent-mint)]/30 object-cover"
+                                        onError={() => setImage(session.user?.image || '')}
                                     />
                                 ) : (
                                     <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--accent-mint)]/30 to-cyan-500/30 flex items-center justify-center text-2xl font-bold">
                                         {session.user?.name?.[0]?.toUpperCase() || 'U'}
                                     </div>
                                 )}
-                                <button className="absolute bottom-0 right-0 p-1.5 bg-[var(--accent-mint)] rounded-full text-black hover:bg-[var(--accent-mint)]/80 transition-colors">
+                                {/* <button className="absolute bottom-0 right-0 p-1.5 bg-[var(--accent-mint)] rounded-full text-black hover:bg-[var(--accent-mint)]/80 transition-colors">
                                     <Camera size={12} />
-                                </button>
+                                </button> */}
                             </div>
-                            <div>
-                                <p className="text-sm text-zinc-400">Profile photo synced with Google</p>
-                                <p className="text-xs text-zinc-600">Update your Google profile to change</p>
+                            <div className="flex-1">
+                                <label className="block text-sm text-zinc-400 mb-2">Avatar URL</label>
+                                <input
+                                    type="text"
+                                    value={image}
+                                    onChange={(e) => setImage(e.target.value)}
+                                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-zinc-600 focus:outline-none focus:border-[var(--accent-mint)]/30 text-sm"
+                                    placeholder="https://example.com/avatar.jpg"
+                                />
+                                <p className="text-xs text-zinc-600 mt-1">Enter a direct image link to update your avatar.</p>
                             </div>
                         </div>
 
@@ -135,7 +147,7 @@ export default function AccountSettingsPage() {
                                 />
                                 <button
                                     onClick={handleSaveName}
-                                    disabled={saving || displayName === session.user?.name}
+                                    disabled={saving}
                                     className="px-4 py-2.5 bg-[var(--accent-mint)]/10 border border-[var(--accent-mint)]/20 text-[var(--accent-mint)] rounded-lg hover:bg-[var(--accent-mint)]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
                                     {saving ? (

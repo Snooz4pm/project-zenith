@@ -107,29 +107,22 @@ The "Thumb Zone" is for **DECISIONS**, not Navigation.
 -   **Buttons:**
     -   Primary: `h-12 bg-emerald-500 text-black font-bold rounded-lg`.
     -   Secondary: `h-12 bg-white/10 text-white font-medium rounded-lg`.
+-   **Forms:**
+    -   **Dropdowns:** INVALID! Use Full Screen Asset Pickers.
+    -   **Inputs:** Native keyboard, auto-focus.
 
 ---
 
-## 7. IMPLEMENTATION NOTES (NEXT.JS)
+## 7. BACK BUTTON CONTRACT (iOS WILL CARE)
 
-### Step 1: Nuclear Option
--   Delete `CardNav.tsx` usage from `app/layout.tsx`.
--   Ensure `Navbar.tsx` is simplified for mobile (Hamburger only).
-
-### Step 2: Component Restructuring
--   Create `components/mobile/MobileHeader.tsx`.
--   Create `components/mobile/MobileMenu.tsx` (using Radix Dialog or Sheet).
--   Refactor `CommandCenter` to stack vertically on mobile (`flex-col`).
-
-### Step 3: Interaction Hardening
--   Install `@radix-ui/react-dialog`.
--   Replace all `window.confirm` or custom modals with Radix.
--   Ensure `Link` components map to the new route structure.
-
-### Step 4: Verification
--   Test on Mobile Viewport (Chrome DevTools).
--   Verify NO horizontal scroll.
--   Verify all touch targets >= 44px.
+| Current State | Back Button Action | Rationale |
+| :--- | :--- | :--- |
+| **Browsing (Any Page)** | Go back to previous page | Standard navigation expectation. |
+| **Swap Input** | Return to Asset Page | User is canceling the intent to swap. |
+| **Swap Review** | Return to Swap Input | User wants to edit the amount/token. |
+| **Waiting for Wallet** | **DISABLED** | Integrity lock. Must not interrupt signature. |
+| **Trade Confirmation** | Return to Portfolio/Asset | Transaction complete context switch. |
+| **Modal (Settings)** | Close Modal | "Back" = "Close" for interruptions. |
 
 ---
 
@@ -139,7 +132,7 @@ The "Thumb Zone" is for **DECISIONS**, not Navigation.
 
 -   **Entry Point:** Contextual ONLY. You "Swap" an asset from its details page or from a Signal. There is no generic "Swap Tab".
 -   **Isolation:** The Swap UI opens in a full-screen Modal or dedicated Route (`/swap` or `?mode=swap`).
-    -   *Crucial:* Global Navigation (Hamburger) is HIDDEN during swap.
+    -   *Crucial:* Global Navigation (Hamburger) is **HIDDEN** during Swap AND Trade execution.
     -   *Reason:* Prevents accidental navigation away from the transaction.
 -   **Exit Protocol:**
     -   Tapping "X" (Close) triggers a check.
@@ -155,6 +148,7 @@ The "Thumb Zone" is for **DECISIONS**, not Navigation.
 1.  **Selection (The "What"):**
     -   Asset Picker opens first if not pre-selected.
     -   List is searchable. Tap to select. No swipes.
+    -   **Note:** Native Select Dropdowns are BANNED. Use Full Screen Modal Pickers.
 
 2.  **Input (The "How Much"):**
     -   Focus lands on "Amount" field.
@@ -165,7 +159,13 @@ The "Thumb Zone" is for **DECISIONS**, not Navigation.
     -   User taps "Review Order" (Bottom CTA).
     -   Keyboard dismisses.
     -   UI shifts to "Quote Mode".
-    -   **Display:** Rate, network cost (in USD), Slippage tolerance (e.g., "0.5%").
+    -   **MANDATORY DISPLAY:**
+        -   Token In & Amount
+        -   Token Out & Amount
+        -   Network Fee (in USD)
+        -   Slippage Tolerance (e.g. 0.5%)
+        -   Price Impact (if high)
+        -   Route Provider (e.g. 0x)
 
 4.  **Confirmation (The "Commit"):**
     -   Button changes to "Confirm Swap" (Solid Green).
@@ -235,6 +235,23 @@ The "Thumb Zone" changes state with the flow.
 
 ---
 
-## EXPECTED MOCKUPS
+## 13. IMPLEMENTATION PLAN (REVISED)
 
-*(Generating visuals for: Command Center Home, Trade Confirmation Modal, & Swap Review Screen)*
+### Step 1: Nuclear Option
+-   Delete `CardNav.tsx` usage from `app/layout.tsx`.
+-   Ensure `Navbar.tsx` is simplified for mobile (Hamburger only).
+
+### Step 2: Component Restructuring
+-   Create `components/mobile/MobileHeader.tsx`.
+-   Create `components/mobile/MobileMenu.tsx` (using Radix Dialog or Sheet).
+-   Refactor `CommandCenter` to stack vertically on mobile (`flex-col`).
+
+### Step 3: Interaction Hardening
+-   Install `@radix-ui/react-dialog`.
+-   Replace all `window.confirm` or custom modals with Radix.
+-   Ensure `Link` components map to the new route structure.
+
+### Step 4: Verification
+-   Test on Mobile Viewport (Chrome DevTools).
+-   Verify NO horizontal scroll.
+-   Verify all touch targets >= 44px.

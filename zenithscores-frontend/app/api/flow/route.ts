@@ -85,7 +85,7 @@ function hasMinimalData(pair: DexPair): boolean {
 }
 
 /**
- * HOT NOW - High velocity, recent activity
+ * HOT NOW - High velocity, recent activity (REVENUE OPTIMIZED)
  */
 function isHotNow(pair: DexPair): boolean {
     if (isObviousHoneypot(pair) || !hasMinimalData(pair)) return false;
@@ -94,12 +94,12 @@ function isHotNow(pair: DexPair): boolean {
     const txns1h = (pair.txns?.h1?.buys || 0) + (pair.txns?.h1?.sells || 0);
     const liq = pair.liquidity?.usd || 0;
 
-    // Very relaxed thresholds
-    return vol1h > 1000 && txns1h > 5 && liq > 5000;
+    // ULTRA LOW thresholds for maximum swaps
+    return vol1h > 100 && txns1h > 2 && liq > 1000;
 }
 
 /**
- * MEME FLOW - Meme tokens with activity
+ * MEME FLOW - Meme tokens with activity (REVENUE OPTIMIZED)
  */
 function isMemeFlowCandidate(pair: DexPair): boolean {
     if (isObviousHoneypot(pair) || !hasMinimalData(pair)) return false;
@@ -108,12 +108,12 @@ function isMemeFlowCandidate(pair: DexPair): boolean {
     const liq = pair.liquidity?.usd || 0;
     const vol24h = pair.volume?.h24 || 0;
 
-    // Very permissive for memes
-    return liq > 3000 && vol24h > 5000;
+    // ULTRA permissive for meme trading
+    return liq > 500 && vol24h > 500;
 }
 
 /**
- * TRADE SETUPS - Rising liquidity + momentum
+ * TRADE SETUPS - Rising liquidity + momentum (REVENUE OPTIMIZED)
  */
 function isTradeSetup(pair: DexPair): boolean {
     if (isObviousHoneypot(pair) || !hasMinimalData(pair)) return false;
@@ -123,8 +123,8 @@ function isTradeSetup(pair: DexPair): boolean {
     const change1h = pair.priceChange?.h1 || 0;
     const txns1h = (pair.txns?.h1?.buys || 0) + (pair.txns?.h1?.sells || 0);
 
-    // Looking for momentum + liquidity
-    return liq > 10000 && vol24h > 10000 && Math.abs(change1h) > 2 && txns1h > 10;
+    // Lower thresholds for more trading opportunities
+    return liq > 2000 && vol24h > 1000 && Math.abs(change1h) > 0.5 && txns1h > 3;
 }
 
 // ========== SCORING FUNCTIONS ==========

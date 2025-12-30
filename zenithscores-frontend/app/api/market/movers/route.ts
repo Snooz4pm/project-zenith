@@ -1,46 +1,42 @@
 import { NextResponse } from 'next/server';
-import { getStockQuote } from '@/lib/finnhub';
+import { getTrendingTokens } from '@/lib/dexscreener';
 
 export const dynamic = 'force-dynamic';
 
-// Top stocks to track for market movers
-const TOP_SYMBOLS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA'];
-const STOCK_NAMES: Record<string, string> = {
-    'AAPL': 'Apple Inc.',
-    'MSFT': 'Microsoft',
-    'GOOGL': 'Alphabet',
-    'AMZN': 'Amazon',
-    'NVDA': 'NVIDIA',
-    'META': 'Meta',
-    'TSLA': 'Tesla',
-};
-
+/**
+ * Market Movers - Now shows trending CRYPTO tokens (swappable for revenue)
+ *
+ * Revenue Model: Users click → swap → 0x affiliate fees
+ * Chains: Base, Arbitrum, Ethereum (all fee-generating)
+ */
 export async function GET() {
     try {
-        const movers = await Promise.all(
-            TOP_SYMBOLS.map(async (symbol) => {
-                try {
-                    const quote = await getStockQuote(symbol);
-                    if (!quote || quote.c === 0) return null;
+        // Fetch trending tokens from multiple chains
+        const baseTokens = await getTrendingTokens('base');
+        const arbTokens = await getTrendingTokens('arbitrum');
+        const ethTokens = await getTrendingTokens('ethereum');
 
-                    return {
-                        symbol,
-                        name: STOCK_NAMES[symbol] || symbol,
-                        price: quote.c,
-                        change: quote.d || 0,
-                        changePercent: quote.dp || 0,
-                    };
-                } catch (e) {
-                    return null;
-                }
-            })
-        );
+        // Combine and sort by 24h volume
+        const allTokens = [...baseTokens, ...arbTokens, ...ethTokens];
 
-        const validMovers = movers.filter(Boolean);
+        const movers = allTokens
+            .sort((a, b) => b.volume24hUsd - a.volume24hUsd)
+            .slice(0, 8) // Top 8 movers
+            .map(token => ({
+                symbol: token.symbol,
+                name: token.name,
+                price: token.priceUsd,
+                change: token.priceChange24h, // Absolute change
+                changePercent: token.priceChange24h, // Percent change
+                chain: token.chainName, // Add chain for display
+                address: token.address, // For swap routing
+            }));
 
-        return NextResponse.json({ movers: validMovers });
+        return NextResponse.json({ movers });
     } catch (error) {
         console.error('Market movers error:', error);
+
+        // Fallback: Return empty but don't crash
         return NextResponse.json({ movers: [] });
     }
 }

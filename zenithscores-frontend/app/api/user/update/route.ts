@@ -20,7 +20,10 @@ export async function POST(request: Request) {
 
         await prisma.user.update({
             where: { id: session.user.id },
-            data: { name: name.trim() }
+            data: {
+                name: name.trim(),
+                image: body.image || undefined // Update image if provided
+            }
         });
 
         return NextResponse.json({ success: true });

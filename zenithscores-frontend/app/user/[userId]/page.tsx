@@ -236,88 +236,84 @@ export default function PublicProfilePage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="space-y-8"
                 >
-                    {/* Profile Header Card */}
-                    <div className="p-8 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-transparent to-blue-500/10 border border-white/10">
-                        <div className="flex flex-col md:flex-row items-start gap-6">
-                            {/* Avatar */}
-                            {profile.image ? (
-                                <img
-                                    src={profile.image}
-                                    alt={profile.name || 'User'}
-                                    className="w-28 h-28 rounded-full border-4 border-emerald-500/30 shadow-lg shadow-emerald-500/20"
-                                />
-                            ) : (
-                                <div className="w-28 h-28 rounded-full bg-gradient-to-br from-emerald-500 to-blue-500 flex items-center justify-center text-4xl font-bold shadow-lg shadow-emerald-500/20">
-                                    {profile.name?.charAt(0)?.toUpperCase() || 'U'}
-                                </div>
-                            )}
+                    {/* TWO-COLUMN PROFILE HEADER */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                        {/* LEFT: 3D Profile Card */}
+                        <div className="lg:col-span-1 flex justify-center lg:justify-start w-full">
+                            <ProfileCard
+                                name={profile.name || 'Anonymous'}
+                                title={profile.careerPath || 'Trader'}
+                                handle={profile.name?.toLowerCase().replace(/\s+/g, '') || 'user'}
+                                avatarUrl={profile.image || undefined}
+                                status={profile.experienceLevel || "Active"} // Using experience level as status line
+                                contactText={isFollowing ? "Unfollow" : "Follow"}
+                                onContactClick={handleFollow}
+                                showUserInfo={true}
+                                enableTilt={true}
+                                className="w-full max-w-sm"
+                                // Custom coloring for the brand
+                                innerGradient="linear-gradient(145deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)"
+                                behindGlowColor="rgba(16, 185, 129, 0.4)"
+                            />
+                        </div>
 
-                            {/* Info */}
-                            <div className="flex-1">
-                                <div className="flex items-start justify-between">
+                        {/* RIGHT: Detailed Info & Actions */}
+                        <div className="lg:col-span-2 space-y-6 pt-4">
+                            {/* Bio & Details */}
+                            <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-sm">
+                                <div className="flex flex-col md:flex-row items-start justify-between gap-4">
                                     <div>
-                                        <h2 className="text-3xl font-bold mb-1">{profile.name || 'Anonymous Trader'}</h2>
-                                        {profile.careerPath && (
-                                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-sm font-medium mb-3">
-                                                <Target size={14} />
-                                                {profile.careerPath}
-                                            </div>
-                                        )}
-                                        {profile.bio && (
-                                            <p className="text-zinc-400 max-w-xl mb-4">{profile.bio}</p>
-                                        )}
-                                        <div className="flex items-center gap-4 text-sm text-zinc-500">
-                                            <span className="flex items-center gap-1">
+                                        <h2 className="text-3xl font-bold mb-2 text-white">{profile.name || 'Anonymous Trader'}</h2>
+
+                                        <div className="flex flex-wrap items-center gap-3 mb-4">
+                                            {profile.careerPath && (
+                                                <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-sm font-medium">
+                                                    <Target size={14} />
+                                                    {profile.careerPath}
+                                                </div>
+                                            )}
+                                            <div className="flex items-center gap-1 text-sm text-zinc-500 bg-white/5 px-3 py-1 rounded-full">
                                                 <Calendar size={14} />
-                                                Joined {profile.joinedAt ? new Date(profile.joinedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently'}
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                                <Zap size={14} />
-                                                {profile.experienceLevel || 'Beginner'}
-                                            </span>
+                                                Since {profile.joinedAt ? new Date(profile.joinedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently'}
+                                            </div>
                                         </div>
+
+                                        {profile.bio && (
+                                            <p className="text-zinc-300 leading-relaxed max-w-2xl mb-6 text-lg">
+                                                {profile.bio}
+                                            </p>
+                                        )}
                                     </div>
 
-                                    {/* Actions */}
+                                    {/* Action Buttons (Extra) */}
                                     {!isOwnProfile && session?.user?.id && (
-                                        <div className="flex items-center gap-3">
-                                            <button
-                                                onClick={handleFollow}
-                                                disabled={followLoading}
-                                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${isFollowing
-                                                    ? 'bg-white/10 text-white border border-white/20 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400'
-                                                    : 'bg-emerald-500 text-black hover:bg-emerald-400'
-                                                    }`}
-                                            >
-                                                {isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />}
-                                                {followLoading ? '...' : isFollowing ? 'Following' : 'Follow'}
-                                            </button>
-
+                                        <div className="flex flex-col gap-3 min-w-[140px]">
+                                            {/* NOTE: Follow is on the card, but keeping Message here */}
                                             <button
                                                 onClick={() => openDirectMessage(userId)}
                                                 disabled={isStartingConversation}
-                                                className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl font-bold text-sm text-white hover:bg-white/10 transition-all"
+                                                className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/40 text-blue-400 rounded-xl font-bold text-sm transition-all"
                                             >
-                                                <MessageCircle size={16} />
-                                                {isStartingConversation ? 'Starting Chat...' : 'Message'}
+                                                <MessageCircle size={18} />
+                                                {isStartingConversation ? 'Starting...' : 'Message'}
                                             </button>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Social Stats */}
-                                <div className="flex items-center gap-6 mt-4 pt-4 border-t border-white/5">
-                                    <div className="text-center">
-                                        <div className="text-xl font-bold text-white">{profile.social?.followers || 0}</div>
-                                        <div className="text-xs text-zinc-500 uppercase tracking-wider">Followers</div>
+                                {/* Social Stats Bar */}
+                                <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/5">
+                                    <div className="text-center p-3 rounded-xl bg-black/20">
+                                        <div className="text-2xl font-bold text-white">{profile.social?.followers || 0}</div>
+                                        <div className="text-xs text-zinc-500 uppercase tracking-wider font-medium">Followers</div>
                                     </div>
-                                    <div className="text-center">
-                                        <div className="text-xl font-bold text-white">{profile.social?.following || 0}</div>
-                                        <div className="text-xs text-zinc-500 uppercase tracking-wider">Following</div>
+                                    <div className="text-center p-3 rounded-xl bg-black/20">
+                                        <div className="text-2xl font-bold text-white">{profile.social?.following || 0}</div>
+                                        <div className="text-xs text-zinc-500 uppercase tracking-wider font-medium">Following</div>
                                     </div>
-                                    <div className="text-center">
-                                        <div className="text-xl font-bold text-white">{profile.badges?.length || 0}</div>
-                                        <div className="text-xs text-zinc-500 uppercase tracking-wider">Badges</div>
+                                    <div className="text-center p-3 rounded-xl bg-black/20">
+                                        <div className="text-2xl font-bold text-white">{profile.badges?.length || 0}</div>
+                                        <div className="text-xs text-zinc-500 uppercase tracking-wider font-medium">Badges</div>
                                     </div>
                                 </div>
                             </div>

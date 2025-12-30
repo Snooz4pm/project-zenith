@@ -117,10 +117,18 @@ export const authOptions: NextAuthOptions = {
                 try {
                     const dbUser = await prisma.user.findUnique({
                         where: { id: token.id as string },
-                        select: { calibrationCompleted: true }
+                        select: {
+                            calibrationCompleted: true,
+                            name: true,
+                            email: true,
+                            image: true
+                        }
                     })
                     if (dbUser) {
                         token.calibrationCompleted = dbUser.calibrationCompleted ?? false
+                        if (dbUser.name) token.name = dbUser.name
+                        if (dbUser.email) token.email = dbUser.email
+                        if (dbUser.image) token.picture = dbUser.image
                     }
                 } catch (e) {
                     console.error("[Auth] Failed to fetch calibration status:", e)

@@ -242,44 +242,44 @@ interface MemeProfile {
     minAgeHours: number;
 }
 
-// 3️⃣ LOCK CHAIN_PROFILES (TYPE-SAFE)
+// 3️⃣ REVENUE-OPTIMIZED THRESHOLDS (LOWER = MORE TOKENS = MORE SWAPS)
 const CHAIN_PROFILES: Record<ExecutionChain, ChainProfile> = {
     base: {
-        minLiquidity: 15000,
-        minVolume24h: 50000,
-        minTxns1h: 50,
-        minAgeHours: 24
+        minLiquidity: 3000,      // Lowered from 15k - allow newer tokens
+        minVolume24h: 2000,      // Lowered from 50k - capture early movers
+        minTxns1h: 5,            // Lowered from 50 - show active pairs
+        minAgeHours: 1           // Lowered from 24 - fresh tokens allowed
     },
     arbitrum: {
-        minLiquidity: 50000,
-        minVolume24h: 250000
+        minLiquidity: 5000,      // Lowered from 50k
+        minVolume24h: 5000       // Lowered from 250k
     },
     ethereum: {
-        minLiquidity: 500000,
-        minVolume24h: 1000000,
-        minFdv: 5000000,
-        minAgeHours: 168 // 7 days
+        minLiquidity: 25000,     // Lowered from 500k
+        minVolume24h: 25000,     // Lowered from 1M
+        minFdv: 100000,          // Lowered from 5M
+        minAgeHours: 6           // Lowered from 168 (7 days)
     }
 };
 
 const MEME_PROFILES: Record<ExecutionChain, MemeProfile> = {
     base: {
-        minLiquidity: 25000,
-        minVolume24h: 100000,
-        minTxns1h: 100,
-        minAgeHours: 12,
+        minLiquidity: 2000,      // Lowered from 25k - catch meme pumps early
+        minVolume24h: 1000,      // Lowered from 100k - viral potential
+        minTxns1h: 3,            // Lowered from 100 - active community
+        minAgeHours: 0.5,        // Lowered from 12 - brand new memes allowed
     },
     arbitrum: {
-        minLiquidity: 75000,
-        minVolume24h: 300000,
-        minTxns1h: 150,
-        minAgeHours: 24,
+        minLiquidity: 3000,      // Lowered from 75k
+        minVolume24h: 3000,      // Lowered from 300k
+        minTxns1h: 5,            // Lowered from 150
+        minAgeHours: 1,          // Lowered from 24
     },
     ethereum: {
-        minLiquidity: 750000,
-        minVolume24h: 2000000,
-        minTxns1h: 200,
-        minAgeHours: 72,
+        minLiquidity: 10000,     // Lowered from 750k
+        minVolume24h: 10000,     // Lowered from 2M
+        minTxns1h: 10,           // Lowered from 200
+        minAgeHours: 2,          // Lowered from 72
     },
 };
 
