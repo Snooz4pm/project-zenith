@@ -31,7 +31,8 @@ export async function verifyWebhookSignature(
   body: any
 ): Promise<boolean> {
   try {
-    const response = await fetch('https://api-m.sandbox.paypal.com/v1/notifications/verify-webhook-signature', {
+    const baseURL = getPayPalBaseURL();
+    const response = await fetch(`${baseURL}/v1/notifications/verify-webhook-signature`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -93,6 +94,8 @@ export async function createSubscription(planId: string, userId: string) {
   const accessToken = await getAccessToken();
   const baseURL = getPayPalBaseURL();
 
+  console.log('[PayPal] Creating subscription:', { planId, userId, baseURL });
+
   const response = await fetch(`${baseURL}/v1/billing/subscriptions`, {
     method: 'POST',
     headers: {
@@ -113,7 +116,17 @@ export async function createSubscription(planId: string, userId: string) {
     }),
   });
 
-  return await response.json();
+  const data = await response.json();
+
+  console.log('[PayPal] Response status:', response.status);
+  console.log('[PayPal] Response data:', JSON.stringify(data, null, 2));
+
+  if (!response.ok) {
+    console.error('[PayPal] ERROR:', data);
+    throw new Error(`PayPal API Error: ${JSON.stringify(data)}`);
+  }
+
+  return data;
 }
 
 // Helper: Cancel subscription
