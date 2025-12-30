@@ -23,6 +23,13 @@ model User {
   tier                 String   @default("free")
   tradingStyle         Json?
 
+  // PayPal Subscription fields
+  subscriptionId       String?  // PayPal subscription ID
+  subscriptionStatus   String?  @default("inactive") // active, canceled, expired, inactive
+  subscriptionStart    DateTime?
+  subscriptionEnd      DateTime?
+  paypalCustomerId     String?  // PayPal customer/payer ID
+
   // NextAuth relations
   accounts      Account[]
   sessions      Session[]

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Newspaper, Book, Users, Mail, Settings, Activity, Target, Zap } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Newspaper, Book, Users, Mail, Settings, Activity, Target, Zap, Crown, Sparkles } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import NotificationBell from '@/components/community/NotificationBell';
 
@@ -32,6 +32,7 @@ const PUBLIC_LINKS: NavLink[] = [
 // Private links - shown only when logged in
 const PRIVATE_LINKS: NavLink[] = [
   { label: 'Dashboard', href: '/command-center', icon: <LayoutDashboard size={16} /> },
+  { label: 'Decision Lab', href: '/decision-lab', icon: <Activity size={16} /> },
   { label: 'Signal Lab', href: '/signals', icon: <Activity size={16} /> },
   { label: 'Learn', href: '/learning', icon: <BookOpen size={16} /> },
   { label: 'Notebook', href: '/notebook', icon: <Book size={16} /> },
@@ -191,6 +192,23 @@ export default function Navbar() {
                 {/* Notification Bell */}
                 <NotificationBell />
 
+                {/* Upgrade Button (Free Users) */}
+                {!session.user.isPremium && (
+                  <Link
+                    href="/profile/subscription"
+                    className="group relative px-4 py-2 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 transition-all overflow-hidden"
+                    style={{
+                      boxShadow: '0 0 20px rgba(168, 85, 247, 0.4)',
+                    }}
+                  >
+                    <span className="relative z-10 flex items-center gap-2">
+                      <Sparkles size={16} />
+                      Upgrade
+                    </span>
+                    <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
+                  </Link>
+                )}
+
                 {/* User Menu Dropdown */}
                 <div className="relative user-dropdown">
                   <button
@@ -213,6 +231,18 @@ export default function Navbar() {
                   {/* Dropdown Menu */}
                   <div className={`absolute top-full right-0 mt-2 w-56 p-2 rounded-xl glass-panel origin-top-right transition-all duration-200 ${activeDropdown === 'user' ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'
                     }`}>
+                    {/* Premium Badge */}
+                    {session.user.isPremium && (
+                      <div className="px-4 py-2 mb-2 rounded-lg bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30">
+                        <div className="flex items-center gap-2">
+                          <Crown size={16} className="text-yellow-400" />
+                          <span className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
+                            Premium Member
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
                     <Link
                       href={`/user/${session.user?.id}`}
                       className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[rgba(255,255,255,0.03)] transition-colors group/item"
@@ -232,6 +262,15 @@ export default function Navbar() {
                     >
                       <Settings size={16} className="text-zinc-400 group-hover/item:text-white transition-colors" />
                       <div className="text-sm text-white">Settings</div>
+                    </Link>
+
+                    <Link
+                      href="/profile/subscription"
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[rgba(255,255,255,0.03)] transition-colors group/item"
+                      onClick={() => setActiveDropdown(null)}
+                    >
+                      <Crown size={16} className={session.user.isPremium ? "text-yellow-400" : "text-zinc-400 group-hover/item:text-white transition-colors"} />
+                      <div className="text-sm text-white">{session.user.isPremium ? 'Manage Subscription' : 'Upgrade to Premium'}</div>
                     </Link>
 
                     <div className="my-2 h-px bg-white/5" />

@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { NextAuthOptions } from "next-auth"
 
-// Extend NextAuth types for calibrationCompleted
+// Extend NextAuth types for calibrationCompleted and tier
 declare module "next-auth" {
     interface Session {
         user: {
@@ -14,6 +14,8 @@ declare module "next-auth" {
             name?: string | null
             image?: string | null
             calibrationCompleted: boolean
+            tier: string
+            isPremium: boolean
         }
     }
 }
@@ -22,6 +24,8 @@ declare module "next-auth/jwt" {
     interface JWT {
         id?: string
         calibrationCompleted?: boolean
+        tier?: string
+        isPremium?: boolean
     }
 }
 
@@ -111,7 +115,7 @@ export const authOptions: NextAuthOptions = {
                 token.calibrationCompleted = false // Default to false, will be checked by middleware
             }
 
-            // If we have an ID, try to get calibration status from DB
+            // If we have an ID, try to get calibration status and tier from DB
             // But wrap in try-catch to not break auth if DB fails
             if (token.id) {
                 try {
@@ -119,6 +123,9 @@ export const authOptions: NextAuthOptions = {
                         where: { id: token.id as string },
                         select: {
                             calibrationCompleted: true,
+                            tier: true,
+                            subscriptionStatus: true,
+                            subscriptionEnd: true,
                             name: true,
                             email: true,
                             image: true
@@ -126,14 +133,25 @@ export const authOptions: NextAuthOptions = {
                     })
                     if (dbUser) {
                         token.calibrationCompleted = dbUser.calibrationCompleted ?? false
+                        token.tier = dbUser.tier || 'free'
+
+                        // Calculate isPremium based on tier and subscription status
+                        const isSubscriptionActive =
+                            dbUser.tier === 'premium' &&
+                            dbUser.subscriptionStatus === 'active' &&
+                            (!dbUser.subscriptionEnd || new Date(dbUser.subscriptionEnd) > new Date())
+                        token.isPremium = isSubscriptionActive
+
                         if (dbUser.name) token.name = dbUser.name
                         if (dbUser.email) token.email = dbUser.email
                         if (dbUser.image) token.picture = dbUser.image
                     }
                 } catch (e) {
-                    console.error("[Auth] Failed to fetch calibration status:", e)
-                    // Don't fail auth, just use default
+                    console.error("[Auth] Failed to fetch user data:", e)
+                    // Don't fail auth, just use defaults
                     token.calibrationCompleted = false
+                    token.tier = 'free'
+                    token.isPremium = false
                 }
             }
 
@@ -142,11 +160,24 @@ export const authOptions: NextAuthOptions = {
                 try {
                     const dbUser = await prisma.user.findUnique({
                         where: { email: token.email as string },
-                        select: { id: true, calibrationCompleted: true }
+                        select: {
+                            id: true,
+                            calibrationCompleted: true,
+                            tier: true,
+                            subscriptionStatus: true,
+                            subscriptionEnd: true
+                        }
                     })
                     if (dbUser) {
                         token.id = dbUser.id
                         token.calibrationCompleted = dbUser.calibrationCompleted ?? false
+                        token.tier = dbUser.tier || 'free'
+
+                        const isSubscriptionActive =
+                            dbUser.tier === 'premium' &&
+                            dbUser.subscriptionStatus === 'active' &&
+                            (!dbUser.subscriptionEnd || new Date(dbUser.subscriptionEnd) > new Date())
+                        token.isPremium = isSubscriptionActive
                     }
                 } catch (e) {
                     console.error("[Auth] Failed to fetch user by email:", e)
@@ -157,10 +188,12 @@ export const authOptions: NextAuthOptions = {
             return token
         },
         async session({ session, token }) {
-            console.log("[Auth] session callback:", { tokenId: token.id, calibrated: token.calibrationCompleted })
+            console.log("[Auth] session callback:", { tokenId: token.id, calibrated: token.calibrationCompleted, tier: token.tier })
             if (session.user) {
                 session.user.id = token.id as string
                 session.user.calibrationCompleted = token.calibrationCompleted ?? false
+                session.user.tier = token.tier || 'free'
+                session.user.isPremium = token.isPremium ?? false
             }
             return session
         }
