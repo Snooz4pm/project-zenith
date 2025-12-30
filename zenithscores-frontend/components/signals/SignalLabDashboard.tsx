@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { ShieldCheck, Activity, Radio, TrendingUp, Zap, Server, ArrowRight, TrendingDown, Minus, AlertTriangle, Gauge } from 'lucide-react';
 import SwapDrawer from '@/components/terminal/SwapDrawer';
 import { getTrendingTokens, NormalizedToken, EXECUTION_CHAINS } from '@/lib/dexscreener';
+import Paywall from '@/components/Paywall';
 
 // Real data structures
 interface EdgeScoreBreakdown {
@@ -99,15 +101,39 @@ function detectMarketRegime(signals: Signal[]): MarketRegime {
 }
 
 export default function SignalLabDashboard() {
+    const { data: session } = useSession();
     const [signals, setSignals] = useState<Signal[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedToken, setSelectedToken] = useState<NormalizedToken | null>(null);
     const [liveFeed, setLiveFeed] = useState<string[]>([]);
     const [marketRegime, setMarketRegime] = useState<MarketRegime>('TRENDING');
     const [hoveredScore, setHoveredScore] = useState<string | null>(null);
+    const [showPaywall, setShowPaywall] = useState(false);
+
+    // Check premium status
+    useEffect(() => {
+        const checkPremium = async () => {
+            try {
+                const response = await fetch('/api/signals');
+                if (response.status === 403) {
+                    // Premium required
+                    setShowPaywall(true);
+                    setLoading(false);
+                    return;
+                }
+            } catch (error) {
+                console.error('Premium check failed:', error);
+            }
+        };
+
+        if (session?.user) {
+            checkPremium();
+        }
+    }, [session]);
 
     // 1. Fetch Real Trending Data
     useEffect(() => {
+        if (showPaywall) return; // Don't fetch if paywall is showing
         let mounted = true;
 
         const fetchData = async () => {
@@ -420,6 +446,13 @@ export default function SignalLabDashboard() {
                     onClose={() => setSelectedToken(null)}
                 />
             )}
+
+            {/* PAYWALL */}
+            <Paywall
+                isOpen={showPaywall}
+                onClose={() => setShowPaywall(false)}
+                featureName="Signal Lab"
+            />
         </div>
     );
 }
