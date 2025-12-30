@@ -3,6 +3,7 @@ import { JetBrains_Mono, Syne, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import React, { Suspense } from "react";
 import dynamic from "next/dynamic";
+import { Analytics } from "@vercel/analytics/next";
 
 // Modern navigation component
 const Navbar = dynamic(
@@ -124,6 +125,7 @@ export default function RootLayout({
             <FloatingCommandButton />
           </Providers>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
