@@ -1,0 +1,2 @@
+﻿components/trading/ZeroExSwap.tsx(5,41): error TS7016: Could not find a declaration file for module 'viem'. 'C:/Users/boume/defi-oracle-worker/zenithscores-frontend/node_modules/viem/_esm/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/viem` if it exists or add a new declaration (.d.ts) file containing `declare module 'viem';`
