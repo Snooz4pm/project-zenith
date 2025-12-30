@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { createSubscription, PREMIUM_PLAN_ID } from '@/lib/paypal';
 
 export async function POST(request: Request) {
   try {
@@ -14,26 +13,64 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create PayPal subscription
-    const subscription = await createSubscription(PREMIUM_PLAN_ID, session.user.id);
+    // FORCE PLAN ID FROM ENV ONLY
+    const PLAN_ID = process.env.PAYPAL_PLAN_ID!;
+    const CLIENT_ID = process.env.PAYPAL_CLIENT_ID!;
+    const CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET!;
+    const MODE = process.env.PAYPAL_MODE || 'sandbox';
 
-    if (subscription.id) {
-      // Find approval URL
-      const approvalLink = subscription.links.find(
-        (link: any) => link.rel === 'approve'
+    console.log("ENV PLAN ID:", PLAN_ID);
+    console.log("ENV MODE:", MODE);
+
+    // Hardcoded URLs (NO ENV VARS)
+    const BASE_URL = "https://www.zenithscores.com";
+    const baseURL = MODE === 'live'
+      ? 'https://api-m.paypal.com'
+      : 'https://api-m.sandbox.paypal.com';
+
+    const body = {
+      plan_id: PLAN_ID,
+      custom_id: session.user.id,
+      application_context: {
+        brand_name: "ZenithScores",
+        user_action: "SUBSCRIBE_NOW",
+        return_url: `${BASE_URL}/profile/subscription?success=true`,
+        cancel_url: `${BASE_URL}/profile/subscription?canceled=true`
+      }
+    };
+
+    console.log("FINAL PAYPAL BODY:", JSON.stringify(body, null, 2));
+
+    const response = await fetch(`${baseURL}/v1/billing/subscriptions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    console.log("PAYPAL RESPONSE STATUS:", response.status);
+    console.log("PAYPAL RESPONSE:", JSON.stringify(data, null, 2));
+
+    if (!response.ok) {
+      console.error("PAYPAL ERROR:", data);
+      return NextResponse.json(
+        { error: 'PayPal subscription failed', details: data },
+        { status: 500 }
       );
-
-      return NextResponse.json({
-        success: true,
-        subscriptionId: subscription.id,
-        approvalUrl: approvalLink?.href,
-      });
     }
 
-    return NextResponse.json(
-      { error: 'Failed to create subscription' },
-      { status: 500 }
-    );
+    // Find approval URL
+    const approvalLink = data.links.find((link: any) => link.rel === 'approve');
+
+    return NextResponse.json({
+      success: true,
+      subscriptionId: data.id,
+      approvalUrl: approvalLink?.href,
+    });
   } catch (error) {
     console.error('Subscription creation error:', error);
     return NextResponse.json(
