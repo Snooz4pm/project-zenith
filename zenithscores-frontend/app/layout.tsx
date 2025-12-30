@@ -102,9 +102,11 @@ export default function RootLayout({
                       </p>
                       <div className="flex flex-wrap justify-center gap-4 text-xs text-gray-500">
                         <a href="/terms" className="hover:text-cyan-400 transition-colors">Terms of Service</a>
-                        <span className="text-[#2D3F5A]">•</span>
+                        <span className="text-white/10">•</span>
                         <a href="/privacy" className="hover:text-cyan-400 transition-colors">Privacy Policy</a>
-                        <span className="text-[#2D3F5A]">•</span>
+                        <span className="text-white/10">•</span>
+                        <a href="/refund" className="hover:text-cyan-400 transition-colors">Refund Policy</a>
+                        <span className="text-white/10">•</span>
                         <span className="text-gray-600">© 2025 ZenithScores</span>
                       </div>
                     </div>
