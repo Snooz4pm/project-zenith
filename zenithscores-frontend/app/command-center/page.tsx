@@ -27,28 +27,17 @@ export default function CommandCenterPage() {
     const [intelligenceOpen, setIntelligenceOpen] = useState(false);
     const [currentTime, setCurrentTime] = useState<string>('');
     const [lastActive, setLastActive] = useState<string>('Just now');
-    const [intelStatus, setIntelStatus] = useState({ count: 0, hasNew: false, color: 'blue', marketRegime: { status: 'Risk-On' } });
-
 
     useEffect(() => {
-        const fetchStatus = async () => {
-            if (status === 'authenticated') {
-                try {
-                    const res = await fetch('/api/intelligence/status');
-                    if (res.ok) {
-                        const data = await res.json();
-                        setIntelStatus(data);
-                    }
-                } catch (e) {
-                    console.error('Failed to fetch intel status');
-                }
-            }
+        // Update time every minute
+        const updateTime = () => {
+            const now = new Date();
+            setCurrentTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
         };
-
-        fetchStatus();
-        const interval = setInterval(fetchStatus, 60000); // Check every minute
+        updateTime();
+        const interval = setInterval(updateTime, 60000);
         return () => clearInterval(interval);
-    }, [status]);
+    }, []);
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -107,15 +96,12 @@ export default function CommandCenterPage() {
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.2)]">
                         <span className="text-xs">⚡</span>
-                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">{intelStatus.marketRegime.status}</span>
+                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Risk-On</span>
                     </div>
                     <div className="relative cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setIntelligenceOpen(true)}>
-                        <Radar size={20} className={intelStatus.hasNew ? 'text-white' : 'text-[var(--text-muted)] hover:text-white'} />
-                        {intelStatus.hasNew && (
-                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-accent-mint shadow-[0_0_10px_var(--glow-mint)] animate-pulse" />
-                        )}
+                        <Radar size={20} className="text-[var(--text-muted)] hover:text-white" />
+                        <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-accent-mint shadow-[0_0_10px_var(--glow-mint)] animate-pulse" />
                     </div>
-
                     <div className="text-xs text-[var(--text-muted)] font-mono">
                         <span className="text-[var(--text-secondary)]">Last: </span>
                         <span className="text-[var(--accent-mint)]">{lastActive}</span>
