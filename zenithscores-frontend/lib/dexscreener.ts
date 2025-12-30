@@ -196,9 +196,36 @@ export interface NormalizedToken {
     volume24hUsd: number;
     pairAddress: string;
     dexUrl: string;
+    isMeme?: boolean;
 }
 
 // ========== TRENDING & DISCOVERY ENGINE (EXECUTION FIRST) ==========
+
+// 1️⃣ SINGLE SOURCE OF TRUTH
+// ===== EXECUTION CHAINS (FEE-GENERATING ONLY) =====
+export const EXECUTION_CHAINS = ['ethereum', 'base', 'arbitrum'] as const;
+export type ExecutionChain = typeof EXECUTION_CHAINS[number];
+
+// ===== MEME TOKEN HEURISTICS =====
+const MEME_KEYWORDS = [
+    'inu', 'dog', 'doge', 'pepe', 'frog', 'cat', 'wojak', 'shib', 'elon', 'bonk', 'based', 'mog', 'chad', 'meme',
+];
+
+function isMemeToken(pair: DexPair): boolean {
+    const name = pair.baseToken.name.toLowerCase();
+    const symbol = pair.baseToken.symbol.toLowerCase();
+
+    return MEME_KEYWORDS.some(k =>
+        name.includes(k) || symbol.includes(k)
+    );
+}
+
+/**
+ * IMPORTANT:
+ * This engine ONLY surfaces tokens that can be swapped
+ * via 0x on supported EVM chains.
+ * If a token cannot generate affiliate fees, it MUST NOT appear.
+ */
 
 interface ChainProfile {
     minLiquidity: number;
@@ -208,26 +235,52 @@ interface ChainProfile {
     minFdv?: number;
 }
 
-const CHAIN_PROFILES: Record<string, ChainProfile> = {
-    // Base: Retail execution, high velocity, lower barriers
+interface MemeProfile {
+    minLiquidity: number;
+    minVolume24h: number;
+    minTxns1h: number;
+    minAgeHours: number;
+}
+
+// 3️⃣ LOCK CHAIN_PROFILES (TYPE-SAFE)
+const CHAIN_PROFILES: Record<ExecutionChain, ChainProfile> = {
     base: {
         minLiquidity: 15000,
         minVolume24h: 50000,
         minTxns1h: 50,
         minAgeHours: 24
     },
-    // Arbitrum: Trader execution, higher depth required
     arbitrum: {
         minLiquidity: 50000,
         minVolume24h: 250000
     },
-    // Ethereum: Whale execution, max trust and depth
     ethereum: {
         minLiquidity: 500000,
         minVolume24h: 1000000,
         minFdv: 5000000,
         minAgeHours: 168 // 7 days
     }
+};
+
+const MEME_PROFILES: Record<ExecutionChain, MemeProfile> = {
+    base: {
+        minLiquidity: 25000,
+        minVolume24h: 100000,
+        minTxns1h: 100,
+        minAgeHours: 12,
+    },
+    arbitrum: {
+        minLiquidity: 75000,
+        minVolume24h: 300000,
+        minTxns1h: 150,
+        minAgeHours: 24,
+    },
+    ethereum: {
+        minLiquidity: 750000,
+        minVolume24h: 2000000,
+        minTxns1h: 200,
+        minAgeHours: 72,
+    },
 };
 
 /**
@@ -259,48 +312,60 @@ function calculateRankScore(pair: DexPair): number {
 /**
  * Validates if a token is safe and viable for 0x execution
  */
-function validateTokenQuality(pair: DexPair, profile: ChainProfile): boolean {
+function validateTokenQuality(pair: DexPair, profile: ChainProfile, chain: ExecutionChain): boolean {
     const liq = pair.liquidity?.usd || 0;
     const vol = pair.volume?.h24 || 0;
     const txns1h = (pair.txns?.h1?.buys || 0) + (pair.txns?.h1?.sells || 0);
     const fdv = pair.fdv || 0;
-    const pairAgeHours = (Date.now() - (pair.pairCreatedAt || 0)) / (1000 * 60 * 60); // Note: pairCreatedAt might need to be fetched or inferred if not in DexPair, falling back if missing
+    const pairAgeHours = (Date.now() - (pair.pairCreatedAt || 0)) / (1000 * 60 * 60);
 
-    // 1. Hard Profile Limits
+    const isMeme = isMemeToken(pair);
+
+    // ===== ROUTABILITY (NON-NEGOTIABLE) =====
+    const validQuotes = ['WETH', 'USDC', 'USDT', 'DAI', 'ETH'];
+    if (!validQuotes.includes(pair.quoteToken.symbol.toUpperCase())) return false;
+
+    // ===== HONEYPOT CHECK =====
+    const buys24 = pair.txns?.h24?.buys || 0;
+    const sells24 = pair.txns?.h24?.sells || 0;
+    if (buys24 > 20 && sells24 === 0) return false;
+
+    // ===== MEME PATH =====
+    if (isMeme) {
+        const memeProfile = MEME_PROFILES[chain];
+        if (liq < memeProfile.minLiquidity) return false;
+        if (vol < memeProfile.minVolume24h) return false;
+        if (txns1h < memeProfile.minTxns1h) return false;
+        if (pairAgeHours < memeProfile.minAgeHours) return false;
+        return true;
+    }
+
+    // ===== NORMAL TOKEN PATH =====
     if (liq < profile.minLiquidity) return false;
     if (vol < profile.minVolume24h) return false;
     if (profile.minTxns1h && txns1h < profile.minTxns1h) return false;
+    if (profile.minAgeHours && pairAgeHours < profile.minAgeHours) return false;
     if (profile.minFdv && fdv < profile.minFdv) return false;
-
-    // 2. Honeypot / Scam Heuristics
-    // If there are buys but absolutely ZERO sells in 24h, it's likely a honeypot
-    const buys24 = pair.txns?.h24?.buys || 0;
-    const sells24 = pair.txns?.h24?.sells || 0;
-    if (buys24 > 10 && sells24 === 0) return false;
-
-    // 3. Spreads & Routability (Implicit)
-    // We only accept pairs with major quote tokens to ensure 0x routability
-    const validQuotes = ['WETH', 'USDC', 'USDT', 'DAI', 'ETH'];
-    if (!validQuotes.includes(pair.quoteToken.symbol.toUpperCase())) return false;
 
     return true;
 }
 
-const CHAIN_DISPLAY: Record<string, string> = {
+
+// 2️⃣ FIX CHAIN_DISPLAY (UI ONLY, EXECUTION SAFE)
+const CHAIN_DISPLAY: Record<ExecutionChain, string> = {
     ethereum: 'Ethereum',
     base: 'Base',
     arbitrum: 'Arbitrum',
-    polygon: 'Polygon',
-    bsc: 'BNB Chain',
-    solana: 'Solana',
-}
+};
+
+// 5️⃣ FIX normalizePair (CHAIN NAME SAFETY)
 function normalizePair(pair: DexPair): NormalizedToken {
     return {
         id: `${pair.chainId}-${pair.pairAddress}`,
         symbol: pair.baseToken.symbol,
         name: pair.baseToken.name,
         chainId: pair.chainId,
-        chainName: CHAIN_DISPLAY[pair.chainId] || pair.chainId.toUpperCase(),
+        chainName: CHAIN_DISPLAY[pair.chainId as ExecutionChain] || pair.chainId.toUpperCase(),
         address: pair.baseToken.address,
         priceUsd: parseFloat(pair.priceUsd || '0'),
         priceChange24h: pair.priceChange?.h24 || 0,
@@ -308,19 +373,18 @@ function normalizePair(pair: DexPair): NormalizedToken {
         volume24hUsd: pair.volume?.h24 || 0,
         pairAddress: pair.pairAddress,
         dexUrl: pair.url,
+        isMeme: isMemeToken(pair),
     };
 }
 
-/**
- * Get trending tokens with strict "Execution First" logic.
- * Returns top 10 ranked tokens for the specific chain.
- */
-export async function getTrendingTokens(targetChain: string = 'base'): Promise<NormalizedToken[]> {
+// 4️⃣ FIX getTrendingTokens (CRITICAL)
+export async function getTrendingTokens(targetChain: ExecutionChain = 'base'): Promise<NormalizedToken[]> {
     const chainId = targetChain.toLowerCase();
-    const profile = CHAIN_PROFILES[chainId];
 
-    // If chain not configured, return empty (Safe fail)
-    if (!profile) return [];
+    // ADD HARD GUARD
+    if (!EXECUTION_CHAINS.includes(chainId as ExecutionChain)) return [];
+
+    const profile = CHAIN_PROFILES[chainId as ExecutionChain];
 
     try {
         // Fetch broad search for chain to get candidates
@@ -337,7 +401,7 @@ export async function getTrendingTokens(targetChain: string = 'base'): Promise<N
         // 1. Filter: Chain Match + Quality Gates
         const validPairs = pairs.filter(p =>
             p.chainId === chainId &&
-            validateTokenQuality(p, profile)
+            validateTokenQuality(p, profile, chainId as ExecutionChain)
         );
 
         // 2. Rank: Execution Score
@@ -385,8 +449,9 @@ export async function fetchPriceDex(symbol: string): Promise<MarketPrice | null>
 
         // SECURE SELECTION LOGIC (Rule Zero)
         const validPairs = pairs
+            // 6️⃣ FIX fetchPriceDex (HIDDEN LEAK)
             .filter((p: DexPair) =>
-                ['ethereum', 'bsc', 'solana', 'base'].includes(p.chainId)
+                EXECUTION_CHAINS.includes(p.chainId as ExecutionChain)
             )
             .filter((p: DexPair) =>
                 Number(p.liquidity?.usd || 0) > 100000 &&
