@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useSendTransaction, useBalance } from 'wagmi';
+import { useAccount, useSendTransaction, useConnect } from 'wagmi';
 // @ts-ignore
 import { parseUnits, formatUnits } from 'viem';
 import { getZeroExQuote } from '@/lib/trading/zero-ex';
@@ -16,6 +16,7 @@ const TOKENS = [
 
 export default function ZeroExSwap() {
     const { address, isConnected } = useAccount();
+    const { connect, connectors, isPending: isConnecting } = useConnect();
     const { sendTransaction, data: txHash, isPending } = useSendTransaction();
 
     const [sellToken, setSellToken] = useState(TOKENS[0]); // ETH default
@@ -68,15 +69,25 @@ export default function ZeroExSwap() {
         });
     };
 
+    const handleConnect = () => {
+        const injectedConnector = connectors.find(c => c.id === 'injected');
+        if (injectedConnector) {
+            connect({ connector: injectedConnector });
+        }
+    };
+
     if (!isConnected) {
         return (
             <div className="p-6 bg-[#0f1219] border border-zinc-800 rounded-xl text-center">
                 <Wallet className="mx-auto text-zinc-600 mb-3" size={32} />
                 <h3 className="text-zinc-300 font-bold mb-1">Connect Wallet</h3>
                 <p className="text-xs text-zinc-500 mb-4">Connect your Web3 wallet to execute trades directly.</p>
-                {/* Relying on global Web3Modal button usually handled by Layout/Header, or add a button here if needed */}
-                <button className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded text-sm transition-colors">
-                    Connect Wallet
+                <button
+                    onClick={handleConnect}
+                    disabled={isConnecting}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded text-sm transition-colors disabled:opacity-50"
+                >
+                    {isConnecting ? 'Connecting...' : 'Connect Wallet'}
                 </button>
             </div>
         );
