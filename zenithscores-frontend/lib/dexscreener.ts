@@ -183,7 +183,94 @@ export function getChainId(chain: string): string {
     };
     return chainMap[chain.toLowerCase()] || 'ethereum';
 }
-// ... existing code ...
+
+// ========== TERMINAL TYPES AND FUNCTIONS ==========
+
+export interface NormalizedToken {
+    id: string;
+    symbol: string;
+    name: string;
+    chainId: string;
+    chainName: string;
+    address: string;
+    priceUsd: number;
+    priceChange24h: number;
+    liquidityUsd: number;
+    volume24hUsd: number;
+    pairAddress: string;
+    dexUrl: string;
+}
+
+const CHAIN_DISPLAY: Record<string, string> = {
+    ethereum: 'ETH',
+    base: 'BASE',
+    bsc: 'BSC',
+    solana: 'SOL',
+    arbitrum: 'ARB',
+    polygon: 'MATIC',
+};
+
+const MIN_LIQUIDITY = 50000;
+const MIN_VOLUME = 100000;
+const MIN_AGE_HOURS = 12;
+
+function normalizePair(pair: DexPair): NormalizedToken {
+    return {
+        id: `${pair.chainId}-${pair.pairAddress}`,
+        symbol: pair.baseToken.symbol,
+        name: pair.baseToken.name,
+        chainId: pair.chainId,
+        chainName: CHAIN_DISPLAY[pair.chainId] || pair.chainId.toUpperCase(),
+        address: pair.baseToken.address,
+        priceUsd: parseFloat(pair.priceUsd || '0'),
+        priceChange24h: pair.priceChange?.h24 || 0,
+        liquidityUsd: pair.liquidity?.usd || 0,
+        volume24hUsd: pair.volume?.h24 || 0,
+        pairAddress: pair.pairAddress,
+        dexUrl: pair.url,
+    };
+}
+
+/**
+ * Get trending tokens for the Terminal with strict filtering
+ */
+export async function getTrendingTokens(): Promise<NormalizedToken[]> {
+    const chains = ['ethereum', 'base', 'bsc', 'solana'];
+    const allTokens: NormalizedToken[] = [];
+
+    for (const chain of chains) {
+        try {
+            const response = await fetch(
+                `${DEXSCREENER_BASE_URL}/dex/pairs/${chain}`,
+                { next: { revalidate: 30 } }
+            );
+
+            if (!response.ok) continue;
+
+            const data = await response.json();
+            const pairs: DexPair[] = data.pairs || [];
+
+            pairs
+                .filter((p) => {
+                    const liq = p.liquidity?.usd || 0;
+                    const vol = p.volume?.h24 || 0;
+                    return liq >= MIN_LIQUIDITY && vol >= MIN_VOLUME;
+                })
+                .slice(0, 6)
+                .forEach((pair) => {
+                    allTokens.push(normalizePair(pair));
+                });
+        } catch (e) {
+            console.error(`Terminal: Failed to fetch ${chain}:`, e);
+        }
+    }
+
+    return allTokens
+        .sort((a, b) => b.volume24hUsd - a.volume24hUsd)
+        .slice(0, 24);
+}
+
+// ========== LEGACY PRICE FETCHER ==========
 
 /**
  * Unified Price Fetcher for DexScreener

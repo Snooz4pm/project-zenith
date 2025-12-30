@@ -70,9 +70,11 @@ export default function ZeroExSwap() {
     };
 
     const handleConnect = () => {
-        const injectedConnector = connectors.find(c => c.id === 'injected');
-        if (injectedConnector) {
-            connect({ connector: injectedConnector });
+        console.log('Available connectors:', connectors.map(c => ({ id: c.id, name: c.name })));
+        const injected = connectors.find(c => c.id === 'injected' || c.name === 'Injected');
+        const connector = injected || connectors[0];
+        if (connector) {
+            connect({ connector });
         }
     };
 
