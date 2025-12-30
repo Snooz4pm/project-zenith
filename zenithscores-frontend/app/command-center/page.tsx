@@ -14,7 +14,7 @@ import NotebookTile from '@/components/command-center/NotebookTile';
 import NotesTile from '@/components/command-center/NotesTile';
 import SlideOutPanel from '@/components/command-center/SlideOutPanel';
 import { IntelligenceDrawer } from '@/components/intelligence';
-import { Bell, Settings, Zap, BarChart2, FileText, Users, BookOpen, Newspaper } from 'lucide-react';
+import { Radar, Settings, Zap, BarChart2, FileText, Users, BookOpen, Newspaper } from 'lucide-react';
 
 type PanelType = 'trades' | 'market' | 'signals' | 'performance' | 'community' | 'learning' | 'news' | 'notes' | null;
 
@@ -27,17 +27,28 @@ export default function CommandCenterPage() {
     const [intelligenceOpen, setIntelligenceOpen] = useState(false);
     const [currentTime, setCurrentTime] = useState<string>('');
     const [lastActive, setLastActive] = useState<string>('Just now');
+    const [intelStatus, setIntelStatus] = useState({ count: 0, hasNew: false, color: 'blue', marketRegime: { status: 'Risk-On' } });
+
 
     useEffect(() => {
-        // Update time every minute
-        const updateTime = () => {
-            const now = new Date();
-            setCurrentTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+        const fetchStatus = async () => {
+            if (status === 'authenticated') {
+                try {
+                    const res = await fetch('/api/intelligence/status');
+                    if (res.ok) {
+                        const data = await res.json();
+                        setIntelStatus(data);
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch intel status');
+                }
+            }
         };
-        updateTime();
-        const interval = setInterval(updateTime, 60000);
+
+        fetchStatus();
+        const interval = setInterval(fetchStatus, 60000); // Check every minute
         return () => clearInterval(interval);
-    }, []);
+    }, [status]);
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -96,12 +107,15 @@ export default function CommandCenterPage() {
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.2)]">
                         <span className="text-xs">⚡</span>
-                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Risk-On</span>
+                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">{intelStatus.marketRegime.status}</span>
                     </div>
                     <div className="relative cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setIntelligenceOpen(true)}>
-                        <Bell size={20} className="text-[var(--text-muted)] hover:text-white" />
-                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--accent-danger)] text-[8px] flex items-center justify-center text-white font-bold">3</span>
+                        <Radar size={20} className={intelStatus.hasNew ? 'text-white' : 'text-[var(--text-muted)] hover:text-white'} />
+                        {intelStatus.hasNew && (
+                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-accent-mint shadow-[0_0_10px_var(--glow-mint)] animate-pulse" />
+                        )}
                     </div>
+
                     <div className="text-xs text-[var(--text-muted)] font-mono">
                         <span className="text-[var(--text-secondary)]">Last: </span>
                         <span className="text-[var(--accent-mint)]">{lastActive}</span>

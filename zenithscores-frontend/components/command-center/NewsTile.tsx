@@ -23,10 +23,10 @@ export default function NewsTile({ onClick }: NewsTileProps) {
                 const response = await fetch('/api/news?limit=2');
                 if (response.ok) {
                     const data = await response.json();
-                    setHeadlines((data.articles || []).slice(0, 2).map((a: any) => ({
+                    setHeadlines((data.news || []).slice(0, 2).map((a: any) => ({
                         title: a.title,
-                        tag: 'MARKET', // Default tag if not provided
-                        color: 'text-blue-400'
+                        tag: a.category?.toUpperCase() || 'MARKET',
+                        color: a.category === 'crypto' ? 'text-orange-400' : 'text-blue-400'
                     })));
                 }
             } catch (error) {

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import {
     X, ExternalLink, BookOpen, Eye, EyeOff,
-    AlertCircle, TrendingUp, Info, Zap,
+    AlertCircle, TrendingUp, Info, Radar,
     RefreshCw, Clock
 } from 'lucide-react';
 import { getPersonalizedFeed, recordItemView } from '@/lib/intelligence/actions';
@@ -121,7 +121,7 @@ export default function IntelligenceDrawer({ isOpen, onClose }: IntelligenceDraw
                             <div className="flex items-center justify-between">
                                 <div>
                                     <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <Zap size={18} className="text-emerald-400" />
+                                        <Radar size={18} className="text-emerald-400" />
                                         Intelligence Feed
                                     </h2>
                                     <p className="text-xs text-zinc-500 mt-1">

@@ -157,6 +157,21 @@ export function calculateImpactScore(news: RawFinnhubNews, assetTags: string[]):
  * Ingest and store news items in database
  */
 export async function ingestNews(): Promise<{ ingested: number; skipped: number }> {
+    // Basic rate limiting: only ingest once every 15 minutes
+    const lastIngestKey = 'last_news_ingest_time';
+    // We can't use localStorage on server, but we can check the database for the most recent item
+    const latestItem = await prisma.intelligenceItem.findFirst({
+        orderBy: { createdAt: 'desc' }
+    });
+
+    if (latestItem) {
+        const diffMs = Date.now() - new Date(latestItem.createdAt).getTime();
+        const fifteenMinutes = 15 * 60 * 1000;
+        if (diffMs < fifteenMinutes) {
+            return { ingested: 0, skipped: 0 };
+        }
+    }
+
     let ingested = 0;
     let skipped = 0;
 

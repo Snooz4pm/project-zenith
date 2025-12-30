@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { Bell, MessageSquare, Mail, X, Check } from 'lucide-react';
+import { Inbox, MessageSquare, Mail, X, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -115,7 +115,7 @@ export default function NotificationBell() {
             case 'DIRECT_MESSAGE':
                 return <Mail size={14} className="text-emerald-400" />;
             default:
-                return <Bell size={14} className="text-zinc-400" />;
+                return <Inbox size={14} className="text-zinc-400" />;
         }
     };
 
@@ -128,7 +128,7 @@ export default function NotificationBell() {
                 onClick={() => isOpen ? setIsOpen(false) : handleOpenDropdown()}
                 className="relative p-2 hover:bg-white/5 rounded-lg transition-colors"
             >
-                <Bell size={20} className="text-zinc-400 hover:text-white" />
+                <Inbox size={20} className="text-zinc-400 hover:text-white" />
                 {unreadCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                         {unreadCount > 9 ? '9+' : unreadCount}
@@ -147,7 +147,7 @@ export default function NotificationBell() {
                     >
                         {/* Header */}
                         <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-                            <h3 className="text-sm font-medium text-white">Notifications</h3>
+                            <h3 className="text-sm font-medium text-white">Inbox</h3>
                             {unreadCount > 0 && (
                                 <button
                                     onClick={handleMarkAllAsRead}

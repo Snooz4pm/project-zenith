@@ -435,22 +435,7 @@ export default function LearningHubPage() {
                     {/* Sidebar */}
                     <div className="space-y-6">
 
-                        {/* Decision Lab Promo */}
-                        <div className="group relative overflow-hidden rounded-xl border border-[var(--accent-mint)]/20 bg-gradient-to-b from-[var(--accent-mint)]/10 to-transparent p-1 transition-all hover:border-[var(--accent-mint)]/50">
-                            <div className="relative z-10 rounded-lg bg-[#0c0c10] p-4">
-                                <div className="mb-3 flex items-center justify-between">
-                                    <div className="rounded-lg bg-[var(--accent-mint)]/20 p-2 text-[var(--accent-mint)]">
-                                        <Activity size={20} />
-                                    </div>
-                                    <span className="rounded bg-[var(--accent-mint)]/10 px-2 py-1 text-[10px] font-bold uppercase text-[var(--accent-mint)]">New</span>
-                                </div>
-                                <h3 className="mb-1 text-lg font-bold text-white">Decision Lab</h3>
-                                <p className="mb-4 text-xs text-zinc-400">Train your execution under pressure with historical scenarios.</p>
-                                <Link href="/learning/decision-lab" className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent-mint)] py-2 text-sm font-bold text-black transition-opacity hover:opacity-90">
-                                    Enter Lab <ChevronRight size={14} />
-                                </Link>
-                            </div>
-                        </div>
+
 
                         {/* Daily Tip */}
                         <motion.div
