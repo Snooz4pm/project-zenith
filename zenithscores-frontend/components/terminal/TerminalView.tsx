@@ -45,14 +45,15 @@ const TIMEFRAMES: { label: string; timeframe: Timeframe; range: DataRange }[] = 
     { label: '1Y', timeframe: '1D', range: '1Y' },
 ];
 
-// Mock market movers
-const MOCK_MOVERS = [
-    { symbol: 'AAPL', name: 'Apple Inc.', price: 178.50, change: 2.34, changePercent: 1.33, sparkline: [175, 176, 177, 178, 177.5, 178.5] },
-    { symbol: 'MSFT', name: 'Microsoft', price: 374.20, change: -1.20, changePercent: -0.32, sparkline: [376, 375, 374, 373, 374, 374.2] },
-    { symbol: 'GOOGL', name: 'Alphabet', price: 141.80, change: 3.45, changePercent: 2.49, sparkline: [138, 139, 140, 141, 141.5, 141.8] },
-    { symbol: 'AMZN', name: 'Amazon', price: 154.30, change: 1.10, changePercent: 0.72, sparkline: [152, 153, 153.5, 154, 154.2, 154.3] },
-    { symbol: 'NVDA', name: 'NVIDIA', price: 495.20, change: 8.50, changePercent: 1.74, sparkline: [485, 488, 490, 492, 494, 495.2] },
-];
+// Market movers configuration - fetch from API or show empty state
+interface MarketMover {
+    symbol: string;
+    name: string;
+    price: number;
+    change: number;
+    changePercent: number;
+    sparkline?: number[];
+}
 
 export default function TerminalView({
     symbol,
@@ -71,6 +72,23 @@ export default function TerminalView({
     const [ignoredIds, setIgnoredIds] = useState<Set<string>>(new Set());
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [activeDrawings, setActiveDrawings] = useState<Drawing[]>([]);
+    const [marketMovers, setMarketMovers] = useState<MarketMover[]>([]);
+
+    // Fetch real market movers
+    useEffect(() => {
+        const fetchMovers = async () => {
+            try {
+                const res = await fetch('/api/market/movers');
+                if (res.ok) {
+                    const data = await res.json();
+                    setMarketMovers(data.movers || []);
+                }
+            } catch (e) {
+                console.error('Failed to fetch market movers:', e);
+            }
+        };
+        fetchMovers();
+    }, []);
 
     // --- 1. LIVE DATA FEED ---
     const {
@@ -308,15 +326,21 @@ export default function TerminalView({
                                 {/* LIVE indicator */}
                                 <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-500 text-black">LIVE</span>
                             </div>
-                            <MarketMovers
-                                title=""
-                                movers={MOCK_MOVERS}
-                                onSelect={(sym: string) => {
-                                    if (sym !== symbol) {
-                                        window.location.href = `/stocks/${sym}`;
-                                    }
-                                }}
-                            />
+                            {marketMovers.length > 0 ? (
+                                <MarketMovers
+                                    title=""
+                                    movers={marketMovers}
+                                    onSelect={(sym: string) => {
+                                        if (sym !== symbol) {
+                                            window.location.href = `/stocks/${sym}`;
+                                        }
+                                    }}
+                                />
+                            ) : (
+                                <div className="text-center text-gray-500 py-4 text-xs">
+                                    Loading market data...
+                                </div>
+                            )}
                         </div>
                     </div>
 

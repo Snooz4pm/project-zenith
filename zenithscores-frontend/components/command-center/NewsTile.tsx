@@ -30,11 +30,9 @@ export default function NewsTile({ onClick }: NewsTileProps) {
                     })));
                 }
             } catch (error) {
-                // Use mock data
-                setHeadlines([
-                    { title: 'Fed signals potential rate pause amid inflation concerns', tag: 'MACRO', color: 'text-blue-400' },
-                    { title: 'BTC ETF sees $500M inflow as institutional interest grows', tag: 'CRYPTO', color: 'text-orange-400' },
-                ]);
+                console.error('Failed to fetch news:', error);
+                // No mock data - show empty state
+                setHeadlines([]);
             }
         };
         fetchNews();

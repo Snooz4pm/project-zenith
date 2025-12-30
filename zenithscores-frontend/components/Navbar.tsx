@@ -23,6 +23,7 @@ export default function Navbar() {
 
     const navLinks = [
         { href: '/dashboard', label: 'Dashboard' },
+        { href: '/terminal', label: '🔥 Terminal' },
         { href: '/crypto', label: 'Crypto' },
         { href: '/stocks', label: 'Stocks' },
         { href: '/forex', label: 'Forex' },

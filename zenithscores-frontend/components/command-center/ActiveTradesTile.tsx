@@ -35,13 +35,10 @@ export default function ActiveTradesTile({ onClick }: ActiveTradesTileProps) {
                     setTotalPnL(data.positions?.reduce((sum: number, p: any) => sum + (p.unrealized_pnl || 0), 0) || 0);
                 }
             } catch (error) {
-                // Mock data
-                setTrades([
-                    { symbol: 'AAPL', direction: 'long', pnl: 127, pnlPercent: 2.1 },
-                    { symbol: 'BTC', direction: 'long', pnl: -45, pnlPercent: -0.8 },
-                    { symbol: 'TSLA', direction: 'short', pnl: 89, pnlPercent: 1.5 },
-                ]);
-                setTotalPnL(171);
+                console.error('Failed to fetch trades:', error);
+                // No mock data - show empty state
+                setTrades([]);
+                setTotalPnL(0);
             } finally {
                 setLoading(false);
             }

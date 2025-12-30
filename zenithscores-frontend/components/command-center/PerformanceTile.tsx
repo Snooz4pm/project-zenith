@@ -8,13 +8,28 @@ interface PerformanceTileProps {
 }
 
 export default function PerformanceTile({ onClick }: PerformanceTileProps) {
-    const [todayPnL, setTodayPnL] = useState(1247);
-    const [winRate, setWinRate] = useState(72);
-    const [streak, setStreak] = useState(5);
+    const [todayPnL, setTodayPnL] = useState(0);
+    const [winRate, setWinRate] = useState(0);
+    const [streak, setStreak] = useState(0);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Fetch logic...
-        setTodayPnL(1247);
+        const fetchPerformance = async () => {
+            try {
+                const res = await fetch('/api/trading/performance');
+                if (res.ok) {
+                    const data = await res.json();
+                    setTodayPnL(data.todayPnL || 0);
+                    setWinRate(data.winRate || 0);
+                    setStreak(data.streak || 0);
+                }
+            } catch (e) {
+                console.error('Failed to fetch performance:', e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchPerformance();
     }, []);
 
     const isPositive = todayPnL >= 0;
