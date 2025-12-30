@@ -134,174 +134,261 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
 
     return (
         <>
-            {/* Backdrop - High Z-index to cover Navbar (z-50) */}
+            {/* Backdrop - Animated */}
             <div
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90]"
+                className="fixed inset-0 bg-black/70 backdrop-blur-md z-[90] animate-in fade-in duration-200"
                 onClick={onClose}
             />
 
-            {/* Compact Bottom Sheet Panel */}
-            <div className="fixed bottom-0 left-0 right-0 bg-[#0a0c10] border-t border-zinc-800 rounded-t-2xl shadow-2xl z-[100] max-h-[80vh] overflow-hidden">
-                {/* Header */}
-                <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div>
-                            <div className="font-bold text-white">{token.symbol}</div>
-                            <div className="text-xs text-zinc-500">{token.name}</div>
-                        </div>
-                        <span className="text-[10px] px-1.5 py-0.5 bg-zinc-800 text-zinc-400 rounded">
-                            {token.chainName}
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <div className="text-right">
-                            <div className="text-lg font-mono font-bold text-white">
-                                ${token.priceUsd.toFixed(token.priceUsd >= 1 ? 2 : 6)}
+            {/* Premium Bottom Sheet with Glassmorphism */}
+            <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-b from-[#0a0c10] via-[#0f1219] to-[#0a0c10] border-t border-purple-500/20 rounded-t-3xl shadow-[0_-10px_80px_rgba(139,92,246,0.15)] z-[100] max-h-[85vh] overflow-hidden animate-in slide-in-from-bottom duration-300">
+
+                {/* Glow Effect Top Border */}
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-60" />
+
+                {/* Header - Premium Style */}
+                <div className="relative p-5 border-b border-zinc-800/50 bg-gradient-to-r from-purple-500/5 via-transparent to-blue-500/5">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            {/* Token Info with Glow */}
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full blur-xl opacity-30 animate-pulse" />
+                                <div className="relative bg-gradient-to-br from-purple-600/20 to-blue-600/20 p-3 rounded-2xl border border-purple-500/30 backdrop-blur-sm">
+                                    <div className="text-2xl font-black bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                                        {token.symbol}
+                                    </div>
+                                </div>
                             </div>
-                            <div className={`text-xs font-bold ${token.priceChange24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}% (24h)
+
+                            <div>
+                                <div className="font-bold text-white text-lg">{token.name}</div>
+                                <span className="inline-flex items-center gap-1.5 text-xs px-2 py-1 bg-zinc-800/50 text-zinc-300 rounded-full border border-zinc-700/50 backdrop-blur-sm mt-1">
+                                    <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                                    {token.chainName}
+                                </span>
                             </div>
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="p-2 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
-                        >
-                            <X size={20} />
-                        </button>
+
+                        <div className="flex items-center gap-4">
+                            {/* Price Display - Enhanced */}
+                            <div className="text-right bg-zinc-900/40 px-4 py-2 rounded-xl border border-zinc-800/50 backdrop-blur-sm">
+                                <div className="text-xl font-mono font-black bg-gradient-to-r from-white to-zinc-300 bg-clip-text text-transparent">
+                                    ${token.priceUsd.toFixed(token.priceUsd >= 1 ? 2 : 6)}
+                                </div>
+                                <div className={`text-sm font-bold flex items-center gap-1 ${token.priceChange24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {token.priceChange24h >= 0 ? '↗' : '↘'}
+                                    {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}%
+                                </div>
+                            </div>
+
+                            {/* Close Button - Stylish */}
+                            <button
+                                onClick={onClose}
+                                className="p-2.5 bg-zinc-800/50 hover:bg-red-500/20 rounded-xl text-zinc-400 hover:text-red-400 transition-all duration-200 border border-zinc-700/50 hover:border-red-500/30"
+                            >
+                                <X size={22} />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                {/* Swap Form - Compact */}
-                <div className="p-4">
+                {/* Swap Form - Premium Design */}
+                <div className="p-5">
                     {!isConnected ? (
-                        <div className="text-center py-6">
-                            <Wallet className="mx-auto text-zinc-600 mb-3" size={28} />
-                            <p className="text-zinc-400 mb-3 text-sm">Connect wallet to swap</p>
+                        <div className="text-center py-8 px-4">
+                            <div className="relative inline-block mb-4">
+                                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full blur-2xl opacity-20 animate-pulse" />
+                                <div className="relative bg-gradient-to-br from-purple-600/10 to-blue-600/10 p-4 rounded-2xl border border-purple-500/20">
+                                    <Wallet className="text-purple-400" size={32} />
+                                </div>
+                            </div>
+                            <p className="text-zinc-300 mb-4 text-base font-medium">Connect wallet to start swapping</p>
                             <button
                                 onClick={handleConnect}
-                                className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-lg transition-colors"
+                                className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-purple-500/25"
                             >
                                 Connect Wallet
                             </button>
                         </div>
                     ) : (
-                        <div className="space-y-3">
-                            {/* Pay Input */}
-                            <div className="bg-[#080a0e] p-3 rounded-lg border border-zinc-800">
-                                <div className="flex justify-between items-center mb-1">
-                                    <div className="text-[10px] text-zinc-500 uppercase tracking-wider">You Pay</div>
-                                    <div className="text-[10px] text-zinc-400">
-                                        Balance: {usdcBalance ? parseFloat(usdcBalance.formatted).toFixed(2) : '0.00'}
-                                        <button
-                                            onClick={handleMax}
-                                            className="ml-2 text-emerald-500 hover:text-emerald-400 font-bold"
-                                        >
-                                            MAX
-                                        </button>
+                        <div className="space-y-4">
+                            {/* Pay Input - Premium Glass Card */}
+                            <div className="relative group">
+                                <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 to-blue-600/10 rounded-2xl blur-xl group-hover:blur-2xl transition-all" />
+                                <div className="relative bg-gradient-to-br from-zinc-900/80 to-zinc-800/80 p-4 rounded-2xl border border-zinc-700/50 backdrop-blur-sm">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <div className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">You Pay</div>
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <span className="text-zinc-500">Balance:</span>
+                                            <span className="text-white font-mono">
+                                                {usdcBalance ? parseFloat(usdcBalance.formatted).toFixed(2) : '0.00'}
+                                            </span>
+                                            <button
+                                                onClick={handleMax}
+                                                className="px-2 py-0.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 hover:text-purple-300 font-bold rounded border border-purple-500/30 transition-all"
+                                            >
+                                                MAX
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="number"
-                                        value={amount}
-                                        onChange={(e) => setAmount(e.target.value)}
-                                        className={`flex-1 bg-transparent text-xl font-mono outline-none ${insufficientBalance ? 'text-red-500' : 'text-white'}`}
-                                        placeholder="0.00"
-                                    />
-                                    <span className="text-zinc-400 font-bold text-sm">USDC</span>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="number"
+                                            value={amount}
+                                            onChange={(e) => setAmount(e.target.value)}
+                                            className={`flex-1 bg-transparent text-2xl font-mono font-bold outline-none ${insufficientBalance ? 'text-red-400' : 'text-white'}`}
+                                            placeholder="0.00"
+                                        />
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-zinc-800/60 rounded-xl border border-zinc-700/50">
+                                            <div className="w-6 h-6 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                                $
+                                            </div>
+                                            <span className="text-white font-bold">USDC</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Receive Output */}
-                            <div className="bg-[#080a0e] p-3 rounded-lg border border-zinc-800">
-                                <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">You Receive</div>
-                                <div className="flex items-center gap-2">
-                                    <div className="flex-1 text-xl font-mono text-zinc-300">
-                                        {loading ? (
-                                            <Loader2 className="animate-spin" size={18} />
-                                        ) : quote ? (
-                                            parseFloat(formatUnits(BigInt(quote.buyAmount), 18)).toFixed(4)
-                                        ) : (
-                                            '0.0'
+                            {/* Swap Arrow - Animated */}
+                            <div className="flex justify-center -my-2 relative z-10">
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full blur-lg opacity-30" />
+                                    <button className="relative bg-gradient-to-br from-purple-600/20 to-blue-600/20 p-2.5 rounded-full border border-purple-500/30 text-purple-400 hover:text-purple-300 transition-all hover:scale-110 backdrop-blur-sm">
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Receive Output - Premium Glass Card */}
+                            <div className="relative group">
+                                <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/10 to-cyan-600/10 rounded-2xl blur-xl group-hover:blur-2xl transition-all" />
+                                <div className="relative bg-gradient-to-br from-zinc-900/80 to-zinc-800/80 p-4 rounded-2xl border border-zinc-700/50 backdrop-blur-sm">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <div className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">You Receive</div>
+                                        {quote && (
+                                            <span className="text-xs px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 font-semibold">
+                                                Best Price
+                                            </span>
                                         )}
                                     </div>
-                                    <span className="text-zinc-400 font-bold text-sm">{token.symbol}</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-1 text-2xl font-mono font-bold text-emerald-400">
+                                            {loading ? (
+                                                <Loader2 className="animate-spin text-purple-400" size={24} />
+                                            ) : quote ? (
+                                                parseFloat(formatUnits(BigInt(quote.buyAmount), 18)).toFixed(4)
+                                            ) : (
+                                                <span className="text-zinc-600">0.0</span>
+                                            )}
+                                        </div>
+                                        <div className="px-3 py-2 bg-zinc-800/60 rounded-xl border border-zinc-700/50">
+                                            <span className="text-white font-bold">{token.symbol}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Compact Errors */}
+                            {/* Error Messages - Premium Style */}
                             {insufficientBalance && (
-                                <div className="flex items-center gap-2 text-red-500 text-xs p-2 bg-red-500/10 rounded-lg">
-                                    <AlertCircle size={12} />
-                                    Insufficient USDC balance
+                                <div className="flex items-center gap-2 text-red-400 text-sm p-3 bg-red-500/10 rounded-xl border border-red-500/20 backdrop-blur-sm">
+                                    <AlertCircle size={16} />
+                                    <span className="font-medium">Insufficient USDC balance</span>
                                 </div>
                             )}
 
                             {error && !insufficientBalance && (
-                                <div className="flex items-center gap-2 text-red-500 text-xs p-2 bg-red-500/10 rounded-lg">
-                                    <AlertCircle size={12} />
-                                    {error}
+                                <div className="flex items-center gap-2 text-red-400 text-sm p-3 bg-red-500/10 rounded-xl border border-red-500/20 backdrop-blur-sm">
+                                    <AlertCircle size={16} />
+                                    <span className="font-medium">{error}</span>
                                 </div>
                             )}
 
-                            {/* Success Message */}
+                            {/* Success Message - Premium */}
                             {hash && (
-                                <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                                    <div className="text-emerald-400 text-xs font-bold mb-1">Transaction Sent!</div>
-                                    <a
-                                        href={`${token.chainId === 'base' ? 'https://basescan.org' : token.chainId === 'arbitrum' ? 'https://arbiscan.io' : 'https://etherscan.io'}/tx/${hash}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-[10px] text-zinc-500 hover:text-white flex items-center gap-1 underline underline-offset-2"
-                                    >
-                                        View on Explorer <ExternalLink size={10} />
-                                    </a>
+                                <div className="relative p-4 bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-xl backdrop-blur-sm">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/5 to-cyan-400/5 rounded-xl blur-xl" />
+                                    <div className="relative">
+                                        <div className="text-emerald-400 text-sm font-bold mb-2 flex items-center gap-2">
+                                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                                            Transaction Sent!
+                                        </div>
+                                        <a
+                                            href={`${token.chainId === 'base' ? 'https://basescan.org' : token.chainId === 'arbitrum' ? 'https://arbiscan.io' : 'https://etherscan.io'}/tx/${hash}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-zinc-400 hover:text-white flex items-center gap-1.5 transition-colors group"
+                                        >
+                                            View on Explorer
+                                            <ExternalLink size={12} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                                        </a>
+                                    </div>
                                 </div>
                             )}
 
-                            {/* Swap Button */}
-                            <button
-                                onClick={handleSwap}
-                                disabled={!isConnected || isWrongNetwork || insufficientBalance || !quote || loading || isSending}
-                                className={`w-full py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${(!isConnected || isWrongNetwork || insufficientBalance || !quote || loading)
-                                    ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                                    : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)]'
-                                    }`}
-                            >
-                                {!isConnected ? (
-                                    <>
-                                        <Wallet size={18} /> Connect Wallet
-                                    </>
-                                ) : isWrongNetwork ? (
-                                    <>
-                                        <RefreshCw size={18} /> Switch to {token.chainName}
-                                    </>
-                                ) : insufficientBalance ? (
-                                    'Insufficient USDC'
-                                ) : isSending ? (
-                                    <>
-                                        <Loader2 className="animate-spin" size={18} /> Confirm in Wallet
-                                    </>
-                                ) : loading ? (
-                                    'Getting Quote...'
-                                ) : (
-                                    'Swap Now'
+                            {/* Swap Button - Ultra Premium */}
+                            <div className="relative group">
+                                {!isConnected || isWrongNetwork || insufficientBalance || !quote || loading ? null : (
+                                    <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600 to-cyan-600 rounded-2xl blur-xl opacity-30 group-hover:opacity-50 transition-all" />
                                 )}
-                            </button>
+                                <button
+                                    onClick={handleSwap}
+                                    disabled={!isConnected || isWrongNetwork || insufficientBalance || !quote || loading || isSending}
+                                    className={`relative w-full py-4 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2 ${
+                                        !isConnected || isWrongNetwork || insufficientBalance || !quote || loading
+                                            ? 'bg-zinc-800/50 text-zinc-500 cursor-not-allowed border border-zinc-700/50'
+                                            : 'bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.02]'
+                                    }`}
+                                >
+                                    {!isConnected ? (
+                                        <>
+                                            <Wallet size={20} /> Connect Wallet
+                                        </>
+                                    ) : isWrongNetwork ? (
+                                        <>
+                                            <RefreshCw size={20} /> Switch to {token.chainName}
+                                        </>
+                                    ) : insufficientBalance ? (
+                                        <>
+                                            <AlertCircle size={20} /> Insufficient USDC
+                                        </>
+                                    ) : isSending ? (
+                                        <>
+                                            <Loader2 className="animate-spin" size={20} /> Confirm in Wallet
+                                        </>
+                                    ) : loading ? (
+                                        <>
+                                            <Loader2 className="animate-spin" size={20} /> Getting Quote...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                            Swap Now
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
 
-                {/* Compact Footer */}
-                <div className="px-4 pb-4">
+                {/* Premium Footer */}
+                <div className="px-5 pb-5 pt-3 border-t border-zinc-800/50">
                     <a
                         href={token.dexUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                        className="flex items-center justify-center gap-2 text-xs text-zinc-500 hover:text-purple-400 transition-colors group"
                     >
-                        View on DexScreener <ExternalLink size={10} />
+                        <span>View on DexScreener</span>
+                        <ExternalLink size={12} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                     </a>
+                    <div className="text-center mt-2 text-[10px] text-zinc-600">
+                        Powered by 0x Protocol
+                    </div>
                 </div>
             </div>
         </>
