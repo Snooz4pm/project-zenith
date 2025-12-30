@@ -23,6 +23,7 @@ const TermsAcceptanceModal = dynamic(
 // AuthProvider must wrap everything but can stay server-side
 import AuthProvider from "@/components/AuthProvider";
 import { Providers } from "./providers";
+import { WalletConnectModal } from "@/components/WalletConnectModal";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -66,6 +67,7 @@ export default function RootLayout({
         <div className="fixed inset-0 z-[-1] pointer-events-none bg-[radial-gradient(circle_at_bottom_left,_rgba(0,212,255,0.03),_transparent_70%)]" />
         <AuthProvider>
         <Providers>
+          <WalletConnectModal />
           {/* Modern fixed navigation */}
           <Navbar />
 
