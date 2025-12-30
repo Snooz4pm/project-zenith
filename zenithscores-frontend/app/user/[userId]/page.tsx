@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import ProfileCard from '@/components/ui/ProfileCard';
 
 interface SuggestedUser {
     id: string;
