@@ -149,21 +149,7 @@ export default function CommandCenterPage() {
                 </div>
             </main>
 
-            {/* Quick Actions Bar */}
-            <footer className="fixed bottom-0 left-0 right-0 md:static h-16 px-6 border-t border-[rgba(255,255,255,0.05)] bg-[rgba(0,0,0,0.8)] md:bg-[rgba(0,0,0,0.6)] backdrop-blur-md flex items-center justify-center shrink-0 relative z-50">
-                <div className="flex gap-4">
-                    {quickActions.map((action, index) => (
-                        <button
-                            key={index}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.08)] hover:border-[var(--accent-mint)]/30 transition-all group"
-                            onClick={action.action}
-                        >
-                            <span className="text-[var(--text-muted)] group-hover:text-[var(--accent-mint)] transition-colors">{action.icon}</span>
-                            <span className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-white transition-colors">{action.label}</span>
-                        </button>
-                    ))}
-                </div>
-            </footer>
+
 
             {/* Slide-out Panel */}
             <SlideOutPanel
