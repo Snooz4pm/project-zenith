@@ -4,9 +4,7 @@ import { createConfig, http } from 'wagmi'
 import { mainnet, base, arbitrum } from 'wagmi/chains'
 import { walletConnect, injected } from 'wagmi/connectors'
 
-const projectId =
-    process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ??
-    '2a141e8d498f5d1b1fb991c78402c9b6'
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!
 
 export const wagmiConfig = createConfig({
     chains: [mainnet, base, arbitrum],
@@ -14,6 +12,7 @@ export const wagmiConfig = createConfig({
     connectors: [
         walletConnect({
             projectId,
+            showQrModal: false, // IMPORTANT: Web3Modal handles the QR
         }),
         injected({
             shimDisconnect: true,
@@ -26,5 +25,5 @@ export const wagmiConfig = createConfig({
         [arbitrum.id]: http(),
     },
 
-    ssr: true,
+    ssr: false, // REQUIRED for Web3Modal
 })
