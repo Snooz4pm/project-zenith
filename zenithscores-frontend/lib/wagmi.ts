@@ -11,8 +11,7 @@ export const wagmiConfig = createConfig({
 
     connectors: [
         walletConnect({
-            projectId,
-            showQrModal: false, // IMPORTANT: Web3Modal handles the QR
+            projectId, // ✅ ONLY this - no showQrModal
         }),
         injected({
             shimDisconnect: true,
@@ -25,5 +24,5 @@ export const wagmiConfig = createConfig({
         [arbitrum.id]: http(),
     },
 
-    ssr: false, // REQUIRED for Web3Modal
+    ssr: false,
 })

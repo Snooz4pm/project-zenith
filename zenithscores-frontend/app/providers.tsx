@@ -3,7 +3,7 @@
 import { WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { wagmiConfig } from '@/lib/wagmi'
-import '@/lib/web3modal' // 🔥 IMPORTANT: initializes Web3Modal
+import '@/lib/web3modal' // 🔥 Initializes AppKit
 
 const queryClient = new QueryClient()
 
