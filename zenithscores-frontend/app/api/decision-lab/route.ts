@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { SCENARIOS } from '@/lib/data/decision-scenarios';
 
 export async function GET() {
     try {
@@ -10,23 +10,17 @@ export async function GET() {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Fetch minimal metadata only - NO chart data
-        const scenarios = await prisma.decisionScenario.findMany({
-            select: {
-                id: true,
-                title: true,
-                marketType: true,
-                symbol: true,
-                timeframe: true,
-                difficulty: true,
-                isPremium: true,
-                source: true,
-                // Explicitly excluding chartData and annotations
-            },
-            orderBy: {
-                createdAt: 'desc'
-            }
-        });
+        // Map static scenarios to the expected partial format
+        const scenarios = SCENARIOS.map(s => ({
+            id: s.id,
+            title: `${s.market} - ${s.regime.toUpperCase()}`,
+            marketType: s.assetClass,
+            symbol: s.market,
+            timeframe: s.timeframe,
+            difficulty: 'medium', // Default
+            isPremium: false,
+            source: 'history'
+        }));
 
         return NextResponse.json(scenarios);
     } catch (error) {

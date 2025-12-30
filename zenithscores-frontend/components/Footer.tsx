@@ -15,9 +15,9 @@ export default function Footer() {
     ];
 
     return (
-        <footer className="relative z-10 border-t border-white/5 overflow-hidden">
-            {/* Gradient Background */}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0a0a0f] to-black pointer-events-none" />
+        <footer className="relative z-10 border-t border-zinc-800 bg-[#0B0E14] overflow-hidden">
+            {/* Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 pointer-events-none" />
 
             {/* Mesh Gradient Accent */}
             <div className="absolute bottom-0 left-1/4 w-[600px] h-[300px] bg-cyan-500/5 blur-[120px] rounded-full pointer-events-none" />

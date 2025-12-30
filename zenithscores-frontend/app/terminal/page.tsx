@@ -17,42 +17,38 @@ function TerminalContent() {
     return (
         <div className="min-h-screen bg-[#050709] text-white">
             {/* Header */}
-            <header className="h-14 px-4 border-b border-zinc-800/50 bg-[#0a0c10]/80 backdrop-blur-sm flex items-center justify-between fixed top-0 left-0 right-0 z-40">
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                        <Zap className="text-emerald-500" size={20} />
-                        <span className="font-bold tracking-tight">ALTCOIN TERMINAL</span>
-                    </div>
-                    <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full font-bold uppercase">
-                        Live
-                    </span>
-                </div>
-                <div className="flex items-center gap-4 text-xs text-zinc-500">
-                    <div className="flex items-center gap-1">
-                        <Activity size={12} className="text-emerald-500" />
-                        <span className="font-mono">{new Date().toLocaleTimeString()}</span>
-                    </div>
-                </div>
-            </header>
-
             {/* Main Content */}
-            <main className="pt-20 px-4 pb-8 max-w-[1800px] mx-auto">
+            <main className="pt-24 px-4 pb-8 max-w-[1800px] mx-auto">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                            <Zap className="text-emerald-500" size={24} />
+                            ALTCOIN TERMINAL
+                        </h1>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full font-bold uppercase">
+                                Live
+                            </span>
+                            <span className="text-xs text-zinc-500">Real-time market intelligence</span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-zinc-500">
+                        <div className="flex items-center gap-1">
+                            <Activity size={12} className="text-emerald-500" />
+                            <span className="font-mono">{new Date().toLocaleTimeString()}</span>
+                        </div>
+                    </div>
+                </div>
+
                 <TrendingGrid onTokenSelect={setSelectedToken} />
             </main>
 
             {/* Swap Drawer */}
             {selectedToken && (
-                <>
-                    {/* Backdrop */}
-                    <div
-                        className="fixed inset-0 bg-black/60 z-40"
-                        onClick={() => setSelectedToken(null)}
-                    />
-                    <SwapDrawer
-                        token={selectedToken}
-                        onClose={() => setSelectedToken(null)}
-                    />
-                </>
+                <SwapDrawer
+                    token={selectedToken}
+                    onClose={() => setSelectedToken(null)}
+                />
             )}
         </div>
     );

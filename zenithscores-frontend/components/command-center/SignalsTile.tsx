@@ -8,8 +8,8 @@ interface SignalsTileProps {
 }
 
 export default function SignalsTile({ onClick }: SignalsTileProps) {
-    const [signalCount, setSignalCount] = useState(3);
-    const [hotSignal, setHotSignal] = useState(1);
+    const [signalCount, setSignalCount] = useState(0);
+    const [hotSignal, setHotSignal] = useState(0);
 
     useEffect(() => {
         const fetchSignals = async () => {
@@ -17,8 +17,8 @@ export default function SignalsTile({ onClick }: SignalsTileProps) {
                 const response = await fetch('/api/signals');
                 if (response.ok) {
                     const data = await response.json();
-                    setSignalCount(data.activeCount || 3);
-                    setHotSignal(data.highConfidenceCount || 1);
+                    setSignalCount(data.activeCount || 0);
+                    setHotSignal(data.highConfidenceCount || 0);
                 }
             } catch (error) {
                 // defaults

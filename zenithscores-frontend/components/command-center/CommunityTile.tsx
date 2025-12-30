@@ -27,13 +27,9 @@ export default function CommunityTile({ onClick }: CommunityTileProps) {
                     setUnreadCount(data.unreadCount || 0);
                 }
             } catch (error) {
-                // Use realistic mock data for demo if API fails
-                setNotifications([
-                    { type: 'mention', message: '@SarahK: "What do you think of $BTC here?"' },
-                    { type: 'like', message: 'AlexT liked your $NVDA setup' },
-                    { type: 'follow', message: 'Variables.Eth started following you' },
-                ]);
-                setUnreadCount(5);
+                // Return empty state on error
+                setNotifications([]);
+                setUnreadCount(0);
             }
         };
         fetchNotifications();
@@ -78,14 +74,20 @@ export default function CommunityTile({ onClick }: CommunityTileProps) {
                 </div>
 
                 <div className="space-y-2">
-                    {notifications.map((notif, idx) => (
-                        <div key={idx} className="flex items-center gap-3 text-xs text-zinc-400 bg-white/5 p-2 rounded-lg border border-transparent hover:border-white/10 transition-colors">
-                            <div className="min-w-5 h-5 rounded bg-white/5 flex items-center justify-center">
-                                {getIcon(notif.type)}
+                    {notifications.length > 0 ? (
+                        notifications.map((notif, idx) => (
+                            <div key={idx} className="flex items-center gap-3 text-xs text-zinc-400 bg-white/5 p-2 rounded-lg border border-transparent hover:border-white/10 transition-colors">
+                                <div className="min-w-5 h-5 rounded bg-white/5 flex items-center justify-center">
+                                    {getIcon(notif.type)}
+                                </div>
+                                <span className="truncate">{notif.message}</span>
                             </div>
-                            <span className="truncate">{notif.message}</span>
+                        ))
+                    ) : (
+                        <div className="text-xs text-zinc-500 text-center py-2 italic">
+                            No new notifications
                         </div>
-                    ))}
+                    )}
                 </div>
             </div>
         </motion.div>
