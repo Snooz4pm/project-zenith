@@ -32,7 +32,7 @@ const PUBLIC_LINKS: NavLink[] = [
 // Private links - shown only when logged in
 const PRIVATE_LINKS: NavLink[] = [
   { label: 'Dashboard', href: '/command-center', icon: <LayoutDashboard size={16} /> },
-  { label: 'Signal Lab', href: '/signals/lab', icon: <Activity size={16} /> },
+  { label: 'Signal Lab', href: '/signals', icon: <Activity size={16} /> },
   { label: 'Learn', href: '/learning', icon: <BookOpen size={16} /> },
   { label: 'Notebook', href: '/notebook', icon: <Book size={16} /> },
   { label: 'Trade', href: '/trading', icon: <Wallet size={16} /> },

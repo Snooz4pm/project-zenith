@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ShieldCheck, Activity, AlertTriangle, Radio, Ban, Lock, RefreshCw, Server, AlertOctagon, Terminal } from 'lucide-react';
+import SignalDrillDown from './SignalDrillDown';
 
 // Mock Data Generators for "Live" Feel
 const generateRejection = () => {
@@ -25,6 +26,7 @@ export default function SignalLabDashboard() {
     const [rejections, setRejections] = useState<any[]>([]);
     const [signals, setSignals] = useState(INITIAL_SIGNALS);
     const [riskMetrics, setRiskMetrics] = useState({ var95: 1.2, drawdown: 0.4, correlation: 0.35 });
+    const [selectedSignal, setSelectedSignal] = useState<any>(null);
 
     // Simulate "The Black Box" Rejection Feed
     useEffect(() => {
@@ -89,8 +91,12 @@ export default function SignalLabDashboard() {
                             </thead>
                             <tbody>
                                 {signals.map((sig) => (
-                                    <tr key={sig.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
-                                        <td className="p-3 text-zinc-500">{sig.id}</td>
+                                    <tr
+                                        key={sig.id}
+                                        onClick={() => setSelectedSignal(sig)}
+                                        className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors cursor-pointer group"
+                                    >
+                                        <td className="p-3 text-zinc-500 group-hover:text-blue-400 transition-colors">{sig.id}</td>
                                         <td className="p-3">{sig.time}</td>
                                         <td className="p-3 font-bold text-zinc-200">{sig.asset}</td>
                                         <td className={`p-3 font-bold ${sig.type === 'LONG' ? 'text-emerald-400' : 'text-rose-400'}`}>{sig.type}</td>
@@ -195,6 +201,14 @@ export default function SignalLabDashboard() {
                 <span>SYSTEM ID: ZSL-PRIMARY-A1</span>
                 <span>Wait for the setup. Stalk the trade. Kill the noise.</span>
             </div>
+
+            {/* DRILL DOWN DRAWER */}
+            {selectedSignal && (
+                <SignalDrillDown
+                    signal={selectedSignal}
+                    onClose={() => setSelectedSignal(null)}
+                />
+            )}
         </div>
     );
 }
