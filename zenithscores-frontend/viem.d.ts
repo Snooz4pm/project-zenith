@@ -1,14 +1,15 @@
 declare module 'viem/chains' {
-    export const mainnet: {
+    interface Chain {
         id: number;
         name: string;
-    };
-    export const sepolia: {
-        id: number;
-        name: string;
-    };
+    }
+    export const mainnet: Chain;
+    export const sepolia: Chain;
+    export const base: Chain;
+    export const arbitrum: Chain;
 }
 
 declare module 'wagmi/connectors' {
     export function injected(options?: { shimDisconnect?: boolean }): any;
+    export function walletConnect(options?: { projectId: string }): any;
 }
