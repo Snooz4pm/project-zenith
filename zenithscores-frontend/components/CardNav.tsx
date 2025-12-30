@@ -55,8 +55,8 @@ const ZENITH_NAV_ITEMS: NavItem[] = [
     icon: <BarChart3 size={20} />,
     links: [
       { label: "Signals", href: "/signals", ariaLabel: "Trading Signals", icon: <Zap size={14} /> },
-      { label: "Portfolio", href: "/trading?tab=portfolio", ariaLabel: "Portfolio", icon: <TrendingUp size={14} /> },
-      { label: "Community", href: "/trading?tab=community", ariaLabel: "Community", icon: <User size={14} /> },
+      { label: "Portfolio", href: "/trading", ariaLabel: "Portfolio", icon: <TrendingUp size={14} /> },
+      { label: "Community", href: "/community", ariaLabel: "Community", icon: <User size={14} /> },
     ]
   },
   {

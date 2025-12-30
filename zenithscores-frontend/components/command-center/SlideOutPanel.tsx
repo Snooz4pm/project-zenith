@@ -181,7 +181,7 @@ export default function SlideOutPanel({ isOpen, onClose, panelType }: SlideOutPa
 
                         <button
                             className="w-full py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2"
-                            onClick={() => router.push('/trading?tab=analytics')}
+                            onClick={() => router.push('/trading')}
                         >
                             View Full Analytics <ArrowRight className="w-4 h-4" />
                         </button>
@@ -217,7 +217,7 @@ export default function SlideOutPanel({ isOpen, onClose, panelType }: SlideOutPa
 
                         <button
                             className="w-full py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2"
-                            onClick={() => router.push('/trading?tab=community')}
+                            onClick={() => router.push('/community')}
                         >
                             Open Community Feed <ExternalLink className="w-4 h-4" />
                         </button>

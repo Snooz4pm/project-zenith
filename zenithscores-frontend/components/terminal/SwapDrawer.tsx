@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useSendTransaction, useConnect, useSwitchChain } from 'wagmi';
+import { useAccount, useSendTransaction, useSwitchChain } from 'wagmi';
+import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { NormalizedToken } from '@/lib/dexscreener';
 import { getZeroExQuote } from '@/lib/trading/zero-ex';
 import { X, Loader2, ExternalLink, AlertCircle, Wallet, ArrowRight, RefreshCw } from 'lucide-react';
@@ -18,7 +19,7 @@ const DEFAULT_AMOUNT = '100'; // $100 default
 
 export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
     const { address, isConnected, chainId: connectedChainId } = useAccount();
-    const { connect, connectors, isPending: isConnecting } = useConnect();
+    const { open } = useWeb3Modal();
     const { sendTransaction, isPending: isSending, data: hash } = useSendTransaction();
     const { switchChain } = useSwitchChain();
 
@@ -96,19 +97,9 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
     };
 
     const handleConnect = () => {
-        console.log('Available connectors:', connectors.map(c => ({ id: c.id, name: c.name })));
-
-        // Explicitly select WalletConnect connector
-        const walletConnectConnector = connectors.find(c => c.id === 'walletConnect');
-
-        if (!walletConnectConnector) {
-            console.error('WalletConnect connector not found');
-            setError('WalletConnect not available. Please check your configuration.');
-            return;
-        }
-
-        console.log('Connecting with WalletConnect:', walletConnectConnector.name);
-        connect({ connector: walletConnectConnector });
+        console.log('🔵 Opening Web3Modal...');
+        console.log('Modal open function:', typeof open);
+        open();
     };
 
     if (!token) return null;
@@ -152,10 +143,9 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
                         <p className="text-zinc-400 mb-4">Connect wallet to swap</p>
                         <button
                             onClick={handleConnect}
-                            disabled={isConnecting}
-                            className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-lg transition-colors disabled:opacity-50"
+                            className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-lg transition-colors"
                         >
-                            {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                            Connect Wallet
                         </button>
                     </div>
                 ) : (
@@ -246,7 +236,7 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
                                 </>
                             ) : isWrongNetwork ? (
                                 <>
-                                    <RefreshCw size={20} className={isConnecting ? 'animate-spin' : ''} /> Switch to {token.chainName}
+                                    <RefreshCw size={20} /> Switch to {token.chainName}
                                 </>
                             ) : isSending ? (
                                 <>

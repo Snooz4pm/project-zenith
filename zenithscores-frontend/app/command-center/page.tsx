@@ -61,7 +61,7 @@ export default function CommandCenterPage() {
         { icon: <Zap size={18} />, label: 'Trade', action: () => router.push('/trading') },
         { icon: <BarChart2 size={18} />, label: 'Signals', action: () => router.push('/signals') },
         { icon: <FileText size={18} />, label: 'Note', action: () => setActivePanel('notes') },
-        { icon: <Users size={18} />, label: 'Feed', action: () => router.push('/trading?tab=community') },
+        { icon: <Users size={18} />, label: 'Feed', action: () => router.push('/community') },
         { icon: <BookOpen size={18} />, label: 'Academy', action: () => router.push('/learning') },
         { icon: <Newspaper size={18} />, label: 'News', action: () => router.push('/news') },
         { icon: <Settings size={18} />, label: 'Settings', action: () => router.push('/profile') },
