@@ -96,20 +96,19 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
     };
 
     const handleConnect = () => {
-        console.log('Connectors found:', connectors.map(c => ({ id: c.id, name: c.name })));
+        console.log('Available connectors:', connectors.map(c => ({ id: c.id, name: c.name })));
 
-        // Prioritize WalletConnect, then Injected, then anything else
-        const walletConnect = connectors.find(c => c.id === 'walletConnect' || c.id === 'walletConnectLegacy');
-        const injected = connectors.find(c => c.id === 'injected');
-        const connector = walletConnect || injected || connectors[0];
+        // Explicitly select WalletConnect connector
+        const walletConnectConnector = connectors.find(c => c.id === 'walletConnect');
 
-        if (connector) {
-            console.log('Attempting connection with:', connector.name);
-            connect({ connector });
-        } else {
-            console.error('No wallet connectors discovered. WalletConnect is required.');
-            setError('No wallet found. Please use WalletConnect.');
+        if (!walletConnectConnector) {
+            console.error('WalletConnect connector not found');
+            setError('WalletConnect not available. Please check your configuration.');
+            return;
         }
+
+        console.log('Connecting with WalletConnect:', walletConnectConnector.name);
+        connect({ connector: walletConnectConnector });
     };
 
     if (!token) return null;
