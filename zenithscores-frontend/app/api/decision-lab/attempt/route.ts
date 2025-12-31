@@ -169,8 +169,6 @@ export async function POST(request: Request) {
             throw dbError; // Re-throw to be caught by outer catch
         }
 
-        return NextResponse.json(result);
-
     } catch (error: any) {
         // Detailed logging for debugging 500 errors
         console.error('[DECISION_ATTEMPT_ERROR] Full error details:', {
