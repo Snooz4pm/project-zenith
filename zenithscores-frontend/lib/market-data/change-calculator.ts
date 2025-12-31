@@ -21,3 +21,12 @@ export function compute24hChange(
 
   return ((current - reference) / reference) * 100;
 }
+
+/**
+ * Get color class for price change
+ */
+export function getChangeColorClass(change24h: number): string {
+  if (change24h > 0) return 'text-green-500';
+  if (change24h < 0) return 'text-red-500';
+  return 'text-gray-400';
+}
