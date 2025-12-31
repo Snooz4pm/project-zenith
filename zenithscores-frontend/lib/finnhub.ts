@@ -56,6 +56,9 @@ export async function getStockQuote(symbol: string): Promise<StockQuote | null> 
 
         const data: StockQuote = await response.json();
 
+        // Debug logging
+        console.log('[FINNHUB_RAW]', { symbol, quote: data });
+
         // Calculate change if not provided
         if (data.c && data.pc) {
             data.d = data.c - data.pc;

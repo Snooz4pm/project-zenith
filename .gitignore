@@ -119,3 +119,4 @@ TODO.md
 SECRETS.md
 CREDENTIALS.md
 zenithscores-frontend/check_users.js
+.claude/settings.local.json

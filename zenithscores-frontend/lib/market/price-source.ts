@@ -10,6 +10,7 @@ import { fetchPriceFinnhub } from '@/lib/finnhub';
 
 export interface PriceResponse {
     price: number;
+    prevClose: number;      // Previous close for change calculation
     changePercent: number;
     source: string;
     timestamp: number;
@@ -33,7 +34,27 @@ export async function fetchAssetPrice(
             try {
                 const fh = await fetchPriceFinnhub(symbol);
                 if (fh && fh.price > 0) {
-                    return { price: fh.price, changePercent: fh.changePercent, source: 'finnhub', timestamp: Date.now() };
+                    const result = {
+                        price: fh.price,
+                        prevClose: fh.prevClose ?? fh.price, // Fallback to current if not available
+                        changePercent: fh.changePercent,
+                        source: 'finnhub',
+                        timestamp: Date.now()
+                    };
+
+                    // Debug logging
+                    console.log('[CHANGE_DEBUG]', {
+                        symbol,
+                        assetClass: 'stock',
+                        current: result.price,
+                        prevClose: result.prevClose,
+                        diff: result.price - result.prevClose,
+                        currentType: typeof result.price,
+                        prevCloseType: typeof result.prevClose,
+                        changePercent: result.changePercent
+                    });
+
+                    return result;
                 }
             } catch (e) {
                 console.warn(`[PriceFetch] Finnhub Stock failed for ${symbol}`, e);
@@ -55,11 +76,18 @@ export async function fetchAssetPrice(
             }
 
             const price = Number(data?.["Global Quote"]?.["05. price"]);
+            const prevClose = Number(data?.["Global Quote"]?.["08. previous close"]);
             const changeStr = data?.["Global Quote"]?.["10. change percent"] || "0%";
             const changePercent = parseFloat(changeStr.replace('%', ''));
 
             if (!isNaN(price) && price > 0) {
-                return { price, changePercent, source: 'alpha_vantage', timestamp: Date.now() };
+                return {
+                    price,
+                    prevClose: prevClose || price,
+                    changePercent,
+                    source: 'alpha_vantage',
+                    timestamp: Date.now()
+                };
             }
         }
 
@@ -72,7 +100,27 @@ export async function fetchAssetPrice(
                 const fhSymbol = symbol.includes('/') ? `OANDA:${symbol.replace('/', '_')}` : symbol;
                 const fh = await fetchPriceFinnhub(fhSymbol);
                 if (fh && fh.price > 0) {
-                    return { price: fh.price, changePercent: fh.changePercent, source: 'finnhub', timestamp: Date.now() };
+                    const result = {
+                        price: fh.price,
+                        prevClose: fh.prevClose ?? fh.price, // Fallback to current if not available
+                        changePercent: fh.changePercent,
+                        source: 'finnhub',
+                        timestamp: Date.now()
+                    };
+
+                    // Debug logging
+                    console.log('[CHANGE_DEBUG]', {
+                        symbol,
+                        assetClass: 'forex',
+                        current: result.price,
+                        prevClose: result.prevClose,
+                        diff: result.price - result.prevClose,
+                        currentType: typeof result.price,
+                        prevCloseType: typeof result.prevClose,
+                        changePercent: result.changePercent
+                    });
+
+                    return result;
                 }
             } catch (e) {
                 console.warn(`[PriceFetch] Finnhub Forex failed for ${symbol}`, e);
@@ -97,7 +145,13 @@ export async function fetchAssetPrice(
                     } else {
                         const price = Number(data?.["Realtime Currency Exchange Rate"]?.["5. Exchange Rate"]);
                         if (!isNaN(price) && price > 0) {
-                            return { price, changePercent: 0, source: 'alpha_vantage', timestamp: Date.now() };
+                            return {
+                                price,
+                                prevClose: price, // Forex API doesn't provide prevClose
+                                changePercent: 0,
+                                source: 'alpha_vantage',
+                                timestamp: Date.now()
+                            };
                         }
                     }
                 } catch (avErr) { }
@@ -111,7 +165,13 @@ export async function fetchAssetPrice(
                 const cbData = await cbRes.json();
                 const price = Number(cbData?.data?.amount);
                 if (!isNaN(price) && price > 0) {
-                    return { price, changePercent: 0, source: 'coinbase', timestamp: Date.now() };
+                    return {
+                        price,
+                        prevClose: price, // Coinbase spot doesn't provide prevClose
+                        changePercent: 0,
+                        source: 'coinbase',
+                        timestamp: Date.now()
+                    };
                 }
             } catch (cbErr) { }
         }
@@ -123,6 +183,7 @@ export async function fetchAssetPrice(
             if (result) {
                 return {
                     price: result.price,
+                    prevClose: result.prevClose || result.price,
                     changePercent: result.changePercent,
                     source: result.source,
                     timestamp: result.timestamp

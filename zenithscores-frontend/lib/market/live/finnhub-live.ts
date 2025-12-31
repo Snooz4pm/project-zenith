@@ -34,10 +34,10 @@ export async function fetchLivePrice(
         symbol: symbol,
         price: result.price,
         changePercent: result.changePercent,
-        previousClose: result.price, // Approximate since simple API might not return PC
-        high: result.price, // Approximate
-        low: result.price, // Approximate
-        open: result.price, // Approximate
+        previousClose: result.prevClose, // ✅ Now correctly using prevClose
+        high: result.price, // Approximate (real API doesn't provide intraday high)
+        low: result.price, // Approximate (real API doesn't provide intraday low)
+        open: result.price, // Approximate (real API doesn't provide open)
         timestamp: result.timestamp,
         isDelayed: isDelayed,
         delaySeconds: Math.round(latency / 1000),

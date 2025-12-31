@@ -70,6 +70,7 @@ export interface CryptoPrice {
     symbol: string;
     name: string;
     price: number;
+    prevClose?: number;      // 24h ago price (optional)
     changePercent: number;
     source: string;
     timestamp: number;
