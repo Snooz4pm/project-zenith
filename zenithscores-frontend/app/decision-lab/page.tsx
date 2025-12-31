@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Play, TrendingUp, Activity, BarChart2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, TrendingUp, Activity, BarChart2, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import PageLoader from '@/components/ui/PageLoader';
 
 interface Scenario {
@@ -122,52 +122,104 @@ export default function DecisionLabListPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {scenarios.map((scenario) => (
-                            <Link
-                                href={`/decision-lab/${scenario.id}`}
-                                key={scenario.id}
-                                className={`group relative glass-panel rounded-2xl overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] ${scenario.completed ? 'opacity-75' : ''}`}
-                            >
-                                {scenario.completed && (
+                            scenario.completed ? (
+                                <div
+                                    key={scenario.id}
+                                    className="group relative glass-panel rounded-2xl overflow-hidden opacity-60 cursor-not-allowed"
+                                >
+                                    {/* Lock Overlay */}
+                                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-20 flex items-center justify-center">
+                                        <div className="text-center space-y-3">
+                                            <div className="w-16 h-16 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center mx-auto">
+                                                <Lock size={28} className="text-white/60" />
+                                            </div>
+                                            <p className="text-sm font-bold text-white/80 uppercase tracking-widest">Locked</p>
+                                            <p className="text-xs text-white/50 max-w-[200px]">Already completed</p>
+                                        </div>
+                                    </div>
+                                    {/* Result Badge */}
                                     <div className="absolute top-4 left-4 z-10">
                                         <div className={`px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-full backdrop-blur-sm border ${scenario.result && scenario.result.pnl >= 0 ? 'bg-accent-mint/20 border-accent-mint/30 text-accent-mint' : 'bg-accent-danger/20 border-accent-danger/30 text-accent-danger'}`}>
                                             ✓ {scenario.result?.choice} {scenario.result && scenario.result.pnl >= 0 ? '+' : ''}{scenario.result ? `$${scenario.result.pnl.toFixed(0)}` : 'COMPLETED'}
                                         </div>
                                     </div>
-                                )}
-                                <div className="p-8 space-y-8">
-                                    <div className="flex justify-between items-start">
-                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border ${scenario.completed ? 'bg-white/10 border-white/10' : 'bg-white/5 border-white/5 group-hover:bg-accent-mint/20 group-hover:border-accent-mint/30'}`}>
-                                            {scenario.marketType === 'crypto' ? <TrendingUp size={28} className={scenario.completed ? 'text-white/30' : 'text-text-secondary group-hover:text-accent-mint'} /> :
-                                                scenario.marketType === 'forex' ? <Activity size={28} className={scenario.completed ? 'text-white/30' : 'text-text-secondary group-hover:text-accent-mint'} /> :
-                                                    <BarChart2 size={28} className={scenario.completed ? 'text-white/30' : 'text-text-secondary group-hover:text-accent-mint'} />}
-                                        </div>
-                                        <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest border rounded-full ${getDifficultyColor(scenario.difficulty)} flex items-center gap-1.5`}>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-                                            {scenario.difficulty}
-                                        </span>
-                                    </div>
 
-                                    <div>
-                                        <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-accent-mint transition-colors font-display">
-                                            {scenario.title}
-                                        </h3>
-                                        <div className="flex items-center gap-3 text-sm text-text-muted font-data mt-3">
-                                            <span className="text-text-secondary">{scenario.symbol}</span>
-                                            <span className="opacity-30">•</span>
-                                            <span className="px-2 py-0.5 rounded bg-white/5">{scenario.timeframe}</span>
+                                    {/* Card Content (background, dimmed) */}
+                                    <div className="p-8 space-y-8">
+                                        <div className="flex justify-between items-start">
+                                            <div className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border bg-white/10 border-white/10">
+                                                {scenario.marketType === 'crypto' ? <TrendingUp size={28} className="text-white/30" /> :
+                                                    scenario.marketType === 'forex' ? <Activity size={28} className="text-white/30" /> :
+                                                        <BarChart2 size={28} className="text-white/30" />}
+                                            </div>
+                                            <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest border rounded-full ${getDifficultyColor(scenario.difficulty)} flex items-center gap-1.5`}>
+                                                <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                                                {scenario.difficulty}
+                                            </span>
                                         </div>
-                                    </div>
 
-                                    <div className="pt-6 border-t border-white/5 flex items-center justify-between group/btn">
-                                        <span className="text-xs text-text-muted font-bold tracking-widest group-hover:text-text-primary transition-colors uppercase">
-                                            {scenario.completed ? 'Review Decision' : 'Initialize Pilot'}
-                                        </span>
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-inner ${scenario.completed ? 'bg-white/10 group-hover:bg-white/20 group-hover:text-white' : 'bg-white/5 group-hover:bg-accent-mint group-hover:text-void'}`}>
-                                            <Play size={18} className="ml-1" />
+                                        <div>
+                                            <h3 className="text-2xl font-bold text-white mb-2 font-display">
+                                                {scenario.title}
+                                            </h3>
+                                            <div className="flex items-center gap-3 text-sm text-text-muted font-data mt-3">
+                                                <span className="text-text-secondary">{scenario.symbol}</span>
+                                                <span className="opacity-30">•</span>
+                                                <span className="px-2 py-0.5 rounded bg-white/5">{scenario.timeframe}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-6 border-t border-white/5 flex items-center justify-between">
+                                            <span className="text-xs text-text-muted font-bold tracking-widest uppercase">
+                                                Completed
+                                            </span>
+                                            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10">
+                                                <Lock size={18} className="text-white/40" />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </Link>
+                            ) : (
+                                <Link
+                                    href={`/decision-lab/${scenario.id}`}
+                                    key={scenario.id}
+                                    className="group relative glass-panel rounded-2xl overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)]"
+                                >
+                                    <div className="p-8 space-y-8">
+                                        <div className="flex justify-between items-start">
+                                            <div className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border bg-white/5 border-white/5 group-hover:bg-accent-mint/20 group-hover:border-accent-mint/30">
+                                                {scenario.marketType === 'crypto' ? <TrendingUp size={28} className="text-text-secondary group-hover:text-accent-mint" /> :
+                                                    scenario.marketType === 'forex' ? <Activity size={28} className="text-text-secondary group-hover:text-accent-mint" /> :
+                                                        <BarChart2 size={28} className="text-text-secondary group-hover:text-accent-mint" />}
+                                            </div>
+                                            <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest border rounded-full ${getDifficultyColor(scenario.difficulty)} flex items-center gap-1.5`}>
+                                                <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                                                {scenario.difficulty}
+                                            </span>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-accent-mint transition-colors font-display">
+                                                {scenario.title}
+                                            </h3>
+                                            <div className="flex items-center gap-3 text-sm text-text-muted font-data mt-3">
+                                                <span className="text-text-secondary">{scenario.symbol}</span>
+                                                <span className="opacity-30">•</span>
+                                                <span className="px-2 py-0.5 rounded bg-white/5">{scenario.timeframe}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-6 border-t border-white/5 flex items-center justify-between group/btn">
+                                            <span className="text-xs text-text-muted font-bold tracking-widest group-hover:text-text-primary transition-colors uppercase">
+                                                Initialize Pilot
+                                            </span>
+                                            <div className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-inner bg-white/5 group-hover:bg-accent-mint group-hover:text-void">
+                                                <Play size={18} className="ml-1" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Link>
+                            )
                         ))}
                     </div>
                 )}

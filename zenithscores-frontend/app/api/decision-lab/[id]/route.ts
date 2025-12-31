@@ -40,6 +40,23 @@ export async function GET(
 
         const { id } = params;
 
+        // Check if user already completed this scenario (LOCK CHECK)
+        const existingAttempt = await prisma.decisionAttempt.findUnique({
+            where: {
+                userId_scenarioId: {
+                    userId: session.user.id,
+                    scenarioId: id
+                }
+            }
+        });
+
+        if (existingAttempt) {
+            return NextResponse.json({
+                playable: false,
+                reason: 'You have already completed this scenario. Each scenario can only be attempted once.'
+            });
+        }
+
         // Fetch from database
         const dbScenario = await prisma.decisionScenario.findUnique({
             where: { id }
