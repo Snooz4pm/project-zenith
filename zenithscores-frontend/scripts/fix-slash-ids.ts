@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma';
+import { Prisma } from '@prisma/client';
 
 /**
  * Fix scenario IDs that contain forward slashes
@@ -68,11 +69,11 @@ async function fixSlashIds() {
                             decisionPrompt: oldScenario.decisionPrompt,
                             eventName: oldScenario.eventName,
                             basePrice: oldScenario.basePrice,
-                            chartData: oldScenario.chartData,
-                            annotations: oldScenario.annotations,
+                            chartData: oldScenario.chartData as Prisma.InputJsonValue,
+                            annotations: oldScenario.annotations as Prisma.InputJsonValue,
                             correctChoice: oldScenario.correctChoice,
                             explanationOutcome: oldScenario.explanationOutcome,
-                            tags: oldScenario.tags,
+                            tags: oldScenario.tags as Prisma.InputJsonValue,
                             createdAt: oldScenario.createdAt,
                             updatedAt: new Date()
                         }
