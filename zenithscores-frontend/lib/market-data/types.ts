@@ -116,5 +116,6 @@ export type MarketPrice = {
     volume?: number;
     timestamp: number;
     source: string; // e.g. 'dexscreener:solana', 'alpha_vantage', 'finnhub'
+    status?: 'LIVE' | 'CLOSED' | 'STALE';
     verificationStatus?: 'verified' | 'discrepancy' | 'unverified';
 };

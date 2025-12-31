@@ -38,6 +38,8 @@ interface LivePriceIndicatorProps {
     delaySeconds?: number;
     symbol: string;
     className?: string;
+    assetType?: 'stock' | 'crypto' | 'forex';
+    marketStatus?: 'LIVE' | 'CLOSED' | 'STALE';
 }
 
 export default function LivePriceIndicator({
@@ -47,6 +49,8 @@ export default function LivePriceIndicator({
     delaySeconds = 0,
     symbol,
     className = '',
+    assetType,
+    marketStatus,
 }: LivePriceIndicatorProps) {
     const [flashColor, setFlashColor] = useState<'green' | 'red' | null>(null);
     const [isHovered, setIsHovered] = useState(false);
@@ -56,6 +60,8 @@ export default function LivePriceIndicator({
     const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
     const isPositive = change >= 0;
     const currencySymbol = getCurrencySymbol(symbol);
+    const isMarketClosed = marketStatus === 'CLOSED' || marketStatus === 'STALE';
+    const shouldGreyOut = isMarketClosed && Math.abs(changePercent) < 0.01;
 
     // Flash animation on price change
     useEffect(() => {
@@ -89,10 +95,32 @@ export default function LivePriceIndicator({
                 )}
             </AnimatePresence>
 
-            {/* Symbol + Pulse */}
+            {/* Symbol + Market Status */}
             <div className="flex items-center gap-2 mb-1">
                 <span className="text-sm font-semibold text-zinc-300">{symbol}</span>
-                {status === 'LIVE' && (
+
+                {/* Market Status Badge */}
+                {marketStatus && (
+                    <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        marketStatus === 'LIVE'
+                            ? 'bg-emerald-500/10 text-emerald-400'
+                            : marketStatus === 'CLOSED'
+                            ? 'bg-red-500/10 text-red-400'
+                            : 'bg-gray-500/10 text-gray-400'
+                    }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${
+                            marketStatus === 'LIVE'
+                                ? 'bg-emerald-400 animate-pulse'
+                                : marketStatus === 'CLOSED'
+                                ? 'bg-red-400'
+                                : 'bg-gray-400'
+                        }`} />
+                        {marketStatus === 'LIVE' ? (assetType === 'crypto' ? '24/7' : 'OPEN') : 'CLOSED'}
+                    </span>
+                )}
+
+                {/* Live Data Status */}
+                {status === 'LIVE' && !marketStatus && (
                     <span className="relative flex h-2 w-2" title="Live data">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
@@ -123,10 +151,21 @@ export default function LivePriceIndicator({
                 </motion.div>
             </AnimatePresence>
 
-            {/* Change - only show if non-zero or market is open */}
-            {(changePercent !== 0 || status === 'LIVE') && (
-                <div className={`text-xs font-medium mt-1 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {isPositive ? '+' : ''}{change.toFixed(2)} ({changePercent.toFixed(2)}%)
+            {/* Change - grey out when market closed with 0% */}
+            {(changePercent !== 0 || status === 'LIVE' || !shouldGreyOut) && (
+                <div className={`text-xs font-medium mt-1 ${
+                    shouldGreyOut
+                        ? 'text-gray-500'
+                        : isPositive ? 'text-emerald-400' : 'text-red-400'
+                }`}>
+                    {shouldGreyOut ? (
+                        <>
+                            —
+                            <span className="ml-1 text-[10px]">Market Closed</span>
+                        </>
+                    ) : (
+                        <>{isPositive ? '+' : ''}{change.toFixed(2)} ({changePercent.toFixed(2)}%)</>
+                    )}
                 </div>
             )}
 

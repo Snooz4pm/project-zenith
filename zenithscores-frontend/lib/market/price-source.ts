@@ -7,6 +7,7 @@
  * 2. Zenith Adapter - for server-side fetching
  */
 import { fetchPriceFinnhub } from '@/lib/finnhub';
+import { getMarketStatus } from '@/lib/market-data/change-calculator';
 
 export interface PriceResponse {
     price: number;
@@ -14,6 +15,7 @@ export interface PriceResponse {
     changePercent: number;
     source: string;
     timestamp: number;
+    status?: 'LIVE' | 'CLOSED' | 'STALE';  // Market status
 }
 
 // Re-export SUPPORTED_CRYPTOS from centralized engine
@@ -34,12 +36,14 @@ export async function fetchAssetPrice(
             try {
                 const fh = await fetchPriceFinnhub(symbol);
                 if (fh && fh.price > 0) {
+                    const timestamp = Date.now();
                     const result = {
                         price: fh.price,
-                        prevClose: fh.prevClose ?? fh.price, // Fallback to current if not available
+                        prevClose: fh.prevClose ?? fh.price,
                         changePercent: fh.changePercent,
                         source: 'finnhub',
-                        timestamp: Date.now()
+                        timestamp,
+                        status: getMarketStatus(timestamp)
                     };
 
                     // Debug logging
@@ -51,7 +55,8 @@ export async function fetchAssetPrice(
                         diff: result.price - result.prevClose,
                         currentType: typeof result.price,
                         prevCloseType: typeof result.prevClose,
-                        changePercent: result.changePercent
+                        changePercent: result.changePercent,
+                        status: result.status
                     });
 
                     return result;
@@ -79,6 +84,7 @@ export async function fetchAssetPrice(
             const prevClose = Number(data?.["Global Quote"]?.["08. previous close"]);
             const changeStr = data?.["Global Quote"]?.["10. change percent"] || "0%";
             const changePercent = parseFloat(changeStr.replace('%', ''));
+            const timestamp = Date.now();
 
             if (!isNaN(price) && price > 0) {
                 return {
@@ -86,7 +92,8 @@ export async function fetchAssetPrice(
                     prevClose: prevClose || price,
                     changePercent,
                     source: 'alpha_vantage',
-                    timestamp: Date.now()
+                    timestamp,
+                    status: getMarketStatus(timestamp)
                 };
             }
         }
@@ -100,12 +107,14 @@ export async function fetchAssetPrice(
                 const fhSymbol = symbol.includes('/') ? `OANDA:${symbol.replace('/', '_')}` : symbol;
                 const fh = await fetchPriceFinnhub(fhSymbol);
                 if (fh && fh.price > 0) {
+                    const timestamp = Date.now();
                     const result = {
                         price: fh.price,
-                        prevClose: fh.prevClose ?? fh.price, // Fallback to current if not available
+                        prevClose: fh.prevClose ?? fh.price,
                         changePercent: fh.changePercent,
                         source: 'finnhub',
-                        timestamp: Date.now()
+                        timestamp,
+                        status: getMarketStatus(timestamp)
                     };
 
                     // Debug logging
@@ -117,7 +126,8 @@ export async function fetchAssetPrice(
                         diff: result.price - result.prevClose,
                         currentType: typeof result.price,
                         prevCloseType: typeof result.prevClose,
-                        changePercent: result.changePercent
+                        changePercent: result.changePercent,
+                        status: result.status
                     });
 
                     return result;
@@ -144,13 +154,15 @@ export async function fetchAssetPrice(
                         console.warn("[PriceFetch] Alpha Vantage Rate Limited (Forex)");
                     } else {
                         const price = Number(data?.["Realtime Currency Exchange Rate"]?.["5. Exchange Rate"]);
+                        const timestamp = Date.now();
                         if (!isNaN(price) && price > 0) {
                             return {
                                 price,
-                                prevClose: price, // Forex API doesn't provide prevClose
+                                prevClose: price,
                                 changePercent: 0,
                                 source: 'alpha_vantage',
-                                timestamp: Date.now()
+                                timestamp,
+                                status: getMarketStatus(timestamp)
                             };
                         }
                     }
@@ -164,13 +176,15 @@ export async function fetchAssetPrice(
                 const cbRes = await fetch(`https://api.coinbase.com/v2/prices/${from}-${to}/spot`);
                 const cbData = await cbRes.json();
                 const price = Number(cbData?.data?.amount);
+                const timestamp = Date.now();
                 if (!isNaN(price) && price > 0) {
                     return {
                         price,
-                        prevClose: price, // Coinbase spot doesn't provide prevClose
+                        prevClose: price,
                         changePercent: 0,
                         source: 'coinbase',
-                        timestamp: Date.now()
+                        timestamp,
+                        status: getMarketStatus(timestamp)
                     };
                 }
             } catch (cbErr) { }
@@ -186,7 +200,8 @@ export async function fetchAssetPrice(
                     prevClose: result.prevClose || result.price,
                     changePercent: result.changePercent,
                     source: result.source,
-                    timestamp: result.timestamp
+                    timestamp: result.timestamp,
+                    status: 'LIVE'  // Crypto is always live (24/7)
                 };
             }
         }

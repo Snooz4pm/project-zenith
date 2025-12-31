@@ -197,7 +197,9 @@ export function fillOHLCVGaps(data: OHLCV[], intervalSeconds: number): OHLCV[] {
  * Normalize to unified MarketPrice shape
  */
 
-import { compute24hChange } from './change-calculator';
+import { compute24hChange, getMarketStatus } from './change-calculator';
+
+// ... (existing code)
 
 /**
  * Normalize to unified MarketPrice shape
@@ -216,6 +218,7 @@ export function normalizeToMarketPrice(
             const price = parseFloat(quote['05. price']);
             // Alpha Vantage provides "previous close" explicitly
             const prevClose = parseFloat(quote['08. previous close']);
+            const ts = now * 1000;
 
             return {
                 symbol: quote['01. symbol'],
@@ -226,8 +229,9 @@ export function normalizeToMarketPrice(
                 high24h: parseFloat(quote['03. high']),
                 low24h: parseFloat(quote['04. low']),
                 volume: parseFloat(quote['06. volume']),
-                timestamp: now,
+                timestamp: ts,
                 source: 'alpha_vantage',
+                status: getMarketStatus(ts),
                 verificationStatus: 'unverified'
             };
         }
@@ -238,6 +242,7 @@ export function normalizeToMarketPrice(
         // Finnhub quote: c (current), pc (previous close)
         const price = raw.c;
         const prevClose = raw.pc;
+        const ts = raw.t ? raw.t * 1000 : now * 1000;
 
         return {
             symbol: raw.symbol || 'UNKNOWN',
@@ -248,8 +253,9 @@ export function normalizeToMarketPrice(
             high24h: raw.h,
             low24h: raw.l,
             volume: 0,
-            timestamp: raw.t ? raw.t * 1000 : now * 1000,
+            timestamp: ts,
             source: 'finnhub',
+            status: getMarketStatus(ts),
             verificationStatus: 'unverified'
         };
     }
@@ -261,6 +267,7 @@ export function normalizeToMarketPrice(
         // Derived: prevClose = price / (1 + change/100)
         const changePct24h = raw.priceChange?.h24 || 0;
         const prevClose = price / (1 + (changePct24h / 100));
+        const ts = now * 1000;
 
         return {
             symbol: raw.baseToken.symbol,
@@ -270,8 +277,9 @@ export function normalizeToMarketPrice(
             // Trust provider for crypto as it's 24/7 rolling window
             changePercent: changePct24h,
             volume: raw.volume?.h24 || 0,
-            timestamp: now * 1000,
+            timestamp: ts,
             source: 'dexscreener',
+            status: getMarketStatus(ts),
             verificationStatus: 'unverified'
         };
     }

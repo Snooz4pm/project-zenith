@@ -7,6 +7,7 @@
 
 import { fetchAssetPrice } from '@/lib/market/price-source';
 import { LivePriceResult, DELAY_THRESHOLD_MS } from './types';
+import { getMarketStatus } from '@/lib/market-data/change-calculator';
 
 /**
  * Fetch LIVE price using the Truth Gate
@@ -29,19 +30,22 @@ export async function fetchLivePrice(
     const now = Date.now();
     const latency = now - result.timestamp;
     const isDelayed = latency > DELAY_THRESHOLD_MS;
+    const marketStatus = result.status || getMarketStatus(result.timestamp);
 
     return {
         symbol: symbol,
         price: result.price,
         changePercent: result.changePercent,
-        previousClose: result.prevClose, // ✅ Now correctly using prevClose
-        high: result.price, // Approximate (real API doesn't provide intraday high)
-        low: result.price, // Approximate (real API doesn't provide intraday low)
-        open: result.price, // Approximate (real API doesn't provide open)
+        previousClose: result.prevClose,
+        high: result.price,
+        low: result.price,
+        open: result.price,
         timestamp: result.timestamp,
         isDelayed: isDelayed,
         delaySeconds: Math.round(latency / 1000),
-        source: result.source
+        source: result.source,
+        marketStatus,
+        isMarketOpen: marketStatus === 'LIVE'
     };
 }
 

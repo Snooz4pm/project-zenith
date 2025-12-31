@@ -35,6 +35,8 @@ export interface LivePriceResult {
     delaySeconds: number;
     source?: string;
     changePercent?: number;
+    marketStatus?: 'LIVE' | 'CLOSED' | 'STALE';
+    isMarketOpen?: boolean;
 }
 
 // Constants
