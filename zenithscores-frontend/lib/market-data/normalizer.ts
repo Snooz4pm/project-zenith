@@ -197,20 +197,7 @@ export function fillOHLCVGaps(data: OHLCV[], intervalSeconds: number): OHLCV[] {
  * Normalize to unified MarketPrice shape
  */
 
-/**
- * ONE canonical function for 24h Change
- * Rules:
- * - Must have valid numbers
- * - Must have non-zero reference price
- * - Returns computed % change or throws
- */
-function compute24hChange(current: number, prevClose: number): number {
-    if (!Number.isFinite(current) || !Number.isFinite(prevClose) || prevClose === 0) {
-        // Fallback for division by zero or invalid inputs
-        return 0;
-    }
-    return ((current - prevClose) / prevClose) * 100;
-}
+import { compute24hChange } from './change-calculator';
 
 /**
  * Normalize to unified MarketPrice shape
