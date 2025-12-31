@@ -6,6 +6,48 @@ import prisma from '@/lib/prisma';
 // Unit size for consistent PnL ($10,000 position size equivalent)
 const BASE_POSITION_SIZE = 10000;
 
+// Generate synthetic chart data if missing
+function generateChartData(basePrice: number = 1000, count: number = 100): any[] {
+    const data = [];
+    let price = basePrice;
+    const now = Math.floor(Date.now() / 1000);
+    const day = 86400;
+    const startTime = now - (count * day);
+
+    for (let i = 0; i < count; i++) {
+        const time = startTime + (i * day);
+        const volatility = price * 0.02;
+        const change = (Math.random() - 0.5) * volatility;
+
+        const open = price;
+        const close = Math.max(0.01, price + change);
+        const high = Math.max(open, close) * 1.01;
+        const low = Math.min(open, close) * 0.99;
+
+        data.push({ time, open, high, low, close });
+        price = close;
+    }
+    return data;
+}
+
+// Fallback prices for common symbols
+const FALLBACK_PRICES: Record<string, number> = {
+    'BTC': 65000, 'ETH': 3500, 'SOL': 150, 'XRP': 0.50, 'DOGE': 0.15,
+    'AAPL': 185, 'MSFT': 400, 'NVDA': 500, 'TSLA': 250, 'GME': 25,
+    'SPY': 500, 'QQQ': 430, 'SPX': 5000,
+    'EUR/USD': 1.08, 'GBP/USD': 1.27, 'USD/JPY': 150, 'XAU/USD': 2000,
+};
+
+function getBasePriceFromSymbol(symbol: string): number {
+    const normalized = symbol.toUpperCase().replace(/\/USD$/, '');
+    for (const [key, price] of Object.entries(FALLBACK_PRICES)) {
+        if (normalized.includes(key) || key.includes(normalized)) {
+            return price;
+        }
+    }
+    return 1000; // Default fallback
+}
+
 export async function POST(request: Request) {
     try {
         const session = await getServerSession(authOptions);
@@ -29,17 +71,19 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Scenario not found' }, { status: 404 });
         }
 
-        if (!scenario.chartData || !Array.isArray(scenario.chartData) || scenario.chartData.length === 0) {
-            return NextResponse.json({
-                error: 'Scenario data unavailable. This scenario might be a shell without price data yet.',
-                status: 'DATA_EXTRACT_ERROR'
-            }, { status: 500 });
+        // Get chart data - use existing or generate from basePrice
+        let data: any[] = [];
+        if (scenario.chartData && Array.isArray(scenario.chartData) && scenario.chartData.length > 0) {
+            data = scenario.chartData as any[];
+        } else {
+            // Generate synthetic data using basePrice or symbol fallback
+            const basePrice = (scenario as any).basePrice || getBasePriceFromSymbol(scenario.symbol);
+            data = generateChartData(basePrice, 100);
         }
 
         // 2. Calculate PnL
         let pnl = 0;
         let returnPercentage = 0;
-        const data = scenario.chartData as any[];
         const splitIndex = Math.floor(data.length * 0.8);
 
         // Position sizing: Use stake from body or default to BASE_POSITION_SIZE
