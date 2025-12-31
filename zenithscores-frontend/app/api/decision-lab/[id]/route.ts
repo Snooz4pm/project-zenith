@@ -46,7 +46,18 @@ export async function GET(
         });
 
         if (!dbScenario) {
-            return NextResponse.json({ error: 'Scenario not found' }, { status: 404 });
+            return NextResponse.json({
+                playable: false,
+                reason: 'Scenario was deprecated or removed'
+            });
+        }
+
+        // Check if scenario is playable (has required data)
+        if (!dbScenario.basePrice && !dbScenario.chartData) {
+            return NextResponse.json({
+                playable: false,
+                reason: 'Scenario is missing required price data'
+            });
         }
 
         // Auto-resolve base price if missing (uses cache or fetches)
@@ -56,6 +67,14 @@ export async function GET(
         let chartData = dbScenario.chartData;
         if (!chartData || (Array.isArray(chartData) && chartData.length === 0)) {
             chartData = generateSyntheticData(basePrice, 100);
+        }
+
+        // Final validation - must have valid chart data
+        if (!chartData || (Array.isArray(chartData) && chartData.length === 0)) {
+            return NextResponse.json({
+                playable: false,
+                reason: 'Failed to generate valid chart data'
+            });
         }
 
         // Get user's portfolio balance

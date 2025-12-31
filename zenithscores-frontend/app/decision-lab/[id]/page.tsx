@@ -28,6 +28,11 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
 
                 const data = await res.json();
 
+                // Check if scenario is playable
+                if (data.playable === false) {
+                    throw new Error(data.reason || 'Scenario unavailable');
+                }
+
                 // Safety check on chartData
                 if (!data.chartData || !Array.isArray(data.chartData) || data.chartData.length === 0) {
                     throw new Error('Scenario data is corrupt (Missing Chart Snapshot)');
@@ -47,7 +52,14 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
         }
     }, [params.id, router]);
 
-    const handleDecision = async (choice: string, timeToDecisionMs: number, leverage: number = 1, stake: number = 10000) => {
+    const handleDecision = async (
+        choice: string,
+        timeToDecisionMs: number,
+        riskPercent: number = 1,
+        accountBalance: number = 50000,
+        stopLossPercent: number = 2,
+        takeProfitPercent: number = 4
+    ) => {
         if (!scenario) return;
 
         const res = await fetch('/api/decision-lab/attempt', {
@@ -57,8 +69,10 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
                 scenarioId: scenario.id,
                 choice,
                 timeToDecisionMs,
-                leverage,
-                stake
+                riskPercent,
+                accountBalance,
+                stopLossPercent,
+                takeProfitPercent
             })
         });
 
@@ -74,14 +88,17 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
     if (isLoading) return <PageLoader pageName="Simulation" />;
 
     if (error) {
+        const isUnavailable = error.includes('unavailable') || error.includes('deprecated') || error.includes('removed');
         return (
             <div className="min-h-screen bg-[var(--void)] flex items-center justify-center p-4">
-                <div className="max-w-md w-full bg-red-500/10 border border-red-500/20 p-6 rounded-xl text-center">
-                    <h2 className="text-xl font-bold text-red-500 mb-2">Simulation Error</h2>
-                    <p className="text-red-400 mb-6">{error}</p>
+                <div className={`max-w-md w-full ${isUnavailable ? 'bg-amber-500/10 border-amber-500/20' : 'bg-red-500/10 border-red-500/20'} border p-6 rounded-xl text-center`}>
+                    <h2 className={`text-xl font-bold ${isUnavailable ? 'text-amber-500' : 'text-red-500'} mb-2`}>
+                        {isUnavailable ? 'Scenario Unavailable' : 'Simulation Error'}
+                    </h2>
+                    <p className={`${isUnavailable ? 'text-amber-400' : 'text-red-400'} mb-6`}>{error}</p>
                     <button
                         onClick={() => router.push('/decision-lab')}
-                        className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                        className={`px-6 py-2 ${isUnavailable ? 'bg-amber-500 hover:bg-amber-600' : 'bg-red-500 hover:bg-red-600'} text-white rounded-lg transition-colors`}
                     >
                         Return to Lab
                     </button>
@@ -107,9 +124,9 @@ function DecisionEngineWrapper({ scenario, onDecision }: { scenario: any, onDeci
     const router = useRouter();
     const [choice, setChoice] = useState<string | null>(null);
 
-    const handleDecisionInternal = async (c: string, t: number, l: number, s: number) => {
+    const handleDecisionInternal = async (c: string, t: number, r: number, b: number, sl: number, tp: number) => {
         setChoice(c);
-        return await onDecision(c, t, l, s);
+        return await onDecision(c, t, r, b, sl, tp);
     };
 
     const handleReflectInternal = async (content: string) => {

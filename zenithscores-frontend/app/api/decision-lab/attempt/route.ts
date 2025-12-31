@@ -3,9 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
-// Unit size for consistent PnL ($10,000 position size equivalent)
-const BASE_POSITION_SIZE = 10000;
-
 // Generate synthetic chart data if missing
 function generateChartData(basePrice: number = 1000, count: number = 100): any[] {
     const data = [];
@@ -48,6 +45,60 @@ function getBasePriceFromSymbol(symbol: string): number {
     return 1000; // Default fallback
 }
 
+/**
+ * PHASE 5 — Forward Simulation (Correct Execution Model)
+ * Simulates candle-by-candle price action to find exact SL/TP exit
+ */
+function simulateForwardExecution(
+    candles: any[],
+    entryIndex: number,
+    entryPrice: number,
+    direction: 'LONG' | 'SHORT',
+    stopLoss: number,
+    takeProfit: number
+): { exitPrice: number; outcome: 'WIN' | 'LOSS' | 'INCOMPLETE'; exitIndex: number } {
+
+    // Simulate from entry+1 to end
+    for (let i = entryIndex + 1; i < candles.length; i++) {
+        const candle = candles[i];
+
+        if (direction === 'LONG') {
+            // Check if SL hit first (conservative - assume low comes before high)
+            if (candle.low <= stopLoss) {
+                return { exitPrice: stopLoss, outcome: 'LOSS', exitIndex: i };
+            }
+            // Check if TP hit
+            if (candle.high >= takeProfit) {
+                return { exitPrice: takeProfit, outcome: 'WIN', exitIndex: i };
+            }
+        } else {
+            // SHORT
+            // Check if SL hit first (conservative - assume high comes before low)
+            if (candle.high >= stopLoss) {
+                return { exitPrice: stopLoss, outcome: 'LOSS', exitIndex: i };
+            }
+            // Check if TP hit
+            if (candle.low <= takeProfit) {
+                return { exitPrice: takeProfit, outcome: 'WIN', exitIndex: i };
+            }
+        }
+    }
+
+    // If we reach here, neither SL nor TP was hit - use final candle close
+    const finalCandle = candles[candles.length - 1];
+    const finalPrice = finalCandle.close;
+
+    // Determine if this is a win or loss based on final price vs entry
+    let outcome: 'WIN' | 'LOSS' | 'INCOMPLETE' = 'INCOMPLETE';
+    if (direction === 'LONG') {
+        outcome = finalPrice > entryPrice ? 'WIN' : 'LOSS';
+    } else {
+        outcome = finalPrice < entryPrice ? 'WIN' : 'LOSS';
+    }
+
+    return { exitPrice: finalPrice, outcome, exitIndex: candles.length - 1 };
+}
+
 export async function POST(request: Request) {
     try {
         const session = await getServerSession(authOptions);
@@ -56,10 +107,23 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { scenarioId, choice, timeToDecisionMs, leverage = 1, stake } = body;
+        const {
+            scenarioId,
+            choice,
+            timeToDecisionMs,
+            riskPercent = 1,
+            accountBalance = 50000,
+            stopLossPercent = 2,
+            takeProfitPercent = 4
+        } = body;
 
         if (!scenarioId || !choice || timeToDecisionMs === undefined) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        }
+
+        // Validate choice
+        if (!['BUY', 'SELL', 'STAY_OUT'].includes(choice)) {
+            return NextResponse.json({ error: 'Invalid choice' }, { status: 400 });
         }
 
         // 1. Fetch Scenario to get Price Data
@@ -72,53 +136,85 @@ export async function POST(request: Request) {
         }
 
         // Get chart data - use existing or generate from basePrice
-        let data: any[] = [];
+        let candles: any[] = [];
         if (scenario.chartData && Array.isArray(scenario.chartData) && scenario.chartData.length > 0) {
-            data = scenario.chartData as any[];
+            candles = scenario.chartData as any[];
         } else {
             // Generate synthetic data using basePrice or symbol fallback
             const basePrice = (scenario as any).basePrice || getBasePriceFromSymbol(scenario.symbol);
-            data = generateChartData(basePrice, 100);
+            candles = generateChartData(basePrice, 100);
         }
 
-        // 2. Calculate PnL
+        if (candles.length === 0) {
+            return NextResponse.json({ error: 'No chart data available' }, { status: 500 });
+        }
+
+        // 2. Calculate PnL using the CORRECT 5-Phase Model
         let pnl = 0;
         let returnPercentage = 0;
-        const splitIndex = Math.floor(data.length * 0.8);
-        const positionSize = Number(stake) || BASE_POSITION_SIZE;
 
-        if (choice !== 'STAY_OUT') {
-            if (splitIndex >= data.length || !data[splitIndex] || !data[data.length - 1]) {
-                // Fallback if data is weirdly short or missing
-                console.error('Data index out of bounds for PnL calc');
-                pnl = 0;
-            } else {
-                const entryCandle = data[splitIndex];
-                const exitCandle = data[data.length - 1];
+        if (choice === 'STAY_OUT') {
+            // No trade, no PnL
+            pnl = 0;
+            returnPercentage = 0;
+        } else {
+            // PHASE 1 — Capital & Risk Definition
+            const safeAccountBalance = Number(accountBalance) || 50000;
+            const safeRiskPercent = Math.max(0.1, Math.min(10, Number(riskPercent) || 1));
+            const safeSLPercent = Math.max(0.1, Math.min(20, Number(stopLossPercent) || 2));
+            const safeTPPercent = Math.max(0.1, Math.min(50, Number(takeProfitPercent) || 4));
 
-                const entryPrice = Number(entryCandle.open);
-                const exitPrice = Number(exitCandle.close);
+            const riskAmount = safeAccountBalance * (safeRiskPercent / 100);
+            const direction = choice === 'BUY' ? 'LONG' : 'SHORT';
 
-                // Validation
-                if (!Number.isFinite(entryPrice) || !Number.isFinite(exitPrice) || entryPrice === 0) {
-                    console.error(`Invalid price data: Entry ${entryPrice}, Exit ${exitPrice}`);
-                    pnl = 0;
-                } else {
-                    const direction = choice === 'BUY' ? 1 : -1;
-                    const safeLeverage = Number(leverage) || 1;
-                    const leverageMult = Math.max(1, Math.min(2, safeLeverage));
-
-                    const rawReturn = (exitPrice - entryPrice) / entryPrice; // Percentage move
-
-                    // Core PnL Formula: (Move * Direction) * Size * Leverage
-                    pnl = rawReturn * direction * positionSize * leverageMult;
-                    returnPercentage = rawReturn * direction * leverageMult * 100;
-                }
+            // PHASE 2 — Entry Lock (80% through chart)
+            const entryIndex = Math.floor(candles.length * 0.8);
+            if (entryIndex >= candles.length) {
+                return NextResponse.json({ error: 'Invalid entry point' }, { status: 500 });
             }
 
-            // Final Guard: Never return NaN
-            if (!Number.isFinite(pnl)) pnl = 0;
-            if (!Number.isFinite(returnPercentage)) returnPercentage = 0;
+            const entryCandle = candles[entryIndex];
+            const entryPrice = Number(entryCandle.close);
+
+            if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
+                console.error('Invalid entry price:', entryPrice);
+                pnl = 0;
+                returnPercentage = 0;
+            } else {
+                // PHASE 3 — Position Sizing (THIS IS CRITICAL)
+                const stopLossDistance = entryPrice * (safeSLPercent / 100);
+                const positionSize = riskAmount / stopLossDistance;
+
+                // PHASE 4 — Exit Levels
+                const stopLoss = direction === 'LONG'
+                    ? entryPrice - stopLossDistance
+                    : entryPrice + stopLossDistance;
+
+                const takeProfit = direction === 'LONG'
+                    ? entryPrice + (entryPrice * (safeTPPercent / 100))
+                    : entryPrice - (entryPrice * (safeTPPercent / 100));
+
+                // PHASE 5 — Forward Simulation
+                const result = simulateForwardExecution(
+                    candles,
+                    entryIndex,
+                    entryPrice,
+                    direction,
+                    stopLoss,
+                    takeProfit
+                );
+
+                // Calculate PnL based on actual exit
+                const priceChange = result.exitPrice - entryPrice;
+                const directionMultiplier = direction === 'LONG' ? 1 : -1;
+
+                pnl = priceChange * directionMultiplier * positionSize;
+                returnPercentage = (pnl / riskAmount) * 100;
+
+                // Safety check
+                if (!Number.isFinite(pnl)) pnl = 0;
+                if (!Number.isFinite(returnPercentage)) returnPercentage = 0;
+            }
         }
 
         // 3. Transaction: Create Attempt + Update User Portfolio
@@ -134,10 +230,14 @@ export async function POST(request: Request) {
                     }
                 });
 
-                // If already attempted, just return the existing data without crashing
+                // If already attempted, just return the existing data
                 if (existing) {
                     const portfolio = await tx.portfolio.findUnique({ where: { userId: session.user.id } });
-                    return { attempt: existing, balance: portfolio?.balance || 50000 };
+                    return {
+                        attempt: existing,
+                        pnl: existing.pnl,
+                        newBalance: portfolio?.balance || 50000
+                    };
                 }
 
                 // Find or Create Portfolio
@@ -156,9 +256,8 @@ export async function POST(request: Request) {
                 }
 
                 // Update Portfolio Balance and Realized PnL
-                // Only update if PnL is non-zero (user didn't stay out)
                 let updatedPortfolio = portfolio;
-                if (Math.abs(pnl) > 0.01) { // Floating point safety
+                if (Math.abs(pnl) > 0.01) {
                     updatedPortfolio = await tx.portfolio.update({
                         where: { id: portfolio.id },
                         data: {
@@ -168,9 +267,11 @@ export async function POST(request: Request) {
                     });
 
                     // Create a Trade record for history
-                    // Careful with Quantity division by zero
-                    const entryPrice = Number(data[splitIndex]?.open) || 1;
-                    const quantity = positionSize / entryPrice;
+                    const entryIndex = Math.floor(candles.length * 0.8);
+                    const entryPrice = Number(candles[entryIndex]?.close) || 1;
+                    const riskAmount = accountBalance * (riskPercent / 100);
+                    const stopLossDistance = entryPrice * (stopLossPercent / 100);
+                    const quantity = riskAmount / stopLossDistance;
 
                     await tx.trade.create({
                         data: {
@@ -192,28 +293,30 @@ export async function POST(request: Request) {
                         scenarioId,
                         choice,
                         timeToDecisionMs,
-                        leverage: Math.floor(leverage), // Ensure Int
+                        leverage: 1, // Not used in new model, keeping for backwards compatibility
                         pnl,
                         returnPercentage
                     }
                 });
 
-                return { attempt: newAttempt, balance: updatedPortfolio.balance };
+                return {
+                    attempt: newAttempt,
+                    pnl: newAttempt.pnl,
+                    newBalance: updatedPortfolio.balance
+                };
             });
 
             return NextResponse.json(result);
 
         } catch (dbError: any) {
             console.error("Decision Lab DB Transaction Error:", dbError);
-            // If it's a unique constraint violation (should be handled by idempotency check but just in case)
             if (dbError.code === 'P2002') {
                 return NextResponse.json({ error: 'Already submitted' }, { status: 409 });
             }
-            throw dbError; // Re-throw to be caught by outer catch
+            throw dbError;
         }
 
     } catch (error: any) {
-        // Detailed logging for debugging 500 errors
         console.error('[DECISION_ATTEMPT_ERROR] Full error details:', {
             message: error.message,
             stack: error.stack,
@@ -224,7 +327,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'You have already attempted this scenario.' }, { status: 409 });
         }
 
-        if (error.code === 'P2002') { // Race condition fallback
+        if (error.code === 'P2002') {
             return NextResponse.json({ error: 'You have already attempted this scenario.' }, { status: 409 });
         }
 

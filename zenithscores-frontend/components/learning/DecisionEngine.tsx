@@ -23,7 +23,14 @@ interface DecisionEngineProps {
         eventName?: string; // "COVID-19 Crash"
         userBalance?: number; // Starting balance
     };
-    onDecision: (choice: Choice, timeMs: number, leverage: number, stake: number) => Promise<{ pnl: number, newBalance: number }>;
+    onDecision: (
+        choice: Choice,
+        timeMs: number,
+        riskPercent: number,
+        accountBalance: number,
+        stopLossPercent: number,
+        takeProfitPercent: number
+    ) => Promise<{ pnl: number, newBalance: number }>;
     onReflect: (content: string) => Promise<void>;
 }
 
@@ -44,30 +51,15 @@ export default function DecisionEngine({ scenario, onDecision, onReflect }: Deci
     // Gamification State
     const [balance, setBalance] = useState(scenario.userBalance || 50000);
     const [pnl, setPnl] = useState<number | null>(null);
-    const [leverage, setLeverage] = useState(1);
-    const [stake, setStake] = useState(10000);
-    const [isShiftHeld, setIsShiftHeld] = useState(false);
-    const [manualHighConviction, setManualHighConviction] = useState(false);
 
-    // Derived State
-    const isHighConviction = isShiftHeld || manualHighConviction;
+    // Risk Management Parameters (Phase 1) - Proper Trading Parameters
+    const [riskPercent, setRiskPercent] = useState(1); // Default 1% account risk
+    const [stopLossPercent, setStopLossPercent] = useState(2); // Default 2% stop loss
+    const [takeProfitPercent, setTakeProfitPercent] = useState(4); // Default 4% take profit
 
     // Constants
     const SPLIT_INDEX = Math.floor(scenario.chartData.length * 0.8);
     const PLAYBACK_SPEED = 100; // ms per candle
-
-    // 0. Keyboard Listeners (Shift for Leverage)
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setIsShiftHeld(true); };
-        const handleKeyUp = (e: KeyboardEvent) => { if (e.key === 'Shift') setIsShiftHeld(false); };
-
-        window.addEventListener('keydown', handleKeyDown);
-        window.addEventListener('keyup', handleKeyUp);
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-            window.removeEventListener('keyup', handleKeyUp);
-        };
-    }, []);
 
     // 1. Initialize Chart
     useEffect(() => {
@@ -174,16 +166,15 @@ export default function DecisionEngine({ scenario, onDecision, onReflect }: Deci
 
         setIsSubmitting(true);
         const timeTaken = Date.now() - startTime;
-        const currentLeverage = isHighConviction ? 2 : 1;
 
         try {
-            const result = await onDecision(choice, timeTaken, currentLeverage, stake);
+            // Pass all risk parameters for proper position sizing
+            const result = await onDecision(choice, timeTaken, riskPercent, balance, stopLossPercent, takeProfitPercent);
 
             // Logged successfully
             setUserChoice(choice);
-            setLeverage(currentLeverage);
 
-            // Only Update PnL/Balance if not STAY_OUT (though STAY_OUT usually pnl=0)
+            // Only Update PnL/Balance if not STAY_OUT
             if (choice !== 'STAY_OUT') {
                 setPnl(result.pnl);
                 setBalance(result.newBalance);
@@ -288,91 +279,129 @@ export default function DecisionEngine({ scenario, onDecision, onReflect }: Deci
                                 </p>
                             </div>
 
-                            {/* Stake & Leverage Selector */}
-                            <div className="max-w-md mx-auto p-6 glass-panel rounded-2xl border-white/10 space-y-6">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Select Position Size</span>
-                                    <span className="text-sm font-data font-bold text-white">{formatMoney(stake)}</span>
+                            {/* Risk Management Parameters */}
+                            <div className="max-w-2xl mx-auto p-6 glass-panel rounded-2xl border-white/10 space-y-6">
+                                <div className="text-center mb-4">
+                                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Risk Management Setup</span>
+                                    <p className="text-xs text-text-secondary mt-2">Define your capital allocation and exit levels</p>
                                 </div>
 
-                                <input
-                                    type="range"
-                                    min="1000"
-                                    max={Math.min(balance, 100000)}
-                                    step="1000"
-                                    value={stake}
-                                    onChange={(e) => setStake(Number(e.target.value))}
-                                    className="w-full accent-accent-mint bg-white/5 h-2 rounded-lg appearance-none cursor-pointer"
-                                />
-
-                                <div className="flex justify-between text-[8px] font-data text-text-muted uppercase">
-                                    <span>$1k</span>
-                                    <span>Conservative</span>
-                                    <span>Aggressive</span>
-                                    <span>{formatMoney(Math.min(balance, 100000))}</span>
-                                </div>
-
-                                <div className="pt-4 border-t border-white/5 flex gap-2">
-                                    {[5000, 10000, 25000, 50000].map(val => (
-                                        <button
-                                            key={val}
-                                            onClick={() => setStake(Math.min(val, balance))}
-                                            className={`flex-1 py-1 px-2 rounded-md text-[10px] font-bold transition-all border ${stake === val ? 'bg-accent-mint text-void border-accent-mint' : 'bg-white/5 text-text-muted border-white/10 hover:border-white/20'}`}
-                                        >
-                                            ${val / 1000}k
-                                        </button>
-                                    ))}
-                                </div>
-
-                                {/* Conviction Toggle */}
-                                <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-4 bg-white/5 p-3 rounded-xl">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`p-2 rounded-lg ${isHighConviction ? 'bg-accent-gold/20 text-accent-gold' : 'bg-white/5 text-text-muted'}`}>
-                                            <Zap size={18} fill={isHighConviction ? "currentColor" : "none"} />
+                                <div className="grid grid-cols-3 gap-4">
+                                    {/* Account Risk % */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Account Risk</span>
+                                            <span className="text-sm font-data font-bold text-accent-mint">{riskPercent}%</span>
                                         </div>
-                                        <div>
-                                            <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Conviction Level</div>
-                                            <div className={`text-xs font-bold transition-colors ${isHighConviction ? 'text-accent-gold' : 'text-white'}`}>
-                                                {isHighConviction ? 'HIGH CONVICTION (2x)' : 'STANDARD SIZE (1x)'}
-                                            </div>
+                                        <input
+                                            type="range"
+                                            min="0.5"
+                                            max="5"
+                                            step="0.5"
+                                            value={riskPercent}
+                                            onChange={(e) => setRiskPercent(Number(e.target.value))}
+                                            className="w-full accent-accent-mint bg-white/5 h-2 rounded-lg appearance-none cursor-pointer"
+                                        />
+                                        <div className="flex justify-between text-[8px] font-data text-text-muted">
+                                            <span>0.5%</span>
+                                            <span>5%</span>
+                                        </div>
+                                        <div className="text-[9px] text-text-secondary text-center mt-1">
+                                            Risk: {formatMoney(balance * (riskPercent / 100))}
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => setManualHighConviction(!manualHighConviction)}
-                                        className={`relative w-12 h-6 rounded-full transition-all duration-300 ${manualHighConviction ? 'bg-accent-gold shadow-[0_0_15px_rgba(255,215,0,0.3)]' : 'bg-white/10'}`}
-                                    >
-                                        <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform duration-300 ${manualHighConviction ? 'translate-x-6' : 'translate-x-0'}`} />
-                                    </button>
-                                </div>
-                                {isShiftHeld && <div className="text-[10px] text-accent-gold text-center font-bold animate-pulse">Shift Key Override Active</div>}
-                            </div>
 
-                            {/* Leverage Indicator */}
-                            {isHighConviction && (
-                                <div className="inline-flex items-center gap-2 text-accent-gold font-bold bg-accent-gold/10 px-6 py-2 rounded-full border border-accent-gold/30 animate-pulse mx-auto shadow-[0_0_20px_var(--glow-gold)]">
-                                    <Zap size={18} fill="currentColor" /> HIGH CONVICTION ACTIVE
+                                    {/* Stop Loss % */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Stop Loss</span>
+                                            <span className="text-sm font-data font-bold text-accent-danger">{stopLossPercent}%</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="0.5"
+                                            max="10"
+                                            step="0.5"
+                                            value={stopLossPercent}
+                                            onChange={(e) => setStopLossPercent(Number(e.target.value))}
+                                            className="w-full accent-accent-danger bg-white/5 h-2 rounded-lg appearance-none cursor-pointer"
+                                        />
+                                        <div className="flex justify-between text-[8px] font-data text-text-muted">
+                                            <span>0.5%</span>
+                                            <span>10%</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Take Profit % */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Take Profit</span>
+                                            <span className="text-sm font-data font-bold text-accent-cyan">{takeProfitPercent}%</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="1"
+                                            max="20"
+                                            step="0.5"
+                                            value={takeProfitPercent}
+                                            onChange={(e) => setTakeProfitPercent(Number(e.target.value))}
+                                            className="w-full accent-accent-cyan bg-white/5 h-2 rounded-lg appearance-none cursor-pointer"
+                                        />
+                                        <div className="flex justify-between text-[8px] font-data text-text-muted">
+                                            <span>1%</span>
+                                            <span>20%</span>
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
+
+                                {/* Risk/Reward Ratio Display */}
+                                <div className="pt-4 border-t border-white/5 flex items-center justify-between bg-white/5 p-3 rounded-xl">
+                                    <div className="text-[10px] text-text-muted uppercase tracking-widest font-bold">Risk:Reward Ratio</div>
+                                    <div className="text-lg font-data font-bold text-white">
+                                        1:{(takeProfitPercent / stopLossPercent).toFixed(2)}
+                                    </div>
+                                </div>
+
+                                <div className="pt-2 text-center">
+                                    <div className="inline-flex gap-2">
+                                        {[
+                                            { label: '1R (Conservative)', risk: 1, sl: 2, tp: 4 },
+                                            { label: '2R (Balanced)', risk: 1.5, sl: 2, tp: 6 },
+                                            { label: '3R (Aggressive)', risk: 2, sl: 3, tp: 9 }
+                                        ].map((preset) => (
+                                            <button
+                                                key={preset.label}
+                                                onClick={() => {
+                                                    setRiskPercent(preset.risk);
+                                                    setStopLossPercent(preset.sl);
+                                                    setTakeProfitPercent(preset.tp);
+                                                }}
+                                                className="text-[9px] px-3 py-1.5 bg-white/5 hover:bg-white/10 text-text-muted hover:text-white rounded-lg border border-white/10 hover:border-white/20 transition-all font-bold uppercase tracking-wider"
+                                            >
+                                                {preset.label.split('(')[0]}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
 
                             <div className="grid grid-cols-3 gap-6">
                                 <button
                                     onClick={() => handleChoice('BUY')}
                                     disabled={isSubmitting}
-                                    className={`group relative h-56 glass-panel rounded-sm transition-all active:scale-[0.99] disabled:opacity-50 flex flex-col items-center justify-center gap-2 ${isHighConviction ? 'border-accent-mint shadow-[0_0_40px_rgba(20,241,149,0.1)]' : 'border-white/5 hover:border-accent-mint/30'}`}
+                                    className="group relative h-56 glass-panel rounded-sm transition-all active:scale-[0.99] disabled:opacity-50 flex flex-col items-center justify-center gap-2 border-white/5 hover:border-accent-mint/30"
                                 >
                                     <div className="font-bold text-3xl text-text-muted group-hover:text-accent-mint tracking-[0.2em] font-display">LONG</div>
                                     <div className="text-[10px] font-medium font-data text-text-muted uppercase tracking-widest group-hover:text-white transition-colors">Net bullish exposure</div>
-                                    {isHighConviction && <div className="mt-4 px-3 py-1 bg-accent-mint/10 border border-accent-mint/30 rounded text-[9px] font-bold font-data text-accent-mint uppercase tracking-widest">Double Size</div>}
                                 </button>
 
                                 <button
                                     onClick={() => handleChoice('SELL')}
                                     disabled={isSubmitting}
-                                    className={`group relative h-56 glass-panel rounded-sm transition-all active:scale-[0.99] disabled:opacity-50 flex flex-col items-center justify-center gap-2 ${isHighConviction ? 'border-accent-danger shadow-[0_0_40px_rgba(239,68,68,0.1)]' : 'border-white/5 hover:border-accent-danger/30'}`}
+                                    className="group relative h-56 glass-panel rounded-sm transition-all active:scale-[0.99] disabled:opacity-50 flex flex-col items-center justify-center gap-2 border-white/5 hover:border-accent-danger/30"
                                 >
                                     <div className="font-bold text-3xl text-text-muted group-hover:text-accent-danger tracking-[0.2em] font-display">SHORT</div>
                                     <div className="text-[10px] font-medium font-data text-text-muted uppercase tracking-widest group-hover:text-white transition-colors">Net bearish exposure</div>
-                                    {isHighConviction && <div className="mt-4 px-3 py-1 bg-accent-danger/10 border border-accent-danger/30 rounded text-[9px] font-bold font-data text-accent-danger uppercase tracking-widest">Double Size</div>}
                                 </button>
 
                                 <button
@@ -384,7 +413,7 @@ export default function DecisionEngine({ scenario, onDecision, onReflect }: Deci
                                     <div className="text-[10px] font-medium font-data text-text-muted uppercase tracking-widest group-hover:text-white transition-colors">No position</div>
                                 </button>
                             </div>
-                            <div className="text-text-muted text-xs font-data tracking-[0.2em] uppercase">Hold <span className="text-white font-bold border border-white/10 px-2 py-0.5 rounded-lg bg-white/5">SHIFT</span> to Scale Position (2x Leverage)</div>
+                            <div className="text-text-muted text-xs font-data tracking-[0.2em] uppercase text-center">Position will be sized based on your risk parameters above</div>
                         </div>
                     </div>
                 )}
@@ -407,7 +436,7 @@ export default function DecisionEngine({ scenario, onDecision, onReflect }: Deci
                                         <div className={`text-8xl font-black font-display tracking-tighter ${pnl >= 0 ? 'text-accent-mint text-glow' : 'text-accent-danger drop-shadow-[0_0_20px_rgba(239,68,68,0.5)]'}`}>
                                             {pnl >= 0 ? '+' : ''}{formatMoney(pnl)}
                                         </div>
-                                        <div className="text-[10px] text-text-muted font-bold font-data mt-6 tracking-[0.4em] uppercase">REALIZED PERFORMANCE {leverage > 1 && <span className="ml-4 text-accent-gold italic">(High Leverage Execution)</span>}</div>
+                                        <div className="text-[10px] text-text-muted font-bold font-data mt-6 tracking-[0.4em] uppercase">REALIZED PERFORMANCE</div>
                                     </div>
                                 )}
                             </div>
