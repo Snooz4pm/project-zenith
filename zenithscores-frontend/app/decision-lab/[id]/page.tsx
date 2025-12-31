@@ -63,8 +63,9 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
         });
 
         if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.error || 'Failed to log decision');
+            const data = await res.json().catch(() => ({}));
+            console.error('[Decision Lab] API Error:', res.status, res.statusText, data);
+            throw new Error(data.error || `API Error: ${res.status} ${res.statusText}`);
         }
 
         return res.json(); // Return the result (PnL, newBalance)
