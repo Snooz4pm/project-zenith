@@ -94,8 +94,8 @@ export default function Navbar() {
   // Combine nav links based on auth state
   const NAV_LINKS = useMemo(() => {
     if (session) {
-      // Logged in: Dashboard first, then private links, then public
-      return [...PRIVATE_LINKS, ...PUBLIC_LINKS];
+      // Logged in: Show all private links (includes Markets in CORE_LINKS)
+      return PRIVATE_LINKS;
     }
     // Logged out: Only public links
     return PUBLIC_LINKS;
