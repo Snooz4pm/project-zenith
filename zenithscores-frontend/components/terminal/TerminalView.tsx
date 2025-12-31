@@ -408,6 +408,7 @@ export default function TerminalView({
                     <div className="order-2 lg:order-3 lg:col-span-3 overflow-y-auto min-h-[400px] lg:min-h-0">
                         <IntelligencePanel
                             symbol={symbol}
+                            data={activeData || []} // Pass live candles for Market Pulse
                             regime={regime}
                             convictionScore={convictionScore}
                             factors={factors}

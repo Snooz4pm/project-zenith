@@ -4,9 +4,14 @@ import { motion } from 'framer-motion';
 import { TrendingUp, AlertTriangle, Target, Activity, Info, BookOpen, Save } from 'lucide-react';
 import MiniJournal from '@/components/terminal/MiniJournal';
 import type { RegimeType } from '@/lib/types/market';
+import type { OHLCV } from '@/lib/market-data/types';
+import { generateMarketSignals } from '@/lib/pulse/signal-generator';
+import MarketLog from '@/components/pulse/MarketLog';
+import { useMemo } from 'react';
 
 interface IntelligencePanelProps {
     symbol: string;
+    data?: OHLCV[]; // For generating live signals
     regime: RegimeType;
     convictionScore: number;
     factors: {
@@ -109,6 +114,7 @@ function FactorBar({ label, value, color }: { label: string; value: number; colo
  */
 export default function IntelligencePanel({
     symbol,
+    data,
     regime,
     convictionScore,
     factors,
@@ -124,6 +130,12 @@ export default function IntelligencePanel({
 }: IntelligencePanelProps) {
     const safeRegime = normalizeRegime(regime);
     const regimeDisplay = REGIME_DISPLAY[safeRegime];
+
+    // Generate real-time signals from OHLCV data
+    const signals = useMemo(() => {
+        if (!data || data.length < 50) return [];
+        return generateMarketSignals(data, safeRegime);
+    }, [data, safeRegime]);
 
     // --- AI CONTEXT MODE (Text Only) ---
     if (aiAnalysis || isLoadingAI) {
@@ -168,41 +180,24 @@ export default function IntelligencePanel({
                     )}
                 </div>
 
-                {/* GEMINI ANALYSIS BODY */}
-                <div className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] min-h-[300px]">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Info size={14} className="text-blue-400" />
-                        <span className="text-xs text-blue-400 uppercase tracking-wide">AI Market Context</span>
+                {/* MARKET LOG (Formerly AI Context) */}
+                <div className="rounded-xl border border-white/[0.06] bg-[#0c0c14] overflow-hidden min-h-[300px]">
+                    <div className="p-3 border-b border-white/[0.06] flex items-center justify-between bg-white/[0.01]">
+                        <div className="flex items-center gap-2">
+                            <div className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </div>
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Market Log</span>
+                        </div>
+                        <span className="text-[10px] text-gray-600 font-mono">LIVE</span>
                     </div>
 
-                    {isLoadingAI ? (
-                        <div className="space-y-3 animate-pulse">
-                            <div className="h-4 bg-gray-800 rounded w-3/4"></div>
-                            <div className="h-4 bg-gray-800 rounded w-full"></div>
-                            <div className="h-4 bg-gray-800 rounded w-5/6"></div>
-                            <div className="h-20 bg-gray-800 rounded w-full mt-4"></div>
-                        </div>
-                    ) : (
-                        <div className="prose prose-invert prose-sm max-w-none text-gray-300">
-                            {/* Simple Markdown Rendering */}
-                            {aiAnalysis?.split('###').map((section, i) => {
-                                if (!section.trim()) return null;
-                                const lines = section.trim().split('\n');
-                                const title = lines[0];
-                                const content = lines.slice(1).join('\n');
-
-                                return (
-                                    <div key={i} className="mb-4">
-                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{title}</h4>
-                                        <div className="text-sm leading-relaxed whitespace-pre-wrap">{content}</div>
-                                    </div>
-                                );
-                            })}
-                            {!aiAnalysis?.includes('###') && (
-                                <p className="whitespace-pre-wrap">{aiAnalysis}</p>
-                            )}
-                        </div>
-                    )}
+                    <MarketLog
+                        signals={signals}
+                        className="p-3"
+                        maxVisible={8}
+                    />
                 </div>
 
                 {/* Keep Invalidation Level as it's critical */}
