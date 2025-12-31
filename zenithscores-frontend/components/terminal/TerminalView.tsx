@@ -23,7 +23,9 @@ import { useMarketContext } from '@/hooks/useMarketContext';
 import DeepDiveModal from '@/components/terminal/DeepDiveModal';
 import JournalModal from '@/components/journal/JournalModal';
 import ChartPriceDisplay from '@/components/market/ChartPriceDisplay';
-import { MissionPanel } from '@/components/mission';
+// import { MissionPanel } from '@/components/mission'; // Replaced
+import StudyWorkspace from '@/components/study/StudyWorkspace';
+import { generateMarketSignals } from '@/lib/pulse/signal-generator';
 
 // Dynamic import for chart to avoid SSR issues
 const ZenithChartPro = dynamic(() => import('@/components/chart-engine/ZenithChartPro'), { ssr: false });
@@ -161,6 +163,12 @@ export default function TerminalView({
         enabled: mode === 'LIVE' && analysisData.length > 50
     });
 
+    // Pulse / Signal Generator (Shared)
+    const generatedSignals = useMemo(() => {
+        if (!analysisData || analysisData.length < 50) return [];
+        return generateMarketSignals(analysisData, marketState.regime);
+    }, [analysisData, marketState.regime]);
+
     // Run detection
     useEffect(() => {
         if (!analysisData || analysisData.length < 50) return;
@@ -263,11 +271,12 @@ export default function TerminalView({
                 aiContext={aiAnalysis || deepDiveContent} // Allow importing either brief or deep dive
             />
 
-            {/* Linked Mission Panel */}
-            <MissionPanel
+            {/* Study Workspace (Panic Button / Notebook) */}
+            <StudyWorkspace
                 symbol={symbol}
                 assetType={assetType}
                 currentPrice={displayPrice}
+                marketSignals={generatedSignals} // Pass signals to Study Workspace text-sidebar
             />
 
             {/* Header */}

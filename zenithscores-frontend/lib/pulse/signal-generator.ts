@@ -17,10 +17,6 @@ export function generateMarketSignals(data: OHLCV[], currentRegime: string): Pul
     const signals: PulseSignal[] = [];
     if (!data || data.length < 50) return signals;
 
-    // Use latest closed candle or current?
-    // User says "Market Pulse", implies reactive.
-    // data is typically sorted oldest -> newest (index 0 is old).
-    // Let's assume data[data.length - 1] is latest.
     const n = data.length;
     const latest = data[n - 1];
 
@@ -44,7 +40,12 @@ export function generateMarketSignals(data: OHLCV[], currentRegime: string): Pul
                     category: 'structure',
                     message: `VOL_COMPRESSION — Range tightening detected (−${percent}%)`,
                     confidence: 'high',
-                    ttl: 300 // 5 min
+                    ttl: 300, // 5 min
+                    debug: {
+                        formula: 'RecentRange / PastRange',
+                        values: `${rangeRecent.toFixed(2)} / ${rangePast.toFixed(2)} = ${compressionRatio.toFixed(2)}`,
+                        threshold: `< ${COMPRESSION_THRESHOLD}`
+                    }
                 });
             }
         }
@@ -52,15 +53,10 @@ export function generateMarketSignals(data: OHLCV[], currentRegime: string): Pul
 
     // 2. RANGE MATURITY (Simplified: use recent 30 candles)
     // inside = count(close >= range_low && close <= range_high)
-    // We need a defined range. Let's use the recent window high/low as "range".
     const rangeHigh = Math.max(...recentWindow.map(c => c.high));
     const rangeLow = Math.min(...recentWindow.map(c => c.low));
     const rangeWidth = rangeHigh - rangeLow;
 
-    // Maturity logic: how many recent closes are "inside" the active range?
-    // Actually, if we define range by the window itself, ALL are inside.
-    // The user implies a *persisting* range.
-    // Let's look at a slightly wider window (30) and check if they stay within the *recent* (20) bounds.
     const maturityWindow = data.slice(n - 30);
     if (maturityWindow.length === 30 && rangeWidth > 0) {
         const insideCount = maturityWindow.filter(c => c.close >= rangeLow && c.close <= rangeHigh).length;
@@ -73,7 +69,12 @@ export function generateMarketSignals(data: OHLCV[], currentRegime: string): Pul
                 category: 'meta',
                 message: `RANGE_MATURITY — Price contained for ${insideCount}/30 candles`,
                 confidence: 'medium',
-                ttl: 300
+                ttl: 300,
+                debug: {
+                    formula: 'InsideCandles / TotalWindow',
+                    values: `${insideCount} / 30 = ${maturity.toFixed(2)}`,
+                    threshold: '>= 0.80'
+                }
             });
         }
     }
@@ -81,7 +82,6 @@ export function generateMarketSignals(data: OHLCV[], currentRegime: string): Pul
     // 3. FAILED BREAKOUT
     // attempt = high > range_high
     // failure = close < range_high
-    // Check latest candle against the *previous* range (excluding latest).
     const prevWindow = data.slice(n - WINDOW_RECENT - 1, n - 1);
     if (prevWindow.length > 0) {
         const prevRangeHigh = Math.max(...prevWindow.map(c => c.high));
@@ -94,7 +94,12 @@ export function generateMarketSignals(data: OHLCV[], currentRegime: string): Pul
                 category: 'weakness',
                 message: `FALSE_BREAK — Upside breakout rejected at ${prevRangeHigh.toFixed(2)}`,
                 confidence: 'medium',
-                ttl: 120
+                ttl: 120,
+                debug: {
+                    formula: 'High > RangeHigh AND Close < RangeHigh',
+                    values: `H:${latest.high.toFixed(2)} > ${prevRangeHigh.toFixed(2)} AND C:${latest.close.toFixed(2)} < ${prevRangeHigh.toFixed(2)}`,
+                    threshold: 'TRUE'
+                }
             });
         }
 
@@ -105,7 +110,12 @@ export function generateMarketSignals(data: OHLCV[], currentRegime: string): Pul
                 category: 'strength',
                 message: `FALSE_BREAK — Breakdown attempt absorbed at range low`,
                 confidence: 'medium',
-                ttl: 120
+                ttl: 120,
+                debug: {
+                    formula: 'Low < RangeLow AND Close > RangeLow',
+                    values: `L:${latest.low.toFixed(2)} < ${prevRangeLow.toFixed(2)} AND C:${latest.close.toFixed(2)} > ${prevRangeLow.toFixed(2)}`,
+                    threshold: 'TRUE'
+                }
             });
         }
 
@@ -122,7 +132,12 @@ export function generateMarketSignals(data: OHLCV[], currentRegime: string): Pul
                     category: 'neutral',
                     message: `LIQUIDITY_ZONE — Activity clustering near range low`,
                     confidence: 'low',
-                    ttl: 300
+                    ttl: 300,
+                    debug: {
+                        formula: 'Abs(Close - Low) / Width',
+                        values: `${Math.abs(latest.close - prevRangeLow).toFixed(2)} / ${rangeWidth.toFixed(2)} = ${distLow.toFixed(2)}`,
+                        threshold: `< ${LIQUIDITY_ZONE_THRESHOLD}`
+                    }
                 });
             } else if (distHigh < LIQUIDITY_ZONE_THRESHOLD) {
                 signals.push({
@@ -131,7 +146,12 @@ export function generateMarketSignals(data: OHLCV[], currentRegime: string): Pul
                     category: 'neutral',
                     message: `LIQUIDITY_ZONE — Activity clustering near range high`,
                     confidence: 'low',
-                    ttl: 300
+                    ttl: 300,
+                    debug: {
+                        formula: 'Abs(Close - High) / Width',
+                        values: `${Math.abs(latest.close - prevRangeHigh).toFixed(2)} / ${rangeWidth.toFixed(2)} = ${distHigh.toFixed(2)}`,
+                        threshold: `< ${LIQUIDITY_ZONE_THRESHOLD}`
+                    }
                 });
             }
         }
@@ -151,24 +171,29 @@ export function generateMarketSignals(data: OHLCV[], currentRegime: string): Pul
                 category: 'meta',
                 message: `VOLUME_SPIKE — Participation surge (${spikeRatio.toFixed(1)}× avg)`,
                 confidence: 'medium',
-                ttl: 180
+                ttl: 180,
+                debug: {
+                    formula: 'Vol / AvgVol(20)',
+                    values: `${latest.volume.toFixed(0)} / ${avgVol.toFixed(0)} = ${spikeRatio.toFixed(1)}`,
+                    threshold: `>= ${VOLUME_SPIKE_THRESHOLD}`
+                }
             });
         }
     }
 
     // 6. REGIME CONFIRMATION
-    // Logic: Just log the current regime every now and then? 
-    // Or simpler: always return it as a "state" signal at the top, or push it if it changed (hard to track change without state).
-    // Valid log: "REGIME_LOCK — Market remains in RANGE state"
-    // We'll push it with a unique ID that updates every ~hour? Or just distinct ID per regime.
-    // Let's make it always present as the "baseline".
     signals.push({
-        id: `regime-${currentRegime}-${latest.time}`, // Updates each candle
+        id: `regime-${currentRegime}-${latest.time}`,
         timestamp: latest.time * 1000,
         category: 'structure',
         message: `REGIME_LOCK — Market remains in ${currentRegime.toUpperCase()} state`,
         confidence: 'high',
-        ttl: 600
+        ttl: 600,
+        debug: {
+            formula: 'MarketState.regime',
+            values: `State = ${currentRegime}`,
+            threshold: 'N/A'
+        }
     });
 
     return signals.sort((a, b) => b.timestamp - a.timestamp);

@@ -14,6 +14,11 @@ export interface PulseSignal {
   message: string;
   confidence: PulseConfidence;
   ttl: number; // seconds until expires
+  debug?: {
+    formula: string;    // e.g. "Range(20) / AvgRange(40)"
+    values: string;     // e.g. "12.5 / 30.0 = 0.41"
+    threshold: string;  // e.g. "< 0.60"
+  };
   data?: {
     // Supporting data for click interactions
     price?: number;

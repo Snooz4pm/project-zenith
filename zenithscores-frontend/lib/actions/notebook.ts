@@ -244,7 +244,7 @@ export async function appendMissionUpdate(
     userId: string,
     note: string,
     price?: number,
-    source: 'asset_page' | 'notebook' = 'asset_page'
+    source: 'asset_page' | 'notebook' | 'study_workspace' = 'asset_page'
 ) {
     try {
         // Verify ownership

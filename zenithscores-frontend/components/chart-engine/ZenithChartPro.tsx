@@ -132,7 +132,7 @@ export default function ZenithChartPro({
         candleWidth: 12
     });
 
-    const [chartType, setChartType] = useState<ChartType>('candle');
+    const [chartType, setChartType] = useState<ChartType>('line');
     const [theme, setTheme] = useState<'dark' | 'light'>('dark');
     const [activeIndicators, setActiveIndicators] = useState<Indicator[]>([]);
     const [drawings, setDrawings] = useState<Drawing[]>(suggestions);
@@ -568,27 +568,9 @@ export default function ZenithChartPro({
                 </div>
             </div>
 
-            {/* Left Toolbar - Drawing Tools */}
-            {showDrawingToolbar && (
-                <div className="absolute left-3 top-16 z-20">
-                    <DrawingToolbar
-                        activeTool={activeDrawingTool}
-                        onToolSelect={setActiveDrawingTool}
-                        onClear={handleClearDrawings}
-                    />
-                </div>
-            )}
+            {/* Left Toolbar - Drawing Tools (REMOVED) */}
 
-            {/* Right Toolbar - Indicators & Settings */}
-            {showIndicatorsPanel && (
-                <div className="absolute right-3 top-16 z-20 w-64">
-                    <IndicatorPanel
-                        indicators={activeIndicators}
-                        onChange={setActiveIndicators}
-                        onToggle={() => setShowIndicatorsPanel(!showIndicatorsPanel)}
-                    />
-                </div>
-            )}
+            {/* Right Toolbar - Indicators & Settings (REMOVED) */}
 
             {/* Bottom Control Bar - Simplified */}
             <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-between p-3 bg-gradient-to-t from-black/80 to-transparent">
