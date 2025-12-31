@@ -1,14 +1,15 @@
 import { MarketTick } from '../types'
-import { compute24hChange } from '@/lib/market-data/change-calculator'
+import { computeTimeBased24hChange } from '@/lib/market-data/change-calculator'
 
 export async function fetchForex(pair: string): Promise<MarketTick> {
-    const key = process.env.ALPHA_VANTAGE_KEY
-    if (!key) throw new Error('ALPHA_VANTAGE_KEY not set')
+    const key =
+        process.env.ALPHA_VANTAGE_API_KEY || process.env.ALPHA_VANTAGE_KEY
+    if (!key) throw new Error('ALPHA_VANTAGE_API_KEY not set')
 
-    // Format check: EUR/USD -> from=EUR, to=USD
+    // Parse pair
     let from = '', to = ''
     if (pair.includes('/')) {
-        [from, to] = pair.split('/')
+        ;[from, to] = pair.split('/')
     } else if (pair.length === 6) {
         from = pair.slice(0, 3)
         to = pair.slice(3)
@@ -16,55 +17,59 @@ export async function fetchForex(pair: string): Promise<MarketTick> {
         throw new Error(`Invalid forex pair format: ${pair}`)
     }
 
-    // Use FX_DAILY for correct previous close
     const url =
-        `https://www.alphavantage.co/query?function=FX_DAILY&from_symbol=${from}&to_symbol=${to}&apikey=${key}`
+        `https://www.alphavantage.co/query?function=FX_INTRADAY` +
+        `&from_symbol=${from}&to_symbol=${to}&interval=60min&apikey=${key}`
 
     const res = await fetch(url, { cache: 'no-store' })
     const json = await res.json()
 
     if (json['Note'] || json['Information']) {
-        // Fallback for demo keys or limits: try realtime just for price
-        // But throwing is safer for now to avoid fake 0.00%
-        console.warn(`Alpha Vantage Limit/Info`, json)
-        throw new Error(`Alpha Vantage FX limit hit for ${pair}`)
+        throw new Error(`Alpha Vantage FX limit/info for ${pair}`)
     }
 
-    const series = json['Time Series FX (Daily)']
-    if (!series) throw new Error(`Alpha Vantage FX Series missing for ${pair}`)
+    const seriesData = json['Time Series FX (60min)']
+    if (!seriesData) {
+        throw new Error(`Alpha Vantage FX Series missing for ${pair}`)
+    }
 
-    // Sort dates descending (newest first)
-    // Keys are "YYYY-MM-DD"
-    const dates = Object.keys(series).sort((a, b) =>
-        new Date(b).getTime() - new Date(a).getTime()
+    // Build + SORT series ONCE (newest → oldest)
+    const series = Object.entries(seriesData)
+        .map(([t, v]) => ({
+            time: Math.floor(new Date(t).getTime() / 1000),
+            price: Number((v as any)['4. close'])
+        }))
+        .sort((a, b) => b.time - a.time)
+
+    if (series.length < 25) {
+        throw new Error(`Not enough FX data to compute 24h change for ${pair}`)
+    }
+
+    const current = series[0]
+
+    // ☢️ Nuclear rule: time-based 24h change
+    const { change24h, status } = computeTimeBased24hChange(series)
+
+    // Absolute price change (real, not fake)
+    const ref = series.find(
+        p => current.time - p.time >= 23 * 60 * 60
     )
 
-    if (dates.length < 2) throw new Error(`Insufficient FX history for ${pair}`)
+    if (!ref) {
+        throw new Error(`No 24h reference candle for ${pair}`)
+    }
 
-    const todayStr = dates[0]
-    const yesterdayStr = dates[1]
-
-    const current = Number(series[todayStr]['4. close'])
-    const prevClose = Number(series[yesterdayStr]['4. close'])
-
-    // Debug mapping (Temporary)
-    console.log({
-        symbol: pair,
-        current,
-        prevClose,
-        diff: current - prevClose
-    })
-
-    const changePercent = compute24hChange(current, prevClose)
-    const change = current - prevClose
+    const absoluteChange = current.price - ref.price
 
     return {
-        symbol: `${from}/${to}`, // Normalize to slash format
+        symbol: `${from}/${to}`,
         assetType: 'forex',
-        price: current,
-        change,
-        changePercent,
+        price: current.price,
+        change: absoluteChange,
+        changePercent: change24h,
         timestamp: Date.now(),
         source: 'alphavantage',
+        status,
+        verificationStatus: status === 'LIVE' ? 'verified' : 'unverified'
     }
 }

@@ -11,4 +11,6 @@ export interface MarketTick {
     low24h?: number
     timestamp: number         // ms
     source: 'dexscreener' | 'alphavantage' | 'replay'
+    status?: 'LIVE' | 'CLOSED' | 'STALE'
+    verificationStatus?: 'verified' | 'discrepancy' | 'unverified'
 }
