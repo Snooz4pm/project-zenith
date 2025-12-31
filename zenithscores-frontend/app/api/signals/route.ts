@@ -14,14 +14,8 @@ export async function GET() {
             );
         }
 
-        // Check premium status
-        const isPremium = await isPremiumUser(session.user.id);
-        if (!isPremium) {
-            return NextResponse.json(
-                { error: 'Premium subscription required', isPremium: false },
-                { status: 403 }
-            );
-        }
+        // Premium check removed - Free for all users
+        const isPremium = true;
 
         // TODO: Implement when Signal model is added to schema
         // For now, return empty array to prevent 404 errors
