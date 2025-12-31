@@ -36,12 +36,31 @@ export async function POST(request: Request) {
 
         // Logic: Entry is at 80% mark (SplitIndex). Exit is at Last candle Close.
         // NOTE: For robustness, we should ideally store the "entry index" in DB, but 80% is the hardcoded rule for now.
+        // Logic: Entry is at 80% mark (SplitIndex). Exit is at Last candle Close.
+        // NOTE: For robustness, we should ideally store the "entry index" in DB, but 80% is the hardcoded rule for now.
         const data = scenario.chartData as any[];
+
+        if (!Array.isArray(data) || data.length === 0) {
+            throw new Error('Chart data is empty or invalid format');
+        }
+
         const splitIndex = Math.floor(data.length * 0.8);
 
-        if (choice !== 'STAY_OUT' && data.length > splitIndex) {
-            const entryPrice = data[splitIndex].open; // Market Entry on Open of next candle? Or Close of current? safely Open of index.
-            const exitPrice = data[data.length - 1].close;
+        if (choice !== 'STAY_OUT') {
+            if (splitIndex >= data.length || !data[splitIndex] || !data[data.length - 1]) {
+                throw new Error(`Data indices out of bounds. Length: ${data.length}, Split: ${splitIndex}`);
+            }
+
+            const entryCandle = data[splitIndex];
+            const exitCandle = data[data.length - 1];
+
+            // Validate prices
+            const entryPrice = Number(entryCandle.open);
+            const exitPrice = Number(exitCandle.close);
+
+            if (isNaN(entryPrice) || isNaN(exitPrice) || entryPrice === 0) {
+                throw new Error(`Invalid price data. Entry: ${entryPrice}, Exit: ${exitPrice}`);
+            }
 
             const rawReturn = (exitPrice - entryPrice) / entryPrice;
 
@@ -49,7 +68,8 @@ export async function POST(request: Request) {
             const direction = choice === 'BUY' ? 1 : -1;
 
             // Leverage Multiplier
-            const leverageMult = Math.max(1, Math.min(2, leverage)); // Clamp 1-2
+            const safeLeverage = Number(leverage) || 1;
+            const leverageMult = Math.max(1, Math.min(2, safeLeverage)); // Clamp 1-2
 
             returnPercentage = rawReturn * direction * leverageMult * 100; // formatted as %
             pnl = (BASE_POSITION_SIZE * rawReturn * direction * leverageMult);
@@ -91,6 +111,13 @@ export async function POST(request: Request) {
         return NextResponse.json(attempt);
 
     } catch (error: any) {
+        // Detailed logging for debugging 500 errors
+        console.error('[DECISION_ATTEMPT_ERROR] Full error details:', {
+            message: error.message,
+            stack: error.stack,
+            code: error.code
+        });
+
         if (error.message === 'ALREADY_ATTEMPTED') {
             return NextResponse.json({ error: 'You have already attempted this scenario.' }, { status: 409 });
         }
@@ -98,7 +125,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'You have already attempted this scenario.' }, { status: 409 });
         }
 
-        console.error('Failed to log decision attempt:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({
+            error: 'Internal Server Error',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        }, { status: 500 });
     }
 }
