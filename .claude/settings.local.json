@@ -20,7 +20,9 @@
       "Bash(npx tsc:*)",
       "Bash(git restore:*)",
       "Bash(npm install:*)",
-      "Bash(timeout 60 bash:*)"
+      "Bash(timeout 60 bash:*)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(timeout 120 tail:*)"
     ]
   }
 }

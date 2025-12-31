@@ -26,6 +26,8 @@ import ChartPriceDisplay from '@/components/market/ChartPriceDisplay';
 // import { MissionPanel } from '@/components/mission'; // Replaced
 import StudyWorkspace from '@/components/study/StudyWorkspace';
 import { generateMarketSignals } from '@/lib/pulse/signal-generator';
+import { DisciplineBadge } from '@/components/gate/DisciplineBadge';
+import { useDisciplineGate } from '@/hooks/useDisciplineGate';
 
 // Dynamic import for chart to avoid SSR issues
 const ZenithChartPro = dynamic(() => import('@/components/chart-engine/ZenithChartPro'), { ssr: false });
@@ -64,6 +66,18 @@ export default function TerminalView({
     backLink,
     backLabel,
 }: TerminalViewProps) {
+    const { trackAction } = useDisciplineGate();
+
+    // Track page view on mount
+    useEffect(() => {
+        trackAction('page_view', symbol);
+    }, [trackAction, symbol]);
+
+    // Track asset switch
+    useEffect(() => {
+        trackAction('switched_asset', symbol);
+    }, [trackAction, symbol]);
+
     const [selectedTimeframe, setSelectedTimeframe] = useState(2); // Default to 1M
     const { timeframe, range } = TIMEFRAMES[selectedTimeframe];
 
@@ -294,6 +308,7 @@ export default function TerminalView({
                         </div>
 
                         <div className="flex items-center gap-6">
+                            <DisciplineBadge />
                             {/* Synced Price (One Truth) */}
                             <ChartPriceDisplay
                                 symbol={symbol}

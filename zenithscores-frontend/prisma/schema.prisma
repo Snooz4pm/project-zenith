@@ -64,6 +64,9 @@ model User {
   
   // Decision Lab
   decisionAttempts      DecisionAttempt[]
+
+  // Discipline Gate
+  disciplineState       DisciplineState?
 }
 
 // Required by NextAuth PrismaAdapter for OAuth
@@ -1067,7 +1070,7 @@ model DirectMessage {
 model Room {
   id               String   @id @default(cuid())
   slug             String   @unique @db.VarChar(50)  // crypto-intraday
-  name             String   @db.VarChar(100)         // Crypto — Intraday
+  name             String   @db.VarChar(100)         // Crypto  Intraday
   description      String   @db.VarChar(300)
   marketType       String   @db.VarChar(20)          // crypto / stock / forex
 
@@ -1291,3 +1294,57 @@ model DecisionAttempt {
   @@index([scenarioId], map: "idx_attempts_scenario")
 }
 
+
+
+// ============================================
+// DISCIPLINE GATE (Psychological Guardrails)
+
+// ============================================
+// DISCIPLINE GATE (Psychological Guardrails)
+// ============================================
+
+model DisciplineState {
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  gateLevel         String    @default("beginner") // beginner, pro, expert
+  currentStatus     String    @default("open")     // open, warning, locked
+  
+  lockReason        String?
+  lockExplanation   String?
+  lockExpiresAt     DateTime?
+  
+  // JSON Blobs for flexible metrics
+  behavioralBaseline   Json?   // { avgHoldTime, avgTradesPerReview, etc }
+  sessionMetrics       Json?   // { switchesInLast2Min, tradesInLastHour }
+  
+  updatedAt         DateTime  @updatedAt
+  
+  violations        GateViolation[]
+  overrides         GateOverride[]
+}
+
+model GateViolation {
+  id                String    @id @default(uuid())
+  disciplineStateId String
+  disciplineState   DisciplineState @relation(fields: [disciplineStateId], references: [id], onDelete: Cascade)
+  
+  violationType     String    // overtrading, rapid_switching, revenge_trading, regime_chaos
+  severity          String    // warning, soft_lock, hard_lock
+  message           String
+  contextData       Json?     // { switchedFrom: 'AAPL', switchedTo: 'TSLA', timeDelta: 1200ms }
+  
+  createdAt         DateTime  @default(now())
+}
+
+model GateOverride {
+  id                String    @id @default(uuid())
+  disciplineStateId String
+  disciplineState   DisciplineState @relation(fields: [disciplineStateId], references: [id], onDelete: Cascade)
+  
+  reason            String?
+  forcedWait        Int       @default(0) // Seconds user had to hold the button
+  
+  createdAt         DateTime  @default(now())
+}
