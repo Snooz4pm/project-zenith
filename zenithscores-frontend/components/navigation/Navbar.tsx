@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Newspaper, Book, Users, Mail, Settings, Activity, Target, Zap, Crown, Sparkles } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Users, Mail, Settings, Activity, Crown, Sparkles } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import NotificationBell from '@/components/community/NotificationBell';
 
@@ -13,6 +13,54 @@ interface NavLink {
   icon: React.ReactNode;
   children?: { label: string; href: string; description: string }[];
 }
+
+// Core navigation structure
+const CORE_LINKS: NavLink[] = [
+  { label: 'Dashboard', href: '/command-center', icon: <LayoutDashboard size={16} /> },
+  { label: 'Decision', href: '/decision-lab', icon: <Activity size={16} /> },
+  { label: 'Trade', href: '/trading', icon: <Wallet size={16} /> },
+  {
+    label: 'Markets',
+    href: '/crypto',
+    icon: <TrendingUp size={16} />,
+    children: [
+      { label: 'Crypto', href: '/crypto', description: 'Cryptocurrency markets' },
+      { label: 'Stocks', href: '/stocks', description: 'Stock market data' },
+      { label: 'Forex', href: '/forex', description: 'Currency pairs' }
+    ]
+  }
+];
+
+// Intelligence group - market data inputs
+const INTELLIGENCE_LINKS: NavLink = {
+  label: 'Intelligence',
+  href: '/signals',
+  icon: <Sparkles size={16} />,
+  children: [
+    { label: 'Signal', href: '/signals', description: 'Live market signals' },
+    { label: 'Flow', href: '/flow', description: 'Capital flow analysis' },
+    { label: 'Opportunities', href: '/terminal', description: 'Market opportunities' },
+    { label: 'News', href: '/news', description: 'Market news & updates' }
+  ]
+};
+
+// Learn group - education tools
+const LEARN_LINKS: NavLink = {
+  label: 'Learn',
+  href: '/learning',
+  icon: <BookOpen size={16} />,
+  children: [
+    { label: 'Courses', href: '/learning', description: 'Trading education' },
+    { label: 'Notebook', href: '/notebook', description: 'Personal trading journal' }
+  ]
+};
+
+// Community - standalone
+const COMMUNITY_LINK: NavLink = {
+  label: 'Community',
+  href: '/community',
+  icon: <Users size={16} />
+};
 
 // Public links - shown to everyone
 const PUBLIC_LINKS: NavLink[] = [
@@ -25,21 +73,15 @@ const PUBLIC_LINKS: NavLink[] = [
       { label: 'Stocks', href: '/stocks', description: 'Stock market data' },
       { label: 'Forex', href: '/forex', description: 'Currency pairs' }
     ]
-  },
-  { label: 'News', href: '/news', icon: <Newspaper size={16} /> }
+  }
 ];
 
 // Private links - shown only when logged in
 const PRIVATE_LINKS: NavLink[] = [
-  { label: 'Dashboard', href: '/command-center', icon: <LayoutDashboard size={16} /> },
-  { label: 'Decision', href: '/decision-lab', icon: <Activity size={16} /> },
-  { label: 'Signal', href: '/signals', icon: <Activity size={16} /> },
-  { label: 'Learn', href: '/learning', icon: <BookOpen size={16} /> },
-  { label: 'Notebook', href: '/notebook', icon: <Book size={16} /> },
-  { label: 'Trade', href: '/trading', icon: <Wallet size={16} /> },
-  { label: 'Opportunities', href: '/terminal', icon: <Target size={16} /> },
-  { label: 'Flow', href: '/flow', icon: <Zap size={16} /> },
-  { label: 'Community', href: '/community', icon: <Users size={16} /> }
+  ...CORE_LINKS,
+  INTELLIGENCE_LINKS,
+  LEARN_LINKS,
+  COMMUNITY_LINK
 ];
 
 export default function Navbar() {
