@@ -47,7 +47,7 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
         }
     }, [params.id, router]);
 
-    const handleDecision = async (choice: string, timeToDecisionMs: number, leverage: number = 1) => {
+    const handleDecision = async (choice: string, timeToDecisionMs: number, leverage: number = 1, stake: number = 10000) => {
         if (!scenario) return;
 
         const res = await fetch('/api/decision-lab/attempt', {
@@ -57,7 +57,8 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
                 scenarioId: scenario.id,
                 choice,
                 timeToDecisionMs,
-                leverage
+                leverage,
+                stake
             })
         });
 
@@ -105,9 +106,9 @@ function DecisionEngineWrapper({ scenario, onDecision }: { scenario: any, onDeci
     const router = useRouter();
     const [choice, setChoice] = useState<string | null>(null);
 
-    const handleDecisionInternal = async (c: string, t: number, l: number) => {
+    const handleDecisionInternal = async (c: string, t: number, l: number, s: number) => {
         setChoice(c);
-        return await onDecision(c, t, l);
+        return await onDecision(c, t, l, s);
     };
 
     const handleReflectInternal = async (content: string) => {

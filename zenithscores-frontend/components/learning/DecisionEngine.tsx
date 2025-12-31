@@ -23,7 +23,7 @@ interface DecisionEngineProps {
         eventName?: string; // "COVID-19 Crash"
         userBalance?: number; // Starting balance
     };
-    onDecision: (choice: Choice, timeMs: number, leverage: number) => Promise<{ pnl: number, newBalance: number }>;
+    onDecision: (choice: Choice, timeMs: number, leverage: number, stake: number) => Promise<{ pnl: number, newBalance: number }>;
     onReflect: (content: string) => Promise<void>;
 }
 
@@ -45,7 +45,12 @@ export default function DecisionEngine({ scenario, onDecision, onReflect }: Deci
     const [balance, setBalance] = useState(scenario.userBalance || 50000);
     const [pnl, setPnl] = useState<number | null>(null);
     const [leverage, setLeverage] = useState(1);
+    const [stake, setStake] = useState(10000);
     const [isShiftHeld, setIsShiftHeld] = useState(false);
+    const [manualHighConviction, setManualHighConviction] = useState(false);
+
+    // Derived State
+    const isHighConviction = isShiftHeld || manualHighConviction;
 
     // Constants
     const SPLIT_INDEX = Math.floor(scenario.chartData.length * 0.8);
@@ -169,10 +174,10 @@ export default function DecisionEngine({ scenario, onDecision, onReflect }: Deci
 
         setIsSubmitting(true);
         const timeTaken = Date.now() - startTime;
-        const currentLeverage = isShiftHeld ? 2 : 1;
+        const currentLeverage = isHighConviction ? 2 : 1;
 
         try {
-            const result = await onDecision(choice, timeTaken, currentLeverage);
+            const result = await onDecision(choice, timeTaken, currentLeverage, stake);
 
             // Logged successfully
             setUserChoice(choice);
@@ -271,8 +276,8 @@ export default function DecisionEngine({ scenario, onDecision, onReflect }: Deci
 
                 {/* Phase 2: Decision Gate Overlay */}
                 {phase === 'GATE' && (
-                    <div className="absolute inset-0 z-40 bg-void/40 backdrop-blur-[4px] flex items-center justify-center p-6">
-                        <div className="max-w-3xl w-full text-center space-y-12 animate-in fade-in zoom-in-95 duration-300">
+                    <div className="absolute inset-0 z-40 bg-void/40 backdrop-blur-[4px] flex items-center justify-center p-6 overflow-y-auto">
+                        <div className="max-w-4xl w-full text-center space-y-8 animate-in fade-in zoom-in-95 duration-300 py-8">
                             <div className="space-y-4">
                                 <h2 className="text-6xl font-black text-white font-display tracking-tighter italic">ACTION REQUIRED</h2>
                                 <p className="text-xl text-text-secondary font-medium inline-block bg-void/80 px-8 py-3 rounded-2xl border border-white/10 backdrop-blur-xl">
@@ -280,10 +285,69 @@ export default function DecisionEngine({ scenario, onDecision, onReflect }: Deci
                                 </p>
                             </div>
 
+                            {/* Stake & Leverage Selector */}
+                            <div className="max-w-md mx-auto p-6 glass-panel rounded-2xl border-white/10 space-y-6">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Select Position Size</span>
+                                    <span className="text-sm font-data font-bold text-white">{formatMoney(stake)}</span>
+                                </div>
+
+                                <input
+                                    type="range"
+                                    min="1000"
+                                    max={Math.min(balance, 100000)}
+                                    step="1000"
+                                    value={stake}
+                                    onChange={(e) => setStake(Number(e.target.value))}
+                                    className="w-full accent-accent-mint bg-white/5 h-2 rounded-lg appearance-none cursor-pointer"
+                                />
+
+                                <div className="flex justify-between text-[8px] font-data text-text-muted uppercase">
+                                    <span>$1k</span>
+                                    <span>Conservative</span>
+                                    <span>Aggressive</span>
+                                    <span>{formatMoney(Math.min(balance, 100000))}</span>
+                                </div>
+
+                                <div className="pt-4 border-t border-white/5 flex gap-2">
+                                    {[5000, 10000, 25000, 50000].map(val => (
+                                        <button
+                                            key={val}
+                                            onClick={() => setStake(Math.min(val, balance))}
+                                            className={`flex-1 py-1 px-2 rounded-md text-[10px] font-bold transition-all border ${stake === val ? 'bg-accent-mint text-void border-accent-mint' : 'bg-white/5 text-text-muted border-white/10 hover:border-white/20'}`}
+                                        >
+                                            ${val / 1000}k
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Conviction Toggle */}
+                                <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-4 bg-white/5 p-3 rounded-xl">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-lg ${isHighConviction ? 'bg-accent-gold/20 text-accent-gold' : 'bg-white/5 text-text-muted'}`}>
+                                            <Zap size={18} fill={isHighConviction ? "currentColor" : "none"} />
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Conviction Level</div>
+                                            <div className={`text-xs font-bold transition-colors ${isHighConviction ? 'text-accent-gold' : 'text-white'}`}>
+                                                {isHighConviction ? 'HIGH CONVICTION (2x)' : 'STANDARD SIZE (1x)'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setManualHighConviction(!manualHighConviction)}
+                                        className={`relative w-12 h-6 rounded-full transition-all duration-300 ${manualHighConviction ? 'bg-accent-gold shadow-[0_0_15px_rgba(255,215,0,0.3)]' : 'bg-white/10'}`}
+                                    >
+                                        <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform duration-300 ${manualHighConviction ? 'translate-x-6' : 'translate-x-0'}`} />
+                                    </button>
+                                </div>
+                                {isShiftHeld && <div className="text-[10px] text-accent-gold text-center font-bold animate-pulse">Shift Key Override Active</div>}
+                            </div>
+
                             {/* Leverage Indicator */}
-                            {isShiftHeld && (
+                            {isHighConviction && (
                                 <div className="inline-flex items-center gap-2 text-accent-gold font-bold bg-accent-gold/10 px-6 py-2 rounded-full border border-accent-gold/30 animate-pulse mx-auto shadow-[0_0_20px_var(--glow-gold)]">
-                                    <Zap size={18} fill="currentColor" /> 2X RISK PROFILE ACTIVE
+                                    <Zap size={18} fill="currentColor" /> HIGH CONVICTION ACTIVE
                                 </div>
                             )}
 
@@ -291,31 +355,30 @@ export default function DecisionEngine({ scenario, onDecision, onReflect }: Deci
                                 <button
                                     onClick={() => handleChoice('BUY')}
                                     disabled={isSubmitting}
-                                    className={`group relative h-56 glass-panel rounded-3xl transition-all active:scale-95 disabled:opacity-50 flex flex-col items-center justify-center gap-4 ${isShiftHeld ? 'border-accent-mint shadow-[0_0_40px_rgba(20,241,149,0.3)]' : 'border-white/5 hover:border-accent-mint/50'}`}
+                                    className={`group relative h-56 glass-panel rounded-sm transition-all active:scale-[0.99] disabled:opacity-50 flex flex-col items-center justify-center gap-2 ${isHighConviction ? 'border-accent-mint shadow-[0_0_40px_rgba(20,241,149,0.1)]' : 'border-white/5 hover:border-accent-mint/30'}`}
                                 >
-                                    <div className="text-5xl filter grayscale group-hover:grayscale-0 transition-all transform group-hover:scale-110 duration-500">🚀</div>
-                                    <div className="font-bold text-2xl text-text-muted group-hover:text-accent-mint tracking-widest font-display">LONG</div>
-                                    {isShiftHeld && <div className="text-[10px] font-bold font-data text-accent-mint uppercase tracking-widest">Double Size</div>}
+                                    <div className="font-bold text-3xl text-text-muted group-hover:text-accent-mint tracking-[0.2em] font-display">LONG</div>
+                                    <div className="text-[10px] font-medium font-data text-text-muted uppercase tracking-widest group-hover:text-white transition-colors">Net bullish exposure</div>
+                                    {isHighConviction && <div className="mt-4 px-3 py-1 bg-accent-mint/10 border border-accent-mint/30 rounded text-[9px] font-bold font-data text-accent-mint uppercase tracking-widest">Double Size</div>}
                                 </button>
 
                                 <button
                                     onClick={() => handleChoice('SELL')}
                                     disabled={isSubmitting}
-                                    className={`group relative h-56 glass-panel rounded-3xl transition-all active:scale-95 disabled:opacity-50 flex flex-col items-center justify-center gap-4 ${isShiftHeld ? 'border-accent-danger shadow-[0_0_40px_rgba(239,68,68,0.3)]' : 'border-white/5 hover:border-accent-danger/50'}`}
+                                    className={`group relative h-56 glass-panel rounded-sm transition-all active:scale-[0.99] disabled:opacity-50 flex flex-col items-center justify-center gap-2 ${isHighConviction ? 'border-accent-danger shadow-[0_0_40px_rgba(239,68,68,0.1)]' : 'border-white/5 hover:border-accent-danger/30'}`}
                                 >
-                                    <div className="text-5xl filter grayscale group-hover:grayscale-0 transition-all transform group-hover:scale-110 duration-500">📉</div>
-                                    <div className="font-bold text-2xl text-text-muted group-hover:text-accent-danger tracking-widest font-display">SHORT</div>
-                                    {isShiftHeld && <div className="text-[10px] font-bold font-data text-accent-danger uppercase tracking-widest">Double Size</div>}
+                                    <div className="font-bold text-3xl text-text-muted group-hover:text-accent-danger tracking-[0.2em] font-display">SHORT</div>
+                                    <div className="text-[10px] font-medium font-data text-text-muted uppercase tracking-widest group-hover:text-white transition-colors">Net bearish exposure</div>
+                                    {isHighConviction && <div className="mt-4 px-3 py-1 bg-accent-danger/10 border border-accent-danger/30 rounded text-[9px] font-bold font-data text-accent-danger uppercase tracking-widest">Double Size</div>}
                                 </button>
 
                                 <button
                                     onClick={() => handleChoice('STAY_OUT')}
                                     disabled={isSubmitting}
-                                    className="group relative h-56 glass-panel rounded-3xl transition-all active:scale-95 disabled:opacity-50 flex flex-col items-center justify-center gap-4 border-white/5 hover:border-text-muted hover:bg-surface-2"
+                                    className="group relative h-56 glass-panel rounded-sm transition-all active:scale-[0.99] disabled:opacity-50 flex flex-col items-center justify-center gap-2 border-white/5 hover:border-white/20 hover:bg-white/[0.02]"
                                 >
-                                    <div className="text-5xl filter grayscale group-hover:grayscale-0 transition-all transform group-hover:scale-110 duration-500">👀</div>
-                                    <div className="font-bold text-2xl text-text-muted group-hover:text-text-primary tracking-widest font-display">FLAT</div>
-                                    <div className="text-[10px] font-bold font-data text-text-muted uppercase tracking-widest">Wait</div>
+                                    <div className="font-bold text-3xl text-text-muted group-hover:text-white tracking-[0.2em] font-display">FLAT</div>
+                                    <div className="text-[10px] font-medium font-data text-text-muted uppercase tracking-widest group-hover:text-white transition-colors">No position</div>
                                 </button>
                             </div>
                             <div className="text-text-muted text-xs font-data tracking-[0.2em] uppercase">Hold <span className="text-white font-bold border border-white/10 px-2 py-0.5 rounded-lg bg-white/5">SHIFT</span> to Scale Position (2x Leverage)</div>

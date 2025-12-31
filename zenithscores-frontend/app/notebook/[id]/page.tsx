@@ -2,19 +2,19 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import JournalEditor from '@/components/notebook/JournalEditor';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth'; // Assumptions on auth path
+import { authOptions } from '@/lib/auth';
 
 export default async function JournalPage({ params }: { params: Promise<{ id: string }> }) {
-    const session: any = await getServerSession(authOptions as any);
+    const session = await getServerSession(authOptions);
 
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
         return <div>Access Denied</div>;
     }
 
     const { id } = await params;
 
-    // We verify ownership here for safety before passing data
-    const journal = await (prisma as any).tradeJournal.findUnique({
+    // Fetch journal with proper typing
+    const journal = await prisma.tradeJournal.findUnique({
         where: { id },
     });
 
@@ -22,8 +22,10 @@ export default async function JournalPage({ params }: { params: Promise<{ id: st
         notFound();
     }
 
-    // In a real app we'd strict check userId matching session userId
-    // if (journal.userId !== session.user.id) notFound();
+    // SECURITY: Verify ownership - users can only view their own journals
+    if (journal.userId !== session.user.id) {
+        notFound();
+    }
 
     return (
         <div className="min-h-screen bg-[#0a0a0c] text-zinc-300 font-sans selection:bg-emerald-500/30 selection:text-emerald-200">

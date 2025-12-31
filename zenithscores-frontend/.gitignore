@@ -42,3 +42,5 @@ next-env.d.ts
 
 # local scripts
 count_users.js
+check_scenarios.js
+inspect_data.js

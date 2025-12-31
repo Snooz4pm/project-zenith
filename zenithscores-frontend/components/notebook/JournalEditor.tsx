@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Lock, Unlock, Terminal, Save, CheckCircle,
@@ -19,10 +19,68 @@ export default function JournalEditor({ journal, userId }: EditorProps) {
     const [thesis, setThesis] = useState<ThesisItem[]>(journal.thesis || []);
     const [liveLog, setLiveLog] = useState<LogEntry[]>(journal.liveLog || []);
 
+    // Autosave indicator state
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+    // Debounce timer ref for thesis updates
+    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const saveStatusTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Debounced thesis save function with status indicator
+    const debouncedSaveThesis = useCallback((newThesis: ThesisItem[]) => {
+        // Clear any existing timer
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        // Show "saving" status immediately when user starts typing
+        setSaveStatus('saving');
+
+        // Set new timer - save after 1 second of inactivity
+        debounceTimerRef.current = setTimeout(async () => {
+            try {
+                await updateJournalThesis(journal.id, userId, newThesis);
+                setSaveStatus('saved');
+
+                // Clear "saved" status after 2 seconds
+                if (saveStatusTimerRef.current) {
+                    clearTimeout(saveStatusTimerRef.current);
+                }
+                saveStatusTimerRef.current = setTimeout(() => {
+                    setSaveStatus('idle');
+                }, 2000);
+            } catch (error) {
+                console.error('Failed to save thesis:', error);
+                setSaveStatus('idle'); // Reset on error
+            }
+        }, 1000);
+    }, [journal.id, userId]);
+
+    // Cleanup timers on unmount
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+            if (saveStatusTimerRef.current) {
+                clearTimeout(saveStatusTimerRef.current);
+            }
+        };
+    }, []);
+
     // -- Actions --
 
     const handleLockBriefing = async () => {
         if (status !== 'BRIEFING') return;
+
+        // Flush any pending thesis save before locking
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+            setSaveStatus('saving');
+            await updateJournalThesis(journal.id, userId, thesis);
+            setSaveStatus('saved');
+        }
+
         setStatus('LIVE');
         await updateJournalStatus(journal.id, userId, 'LIVE');
     };
@@ -41,11 +99,23 @@ export default function JournalEditor({ journal, userId }: EditorProps) {
             {/* Header / Status Bar */}
             <header className="flex items-center justify-between mb-12 border-b border-white/5 pb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight font-display mb-2">{journal.title}</h1>
+                    <div className="flex items-center gap-3 mb-2">
+                        <h1 className="text-3xl font-bold text-white tracking-tight font-display">{journal.title}</h1>
+                        {/* Autosave Indicator */}
+                        {saveStatus === 'saving' && (
+                            <span className="text-[10px] text-amber-500 flex items-center gap-1 animate-pulse">
+                                <Save className="w-3 h-3" /> Saving...
+                            </span>
+                        )}
+                        {saveStatus === 'saved' && (
+                            <span className="text-[10px] text-emerald-500 flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3" /> Saved
+                            </span>
+                        )}
+                    </div>
                     <div className="flex items-center gap-4 text-xs font-mono text-zinc-500">
                         <span className="bg-white/5 px-2 py-1 rounded border border-white/5">{journal.assetSymbol || 'NO ASSET'}</span>
                         <span>{new Date(journal.createdAt).toLocaleDateString()}</span>
-                        <span>VIX: {journal.marketContext?.vix || 'N/A'}</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -69,10 +139,10 @@ export default function JournalEditor({ journal, userId }: EditorProps) {
                         <ThesisEditor
                             initialData={thesis}
                             readOnly={status !== 'BRIEFING'}
-                            onChange={async (newThesis: ThesisItem[]) => {
+                            onChange={(newThesis: ThesisItem[]) => {
                                 setThesis(newThesis);
-                                // Debounce save in real app
-                                await updateJournalThesis(journal.id, userId, newThesis);
+                                // Use debounced save instead of immediate save
+                                debouncedSaveThesis(newThesis);
                             }}
                         />
                     </section>

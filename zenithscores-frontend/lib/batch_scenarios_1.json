@@ -1,0 +1,138 @@
+[
+    {
+        "id": "jpy-u-turn-2024",
+        "title": "The Yen Carry Trade Unwind",
+        "market": "forex",
+        "asset": "USD/JPY",
+        "timeframe": "1H",
+        "difficulty": "hard",
+        "regime": "chaos",
+        "chartData": [],
+        "context": {
+            "market_environment": "Global markets are panicking as the JPY carry trade begins to unwind rapidly.",
+            "recent_price_behavior": "Parabolic drop in USD/JPY after BOJ rate hike and soft US jobs data.",
+            "sentiment": "Pure fear. Forced liquidations across global equity markets.",
+            "volatility": "Extreme. Spreads widening and price jumping 50 pips per candle."
+        },
+        "decision_prompt": "Price has dropped 5% in 48 hours. It's hitting a major multi-year support level. Do you bet on a bounce?",
+        "choices": [
+            {
+                "id": "A",
+                "label": "LONG",
+                "description": "Mean reversion. The RSI is at 10 on the 1H chart."
+            },
+            {
+                "id": "B",
+                "label": "SHORT",
+                "description": "Don't catch the knife. The deleveraging has only just begun."
+            },
+            {
+                "id": "C",
+                "label": "WATCH",
+                "description": "Preserve capital. Wait for a volatility contraction."
+            }
+        ]
+    },
+    {
+        "id": "arm-ipo-momentum-2023",
+        "title": "Arm Holdings: The Chip IPO",
+        "market": "stock",
+        "asset": "ARM",
+        "timeframe": "15m",
+        "difficulty": "medium",
+        "regime": "breakout",
+        "chartData": [],
+        "context": {
+            "market_environment": "Post-IPO quiet period has ended. The stock is the new 'AI darling'.",
+            "recent_price_behavior": "Stock has been flat after the IPO pop, forming a tight 4-week base.",
+            "sentiment": "Optimistic. Institutional allocation is starting sweep the bid.",
+            "volatility": "Low but increasing on the breakout attempt."
+        },
+        "decision_prompt": "Stock clears its IPO day high of $65 on heavy volume. Do you take the trade?",
+        "choices": [
+            {
+                "id": "A",
+                "label": "LONG",
+                "description": "High-handle breakout. Stocks often trend hard after clearing IPO supply."
+            },
+            {
+                "id": "B",
+                "label": "SHORT",
+                "description": "Fade the hype. IPOs are notorious for double-top failure."
+            },
+            {
+                "id": "C",
+                "label": "WATCH",
+                "description": "Wait for a retest of the $65 level as support."
+            }
+        ]
+    },
+    {
+        "id": "meta-efficiency-rally-2023",
+        "title": "Meta: Year of Efficiency Gap",
+        "market": "stock",
+        "asset": "META",
+        "timeframe": "1D",
+        "difficulty": "medium",
+        "regime": "trend",
+        "chartData": [],
+        "context": {
+            "market_environment": "Meta has pivoted to cost-cutting after the 2022 Metaverse bloodbath.",
+            "recent_price_behavior": "Magnificent recovery from $90. Currently sitting at $250 after a series of earnings gaps.",
+            "sentiment": "Relief. Institutional trust is returning to the leadership.",
+            "volatility": "Steady upward grind with low-volume pullbacks."
+        },
+        "decision_prompt": "Price pulls back to the 20-day Moving Average for the first time in 3 weeks. Do you add?",
+        "choices": [
+            {
+                "id": "A",
+                "label": "LONG",
+                "description": "Trend continuation. Moving average bounces are high-probability in strong regimes."
+            },
+            {
+                "id": "B",
+                "label": "SHORT",
+                "description": "The rally is overextended. Look for a deeper correction to the 50 MA."
+            },
+            {
+                "id": "C",
+                "label": "WATCH",
+                "description": "Wait for a price reversal candle (e.g., Hammer) at the MA."
+            }
+        ]
+    },
+    {
+        "id": "gld-record-highs-2024",
+        "title": "Gold: The Silent Sovereign",
+        "market": "index",
+        "asset": "XAU/USD",
+        "timeframe": "4H",
+        "difficulty": "easy",
+        "regime": "breakout",
+        "chartData": [],
+        "context": {
+            "market_environment": "Geopolitical tensions and central bank buying are pushing Gold to the brink.",
+            "recent_price_behavior": "Gold has been stuck under $2070 for 3 years. It is currently testing $2100.",
+            "sentiment": "Bullish but cautious. Traders have been 'faked out' at this level many times.",
+            "volatility": "Moderate. Tight range preceding the breakout."
+        },
+        "decision_prompt": "Gold closes a 4H candle at $2150 with a clean breakaway gap. Do you enter?",
+        "choices": [
+            {
+                "id": "A",
+                "label": "LONG",
+                "description": "3-year base breakout. This is a massive structural shift."
+            },
+            {
+                "id": "B",
+                "label": "SHORT",
+                "description": "Another false breakout. Central banks will suppress price."
+            },
+            {
+                "id": "C",
+                "label": "WATCH",
+                "description": "Wait for a throwback to the $2070 'old ceiling'."
+            }
+        ]
+    }
+]
