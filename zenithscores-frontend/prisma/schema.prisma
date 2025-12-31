@@ -1277,6 +1277,7 @@ model DecisionAttempt {
   pnl              Float?   // Profit/Loss in dollars
   returnPercentage Float?   // ROI %
   leverage         Int      @default(1) // 1x or 2x (Conviction)
+  stake            Int      @default(10000) // Bet size
   
   decidedAt        DateTime @default(now()) @db.Timestamp(6)
   
