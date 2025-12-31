@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Play, TrendingUp, Activity, BarChart2 } from 'lucide-react';
+import { Play, TrendingUp, Activity, BarChart2, ChevronLeft, ChevronRight } from 'lucide-react';
 import PageLoader from '@/components/ui/PageLoader';
 
 interface Scenario {
@@ -15,18 +15,32 @@ interface Scenario {
     isPremium: boolean;
 }
 
+interface Pagination {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+}
+
 export default function DecisionLabListPage() {
     const [scenarios, setScenarios] = useState<Scenario[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'ALL' | 'CRYPTO' | 'FOREX' | 'STOCKS'>('ALL');
+    const [page, setPage] = useState(1);
+    const [pagination, setPagination] = useState<Pagination | null>(null);
 
     useEffect(() => {
         async function fetchScenarios() {
+            setIsLoading(true);
             try {
-                const res = await fetch('/api/decision-lab');
+                const marketParam = activeTab !== 'ALL' ? `&marketType=${activeTab}` : '';
+                const res = await fetch(`/api/decision-lab?page=${page}${marketParam}`);
                 if (res.ok) {
                     const data = await res.json();
-                    setScenarios(data.scenarios || data);
+                    setScenarios(data.scenarios || []);
+                    setPagination(data.pagination || null);
                 }
             } catch (error) {
                 console.error('Failed to load scenarios');
@@ -35,11 +49,13 @@ export default function DecisionLabListPage() {
             }
         }
         fetchScenarios();
-    }, []);
+    }, [page, activeTab]);
 
-    const filteredScenarios = scenarios.filter(s =>
-        activeTab === 'ALL' ? true : s.marketType.toUpperCase() === activeTab
-    );
+    // Reset page when tab changes
+    const handleTabChange = (tab: 'ALL' | 'CRYPTO' | 'FOREX' | 'STOCKS') => {
+        setActiveTab(tab);
+        setPage(1);
+    };
 
     const getDifficultyColor = (diff: string) => {
         switch (diff.toLowerCase()) {
@@ -79,7 +95,7 @@ export default function DecisionLabListPage() {
                     {['ALL', 'CRYPTO', 'FOREX', 'STOCKS'].map((tab) => (
                         <button
                             key={tab}
-                            onClick={() => setActiveTab(tab as any)}
+                            onClick={() => handleTabChange(tab as any)}
                             className={`px-6 py-2 rounded-lg font-data text-xs tracking-widest transition-all ${activeTab === tab
                                 ? 'bg-accent-mint text-void font-bold shadow-[0_0_15px_var(--glow-mint)]'
                                 : 'text-text-muted hover:text-text-secondary'
@@ -91,7 +107,7 @@ export default function DecisionLabListPage() {
                 </div>
 
                 {/* Scenarios Grid */}
-                {filteredScenarios.length === 0 ? (
+                {scenarios.length === 0 ? (
                     <div className="py-32 text-center glass-panel rounded-2xl border-dashed border-white/10">
                         <Activity className="mx-auto h-16 w-16 text-white/10 mb-6 animate-pulse" />
                         <h3 className="text-text-secondary text-2xl font-display">No simulations found</h3>
@@ -99,7 +115,7 @@ export default function DecisionLabListPage() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {filteredScenarios.map((scenario) => (
+                        {scenarios.map((scenario) => (
                             <Link
                                 href={`/decision-lab/${scenario.id}`}
                                 key={scenario.id}
@@ -141,6 +157,54 @@ export default function DecisionLabListPage() {
                             </Link>
                         ))}
                     </div>
+                )}
+
+                {/* Pagination Controls */}
+                {pagination && pagination.totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-4 pt-8">
+                        <button
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={!pagination.hasPrev}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-2 border border-white/5 text-text-secondary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-surface-3 transition-colors"
+                        >
+                            <ChevronLeft size={16} />
+                            Prev
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                            {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).slice(
+                                Math.max(0, page - 3),
+                                Math.min(pagination.totalPages, page + 2)
+                            ).map((p) => (
+                                <button
+                                    key={p}
+                                    onClick={() => setPage(p)}
+                                    className={`w-10 h-10 rounded-lg font-data text-sm transition-all ${page === p
+                                            ? 'bg-accent-mint text-void font-bold'
+                                            : 'bg-surface-2 text-text-muted hover:text-white'
+                                        }`}
+                                >
+                                    {p}
+                                </button>
+                            ))}
+                        </div>
+
+                        <button
+                            onClick={() => setPage(p => p + 1)}
+                            disabled={!pagination.hasNext}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-2 border border-white/5 text-text-secondary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-surface-3 transition-colors"
+                        >
+                            Next
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+                )}
+
+                {/* Total count */}
+                {pagination && (
+                    <p className="text-center text-text-muted text-sm pt-4">
+                        Showing {scenarios.length} of {pagination.totalCount} scenarios
+                    </p>
                 )}
             </div>
         </div>
