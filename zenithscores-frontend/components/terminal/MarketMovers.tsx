@@ -8,8 +8,8 @@ interface MarketMover {
     symbol: string;
     name: string;
     price: number;
-    change: number;
-    changePercent: number;
+    change: number | null;
+    changePercent: number | null;
     sparkline?: number[];
 }
 
@@ -83,7 +83,9 @@ export default function MarketMovers({
                     >
                         <div className="flex items-center gap-2 min-w-0">
                             <div className="flex-shrink-0">
-                                {mover.change >= 0 ? (
+                                {mover.change === null ? (
+                                    <Activity size={12} className="text-gray-500" />
+                                ) : mover.change >= 0 ? (
                                     <TrendingUp size={12} className="text-emerald-400" />
                                 ) : (
                                     <TrendingDown size={12} className="text-red-400" />
@@ -100,15 +102,20 @@ export default function MarketMovers({
                         </div>
 
                         <div className="flex items-center gap-3">
-                            {mover.sparkline && (
+                            {mover.sparkline && mover.change !== null && (
                                 <Sparkline data={mover.sparkline} positive={mover.change >= 0} />
                             )}
                             <div className="text-right">
                                 <div className="text-xs font-mono text-gray-300">
                                     ${mover.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </div>
-                                <div className={`text-[10px] font-mono ${mover.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    {mover.change >= 0 ? '+' : ''}{mover.changePercent.toFixed(2)}%
+                                <div className={`text-[10px] font-mono ${
+                                    mover.changePercent === null ? 'text-gray-500' :
+                                    mover.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'
+                                }`}>
+                                    {mover.changePercent === null ? '—' :
+                                        `${mover.changePercent >= 0 ? '+' : ''}${mover.changePercent.toFixed(2)}%`
+                                    }
                                 </div>
                             </div>
                         </div>

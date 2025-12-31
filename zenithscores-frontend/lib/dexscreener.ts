@@ -191,7 +191,7 @@ export interface NormalizedToken {
     chainName: string;
     address: string;
     priceUsd: number;
-    priceChange24h: number;
+    priceChange24h: number | null; // null when data unavailable
     liquidityUsd: number;
     volume24hUsd: number;
     pairAddress: string;
@@ -368,7 +368,8 @@ function normalizePair(pair: DexPair): NormalizedToken {
         chainName: CHAIN_DISPLAY[pair.chainId as ExecutionChain] || pair.chainId.toUpperCase(),
         address: pair.baseToken.address,
         priceUsd: parseFloat(pair.priceUsd || '0'),
-        priceChange24h: pair.priceChange?.h24 || 0,
+        // Return null if change data unavailable - honest data representation
+        priceChange24h: typeof pair.priceChange?.h24 === 'number' ? pair.priceChange.h24 : null,
         liquidityUsd: pair.liquidity?.usd || 0,
         volume24hUsd: pair.volume?.h24 || 0,
         pairAddress: pair.pairAddress,
