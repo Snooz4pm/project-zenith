@@ -149,7 +149,6 @@ export async function POST(request: Request) {
                         choice,
                         timeToDecisionMs,
                         leverage: Math.floor(leverage), // Ensure Int
-                        stake: Math.floor(positionSize), // Ensure Int, add this field if it's new
                         pnl,
                         returnPercentage
                     }
