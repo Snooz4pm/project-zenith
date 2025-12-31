@@ -71,9 +71,8 @@ async function fixSlashIds() {
                             basePrice: oldScenario.basePrice,
                             chartData: oldScenario.chartData as Prisma.InputJsonValue,
                             annotations: oldScenario.annotations as Prisma.InputJsonValue,
-                            correctChoice: oldScenario.correctChoice,
+                            explanationSetup: oldScenario.explanationSetup,
                             explanationOutcome: oldScenario.explanationOutcome,
-                            tags: oldScenario.tags as Prisma.InputJsonValue,
                             createdAt: oldScenario.createdAt,
                             updatedAt: new Date()
                         }
