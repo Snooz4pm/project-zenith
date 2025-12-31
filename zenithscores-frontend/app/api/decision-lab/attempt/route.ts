@@ -85,40 +85,40 @@ export async function POST(request: Request) {
         let pnl = 0;
         let returnPercentage = 0;
         const splitIndex = Math.floor(data.length * 0.8);
-
-        // Position sizing: Use stake from body or default to BASE_POSITION_SIZE
         const positionSize = Number(stake) || BASE_POSITION_SIZE;
 
         if (choice !== 'STAY_OUT') {
             if (splitIndex >= data.length || !data[splitIndex] || !data[data.length - 1]) {
-                throw new Error(`Data indices out of bounds. Length: ${data.length}, Split: ${splitIndex}`);
+                // Fallback if data is weirdly short or missing
+                console.error('Data index out of bounds for PnL calc');
+                pnl = 0;
+            } else {
+                const entryCandle = data[splitIndex];
+                const exitCandle = data[data.length - 1];
+
+                const entryPrice = Number(entryCandle.open);
+                const exitPrice = Number(exitCandle.close);
+
+                // Validation
+                if (!Number.isFinite(entryPrice) || !Number.isFinite(exitPrice) || entryPrice === 0) {
+                    console.error(`Invalid price data: Entry ${entryPrice}, Exit ${exitPrice}`);
+                    pnl = 0;
+                } else {
+                    const direction = choice === 'BUY' ? 1 : -1;
+                    const safeLeverage = Number(leverage) || 1;
+                    const leverageMult = Math.max(1, Math.min(2, safeLeverage));
+
+                    const rawReturn = (exitPrice - entryPrice) / entryPrice; // Percentage move
+
+                    // Core PnL Formula: (Move * Direction) * Size * Leverage
+                    pnl = rawReturn * direction * positionSize * leverageMult;
+                    returnPercentage = rawReturn * direction * leverageMult * 100;
+                }
             }
 
-            const entryCandle = data[splitIndex];
-            const exitCandle = data[data.length - 1];
-
-            // Validate prices
-            const entryPrice = Number(entryCandle.open);
-            const exitPrice = Number(exitCandle.close);
-
-            if (isNaN(entryPrice) || isNaN(exitPrice) || entryPrice === 0) {
-                throw new Error(`Invalid price data. Entry: ${entryPrice}, Exit: ${exitPrice}`);
-            }
-
-            const rawReturn = (exitPrice - entryPrice) / entryPrice;
-
-            // Direction Multiplier
-            const direction = choice === 'BUY' ? 1 : -1;
-
-            // Leverage Multiplier
-            const safeLeverage = Number(leverage) || 1;
-            const leverageMult = Math.max(1, Math.min(2, safeLeverage)); // Clamp 1-2
-
-            returnPercentage = rawReturn * direction * leverageMult * 100; // formatted as %
-            pnl = (positionSize * rawReturn * direction * leverageMult);
-
-            // Safety check for NaN or Infinity
-            if (!isFinite(pnl)) pnl = 0;
+            // Final Guard: Never return NaN
+            if (!Number.isFinite(pnl)) pnl = 0;
+            if (!Number.isFinite(returnPercentage)) returnPercentage = 0;
         }
 
         // 3. Transaction: Create Attempt + Update User Portfolio

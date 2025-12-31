@@ -120,16 +120,13 @@ export default function ProfilePage() {
                 setNotes(data.notes || []);
             }
 
-            // Load trading stats
-            const sessionId = localStorage.getItem('trading_session_id');
-            if (sessionId) {
-                const statsRes = await fetch(`${API_URL}/api/v1/trading/portfolio/${sessionId}`);
-                if (statsRes.ok) {
-                    const data = await statsRes.json();
-                    setPortfolioValue(data.portfolio_value || 10000);
-                    setTotalPnL(data.total_pnl || 0);
-                    setTotalTrades(data.total_trades || 0);
-                }
+            // Load trading stats (Real-time from DB)
+            const statsRes = await fetch('/api/user/portfolio');
+            if (statsRes.ok) {
+                const data = await statsRes.json();
+                setPortfolioValue(data.balance || 50000);
+                setTotalPnL(data.totalPnL || 0);
+                setTotalTrades(data.totalTrades || 0);
             }
 
             // Load learning progress

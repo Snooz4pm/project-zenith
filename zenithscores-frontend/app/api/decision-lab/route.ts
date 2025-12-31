@@ -18,9 +18,15 @@ export async function GET(request: Request) {
         const marketType = searchParams.get('marketType'); // Optional filter
 
         // Build where clause for optional filtering
-        const where = marketType && marketType !== 'ALL'
-            ? { marketType: marketType.toLowerCase() }
-            : {};
+        // Build where clause for optional filtering + mandatory validity check
+        const where: any = {
+            symbol: { not: '' },
+            // We allow chartData: null because detail API generates it using basePrice
+        };
+
+        if (marketType && marketType !== 'ALL') {
+            where.marketType = marketType.toLowerCase();
+        }
 
         // Get total count for pagination
         const totalCount = await prisma.decisionScenario.count({ where });

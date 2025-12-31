@@ -211,7 +211,10 @@ export default function DecisionEngine({ scenario, onDecision, onReflect }: Deci
     };
 
     // Formatters
-    const formatMoney = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+    const formatMoney = (n: number | null | undefined) => {
+        if (n === null || n === undefined || !Number.isFinite(n)) return '$0.00';
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+    };
 
     return (
         <div className="flex flex-col h-full bg-void text-white relative overflow-hidden rounded-2xl border border-white/5 shadow-2xl">
