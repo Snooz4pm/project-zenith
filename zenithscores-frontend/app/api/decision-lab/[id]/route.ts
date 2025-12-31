@@ -77,11 +77,23 @@ export async function GET(
             });
         }
 
-        // Get user's portfolio balance
-        const portfolio = await prisma.portfolio.findUnique({
+        // Get or create user's portfolio
+        let portfolio = await prisma.portfolio.findUnique({
             where: { userId: session.user.id },
             select: { balance: true }
         });
+
+        // Create portfolio if it doesn't exist (first time user)
+        if (!portfolio) {
+            portfolio = await prisma.portfolio.create({
+                data: {
+                    userId: session.user.id,
+                    balance: 50000,
+                    totalRealizedPnL: 0
+                },
+                select: { balance: true }
+            });
+        }
 
         // Map to expected format
         const scenario = {
@@ -98,7 +110,7 @@ export async function GET(
             explanationOutcome: dbScenario.explanationOutcome,
             decisionPrompt: dbScenario.decisionPrompt || "Analyze the context. What is your allocation?",
             eventName: dbScenario.eventName,
-            userBalance: portfolio?.balance || 50000
+            userBalance: portfolio.balance
         };
 
         return NextResponse.json(scenario);

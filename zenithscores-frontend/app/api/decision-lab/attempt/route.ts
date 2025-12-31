@@ -258,6 +258,7 @@ export async function POST(request: Request) {
                 // Update Portfolio Balance and Realized PnL
                 let updatedPortfolio = portfolio;
                 if (Math.abs(pnl) > 0.01) {
+                    console.log(`[Portfolio Update] User: ${session.user.id}, Old Balance: ${portfolio.balance}, PnL: ${pnl}`);
                     updatedPortfolio = await tx.portfolio.update({
                         where: { id: portfolio.id },
                         data: {
@@ -265,6 +266,7 @@ export async function POST(request: Request) {
                             totalRealizedPnL: { increment: pnl }
                         }
                     });
+                    console.log(`[Portfolio Update] New Balance: ${updatedPortfolio.balance}`);
 
                     // Create a Trade record for history
                     const entryIndex = Math.floor(candles.length * 0.8);
