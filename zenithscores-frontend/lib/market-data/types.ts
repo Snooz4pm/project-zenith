@@ -104,11 +104,13 @@ export const CACHE_TTL: Record<Timeframe, number> = {
 };
 
 // Unified Real-Time Price Shape
+// Unified Real-Time Price Shape
 export type MarketPrice = {
     symbol: string;
     price: number;
-    change: number;
-    changePercent: number;
+    prevClose?: number; // Previous daily close (Stocks/Forex) or 24h ago price (Crypto)
+    change: number; // Computed from price - prevClose if available
+    changePercent: number; // Computed from (price - prevClose) / prevClose
     high24h?: number;
     low24h?: number;
     volume?: number;

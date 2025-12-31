@@ -196,6 +196,25 @@ export function fillOHLCVGaps(data: OHLCV[], intervalSeconds: number): OHLCV[] {
 /**
  * Normalize to unified MarketPrice shape
  */
+
+/**
+ * ONE canonical function for 24h Change
+ * Rules:
+ * - Must have valid numbers
+ * - Must have non-zero reference price
+ * - Returns computed % change or throws
+ */
+function compute24hChange(current: number, prevClose: number): number {
+    if (!Number.isFinite(current) || !Number.isFinite(prevClose) || prevClose === 0) {
+        // Fallback for division by zero or invalid inputs
+        return 0;
+    }
+    return ((current - prevClose) / prevClose) * 100;
+}
+
+/**
+ * Normalize to unified MarketPrice shape
+ */
 export function normalizeToMarketPrice(
     raw: any,
     source: 'alpha_vantage' | 'finnhub' | 'dexscreener',
@@ -203,18 +222,20 @@ export function normalizeToMarketPrice(
 ): import('./types').MarketPrice {
     const now = Math.floor(Date.now() / 1000);
 
+    // 1. Alpha Vantage
     if (source === 'alpha_vantage') {
-        // Handle Global Quote
         const quote = raw['Global Quote'];
         if (quote) {
             const price = parseFloat(quote['05. price']);
-            const change = parseFloat(quote['09. change']);
-            const pct = parseFloat(quote['10. change percent'].replace('%', ''));
+            // Alpha Vantage provides "previous close" explicitly
+            const prevClose = parseFloat(quote['08. previous close']);
+
             return {
                 symbol: quote['01. symbol'],
                 price,
-                change,
-                changePercent: pct,
+                prevClose,
+                change: price - prevClose,
+                changePercent: compute24hChange(price, prevClose),
                 high24h: parseFloat(quote['03. high']),
                 low24h: parseFloat(quote['04. low']),
                 volume: parseFloat(quote['06. volume']),
@@ -225,29 +246,44 @@ export function normalizeToMarketPrice(
         }
     }
 
+    // 2. Finnhub
     if (source === 'finnhub') {
+        // Finnhub quote: c (current), pc (previous close)
+        const price = raw.c;
+        const prevClose = raw.pc;
+
         return {
-            symbol: raw.symbol || 'UNKNOWN', // Finnhub often needs symbol passed in context
-            price: raw.c,
-            change: raw.d,
-            changePercent: raw.dp,
+            symbol: raw.symbol || 'UNKNOWN',
+            price,
+            prevClose,
+            change: price - prevClose,
+            changePercent: compute24hChange(price, prevClose),
             high24h: raw.h,
             low24h: raw.l,
-            volume: 0, // Quote often lacks volume
-            timestamp: raw.t || now,
+            volume: 0,
+            timestamp: raw.t ? raw.t * 1000 : now * 1000,
             source: 'finnhub',
             verificationStatus: 'unverified'
         };
     }
 
+    // 3. DexScreener (Crypto)
     if (source === 'dexscreener') {
+        const price = parseFloat(raw.priceUsd);
+        // DexScreener gives % change directly. To be consistent, we can derive prevClose or just trust it.
+        // Derived: prevClose = price / (1 + change/100)
+        const changePct24h = raw.priceChange?.h24 || 0;
+        const prevClose = price / (1 + (changePct24h / 100));
+
         return {
             symbol: raw.baseToken.symbol,
-            price: parseFloat(raw.priceUsd),
-            change: raw.priceChange?.h24 || 0, // Using 24h change as primary metric
-            changePercent: raw.priceChange?.h24 || 0,
+            price,
+            prevClose,
+            change: price - prevClose,
+            // Trust provider for crypto as it's 24/7 rolling window
+            changePercent: changePct24h,
             volume: raw.volume?.h24 || 0,
-            timestamp: now,
+            timestamp: now * 1000,
             source: 'dexscreener',
             verificationStatus: 'unverified'
         };

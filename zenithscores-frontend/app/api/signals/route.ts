@@ -15,13 +15,12 @@ export async function GET() {
         }
 
         // Premium check removed - Free for all users
-        const isPremium = true;
 
         // TODO: Implement when Signal model is added to schema
         // For now, return empty array to prevent 404 errors
         const signals: any[] = [];
 
-        return NextResponse.json({ signals, isPremium: true });
+        return NextResponse.json({ signals });
     } catch (error) {
         console.error('[API] Failed to fetch signals:', error);
         return NextResponse.json(

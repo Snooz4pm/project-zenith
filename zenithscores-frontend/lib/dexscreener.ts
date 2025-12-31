@@ -191,7 +191,7 @@ export interface NormalizedToken {
     chainName: string;
     address: string;
     priceUsd: number;
-    priceChange24h: number | null; // null when data unavailable
+    priceChange24h: number; // NO NULLS - Always strictly number
     liquidityUsd: number;
     volume24hUsd: number;
     pairAddress: string;
@@ -368,8 +368,8 @@ function normalizePair(pair: DexPair): NormalizedToken {
         chainName: CHAIN_DISPLAY[pair.chainId as ExecutionChain] || pair.chainId.toUpperCase(),
         address: pair.baseToken.address,
         priceUsd: parseFloat(pair.priceUsd || '0'),
-        // Return null if change data unavailable - honest data representation
-        priceChange24h: typeof pair.priceChange?.h24 === 'number' ? pair.priceChange.h24 : null,
+        // Strict number: default to 0 if missing. UI can assume number.
+        priceChange24h: typeof pair.priceChange?.h24 === 'number' ? pair.priceChange.h24 : 0,
         liquidityUsd: pair.liquidity?.usd || 0,
         volume24hUsd: pair.volume?.h24 || 0,
         pairAddress: pair.pairAddress,
@@ -466,6 +466,7 @@ export async function getTrendingTokens(targetChain: ExecutionChain = 'base'): P
  * Unified Price Fetcher for DexScreener
  */
 import { MarketPrice } from '@/lib/market-data/types';
+import { normalizeToMarketPrice } from '@/lib/market-data/normalizer';
 
 export async function fetchPriceDex(symbol: string): Promise<MarketPrice | null> {
     try {
@@ -497,26 +498,8 @@ export async function fetchPriceDex(symbol: string): Promise<MarketPrice | null>
             return null;
         }
 
-        const price = parseFloat(pair.priceUsd || '0');
-
-        // BTC SANITY ANCHOR
-        if (symbol.toUpperCase() === 'BTC') {
-            if (price < 10000 || price > 150000) {
-                console.error(`[DexScreener] INSANE BTC PRICE: ${price}`);
-                return null;
-            }
-        }
-
-        return {
-            symbol: pair.baseToken.symbol,
-            price: price,
-            change: pair.priceChange.h24,
-            changePercent: pair.priceChange.h24,
-            volume: pair.volume.h24,
-            timestamp: Date.now(),
-            source: `dexscreener:${pair.chainId}`,
-            verificationStatus: 'verified'
-        };
+        // Use canonical normalizer - Strict 24h calculation
+        return normalizeToMarketPrice(pair, 'dexscreener', 'crypto');
     } catch (error) {
         console.error('FetchPriceDex Error:', error);
         return null;
