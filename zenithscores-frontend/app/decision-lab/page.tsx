@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Lock, Play, TrendingUp, Activity, BarChart2 } from 'lucide-react';
+import { Play, TrendingUp, Activity, BarChart2 } from 'lucide-react';
 import PageLoader from '@/components/ui/PageLoader';
-import Paywall from '@/components/Paywall';
 
 interface Scenario {
     id: string;
@@ -14,14 +13,12 @@ interface Scenario {
     timeframe: string;
     difficulty: string;
     isPremium: boolean;
-    locked?: boolean;
 }
 
 export default function DecisionLabListPage() {
     const [scenarios, setScenarios] = useState<Scenario[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'ALL' | 'CRYPTO' | 'FOREX' | 'STOCKS'>('ALL');
-    const [showPaywall, setShowPaywall] = useState(false);
 
     useEffect(() => {
         async function fetchScenarios() {
@@ -39,13 +36,6 @@ export default function DecisionLabListPage() {
         }
         fetchScenarios();
     }, []);
-
-    const handleScenarioClick = (e: React.MouseEvent, scenario: Scenario) => {
-        if (scenario.locked) {
-            e.preventDefault();
-            setShowPaywall(true);
-        }
-    };
 
     const filteredScenarios = scenarios.filter(s =>
         activeTab === 'ALL' ? true : s.marketType.toUpperCase() === activeTab
@@ -111,20 +101,10 @@ export default function DecisionLabListPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {filteredScenarios.map((scenario) => (
                             <Link
-                                href={scenario.locked ? '#' : `/decision-lab/${scenario.id}`}
+                                href={`/decision-lab/${scenario.id}`}
                                 key={scenario.id}
-                                onClick={(e) => handleScenarioClick(e, scenario)}
-                                className={`group relative glass-panel rounded-2xl overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] ${scenario.locked ? 'opacity-75' : ''}`}
+                                className="group relative glass-panel rounded-2xl overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)]"
                             >
-                                {/* Premium Badge */}
-                                {scenario.isPremium && (
-                                    <div className="absolute top-4 right-4 z-10">
-                                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-bold uppercase tracking-wider rounded-lg backdrop-blur-md">
-                                            <Lock size={12} /> Pro
-                                        </div>
-                                    </div>
-                                )}
-
                                 <div className="p-8 space-y-8">
                                     <div className="flex justify-between items-start">
                                         <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center group-hover:bg-accent-mint/20 transition-all duration-500 border border-white/5 group-hover:border-accent-mint/30">
@@ -163,13 +143,7 @@ export default function DecisionLabListPage() {
                     </div>
                 )}
             </div>
-
-            {/* Paywall */}
-            <Paywall
-                isOpen={showPaywall}
-                onClose={() => setShowPaywall(false)}
-                featureName="Decision Lab Premium Scenarios"
-            />
         </div>
     );
 }
+
