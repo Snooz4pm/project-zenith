@@ -493,6 +493,7 @@ export const ALL_FOREX_PAIRS = { ...MAJOR_FOREX_PAIRS, ...MINOR_FOREX_PAIRS, ...
  * Unified Price Fetcher for Finnhub
  */
 import { MarketPrice } from '@/lib/market-data/types';
+import { normalizeToMarketPrice } from '@/lib/market-data/normalizer';
 
 export async function fetchPriceFinnhub(symbol: string): Promise<MarketPrice | null> {
     try {
@@ -501,17 +502,8 @@ export async function fetchPriceFinnhub(symbol: string): Promise<MarketPrice | n
 
         if (!quote || quote.c === 0) return null; // Finnhub often returns 0s for invalid symbols
 
-        return {
-            symbol,
-            price: quote.c,
-            change: quote.d || 0,
-            changePercent: quote.dp || 0,
-            high24h: quote.h,
-            low24h: quote.l,
-            timestamp: quote.t ? quote.t * 1000 : Date.now(),
-            source: 'finnhub',
-            verificationStatus: 'unverified'
-        };
+        // Use canonical normalization
+        return normalizeToMarketPrice(quote, 'finnhub', 'stock');
     } catch (error) {
         console.error('FetchPriceFinnhub Error:', error);
         return null;

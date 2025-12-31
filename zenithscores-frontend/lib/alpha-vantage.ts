@@ -86,46 +86,36 @@ export async function getForexRateAV(from: string, to: string = 'USD'): Promise<
 /**
  * Unified Price Fetcher for Alpha Vantage
  */
+/**
+ * Unified Price Fetcher for Alpha Vantage
+ */
+import { fetchForex } from './market/providers/alphavantageForex';
+import { normalizeToMarketPrice } from './market-data/normalizer';
+
 export async function fetchPriceAV(symbol: string, assetType: AssetType = 'stock'): Promise<MarketPrice | null> {
     try {
         if (assetType === 'forex') {
-            const [from, to] = symbol.includes('/') ? symbol.split('/') : [symbol, 'USD'];
-            const data = await getForexRateAV(from, to);
-            if (!data || !data['Realtime Currency Exchange Rate']) return null;
-
-            const rate = data['Realtime Currency Exchange Rate'];
+            // Use correct FX_DAILY logic from provider
+            const tick = await fetchForex(symbol);
             return {
-                symbol,
-                price: parseFloat(rate['5. Exchange Rate']),
-                change: 0, // Not available in this AV endpoint
-                changePercent: 0,
-                timestamp: Date.now(),
+                ...tick,
+                symbol: tick.symbol,
+                price: tick.price,
+                change: tick.change,
+                changePercent: tick.changePercent,
+                timestamp: tick.timestamp,
                 source: 'alpha_vantage',
                 verificationStatus: 'unverified'
-            };
+            } as MarketPrice;
         }
 
         // Stock
         const data = await getStockQuoteAV(symbol);
         if (!data || !data['Global Quote']) return null;
 
-        const quote = data['Global Quote'];
-        const price = parseFloat(quote['05. price']);
-        const change = parseFloat(quote['09. change']);
-        const changePercent = parseFloat(quote['10. change percent'].replace('%', ''));
+        // Use canonical normalization
+        return normalizeToMarketPrice(data, 'alpha_vantage', 'stock');
 
-        return {
-            symbol: quote['01. symbol'],
-            price,
-            change,
-            changePercent,
-            high24h: parseFloat(quote['03. high']),
-            low24h: parseFloat(quote['04. low']),
-            volume: parseInt(quote['06. volume']),
-            timestamp: Date.now(),
-            source: 'alpha_vantage',
-            verificationStatus: 'unverified'
-        };
     } catch (error) {
         console.error('FetchPriceAV Error:', error);
         return null;
