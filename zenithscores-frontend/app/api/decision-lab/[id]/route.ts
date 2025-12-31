@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { resolveBasePrice } from '@/lib/pricing/resolveBasePrice';
 
 // Helper to generate synthetic chart data if scenario has none
 function generateSyntheticData(basePrice: number = 1000, days: number = 100) {
@@ -17,7 +18,7 @@ function generateSyntheticData(basePrice: number = 1000, days: number = 100) {
         const change = (Math.random() - 0.5) * volatility;
 
         const open = price;
-        const close = price + change;
+        const close = Math.max(0.01, price + change); // Prevent negative
         const high = Math.max(open, close) + Math.random() * volatility * 0.5;
         const low = Math.min(open, close) - Math.random() * volatility * 0.5;
 
@@ -48,10 +49,13 @@ export async function GET(
             return NextResponse.json({ error: 'Scenario not found' }, { status: 404 });
         }
 
+        // Auto-resolve base price if missing (uses cache or fetches)
+        const basePrice = dbScenario.basePrice || await resolveBasePrice(id);
+
         // Use database chart data or generate synthetic if missing
         let chartData = dbScenario.chartData;
         if (!chartData || (Array.isArray(chartData) && chartData.length === 0)) {
-            chartData = generateSyntheticData(dbScenario.basePrice || 1000, 100);
+            chartData = generateSyntheticData(basePrice, 100);
         }
 
         // Get user's portfolio balance
