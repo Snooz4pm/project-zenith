@@ -13,6 +13,12 @@ interface Scenario {
     timeframe: string;
     difficulty: string;
     isPremium: boolean;
+    completed?: boolean;
+    completedAt?: string;
+    result?: {
+        choice: string;
+        pnl: number;
+    } | null;
 }
 
 interface Pagination {
@@ -119,14 +125,21 @@ export default function DecisionLabListPage() {
                             <Link
                                 href={`/decision-lab/${scenario.id}`}
                                 key={scenario.id}
-                                className="group relative glass-panel rounded-2xl overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)]"
+                                className={`group relative glass-panel rounded-2xl overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] ${scenario.completed ? 'opacity-75' : ''}`}
                             >
+                                {scenario.completed && (
+                                    <div className="absolute top-4 left-4 z-10">
+                                        <div className={`px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-full backdrop-blur-sm border ${scenario.result && scenario.result.pnl >= 0 ? 'bg-accent-mint/20 border-accent-mint/30 text-accent-mint' : 'bg-accent-danger/20 border-accent-danger/30 text-accent-danger'}`}>
+                                            ✓ {scenario.result?.choice} {scenario.result && scenario.result.pnl >= 0 ? '+' : ''}{scenario.result ? `$${scenario.result.pnl.toFixed(0)}` : 'COMPLETED'}
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="p-8 space-y-8">
                                     <div className="flex justify-between items-start">
-                                        <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center group-hover:bg-accent-mint/20 transition-all duration-500 border border-white/5 group-hover:border-accent-mint/30">
-                                            {scenario.marketType === 'crypto' ? <TrendingUp size={28} className="text-text-secondary group-hover:text-accent-mint" /> :
-                                                scenario.marketType === 'forex' ? <Activity size={28} className="text-text-secondary group-hover:text-accent-mint" /> :
-                                                    <BarChart2 size={28} className="text-text-secondary group-hover:text-accent-mint" />}
+                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 border ${scenario.completed ? 'bg-white/10 border-white/10' : 'bg-white/5 border-white/5 group-hover:bg-accent-mint/20 group-hover:border-accent-mint/30'}`}>
+                                            {scenario.marketType === 'crypto' ? <TrendingUp size={28} className={scenario.completed ? 'text-white/30' : 'text-text-secondary group-hover:text-accent-mint'} /> :
+                                                scenario.marketType === 'forex' ? <Activity size={28} className={scenario.completed ? 'text-white/30' : 'text-text-secondary group-hover:text-accent-mint'} /> :
+                                                    <BarChart2 size={28} className={scenario.completed ? 'text-white/30' : 'text-text-secondary group-hover:text-accent-mint'} />}
                                         </div>
                                         <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest border rounded-full ${getDifficultyColor(scenario.difficulty)} flex items-center gap-1.5`}>
                                             <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
@@ -147,9 +160,9 @@ export default function DecisionLabListPage() {
 
                                     <div className="pt-6 border-t border-white/5 flex items-center justify-between group/btn">
                                         <span className="text-xs text-text-muted font-bold tracking-widest group-hover:text-text-primary transition-colors uppercase">
-                                            Initialize Pilot
+                                            {scenario.completed ? 'Review Decision' : 'Initialize Pilot'}
                                         </span>
-                                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-accent-mint group-hover:text-void transition-all duration-300 shadow-inner">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-inner ${scenario.completed ? 'bg-white/10 group-hover:bg-white/20 group-hover:text-white' : 'bg-white/5 group-hover:bg-accent-mint group-hover:text-void'}`}>
                                             <Play size={18} className="ml-1" />
                                         </div>
                                     </div>

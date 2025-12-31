@@ -48,17 +48,42 @@ export async function GET(request: Request) {
             take: PAGE_SIZE,
         });
 
+        // Get user's completed scenario IDs
+        const completedAttempts = await prisma.decisionAttempt.findMany({
+            where: { userId: session.user.id },
+            select: {
+                scenarioId: true,
+                pnl: true,
+                choice: true,
+                decidedAt: true
+            }
+        });
+
+        const completedMap = new Map(completedAttempts.map(a => [
+            a.scenarioId,
+            { pnl: Number(a.pnl), choice: a.choice, decidedAt: a.decidedAt }
+        ]));
+
         // Map to expected format - ALL scenarios are FREE
-        const scenarios = dbScenarios.map((s) => ({
-            id: s.id,
-            title: s.title,
-            marketType: s.marketType,
-            symbol: s.symbol,
-            timeframe: s.timeframe,
-            difficulty: s.difficulty,
-            isPremium: false, // All free
-            locked: false // Never locked
-        }));
+        const scenarios = dbScenarios.map((s) => {
+            const completed = completedMap.get(s.id);
+            return {
+                id: s.id,
+                title: s.title,
+                marketType: s.marketType,
+                symbol: s.symbol,
+                timeframe: s.timeframe,
+                difficulty: s.difficulty,
+                isPremium: false, // All free
+                locked: false, // Never locked
+                completed: !!completed,
+                completedAt: completed?.decidedAt,
+                result: completed ? {
+                    choice: completed.choice,
+                    pnl: completed.pnl
+                } : null
+            };
+        });
 
         return NextResponse.json({
             scenarios,
