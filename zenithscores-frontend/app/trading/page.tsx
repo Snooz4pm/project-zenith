@@ -11,7 +11,8 @@ import {
 import { getPortfolio, executeTrade, resetAccount, getTradeableAssets, TradeableAsset, fetchLivePrice } from '@/lib/actions/trading';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-import AssetPicker from '@/components/AssetPicker'; // Assuming this exists or dynamic import
+import AssetPicker from '@/components/AssetPicker';
+import { usePreTradeCheck, PreTradeCheckInline } from '@/hooks/usePreTradeCheck';
 
 // Helper functions (move to utils if shared)
 const formatCurrency = (value: number) => {
@@ -43,6 +44,9 @@ export default function TradingPage() {
     // -- LIVE MARKET DATA --
     const [liveAssets, setLiveAssets] = useState<TradeableAsset[]>([]);
     const [assetsLoading, setAssetsLoading] = useState(true);
+
+    // -- DISCIPLINE GATE --
+    const { canTrade, status: gateStatus, sizeReduction, applyRecommendation, proceedAnyway } = usePreTradeCheck();
 
     // Initial Load
     useEffect(() => {
@@ -286,17 +290,30 @@ export default function TradingPage() {
                                 </div>
                             </div>
 
+                            {/* Pre-Trade Check Inline */}
+                            <div className="mb-4">
+                                <PreTradeCheckInline
+                                    onApply={() => {
+                                        if (applyRecommendation) applyRecommendation();
+                                        // Could auto-reduce quantity here if desired
+                                    }}
+                                    onProceed={() => {
+                                        if (proceedAnyway) proceedAnyway();
+                                    }}
+                                />
+                            </div>
+
                             {/* Submit Button */}
                             <button
                                 onClick={handleTradeSubmit}
-                                disabled={isExecuting || !selectedAsset || !quantity}
-                                className={`w-full py-4 rounded-xl font-bold text-sm tracking-wide transition-all shadow-xl flex items-center justify-center gap-2 ${isExecuting ? 'opacity-50 cursor-not-allowed bg-zinc-800' :
+                                disabled={isExecuting || !selectedAsset || !quantity || !canTrade}
+                                className={`w-full py-4 rounded-xl font-bold text-sm tracking-wide transition-all shadow-xl flex items-center justify-center gap-2 ${(isExecuting || !canTrade) ? 'opacity-50 cursor-not-allowed bg-zinc-800' :
                                     orderSide === 'BUY'
                                         ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-black hover:scale-[1.02] shadow-emerald-500/20'
                                         : 'bg-gradient-to-r from-red-500 to-red-400 text-white hover:scale-[1.02] shadow-red-500/20'
                                     }`}
                             >
-                                {isExecuting ? "EXECUTING..." : `CONFIRM ${orderSide}`}
+                                {!canTrade ? 'LOCKED BY DISCIPLINE GATE' : isExecuting ? "EXECUTING..." : `CONFIRM ${orderSide}`}
                             </button>
 
                         </div>

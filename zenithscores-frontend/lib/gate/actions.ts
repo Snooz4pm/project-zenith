@@ -129,3 +129,62 @@ export async function attemptGateOverride(reason: string, forcedWait: number) {
 
     return { success: true };
 }
+
+/**
+ * Get violation logs for the current user
+ */
+export async function getViolationLogs(limit: number = 20) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) return [];
+
+    const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        include: { disciplineState: true }
+    });
+
+    if (!user?.disciplineState) return [];
+
+    const violations = await prisma.gateViolation.findMany({
+        where: { disciplineStateId: user.disciplineState.id },
+        orderBy: { createdAt: 'desc' },
+        take: limit
+    });
+
+    return violations.map(v => ({
+        id: v.id,
+        type: v.violationType,
+        severity: v.severity,
+        message: v.message,
+        createdAt: v.createdAt.toISOString(),
+        context: v.contextData
+    }));
+}
+
+/**
+ * Get override history for the current user
+ */
+export async function getOverrideHistory(limit: number = 10) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) return [];
+
+    const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        include: { disciplineState: true }
+    });
+
+    if (!user?.disciplineState) return [];
+
+    const overrides = await prisma.gateOverride.findMany({
+        where: { disciplineStateId: user.disciplineState.id },
+        orderBy: { createdAt: 'desc' },
+        take: limit
+    });
+
+    return overrides.map(o => ({
+        id: o.id,
+        reason: o.reason,
+        forcedWait: o.forcedWait,
+        createdAt: o.createdAt.toISOString()
+    }));
+}
+
