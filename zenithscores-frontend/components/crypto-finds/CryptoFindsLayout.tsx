@@ -16,12 +16,8 @@ export default function CryptoFindsLayout() {
     const [loading, setLoading] = useState(true);
 
     // Default: All chains enabled with relaxed thresholds
-    const [filters, setFilters] = useState<{
-        chains: string[];
-        minLiquidity: number;
-        minVolume24h: number;
-    }>({
-        chains: ['ethereum', 'arbitrum', 'base', 'solana', 'bsc', 'polygon', 'avalanche', 'optimism'],
+    const [filters, setFilters] = useState({
+        chains: ['ethereum', 'arbitrum', 'base', 'solana', 'bsc', 'polygon', 'avalanche', 'optimism'] as ('ethereum' | 'arbitrum' | 'base' | 'solana' | 'bsc' | 'polygon' | 'avalanche' | 'optimism')[],
         minLiquidity: 10_000,
         minVolume24h: 5_000
     });
