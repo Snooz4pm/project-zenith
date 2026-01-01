@@ -25,6 +25,7 @@ const CORE_LINKS: NavLink[] = [
     href: '/crypto',
     icon: <TrendingUp size={16} />,
     children: [
+      { label: 'Crypto Finds', href: '/markets/crypto-finds', description: 'Discovery terminal' },
       { label: 'Crypto', href: '/crypto', description: 'Cryptocurrency markets' },
       { label: 'Stocks', href: '/stocks', description: 'Stock market data' },
       { label: 'Forex', href: '/forex', description: 'Currency pairs' }
@@ -70,6 +71,7 @@ const PUBLIC_LINKS: NavLink[] = [
     href: '/crypto',
     icon: <TrendingUp size={16} />,
     children: [
+      { label: 'Crypto Finds', href: '/markets/crypto-finds', description: 'Discovery terminal' },
       { label: 'Crypto', href: '/crypto', description: 'Cryptocurrency markets' },
       { label: 'Stocks', href: '/stocks', description: 'Stock market data' },
       { label: 'Forex', href: '/forex', description: 'Currency pairs' }
