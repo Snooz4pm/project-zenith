@@ -24,7 +24,7 @@ import DeepDiveModal from '@/components/terminal/DeepDiveModal';
 import JournalModal from '@/components/journal/JournalModal';
 import ChartPriceDisplay from '@/components/market/ChartPriceDisplay';
 // import { MissionPanel } from '@/components/mission'; // Replaced
-import StudyWorkspace from '@/components/study/StudyWorkspace';
+// import StudyWorkspace from '@/components/study/StudyWorkspace'; // Removed
 import { generateMarketSignals } from '@/lib/pulse/signal-generator';
 import { DisciplineBadge } from '@/components/gate/DisciplineBadge';
 import { useDisciplineGate } from '@/hooks/useDisciplineGate';
@@ -285,13 +285,6 @@ export default function TerminalView({
                 aiContext={aiAnalysis || deepDiveContent} // Allow importing either brief or deep dive
             />
 
-            {/* Study Workspace (Panic Button / Notebook) */}
-            <StudyWorkspace
-                symbol={symbol}
-                assetType={assetType}
-                currentPrice={displayPrice}
-                marketSignals={generatedSignals} // Pass signals to Study Workspace text-sidebar
-            />
 
             {/* Header */}
             <div className="border-b border-white/[0.06] bg-[#0a0a12]/80 backdrop-blur-lg sticky top-0 z-50">
