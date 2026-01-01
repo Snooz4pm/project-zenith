@@ -53,10 +53,10 @@ interface DexPair {
 }
 
 interface CryptoFindsFilters {
-    chain?: string;
+    chains?: ('ethereum' | 'arbitrum' | 'base')[];
     minLiquidity?: number;
     minVolume24h?: number;
-    sortBy?: 'volume' | 'liquidity' | 'priceChange' | 'trending';
+    minTxns24h?: number;
     limit?: number;
 }
 
