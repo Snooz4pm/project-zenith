@@ -60,6 +60,19 @@ export const metadata: Metadata = {
   verification: {
     google: 'crE3qi5ygHNAn3Yz803lwq85AS9dDihHP1SfsNKTBKg',
   },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    viewportFit: 'cover',
+  },
+  themeColor: '#000000',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'ZenithScores',
+  },
 };
 
 export default function RootLayout({
@@ -69,7 +82,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${jetbrainsMono.variable} ${syne.variable} ${ibmPlexMono.variable} antialiased`}>
-      <body className="antialiased bg-[var(--void)] text-[var(--text-primary)] relative overflow-x-hidden selection:bg-cyan-500/30">
+      <body className="antialiased bg-[var(--void)] text-[var(--text-primary)] relative overflow-x-hidden selection:bg-cyan-500/30 overscroll-behavior-none touch-pan-y">
         <div className="fixed inset-0 z-[-1] pointer-events-none bg-[radial-gradient(circle_at_top_center,_rgba(20,241,149,0.03),_transparent_70%)]" />
         <div className="fixed inset-0 z-[-1] pointer-events-none bg-[radial-gradient(circle_at_bottom_left,_rgba(0,212,255,0.03),_transparent_70%)]" />
         <AuthProvider>

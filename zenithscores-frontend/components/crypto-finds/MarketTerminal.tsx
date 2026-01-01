@@ -60,14 +60,18 @@ export default function MarketTerminal({ pair }: MarketTerminalProps) {
             <MarketHeader pair={pair} />
 
             {/* Chart */}
-            <div className="flex-1 min-h-0 relative">
+            <div className="flex-1 min-h-0 relative overflow-hidden">
                 {chartUrl ? (
-                    <iframe
-                        src={chartUrl}
-                        className="w-full h-full border-0"
-                        title={`${pair.baseToken.symbol} Chart`}
-                        allow="clipboard-write"
-                    />
+                    <>
+                        <iframe
+                            src={chartUrl}
+                            className="w-full h-full border-0"
+                            title={`${pair.baseToken.symbol} Chart`}
+                            allow="clipboard-write"
+                        />
+                        {/* Hide Dexscreener branding overlay */}
+                        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#0a0a0d] to-transparent pointer-events-none" />
+                    </>
                 ) : (
                     <div className="w-full h-full flex items-center justify-center bg-[#0c0c10]">
                         <div className="text-zinc-600 text-sm">Loading chart...</div>
