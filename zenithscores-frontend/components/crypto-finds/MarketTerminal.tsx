@@ -59,24 +59,37 @@ export default function MarketTerminal({ pair }: MarketTerminalProps) {
             {/* Header */}
             <MarketHeader pair={pair} />
 
-            {/* Chart */}
+            {/* Chart - De-emphasized embed, Zenith overlays dominate */}
             <div className="flex-1 min-h-0 relative overflow-hidden">
                 {chartUrl ? (
                     <>
+                        {/* Slightly de-emphasized iframe */}
                         <iframe
                             src={chartUrl}
-                            className="w-full h-full border-0"
+                            className="w-full h-full border-0 brightness-[0.92] contrast-[0.97]"
                             title={`${pair.baseToken.symbol} Chart`}
                             allow="clipboard-write"
                         />
-                        {/* Hide Dexscreener branding overlay */}
-                        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#0a0a0d] to-transparent pointer-events-none" />
+                        {/* Bottom fade overlay - hides attribution visually */}
+                        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#0a0a0d] via-[#0a0a0d]/80 to-transparent pointer-events-none" />
+                        {/* Top subtle edge */}
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-b from-[#0a0a0d] to-transparent pointer-events-none" />
                     </>
                 ) : (
                     <div className="w-full h-full flex items-center justify-center bg-[#0c0c10]">
                         <div className="text-zinc-600 text-sm">Loading chart...</div>
                     </div>
                 )}
+            </div>
+
+            {/* Data Source Bar - Professional attribution */}
+            <div className="px-3 py-1.5 border-t border-white/[0.04] bg-[#08080a] flex items-center justify-between">
+                <span className="text-[10px] text-zinc-600 uppercase tracking-[0.08em]">
+                    Data Source
+                </span>
+                <span className="text-[10px] text-zinc-600/70">
+                    Dexscreener · TradingView
+                </span>
             </div>
 
             {/* Market Log */}
