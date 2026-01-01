@@ -3,10 +3,8 @@
 import { useEffect, useState } from 'react';
 import MarketHeader from './MarketHeader';
 import MarketLog from './MarketLog';
-import LiveMarketFlow from './LiveMarketFlow';
 import { getPairCandles, getMarketLog } from '@/lib/actions/crypto-finds';
-import { useFlowSystem } from '@/hooks/useFlowSystem';
-import { FlowEvent } from '@/lib/flow/flow-types';
+import { FlowRegime, FlowEvent } from '@/lib/flow/flow-types';
 
 interface MarketTerminalProps {
     pair: {
@@ -24,15 +22,20 @@ interface MarketTerminalProps {
         };
         url: string;
     } | null;
+    flowRegime?: FlowRegime;
+    flowEvents?: FlowEvent[];
+    isPolling?: boolean;
 }
 
-export default function MarketTerminal({ pair }: MarketTerminalProps) {
+export default function MarketTerminal({
+    pair,
+    flowRegime = FlowRegime.QUIET,
+    flowEvents = [],
+    isPolling = false
+}: MarketTerminalProps) {
     const [chartUrl, setChartUrl] = useState<string | null>(null);
     const [logs, setLogs] = useState<{ time: string; type: string; message: string }[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
-
-    // Flow System Integration
-    const { transactions, regime, flowEvents, isPolling } = useFlowSystem(pair);
 
     // Merge flow events into market log
     useEffect(() => {
@@ -83,7 +86,7 @@ export default function MarketTerminal({ pair }: MarketTerminalProps) {
     return (
         <div className="h-full flex flex-col bg-[#0a0a0d]">
             {/* Header with Flow Badge */}
-            <MarketHeader pair={pair} flowRegime={regime} />
+            <MarketHeader pair={pair} flowRegime={flowRegime} />
 
             {/* Chart - De-emphasized embed, Zenith overlays dominate */}
             <div className="flex-1 min-h-0 relative overflow-hidden">

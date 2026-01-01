@@ -6,6 +6,7 @@ import FindsSidebar from './FindsSidebar';
 import MarketTerminal from './MarketTerminal';
 import MarketStatsPanel from './MarketStatsPanel';
 import { getCryptoFindsFeed, getPairDetails } from '@/lib/actions/crypto-finds';
+import { useFlowSystem } from '@/hooks/useFlowSystem';
 import type { CryptoFindsPair } from './types';
 
 export default function CryptoFindsLayout() {
@@ -21,6 +22,9 @@ export default function CryptoFindsLayout() {
         minLiquidity: 10_000,
         minVolume24h: 5_000
     });
+
+    // Flow System - Orchestrated at layout level
+    const { transactions, regime, flowEvents, isPolling } = useFlowSystem(selectedPair);
 
     // Load feed
     useEffect(() => {
@@ -79,12 +83,21 @@ export default function CryptoFindsLayout() {
 
             {/* MAIN PANEL - Terminal */}
             <div className="flex-1 min-w-0 overflow-hidden">
-                <MarketTerminal pair={selectedPair} />
+                <MarketTerminal
+                    pair={selectedPair}
+                    flowRegime={regime}
+                    flowEvents={flowEvents}
+                    isPolling={isPolling}
+                />
             </div>
 
-            {/* RIGHT PANEL - Stats */}
-            <div className="hidden xl:block w-[280px] flex-shrink-0 border-l border-white/[0.06] overflow-y-auto">
-                <MarketStatsPanel pair={selectedPair} />
+            {/* RIGHT PANEL - Stats + Live Flow */}
+            <div className="hidden xl:block w-[300px] flex-shrink-0 border-l border-white/[0.06] overflow-hidden">
+                <MarketStatsPanel
+                    pair={selectedPair}
+                    transactions={transactions}
+                    isPolling={isPolling}
+                />
             </div>
         </div>
     );
