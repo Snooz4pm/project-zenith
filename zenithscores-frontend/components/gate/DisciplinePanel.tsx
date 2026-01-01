@@ -79,7 +79,7 @@ export function DisciplinePanel() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={closePanel}
-                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998]"
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[10000]"
                     />
 
                     {/* Panel - FIXED WIDTH + ISOLATION + HIGH Z-INDEX */}
@@ -89,7 +89,7 @@ export function DisciplinePanel() {
                         exit={{ x: '100%', opacity: 0 }}
                         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
                         style={{ isolation: 'isolate' }}
-                        className="fixed right-0 top-0 h-full w-[420px] max-w-[90vw] bg-[#0b0f14] border-l border-white/[0.06] z-[9999] flex flex-col overflow-hidden"
+                        className="fixed right-0 top-0 h-full w-[420px] max-w-[90vw] bg-[#0b0f14] border-l border-white/[0.06] z-[10001] flex flex-col overflow-hidden"
                     >
                         {/* Header */}
                         <div className="flex-shrink-0 bg-[#0b0f14]/95 backdrop-blur-xl border-b border-white/[0.06] px-4 py-3 flex items-center justify-between">
