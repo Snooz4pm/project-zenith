@@ -94,10 +94,28 @@ export default function Navbar() {
   const [isMounted, setIsMounted] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const navButtonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Delayed close to allow mouse to move from button to dropdown
+  const scheduleClose = () => {
+    closeTimeoutRef.current = setTimeout(() => {
+      setActiveDropdown(null);
+    }, 150); // 150ms grace period
+  };
+
+  const cancelClose = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  };
 
   // Mount check for portal
   useEffect(() => {
     setIsMounted(true);
+    return () => {
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    };
   }, []);
 
   // Combine nav links based on auth state
@@ -181,6 +199,7 @@ export default function Navbar() {
                   <div
                     className="relative"
                     onMouseEnter={() => {
+                      cancelClose();
                       setActiveDropdown(link.label);
                       const btn = navButtonRefs.current[link.label];
                       if (btn) {
@@ -191,7 +210,7 @@ export default function Navbar() {
                         });
                       }
                     }}
-                    onMouseLeave={() => setActiveDropdown(null)}
+                    onMouseLeave={scheduleClose}
                   >
                     <button
                       ref={(el) => { navButtonRefs.current[link.label] = el; }}
@@ -215,8 +234,8 @@ export default function Navbar() {
                           zIndex: 10000,
                           isolation: 'isolate'
                         }}
-                        onMouseEnter={() => setActiveDropdown(link.label)}
-                        onMouseLeave={() => setActiveDropdown(null)}
+                        onMouseEnter={cancelClose}
+                        onMouseLeave={scheduleClose}
                       >
                         {link.children.map((child) => (
                           <Link
