@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Users, Mail, Settings, Activity, Crown, Sparkles } from 'lucide-react';
@@ -90,6 +91,14 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const navButtonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+
+  // Mount check for portal
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Combine nav links based on auth state
   const NAV_LINKS = useMemo(() => {
@@ -171,33 +180,59 @@ export default function Navbar() {
                 {link.children ? (
                   <div
                     className="relative"
-                    onMouseEnter={() => setActiveDropdown(link.label)}
+                    onMouseEnter={() => {
+                      setActiveDropdown(link.label);
+                      const btn = navButtonRefs.current[link.label];
+                      if (btn) {
+                        const rect = btn.getBoundingClientRect();
+                        setDropdownPosition({
+                          top: rect.bottom + 16,
+                          left: rect.left + rect.width / 2
+                        });
+                      }
+                    }}
                     onMouseLeave={() => setActiveDropdown(null)}
                   >
-                    <button className={`flex items-center gap-2 text-sm font-medium transition-all duration-300 ${isActive(link.href)
-                      ? 'text-[var(--accent-mint)] text-glow'
-                      : 'text-[var(--text-secondary)] hover:text-white'
-                      }`} style={{ fontFamily: "var(--font-body)" }}>
+                    <button
+                      ref={(el) => { navButtonRefs.current[link.label] = el; }}
+                      className={`flex items-center gap-2 text-sm font-medium transition-all duration-300 ${isActive(link.href)
+                        ? 'text-[var(--accent-mint)] text-glow'
+                        : 'text-[var(--text-secondary)] hover:text-white'
+                        }`} style={{ fontFamily: "var(--font-body)" }}>
                       <span>{link.label}</span>
                       <ChevronDown size={10} className={`opacity-50 transition-transform duration-300 ${activeDropdown === link.label ? 'rotate-180' : ''}`} />
                     </button>
 
-                    {/* Dropdown Menu */}
-                    <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-4 w-64 p-2 rounded-xl glass-panel origin-top transition-all duration-200 ${activeDropdown === link.label ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'
-                      }`}>
-                      {link.children.map((child) => (
-                        <Link
-                          key={child.href}
-                          href={child.href}
-                          className="block px-4 py-3 rounded-lg hover:bg-[rgba(255,255,255,0.03)] transition-colors group/item"
-                        >
-                          <div className="font-medium text-sm text-[var(--text-primary)] group-hover/item:text-[var(--accent-mint)]" style={{ fontFamily: "var(--font-body)" }}>
-                            {child.label}
-                          </div>
-                          <div className="text-xs text-[var(--text-muted)] mt-0.5">{child.description}</div>
-                        </Link>
-                      ))}
-                    </div>
+                    {/* Dropdown Menu - Portaled to body */}
+                    {isMounted && activeDropdown === link.label && createPortal(
+                      <div
+                        className="w-64 p-2 rounded-xl glass-panel animate-in fade-in-0 zoom-in-95 duration-150"
+                        style={{
+                          position: 'fixed',
+                          top: dropdownPosition.top,
+                          left: dropdownPosition.left,
+                          transform: 'translateX(-50%)',
+                          zIndex: 10000,
+                          isolation: 'isolate'
+                        }}
+                        onMouseEnter={() => setActiveDropdown(link.label)}
+                        onMouseLeave={() => setActiveDropdown(null)}
+                      >
+                        {link.children.map((child) => (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            className="block px-4 py-3 rounded-lg hover:bg-[rgba(255,255,255,0.03)] transition-colors group/item"
+                          >
+                            <div className="font-medium text-sm text-[var(--text-primary)] group-hover/item:text-[var(--accent-mint)]" style={{ fontFamily: "var(--font-body)" }}>
+                              {child.label}
+                            </div>
+                            <div className="text-xs text-[var(--text-muted)] mt-0.5">{child.description}</div>
+                          </Link>
+                        ))}
+                      </div>,
+                      document.body
+                    )}
                   </div>
                 ) : (
                   <Link
