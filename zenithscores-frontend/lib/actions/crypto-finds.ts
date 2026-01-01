@@ -67,9 +67,10 @@ interface CryptoFindsFilters {
 export const getCryptoFindsFeed = unstable_cache(
     async (filters: CryptoFindsFilters = {}) => {
         const {
-            chain = 'solana',
-            minLiquidity = 10000,
-            minVolume24h = 5000,
+            chains = [...ALLOWED_CHAINS],
+            minLiquidity = 10_000,
+            minVolume24h = 5_000,
+            minTxns24h = 10,
             limit = 50
         } = filters;
 

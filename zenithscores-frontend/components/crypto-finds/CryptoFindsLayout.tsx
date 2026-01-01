@@ -15,15 +15,15 @@ export default function CryptoFindsLayout() {
     const [selectedPair, setSelectedPair] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
-    // Default: ETH + ARB + BASE, strict quality thresholds
+    // Default: ETH + ARB + BASE, relaxed thresholds
     const [filters, setFilters] = useState<{
         chains: ('ethereum' | 'arbitrum' | 'base')[];
         minLiquidity: number;
         minVolume24h: number;
     }>({
         chains: ['ethereum', 'arbitrum', 'base'],
-        minLiquidity: 100_000,
-        minVolume24h: 50_000
+        minLiquidity: 10_000,
+        minVolume24h: 5_000
     });
 
     // Load feed
