@@ -40,7 +40,7 @@ export default function AssetPicker({ assets: externalAssets, onSelect }: AssetP
             price: a.current_price,
             change: a.price_change_24h,
             icon: a.symbol && a.symbol.length > 0 ? a.symbol[0] : '?',
-            color: a.price_change_24h >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400',
+            color: a.price_change_24h >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400',
             original: a
         }))
         : defaultAssets;
@@ -58,7 +58,7 @@ export default function AssetPicker({ assets: externalAssets, onSelect }: AssetP
     });
 
     return (
-        <div className="bg-[#0a0e27] p-6 rounded-xl border border-[#1a1f3a] h-full">
+        <div className="bg-[#0a0a12] p-6 rounded-xl border border-white/[0.06] h-full">
             <h3 className="text-lg font-bold text-white mb-4">Market Watch</h3>
 
             {/* Search */}
@@ -68,7 +68,7 @@ export default function AssetPicker({ assets: externalAssets, onSelect }: AssetP
                     placeholder="Search assets..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-[#141829] border border-[#1a1f3a] rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                    className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/50 transition-colors"
                 />
                 <Search className="absolute left-3 top-2.5 text-gray-500" size={16} />
             </div>
@@ -86,8 +86,8 @@ export default function AssetPicker({ assets: externalAssets, onSelect }: AssetP
                         className={`
                             flex-1 py-2 rounded-lg text-xs font-semibold transition-all
                             ${activeFilter === filter.id
-                                ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
-                                : 'bg-[#141829] text-gray-400 border border-[#1a1f3a] hover:bg-[#1a1f3a]'
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                : 'bg-white/[0.03] text-gray-400 border border-white/[0.06] hover:bg-white/[0.05]'
                             }
                         `}
                     >
@@ -105,7 +105,7 @@ export default function AssetPicker({ assets: externalAssets, onSelect }: AssetP
                         {activeFilter !== 'all' && (
                             <button
                                 onClick={() => setActiveFilter('all')}
-                                className="text-xs text-cyan-400 hover:underline mt-1"
+                                className="text-xs text-emerald-400 hover:underline mt-1"
                             >
                                 Clear filters
                             </button>
@@ -116,7 +116,7 @@ export default function AssetPicker({ assets: externalAssets, onSelect }: AssetP
                         <div
                             key={asset.symbol}
                             onClick={() => onSelect && asset.original && onSelect(asset.original)}
-                            className="group flex items-center justify-between p-3 rounded-lg bg-[#141829] border border-[#1a1f3a] hover:border-[#2a3150] hover:translate-x-1 transition-all cursor-pointer"
+                            className="group flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-emerald-500/30 hover:bg-white/[0.04] transition-all cursor-pointer"
                         >
                             <div className="flex items-center gap-3">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${asset.color}`}>
@@ -128,9 +128,9 @@ export default function AssetPicker({ assets: externalAssets, onSelect }: AssetP
                                 </div>
                             </div>
                             <div className="text-right">
-                                <div className="font-mono text-white text-sm">${asset.price.toLocaleString()}</div>
-                                <div className={`text-xs font-semibold ${asset.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {asset.change > 0 ? '+' : ''}{asset.change}%
+                                <div className="font-mono text-white text-sm">${asset.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                <div className={`text-xs font-semibold ${asset.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {asset.change > 0 ? '+' : ''}{asset.change.toFixed(2)}%
                                 </div>
                             </div>
                         </div>
@@ -140,3 +140,4 @@ export default function AssetPicker({ assets: externalAssets, onSelect }: AssetP
         </div>
     );
 }
+
