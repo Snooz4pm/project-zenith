@@ -89,14 +89,22 @@ export const getCryptoFindsFeed = unstable_cache(
             const data = await response.json();
             const pairs: DexPair[] = data.pairs || [];
 
-            // Filter and curate
+            // STRICT FILTER LOGIC
             const curated = pairs
+                // 1. Only allowed chains
+                .filter(p => chains.includes(p.chainId as typeof chains[number]))
+                // 2. Minimum liquidity
+                .filter(p => (p.liquidity?.usd || 0) >= minLiquidity)
+                // 3. Minimum 24h volume
+                .filter(p => (p.volume?.h24 || 0) >= minVolume24h)
+                // 4. Minimum transaction count
                 .filter(p => {
-                    if (chain && p.chainId !== chain) return false;
-                    if (p.liquidity?.usd < minLiquidity) return false;
-                    if (p.volume?.h24 < minVolume24h) return false;
-                    return true;
+                    const txns = (p.txns?.h24?.buys || 0) + (p.txns?.h24?.sells || 0);
+                    return txns >= minTxns24h;
                 })
+                // 5. Sort by 24h volume descending
+                .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
+                // 6. Limit results
                 .slice(0, limit)
                 .map(p => ({
                     pairAddress: p.pairAddress,
