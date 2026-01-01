@@ -200,7 +200,7 @@ export default function SignalLabDashboard() {
     return (
         <div className="flex flex-col h-full bg-[#0B0E14] text-zinc-300 font-mono text-sm overflow-hidden border border-zinc-800 rounded-xl shadow-2xl relative">
 
-            {/* PANEL 1: SYSTEM STATE HEADER */}
+            {/* PANEL 1: REGIME SUMMARY */}
             <div className="bg-[#0f1219] border-b border-zinc-800 p-4 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-3">
@@ -234,10 +234,23 @@ export default function SignalLabDashboard() {
                 </div>
             </div>
 
+            {/* PANEL 2: CURRENT INSIGHT */}
+            <div className="bg-gradient-to-r from-emerald-500/5 to-transparent border-b border-emerald-500/20 p-4 shrink-0">
+                <div className="flex items-start gap-3">
+                    <Zap size={18} className="text-emerald-400 mt-0.5 shrink-0" />
+                    <div>
+                        <div className="text-xs font-bold text-emerald-400 mb-1 uppercase tracking-wider">Market Insight</div>
+                        <div className="text-sm text-zinc-300 leading-relaxed">
+                            Capital rotating into L2 mid-caps. Volatility expanding on Base.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div className="flex-1 flex overflow-hidden">
 
-                {/* PANEL 2: SIGNAL QUEUE (REAL DATA) */}
-                <div className="flex-1 flex flex-col border-r border-zinc-800 min-w-0">
+                {/* PANEL 3: LIVE SIGNAL FEED */}
+                <div className="flex-1 flex flex-col min-w-0">
                     <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 flex justify-between items-center">
                         <span className="font-bold flex items-center gap-2 text-zinc-200">
                             <Radio size={14} className="text-blue-400" />
@@ -387,41 +400,17 @@ export default function SignalLabDashboard() {
                             </table>
                         )}
                     </div>
-                </div>
 
-                {/* RIGHT SIDEBAR: MARKET SCANNER */}
-                <div className="w-80 flex flex-col bg-[#0f1219] border-l border-zinc-800">
-
-                    {/* TOP: Quick Stats */}
-                    <div className="h-1/3 border-b border-zinc-800 flex flex-col p-4 space-y-4">
-                        <div className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                            <TrendingUp size={14} /> Market Pulse
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-zinc-900/50 p-2 rounded border border-zinc-800">
-                                <span className="block text-zinc-500 text-[10px] mb-1">BASE VOLUME</span>
-                                <span className="text-lg font-mono text-blue-400 font-bold">High</span>
-                            </div>
-                            <div className="bg-zinc-900/50 p-2 rounded border border-zinc-800">
-                                <span className="block text-zinc-500 text-[10px] mb-1">MEME INDEX</span>
-                                <span className="text-lg font-mono text-pink-400 font-bold">Unstable</span>
-                            </div>
-                        </div>
-                        <div className="text-xs text-zinc-400 leading-relaxed bg-zinc-900 p-2 rounded">
-                            <span className="text-emerald-400 font-bold">INSIGHT:</span> Capital rotating into L2 mid-caps. Volatility expanding on Base.
-                        </div>
-                    </div>
-
-                    {/* BOTTOM: Live Feed */}
-                    <div className="flex-1 flex flex-col min-h-0">
+                    {/* SCANNER FEED - Integrated into main feed */}
+                    <div className="border-t border-zinc-800 bg-[#0f1219]">
                         <div className="p-3 bg-zinc-900/50 border-b border-zinc-800 font-bold flex items-center gap-2 justify-between">
                             <div className="flex items-center gap-2 text-xs">
                                 <Activity size={14} className="text-emerald-500 animate-pulse" /> SCANNER FEED
                             </div>
                             <span className="text-[10px] text-zinc-600 bg-zinc-900 px-2 rounded">LIVE</span>
                         </div>
-                        <div className="flex-1 overflow-auto p-2 space-y-1 bg-[#080a0f]">
-                            {liveFeed.map((msg, i) => (
+                        <div className="max-h-48 overflow-auto p-2 space-y-1 bg-[#080a0f]">
+                            {liveFeed.slice(0, 10).map((msg, i) => (
                                 <div key={i} className="flex items-start gap-2 p-2 rounded hover:bg-zinc-800/30 transition-colors text-xs border-l-2 border-emerald-500/20 hover:border-emerald-500">
                                     <span className="text-zinc-600 font-mono w-12 shrink-0">{new Date().toLocaleTimeString('en-US', { hour12: false, minute: '2-digit', second: '2-digit' })}</span>
                                     <span className="text-zinc-400">{msg}</span>
@@ -429,7 +418,6 @@ export default function SignalLabDashboard() {
                             ))}
                         </div>
                     </div>
-
                 </div>
             </div>
 

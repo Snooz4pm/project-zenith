@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, Check, Trash2, MessageSquare, TrendingUp, User, Zap } from 'lucide-react';
+import { Bell, Check, Trash2, MessageSquare, TrendingUp, User, Zap, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
