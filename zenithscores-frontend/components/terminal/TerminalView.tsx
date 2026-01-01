@@ -8,7 +8,8 @@ import Link from 'next/link';
 import { useOHLCV } from '@/hooks/useOHLCV';
 import { useLivePrice } from '@/lib/market/live';
 import { useCryptoLive } from '@/lib/market/crypto/useCryptoLive';
-import IntelligencePanel from '@/components/terminal/IntelligencePanel';
+// import IntelligencePanel from '@/components/terminal/IntelligencePanel'; // Removed
+import MarketLog from '@/components/pulse/MarketLog';
 import MarketMovers from '@/components/terminal/MarketMovers';
 import type { Timeframe, DataRange, AssetType, OHLCV } from '@/lib/market-data/types';
 import { calculateFactors } from '@/lib/intelligence/calculator';
@@ -421,27 +422,12 @@ export default function TerminalView({
                         </div>
                     </div>
 
-                    {/* Right Panel: Intelligence */}
+                    {/* Right Panel: Market Log */}
                     <div className="order-2 lg:order-3 lg:col-span-3 overflow-y-auto min-h-[400px] lg:min-h-0">
-                        <IntelligencePanel
-                            symbol={symbol}
-                            data={activeData || []} // Pass live candles for Market Pulse
-                            regime={regime}
-                            convictionScore={convictionScore}
-                            factors={factors}
-                            entryZone={entryZone}
-                            invalidationLevel={invalidation.price}
-                            scenarios={{
-                                bullish: scenarios.upside,
-                                neutral: scenarios.unclear,
-                                bearish: scenarios.downside,
-                            }}
-                            whatBreaks={whatBreaks}
-                            aiAnalysis={aiAnalysis}
-                            isLoadingAI={isLoadingAI}
-                            onDeepDive={handleDeepDive}
-                            onJournal={() => setShowJournal(true)}
-                        />
+                        <div className="sticky top-0 p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] h-full">
+                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Market Log</h3>
+                            <MarketLog signals={generatedSignals} maxVisible={20} />
+                        </div>
                     </div>
                 </div>
             </div>
