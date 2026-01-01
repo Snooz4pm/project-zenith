@@ -8,6 +8,9 @@ import { useIsMobile } from '@/lib/hooks/useMediaQuery';
 import MobileDecisionLabRunner from '@/components/mobile/MobileDecisionLabRunner';
 
 export default function DecisionLabRunnerPage({ params }: { params: { id: string } }) {
+    // CRITICAL: useIsMobile must be first - hooks must be called in consistent order
+    const isMobile = useIsMobile();
+
     const router = useRouter();
     const [scenario, setScenario] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -126,8 +129,6 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
             </div>
         );
     }
-
-    const isMobile = useIsMobile();
 
     if (isMobile) {
         return (
