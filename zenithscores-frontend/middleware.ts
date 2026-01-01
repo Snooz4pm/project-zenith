@@ -11,6 +11,9 @@ const AUTH_ROUTES = ['/auth/login', '/auth/register', '/auth/error', '/auth/cali
 // Protected routes - require login only (calibration removed for now)
 const PROTECTED_ROUTES = ['/command-center', '/dashboard', '/trading', '/signals', '/academy', '/explore', '/profile', '/learning', '/learn', '/notebook', '/charts']
 
+// Routes that have mobile versions
+const MOBILE_ROUTES = ['/command-center', '/markets', '/profile']
+
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
 
@@ -21,6 +24,19 @@ export async function middleware(request: NextRequest) {
         pathname.includes('.')
     ) {
         return NextResponse.next()
+    }
+
+    // Mobile detection - redirect to /mobile subroutes
+    const ua = request.headers.get('user-agent') || ''
+    const isMobile = /iphone|ipad|ipod|android|mobile|blackberry|opera mini|iemobile/i.test(ua)
+
+    if (isMobile && !pathname.endsWith('/mobile')) {
+        const needsMobileRedirect = MOBILE_ROUTES.some(route => pathname === route)
+        if (needsMobileRedirect) {
+            const mobileUrl = new URL(`${pathname}/mobile`, request.url)
+            mobileUrl.search = request.nextUrl.search
+            return NextResponse.redirect(mobileUrl)
+        }
     }
 
     // Get JWT token
