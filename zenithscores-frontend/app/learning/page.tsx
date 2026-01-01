@@ -498,6 +498,15 @@ export default function LearningHubPage() {
                                         <div className="text-xs text-[var(--text-muted)]">Practice risk-free</div>
                                     </div>
                                 </Link>
+                                <Link href="/decision-lab" className="flex items-center gap-3 p-3 rounded-lg bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.05)] transition-colors border border-[rgba(255,255,255,0.05)]">
+                                    <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
+                                        <Activity size={16} />
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-medium text-white">Decision Lab</div>
+                                        <div className="text-xs text-[var(--text-muted)]">Test your skills</div>
+                                    </div>
+                                </Link>
                             </div>
                         </div>
                     </div>

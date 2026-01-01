@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Play, TrendingUp, Activity, BarChart2, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import PageLoader from '@/components/ui/PageLoader';
+import { useIsMobile } from '@/lib/hooks/useMediaQuery';
+import MobileDecisionLab from '@/components/mobile/MobileDecisionLab';
 
 interface Scenario {
     id: string;
@@ -73,6 +75,12 @@ export default function DecisionLabListPage() {
     };
 
     if (isLoading) return <PageLoader pageName="Decision Lab" />;
+
+    const isMobile = useIsMobile();
+
+    if (isMobile) {
+        return <MobileDecisionLab scenarios={scenarios} />;
+    }
 
     return (
         <div className="min-h-screen bg-void text-white pt-32 pb-20 px-6 md:px-12 lg:px-16 overflow-x-hidden relative">
@@ -245,8 +253,8 @@ export default function DecisionLabListPage() {
                                     key={p}
                                     onClick={() => setPage(p)}
                                     className={`w-10 h-10 rounded-lg font-data text-sm transition-all ${page === p
-                                            ? 'bg-accent-mint text-void font-bold'
-                                            : 'bg-surface-2 text-text-muted hover:text-white'
+                                        ? 'bg-accent-mint text-void font-bold'
+                                        : 'bg-surface-2 text-text-muted hover:text-white'
                                         }`}
                                 >
                                     {p}

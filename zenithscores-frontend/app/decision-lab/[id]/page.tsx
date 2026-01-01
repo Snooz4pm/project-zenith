@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import PageLoader from '@/components/ui/PageLoader';
 import DecisionEngine from '@/components/learning/DecisionEngine';
+import { useIsMobile } from '@/lib/hooks/useMediaQuery';
+import MobileDecisionLabRunner from '@/components/mobile/MobileDecisionLabRunner';
 
 export default function DecisionLabRunnerPage({ params }: { params: { id: string } }) {
     const router = useRouter();
@@ -93,11 +95,10 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
 
         return (
             <div className="min-h-screen bg-[var(--void)] flex items-center justify-center p-4">
-                <div className={`max-w-md w-full border p-8 rounded-2xl text-center ${
-                    isLocked ? 'bg-blue-500/10 border-blue-500/20' :
+                <div className={`max-w-md w-full border p-8 rounded-2xl text-center ${isLocked ? 'bg-blue-500/10 border-blue-500/20' :
                     isUnavailable ? 'bg-amber-500/10 border-amber-500/20' :
-                    'bg-red-500/10 border-red-500/20'
-                }`}>
+                        'bg-red-500/10 border-red-500/20'
+                    }`}>
                     {isLocked && (
                         <div className="w-20 h-20 rounded-full bg-blue-500/20 border-2 border-blue-500/30 flex items-center justify-center mx-auto mb-4">
                             <svg className="w-10 h-10 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,18 +106,16 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
                             </svg>
                         </div>
                     )}
-                    <h2 className={`text-2xl font-bold mb-2 ${
-                        isLocked ? 'text-blue-400' :
+                    <h2 className={`text-2xl font-bold mb-2 ${isLocked ? 'text-blue-400' :
                         isUnavailable ? 'text-amber-500' :
-                        'text-red-500'
-                    }`}>
+                            'text-red-500'
+                        }`}>
                         {isLocked ? 'Scenario Locked' : isUnavailable ? 'Scenario Unavailable' : 'Simulation Error'}
                     </h2>
-                    <p className={`mb-8 ${
-                        isLocked ? 'text-blue-300' :
+                    <p className={`mb-8 ${isLocked ? 'text-blue-300' :
                         isUnavailable ? 'text-amber-400' :
-                        'text-red-400'
-                    }`}>{error}</p>
+                            'text-red-400'
+                        }`}>{error}</p>
                     <button
                         onClick={() => router.push('/decision-lab')}
                         className={`px-6 py-2 ${isUnavailable ? 'bg-amber-500 hover:bg-amber-600' : 'bg-red-500 hover:bg-red-600'} text-white rounded-lg transition-colors`}
@@ -125,6 +124,18 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
                     </button>
                 </div>
             </div>
+        );
+    }
+
+    const isMobile = useIsMobile();
+
+    if (isMobile) {
+        return (
+            <DecisionEngineWrapper
+                scenario={scenario}
+                onDecision={handleDecision}
+                isMobile={true}
+            />
         );
     }
 
@@ -141,7 +152,7 @@ export default function DecisionLabRunnerPage({ params }: { params: { id: string
 }
 
 // Wrapper to manage choice state for reflection
-function DecisionEngineWrapper({ scenario, onDecision }: { scenario: any, onDecision: any }) {
+function DecisionEngineWrapper({ scenario, onDecision, isMobile = false }: { scenario: any, onDecision: any, isMobile?: boolean }) {
     const router = useRouter();
     const [choice, setChoice] = useState<string | null>(null);
 
@@ -151,7 +162,8 @@ function DecisionEngineWrapper({ scenario, onDecision }: { scenario: any, onDeci
     };
 
     const handleReflectInternal = async (content: string) => {
-        if (!choice) return; // Should not happen
+        // If choice is null (shouldn't happen in normal flow), we can't save reflection properly yet.
+        // But for mobile "quick play" we might auto-submit.
 
         const res = await fetch('/api/decision-lab/reflect', {
             method: 'POST',
@@ -160,7 +172,7 @@ function DecisionEngineWrapper({ scenario, onDecision }: { scenario: any, onDeci
                 scenarioId: scenario.id,
                 symbol: scenario.symbol,
                 timeframe: scenario.timeframe,
-                userChoice: choice,
+                userChoice: choice || 'SKIPPED', // Fallback
                 content
             })
         });
@@ -171,6 +183,16 @@ function DecisionEngineWrapper({ scenario, onDecision }: { scenario: any, onDeci
             throw new Error('Failed to save reflection');
         }
     };
+
+    if (isMobile) {
+        return (
+            <MobileDecisionLabRunner
+                scenario={scenario}
+                onDecision={handleDecisionInternal}
+                onReflect={handleReflectInternal}
+            />
+        );
+    }
 
     return (
         <DecisionEngine

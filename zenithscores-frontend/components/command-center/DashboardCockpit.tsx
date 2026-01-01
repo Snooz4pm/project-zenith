@@ -55,7 +55,7 @@ export default function DashboardCockpit({ user }: DashboardCockpitProps) {
                         transition={{ delay: 0.05 }}
                         className="col-span-12 lg:col-span-4 row-span-2"
                     >
-                        <MarketModeTile />
+                        <MarketModeTile onClick={() => {}} />
                     </motion.div>
 
                     {/* Active Trades */}
@@ -65,7 +65,7 @@ export default function DashboardCockpit({ user }: DashboardCockpitProps) {
                         transition={{ delay: 0.1 }}
                         className="col-span-12 sm:col-span-6 lg:col-span-4"
                     >
-                        <ActiveTradesTile />
+                        <ActiveTradesTile onClick={() => {}} />
                     </motion.div>
 
                     {/* Signals */}
@@ -75,7 +75,7 @@ export default function DashboardCockpit({ user }: DashboardCockpitProps) {
                         transition={{ delay: 0.15 }}
                         className="col-span-6 lg:col-span-2"
                     >
-                        <SignalsTile />
+                        <SignalsTile onClick={() => {}} />
                     </motion.div>
 
                     {/* P&L Performance */}
@@ -85,7 +85,7 @@ export default function DashboardCockpit({ user }: DashboardCockpitProps) {
                         transition={{ delay: 0.2 }}
                         className="col-span-6 lg:col-span-2"
                     >
-                        <PerformanceTile />
+                        <PerformanceTile onClick={() => {}} />
                     </motion.div>
 
                     {/* Community */}
@@ -95,7 +95,7 @@ export default function DashboardCockpit({ user }: DashboardCockpitProps) {
                         transition={{ delay: 0.25 }}
                         className="col-span-6 sm:col-span-3 lg:col-span-2"
                     >
-                        <CommunityTile />
+                        <CommunityTile onClick={() => {}} />
                     </motion.div>
 
                     {/* Learning */}
@@ -105,7 +105,7 @@ export default function DashboardCockpit({ user }: DashboardCockpitProps) {
                         transition={{ delay: 0.3 }}
                         className="col-span-6 sm:col-span-3 lg:col-span-2"
                     >
-                        <LearningTile />
+                        <LearningTile onClick={() => {}} />
                     </motion.div>
 
                     {/* Notes / Journal */}
@@ -115,7 +115,7 @@ export default function DashboardCockpit({ user }: DashboardCockpitProps) {
                         transition={{ delay: 0.35 }}
                         className="col-span-6 sm:col-span-3 lg:col-span-2"
                     >
-                        <NotesTile />
+                        <NotesTile onClick={() => {}} />
                     </motion.div>
 
                     {/* News */}
@@ -125,7 +125,7 @@ export default function DashboardCockpit({ user }: DashboardCockpitProps) {
                         transition={{ delay: 0.4 }}
                         className="col-span-6 sm:col-span-3 lg:col-span-2"
                     >
-                        <NewsTile />
+                        <NewsTile onClick={() => {}} />
                     </motion.div>
 
                 </div>

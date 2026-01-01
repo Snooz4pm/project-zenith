@@ -7,10 +7,11 @@ import { motion } from 'framer-motion';
 import DiscoverWidget from './DiscoverWidget';
 
 const PRIMARY_ACTIONS = [
-  { icon: Zap, label: 'Trade', href: '/trading', color: 'from-emerald-500 to-teal-500' },
-  { icon: TrendingUp, label: 'Markets', href: '/markets', color: 'from-blue-500 to-cyan-500' },
-  { icon: Activity, label: 'Signals', href: '/signals', color: 'from-purple-500 to-pink-500' },
-  { icon: FileText, label: 'Notes', href: '/notebook', color: 'from-orange-500 to-amber-500' },
+  { icon: Zap, label: 'Trade', href: '/trading', color: 'from-[var(--accent-mint)] to-emerald-400' },
+  { icon: TrendingUp, label: 'Markets', href: '/markets', color: 'from-zinc-600 to-zinc-500' },
+  { icon: Activity, label: 'Signals', href: '/signals', color: 'from-[var(--accent-mint)] to-teal-400' },
+  { icon: Zap, label: 'Lab', href: '/decision-lab', color: 'from-zinc-700 to-zinc-600' },
+  { icon: FileText, label: 'Notes', href: '/notebook', color: 'from-zinc-600 to-zinc-500' },
 ];
 
 interface TrackedMarket {
@@ -146,9 +147,8 @@ export default function MobileHome() {
                 <div className="text-sm font-bold text-white font-mono">
                   ${market.price.toLocaleString()}
                 </div>
-                <div className={`text-xs font-bold font-mono flex items-center justify-end gap-1 ${
-                  market.change24h >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-danger)]'
-                }`}>
+                <div className={`text-xs font-bold font-mono flex items-center justify-end gap-1 ${market.change24h >= 0 ? 'text-[var(--accent-mint)]' : 'text-[var(--accent-danger)]'
+                  }`}>
                   {market.change24h >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                   {market.change24h >= 0 ? '+' : ''}{market.change24h.toFixed(2)}%
                 </div>
