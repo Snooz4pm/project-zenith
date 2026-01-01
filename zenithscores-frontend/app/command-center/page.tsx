@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { useIsMobile } from '@/lib/hooks/useMediaQuery';
+import MobileHome from '@/components/mobile/MobileHome';
 import PortfolioHeader from '@/components/command-center/PortfolioHeader';
 import QuickActions from '@/components/command-center/QuickActions';
 import AssetCard from '@/components/command-center/AssetCard';
@@ -25,6 +27,7 @@ interface Asset {
 export default function CommandCenterPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
+    const isMobile = useIsMobile();
     const [portfolioBalance, setPortfolioBalance] = useState(50000);
     const [totalPnL, setTotalPnL] = useState(2450);
     const [pnlPercent, setPnlPercent] = useState(5.14);
@@ -135,6 +138,12 @@ export default function CommandCenterPage() {
         );
     }
 
+    // Mobile version
+    if (isMobile) {
+        return <MobileHome />;
+    }
+
+    // Desktop version
     return (
         <div className="min-h-screen bg-[var(--void)] text-[var(--text-primary)] pb-24 md:pb-8">
             {/* Premium Header Bar */}
