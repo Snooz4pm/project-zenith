@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
-import DashboardCockpit from '@/components/command-center/DashboardCockpit';
+import DashboardCockpitNew from '@/components/command-center/DashboardCockpitNew';
 
 export const metadata: Metadata = {
     title: 'Command Center | ZenithScores',
@@ -16,5 +16,5 @@ export default async function CommandCenterPage() {
         redirect('/auth/login');
     }
 
-    return <DashboardCockpit user={session.user} />;
+    return <DashboardCockpitNew user={session.user} />;
 }
