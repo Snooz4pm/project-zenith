@@ -7,13 +7,12 @@ import { ArrowLeft, Save, Trash2, AlertTriangle, Lock, Globe, Shield, Users } fr
 import { getRoomBySlug, updateRoom, deleteRoom, getPendingJoinRequests, approveJoinRequest, rejectJoinRequest } from '@/lib/actions/rooms';
 
 interface SettingsPageProps {
-    params: Promise<{ slug: string }>;
+    params: { slug: string };
 }
 
 export default function RoomSettingsPage({ params }: SettingsPageProps) {
     const { data: session, status } = useSession();
     const router = useRouter();
-    const [slug, setSlug] = useState<string>('');
 
     // Form State
     const [isLoading, setIsLoading] = useState(true);
@@ -34,12 +33,11 @@ export default function RoomSettingsPage({ params }: SettingsPageProps) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     useEffect(() => {
-        // Resolve params promise
-        params.then(resolvedParams => {
-            setSlug(resolvedParams.slug);
-            loadRoom(resolvedParams.slug);
-        });
-    }, [params]);
+        // Load room when component mounts or params change
+        if (params.slug) {
+            loadRoom(params.slug);
+        }
+    }, [params.slug]);
 
     const loadRoom = async (roomSlug: string) => {
         try {
@@ -153,7 +151,7 @@ export default function RoomSettingsPage({ params }: SettingsPageProps) {
         <div className="min-h-screen bg-[var(--void)] text-white p-6">
             <div className="max-w-2xl mx-auto">
                 <button
-                    onClick={() => router.push(`/community/rooms/${slug}`)}
+                    onClick={() => router.push(`/community/rooms/${params.slug}`)}
                     className="flex items-center gap-2 text-zinc-400 hover:text-white mb-8 transition-colors"
                 >
                     <ArrowLeft size={18} />

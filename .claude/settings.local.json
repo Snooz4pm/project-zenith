@@ -22,7 +22,10 @@
       "Bash(npm install:*)",
       "Bash(timeout 60 bash:*)",
       "Bash(npx prisma migrate:*)",
-      "Bash(timeout 120 tail:*)"
+      "Bash(timeout 120 tail:*)",
+      "Bash(timeout 5 tail:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout 10 tail:*)"
     ]
   }
 }

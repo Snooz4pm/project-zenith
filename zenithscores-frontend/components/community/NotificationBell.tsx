@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { Inbox, MessageSquare, Mail, X, Check } from 'lucide-react';
+import { Inbox, MessageSquare, Mail, X, Check, UserPlus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +12,7 @@ import {
     markNotificationRead,
     markAllNotificationsRead
 } from '@/lib/actions/community';
+import RoomInvitationNotification from './RoomInvitationNotification';
 
 interface NotificationData {
     id: string;
@@ -103,6 +104,8 @@ export default function NotificationBell() {
                 return `/community/${notification.sourceEntityId}`;
             case 'DIRECT_MESSAGE':
                 return `/inbox?conversation=${notification.sourceEntityId}`;
+            case 'ROOM_INVITATION':
+                return '#'; // Handled inline with RoomInvitationNotification
             default:
                 return '#';
         }
@@ -114,8 +117,24 @@ export default function NotificationBell() {
                 return <MessageSquare size={14} className="text-blue-400" />;
             case 'DIRECT_MESSAGE':
                 return <Mail size={14} className="text-emerald-400" />;
+            case 'ROOM_INVITATION':
+                return <UserPlus size={14} className="text-[var(--accent-mint)]" />;
             default:
                 return <Inbox size={14} className="text-zinc-400" />;
+        }
+    };
+
+    const handleNotificationRespond = async () => {
+        // Refresh notifications after responding to an invitation
+        if (!session?.user?.id) return;
+
+        try {
+            const data = await getNotifications(session.user.id);
+            setNotifications(data as NotificationData[]);
+            const count = await getUnreadNotificationCount(session.user.id);
+            setUnreadCount(count);
+        } catch (error) {
+            console.error('Failed to refresh notifications:', error);
         }
     };
 
@@ -171,38 +190,59 @@ export default function NotificationBell() {
                                 </div>
                             ) : (
                                 <div className="divide-y divide-white/5">
-                                    {notifications.map(notification => (
-                                        <Link
-                                            key={notification.id}
-                                            href={getNotificationLink(notification)}
-                                            onClick={() => {
-                                                if (!notification.read) handleMarkAsRead(notification.id);
-                                                setIsOpen(false);
-                                            }}
-                                            className={`flex items-start gap-3 px-4 py-3 hover:bg-white/5 transition-colors ${!notification.read ? 'bg-white/[0.02]' : ''
-                                                }`}
-                                        >
-                                            {/* Icon */}
-                                            <div className="mt-0.5">
-                                                {getNotificationIcon(notification.type)}
-                                            </div>
+                                    {notifications.map(notification => {
+                                        // Special rendering for ROOM_INVITATION
+                                        if (notification.type === 'ROOM_INVITATION' && session?.user?.id) {
+                                            // Extract room name from message (format: "X invited you to join Y")
+                                            const roomName = notification.message?.split('join ')[1] || 'a room';
 
-                                            {/* Content */}
-                                            <div className="flex-1 min-w-0">
-                                                <p className={`text-sm ${notification.read ? 'text-zinc-400' : 'text-white'}`}>
-                                                    {notification.message || 'New notification'}
-                                                </p>
-                                                <span className="text-xs text-zinc-600">
-                                                    {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                                                </span>
-                                            </div>
+                                            return (
+                                                <RoomInvitationNotification
+                                                    key={notification.id}
+                                                    invitationId={notification.sourceEntityId}
+                                                    userId={session.user.id}
+                                                    roomName={roomName}
+                                                    inviterName={notification.sourceUser.name || 'Someone'}
+                                                    inviterImage={notification.sourceUser.image}
+                                                    onRespond={handleNotificationRespond}
+                                                />
+                                            );
+                                        }
 
-                                            {/* Unread Indicator */}
-                                            {!notification.read && (
-                                                <div className="w-2 h-2 rounded-full bg-[var(--accent-mint)] mt-1.5" />
-                                            )}
-                                        </Link>
-                                    ))}
+                                        // Default notification rendering
+                                        return (
+                                            <Link
+                                                key={notification.id}
+                                                href={getNotificationLink(notification)}
+                                                onClick={() => {
+                                                    if (!notification.read) handleMarkAsRead(notification.id);
+                                                    setIsOpen(false);
+                                                }}
+                                                className={`flex items-start gap-3 px-4 py-3 hover:bg-white/5 transition-colors ${!notification.read ? 'bg-white/[0.02]' : ''
+                                                    }`}
+                                            >
+                                                {/* Icon */}
+                                                <div className="mt-0.5">
+                                                    {getNotificationIcon(notification.type)}
+                                                </div>
+
+                                                {/* Content */}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={`text-sm ${notification.read ? 'text-zinc-400' : 'text-white'}`}>
+                                                        {notification.message || 'New notification'}
+                                                    </p>
+                                                    <span className="text-xs text-zinc-600">
+                                                        {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                                                    </span>
+                                                </div>
+
+                                                {/* Unread Indicator */}
+                                                {!notification.read && (
+                                                    <div className="w-2 h-2 rounded-full bg-[var(--accent-mint)] mt-1.5" />
+                                                )}
+                                            </Link>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

@@ -61,7 +61,9 @@ model User {
   createdRooms          Room[]                  @relation("CreatedRooms")
   roomMemberships       RoomMembership[]        @relation("UserRoomMemberships")
   roomJoinRequests      RoomJoinRequest[]       @relation("UserRoomJoinRequests")
-  
+  sentInvitations       RoomInvitation[]        @relation("SentRoomInvitations")
+  receivedInvitations   RoomInvitation[]        @relation("ReceivedRoomInvitations")
+
   // Decision Lab
   decisionAttempts      DecisionAttempt[]
 
@@ -1015,9 +1017,9 @@ model Comment {
 model Notification {
   id              String   @id @default(cuid())
   userId          String   // Recipient
-  type            String   @db.VarChar(50) // COMMENT_ON_POST, DIRECT_MESSAGE
+  type            String   @db.VarChar(50) // COMMENT_ON_POST, DIRECT_MESSAGE, ROOM_INVITATION
   sourceUserId    String   // Who triggered it
-  sourceEntityId  String   // postId or conversationId
+  sourceEntityId  String   // postId, conversationId, or invitationId
   message         String?  @db.VarChar(200) // Preview text
   read            Boolean  @default(false)
   createdAt       DateTime @default(now())
@@ -1025,6 +1027,7 @@ model Notification {
   user            User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
   sourceUser      User     @relation("SourceUserNotifications", fields: [sourceUserId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, sourceEntityId])
   @@index([userId, read])
   @@index([userId, createdAt(sort: Desc)])
   @@index([sourceEntityId])
@@ -1096,6 +1099,7 @@ model Room {
   members          RoomMembership[]
   posts            CommunityPost[]
   joinRequests     RoomJoinRequest[]
+  invitations      RoomInvitation[]
 
   @@index([isActive, marketType])
   @@index([slug])
@@ -1138,6 +1142,37 @@ model RoomJoinRequest {
   @@index([roomId, status])
   @@index([userId])
   @@index([status])
+}
+
+// Room Invitations (direct invites from members)
+enum RoomInvitationStatus {
+  pending
+  accepted
+  rejected
+  expired
+}
+
+model RoomInvitation {
+  id          String                @id @default(cuid())
+  roomId      String
+  inviterId   String                @db.VarChar(255)
+  inviteeId   String                @db.VarChar(255)
+  message     String?               @db.VarChar(200)
+  status      RoomInvitationStatus  @default(pending)
+
+  createdAt   DateTime              @default(now())
+  respondedAt DateTime?
+  updatedAt   DateTime              @updatedAt
+
+  // Relations
+  room        Room                  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  inviter     User                  @relation("SentRoomInvitations", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee     User                  @relation("ReceivedRoomInvitations", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, inviteeId])
+  @@index([inviteeId, status])
+  @@index([inviterId])
+  @@index([roomId])
 }
 
 // ========================
