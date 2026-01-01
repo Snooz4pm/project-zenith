@@ -106,16 +106,16 @@ export function DisciplinePanel({ isOpen, onClose }: DisciplinePanelProps) {
                         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
                     />
 
-                    {/* Panel */}
+                    {/* Panel - FIXED WIDTH */}
                     <motion.div
                         initial={{ x: '100%', opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: '100%', opacity: 0 }}
                         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                        className="fixed right-0 top-0 h-full w-full max-w-md bg-[#0a0a12] border-l border-white/[0.06] z-50 overflow-y-auto"
+                        className="fixed right-0 top-0 h-full w-[420px] max-w-[90vw] bg-[#0b0f14] border-l border-white/[0.06] z-50 flex flex-col overflow-hidden"
                     >
                         {/* Header */}
-                        <div className="sticky top-0 bg-[#0a0a12]/95 backdrop-blur-xl border-b border-white/[0.06] p-4 flex items-center justify-between">
+                        <div className="flex-shrink-0 bg-[#0b0f14]/95 backdrop-blur-xl border-b border-white/[0.06] px-4 py-3 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <Shield className="text-emerald-500" size={20} />
                                 <h2 className="text-lg font-bold text-white">Discipline Gate</h2>
@@ -128,7 +128,8 @@ export function DisciplinePanel({ isOpen, onClose }: DisciplinePanelProps) {
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-6">
+                        {/* Content - Scrollable Inner Container */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-5">
                             {/* Status Card */}
                             <div className={`p-4 rounded-xl border ${config.border} ${config.bg}`}>
                                 <div className="flex items-center gap-3 mb-2">
@@ -240,7 +241,7 @@ export function DisciplinePanel({ isOpen, onClose }: DisciplinePanelProps) {
                             )}
 
                             {/* Violation Logs */}
-                            <div className="space-y-3">
+                            <div className="space-y-2">
                                 <button
                                     onClick={() => setShowLogs(!showLogs)}
                                     className="flex items-center justify-between w-full text-xs font-bold text-gray-500 uppercase tracking-wider hover:text-gray-300 transition-colors"
@@ -260,33 +261,33 @@ export function DisciplinePanel({ isOpen, onClose }: DisciplinePanelProps) {
                                             exit={{ height: 0, opacity: 0 }}
                                             className="overflow-hidden"
                                         >
-                                            <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                                            {/* Terminal-style log container */}
+                                            <div className="bg-[#0f1623] rounded-lg p-3 font-mono text-[13px] leading-relaxed max-h-[200px] overflow-y-auto">
                                                 {logsLoading ? (
-                                                    <div className="text-xs text-gray-500 text-center py-4">Loading...</div>
+                                                    <div className="text-gray-500 text-center py-3">Loading...</div>
                                                 ) : logs.length === 0 ? (
-                                                    <div className="text-xs text-gray-600 text-center py-4 italic">
+                                                    <div className="text-gray-600 text-center py-3 italic font-sans">
                                                         No violations recorded. Keep it up!
                                                     </div>
                                                 ) : (
-                                                    logs.map((log) => (
-                                                        <div
-                                                            key={log.id}
-                                                            className="p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]"
-                                                        >
-                                                            <div className="flex items-center justify-between mb-1">
-                                                                <span className={`text-xs font-bold ${log.severity === 'hard_lock' ? 'text-red-400' :
+                                                    <div className="space-y-2">
+                                                        {logs.map((log) => (
+                                                            <div
+                                                                key={log.id}
+                                                                className="text-gray-400 whitespace-pre-wrap break-words"
+                                                            >
+                                                                <span className="text-gray-600">[{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}]</span>{' '}
+                                                                <span className={`font-semibold ${log.severity === 'hard_lock' ? 'text-red-400' :
                                                                         log.severity === 'soft_lock' ? 'text-yellow-400' :
-                                                                            'text-gray-400'
+                                                                            'text-emerald-400'
                                                                     }`}>
-                                                                    {log.type.replace('_', ' ').toUpperCase()}
+                                                                    {log.type.replace(/_/g, '_').toUpperCase()}
                                                                 </span>
-                                                                <span className="text-[10px] text-gray-600">
-                                                                    {new Date(log.createdAt).toLocaleString()}
-                                                                </span>
+                                                                <span className="text-gray-500"> — </span>
+                                                                <span className="text-gray-400">{log.message}</span>
                                                             </div>
-                                                            <p className="text-xs text-gray-400">{log.message}</p>
-                                                        </div>
-                                                    ))
+                                                        ))}
+                                                    </div>
                                                 )}
                                             </div>
                                         </motion.div>
