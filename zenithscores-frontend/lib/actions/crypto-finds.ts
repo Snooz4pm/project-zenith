@@ -53,10 +53,19 @@ interface DexPair {
 }
 
 // Allowed chains for Crypto Finds
-const ALLOWED_CHAINS = ['ethereum', 'arbitrum', 'base'] as const;
+const ALLOWED_CHAINS = [
+    'ethereum',
+    'arbitrum',
+    'base',
+    'solana',
+    'bsc',
+    'polygon',
+    'avalanche',
+    'optimism'
+] as const;
 
 interface CryptoFindsFilters {
-    chains?: ('ethereum' | 'arbitrum' | 'base')[];
+    chains?: (typeof ALLOWED_CHAINS[number])[];
     minLiquidity?: number;
     minVolume24h?: number;
     minTxns24h?: number;

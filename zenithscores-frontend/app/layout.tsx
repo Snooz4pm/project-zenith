@@ -17,7 +17,7 @@ const TermsAcceptanceModal = dynamic(
 );
 
 const MobileBottomNav = dynamic(
-  () => import("@/components/navigation/MobileBottomNav"),
+  () => import("@/components/navigation/MobileBottomNavNew"),
   { ssr: false }
 );
 

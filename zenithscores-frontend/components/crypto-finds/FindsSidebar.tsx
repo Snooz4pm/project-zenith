@@ -5,11 +5,16 @@ import { Search, Filter, TrendingUp, Activity } from 'lucide-react';
 import PairFeedItem from './PairFeedItem';
 import type { CryptoFindsPair } from './types';
 
-// ETH/ARB/BASE only - no other chains
+// All supported chains
 const CHAINS = [
     { id: 'ethereum', label: 'ETH', color: 'bg-blue-500 text-white' },
     { id: 'arbitrum', label: 'ARB', color: 'bg-cyan-500 text-white' },
-    { id: 'base', label: 'BASE', color: 'bg-purple-500 text-white' }
+    { id: 'base', label: 'BASE', color: 'bg-purple-500 text-white' },
+    { id: 'solana', label: 'SOL', color: 'bg-gradient-to-r from-purple-500 to-green-400 text-white' },
+    { id: 'bsc', label: 'BSC', color: 'bg-yellow-500 text-black' },
+    { id: 'polygon', label: 'MATIC', color: 'bg-violet-500 text-white' },
+    { id: 'avalanche', label: 'AVAX', color: 'bg-red-500 text-white' },
+    { id: 'optimism', label: 'OP', color: 'bg-red-600 text-white' }
 ] as const;
 
 type ChainId = typeof CHAINS[number]['id'];
@@ -20,7 +25,7 @@ interface FindsSidebarProps {
     onSelect: (pair: CryptoFindsPair) => void;
     loading: boolean;
     filters: {
-        chains: ('ethereum' | 'arbitrum' | 'base')[];
+        chains: ChainId[];
         minLiquidity: number;
         minVolume24h: number;
     };
@@ -103,8 +108,8 @@ export default function FindsSidebar({
                                 key={chain.id}
                                 onClick={() => toggleChain(chain.id)}
                                 className={`px-2.5 py-1 text-xs font-bold rounded transition-all ${isActive
-                                        ? chain.color
-                                        : 'bg-white/5 text-zinc-500 hover:bg-white/10'
+                                    ? chain.color
+                                    : 'bg-white/5 text-zinc-500 hover:bg-white/10'
                                     }`}
                             >
                                 {chain.label}

@@ -6,7 +6,12 @@ import { TrendingUp, TrendingDown, Droplets } from 'lucide-react';
 const CHAIN_LABELS: Record<string, { label: string; color: string }> = {
     ethereum: { label: 'ETH', color: 'bg-blue-500/20 text-blue-400' },
     arbitrum: { label: 'ARB', color: 'bg-cyan-500/20 text-cyan-400' },
-    base: { label: 'BASE', color: 'bg-purple-500/20 text-purple-400' }
+    base: { label: 'BASE', color: 'bg-purple-500/20 text-purple-400' },
+    solana: { label: 'SOL', color: 'bg-green-500/20 text-green-400' },
+    bsc: { label: 'BSC', color: 'bg-yellow-500/20 text-yellow-400' },
+    polygon: { label: 'MATIC', color: 'bg-violet-500/20 text-violet-400' },
+    avalanche: { label: 'AVAX', color: 'bg-red-500/20 text-red-400' },
+    optimism: { label: 'OP', color: 'bg-rose-500/20 text-rose-400' }
 };
 
 interface PairFeedItemProps {
