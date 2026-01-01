@@ -1,15 +1,15 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, TrendingUp, Activity, Mail, User } from 'lucide-react';
+import { Home, TrendingUp, Activity, Bell, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const NAV_ITEMS = [
-  { label: 'Home', href: '/command-center', icon: Home },
-  { label: 'Markets', href: '/markets', icon: TrendingUp },
+  { label: 'Home', href: '/command-center/mobile', icon: Home },
+  { label: 'Markets', href: '/markets/mobile', icon: TrendingUp },
   { label: 'Signals', href: '/signals', icon: Activity },
-  { label: 'Inbox', href: '/messages', icon: Mail },
-  { label: 'Profile', href: '/profile', icon: User },
+  { label: 'Inbox', href: '/inbox', icon: Bell },
+  { label: 'Profile', href: '/profile/mobile', icon: User },
 ] as const;
 
 export default function MobileBottomNavNew() {
@@ -17,14 +17,17 @@ export default function MobileBottomNavNew() {
   const router = useRouter();
 
   const isActive = (href: string) => {
-    if (href === '/command-center') {
-      return pathname === '/' || pathname === '/command-center';
+    if (href === '/command-center/mobile') {
+      return pathname === '/' || pathname === '/command-center' || pathname === '/command-center/mobile';
     }
-    if (href === '/markets') {
+    if (href === '/markets/mobile') {
       return pathname.startsWith('/markets') || pathname.startsWith('/crypto') || pathname.startsWith('/stocks') || pathname.startsWith('/forex');
     }
-    if (href === '/profile') {
+    if (href === '/profile/mobile') {
       return pathname.startsWith('/profile') || pathname.startsWith('/user');
+    }
+    if (href === '/inbox') {
+      return pathname.startsWith('/inbox') || pathname.startsWith('/messages') || pathname.startsWith('/notifications');
     }
     return pathname.startsWith(href);
   };

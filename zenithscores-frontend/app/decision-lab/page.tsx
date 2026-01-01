@@ -33,6 +33,9 @@ interface Pagination {
 }
 
 export default function DecisionLabListPage() {
+    // CRITICAL: useIsMobile must be first - hooks must be called in consistent order
+    const isMobile = useIsMobile();
+
     const [scenarios, setScenarios] = useState<Scenario[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'ALL' | 'CRYPTO' | 'FOREX' | 'STOCKS'>('ALL');
@@ -75,8 +78,6 @@ export default function DecisionLabListPage() {
     };
 
     if (isLoading) return <PageLoader pageName="Decision Lab" />;
-
-    const isMobile = useIsMobile();
 
     if (isMobile) {
         return <MobileDecisionLab scenarios={scenarios} />;
