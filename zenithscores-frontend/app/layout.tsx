@@ -11,6 +11,11 @@ const Navbar = dynamic(
   { ssr: false }
 );
 
+const MobileTopNav = dynamic(
+  () => import("@/components/navigation/MobileTopNav"),
+  { ssr: false }
+);
+
 const TermsAcceptanceModal = dynamic(
   () => import("@/components/TermsAcceptanceModal"),
   { ssr: false }
@@ -88,8 +93,16 @@ export default function RootLayout({
         <AuthProvider>
           <Providers>
             <DisciplineGatePanelProvider>
-              {/* Modern fixed navigation */}
-              <Navbar />
+              {/* Desktop navigation */}
+              <div className="hidden md:block">
+                <Navbar />
+              </div>
+
+              {/* Mobile navigation */}
+              <div className="md:hidden">
+                <MobileTopNav />
+              </div>
+
               <MobileBottomNav />
 
               {/* Suspense wraps children for instant navigation */}

@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Droplets, Activity, TrendingUp, TrendingDown, Clock, DollarSign } from 'lucide-react';
-import { getPairTransactions } from '@/lib/actions/crypto-finds';
+import { Droplets, Activity, Clock, DollarSign } from 'lucide-react';
+import LiveMarketFlow from './LiveMarketFlow';
+import { NormalizedTx } from '@/lib/flow/flow-types';
 
 interface MarketStatsPanelProps {
     pair: {
@@ -19,9 +19,11 @@ interface MarketStatsPanelProps {
         };
         pairCreatedAt: number;
     } | null;
+    transactions?: NormalizedTx[];
+    isPolling?: boolean;
 }
 
-export default function MarketStatsPanel({ pair }: MarketStatsPanelProps) {
+export default function MarketStatsPanel({ pair, transactions = [], isPolling = false }: MarketStatsPanelProps) {
     if (!pair) {
         return (
             <div className="h-full flex items-center justify-center text-zinc-600 text-sm">
@@ -33,83 +35,67 @@ export default function MarketStatsPanel({ pair }: MarketStatsPanelProps) {
     const liquidity = pair.liquidity?.usd || 0;
     const volume24h = pair.volume?.h24 || 0;
     const volume1h = pair.volume?.h1 || 0;
-    const buys24h = pair.txns?.h24?.buys || 0;
-    const sells24h = pair.txns?.h24?.sells || 0;
-    const totalTxns = buys24h + sells24h;
-    const buyRatio = totalTxns > 0 ? (buys24h / totalTxns) * 100 : 50;
 
     const pairAge = pair.pairCreatedAt
         ? formatAge(Date.now() - pair.pairCreatedAt)
         : 'Unknown';
 
     return (
-        <div className="h-full flex flex-col bg-[#0c0c10] overflow-y-auto">
-            {/* Liquidity Section */}
-            <Section title="Liquidity">
-                <StatRow
-                    icon={<Droplets size={14} className="text-cyan-400" />}
-                    label="Total"
-                    value={`$${formatCompact(liquidity)}`}
-                />
-                <StatRow
-                    icon={<DollarSign size={14} className="text-zinc-500" />}
-                    label="FDV"
-                    value={`$${formatCompact(pair.fdv)}`}
-                />
-            </Section>
+        <div className="h-full flex flex-col bg-[#0c0c10]">
+            {/* Stats Section - Compact */}
+            <div className="flex-shrink-0">
+                {/* Liquidity */}
+                <Section title="Liquidity">
+                    <StatRow
+                        icon={<Droplets size={14} className="text-cyan-400" />}
+                        label="Total"
+                        value={`$${formatCompact(liquidity)}`}
+                    />
+                    <StatRow
+                        icon={<DollarSign size={14} className="text-zinc-500" />}
+                        label="FDV"
+                        value={`$${formatCompact(pair.fdv)}`}
+                    />
+                </Section>
 
-            {/* Volume Section */}
-            <Section title="Volume">
-                <StatRow
-                    icon={<Activity size={14} className="text-purple-400" />}
-                    label="24H"
-                    value={`$${formatCompact(volume24h)}`}
-                />
-                <StatRow
-                    icon={<Activity size={14} className="text-purple-400/60" />}
-                    label="1H"
-                    value={`$${formatCompact(volume1h)}`}
-                />
-            </Section>
+                {/* Volume */}
+                <Section title="Volume">
+                    <StatRow
+                        icon={<Activity size={14} className="text-purple-400" />}
+                        label="24H"
+                        value={`$${formatCompact(volume24h)}`}
+                    />
+                    <StatRow
+                        icon={<Activity size={14} className="text-purple-400/60" />}
+                        label="1H"
+                        value={`$${formatCompact(volume1h)}`}
+                    />
+                </Section>
 
-            {/* Transaction Flow */}
-            <Section title="Transaction Flow (24H)">
-                <div className="space-y-2">
-                    {/* Buy/Sell Bar */}
-                    <div className="h-2 bg-red-500/30 rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-emerald-500 rounded-full"
-                            style={{ width: `${buyRatio}%` }}
-                        />
+                {/* Price Changes */}
+                <Section title="Price Change">
+                    <div className="grid grid-cols-2 gap-2">
+                        <ChangeChip label="5m" value={pair.priceChange?.m5} />
+                        <ChangeChip label="1h" value={pair.priceChange?.h1} />
+                        <ChangeChip label="6h" value={pair.priceChange?.h6} />
+                        <ChangeChip label="24h" value={pair.priceChange?.h24} />
                     </div>
-                    <div className="flex justify-between text-xs">
-                        <span className="text-emerald-400">{buys24h} buys</span>
-                        <span className="text-red-400">{sells24h} sells</span>
-                    </div>
-                    <div className="text-center text-[10px] text-zinc-500">
-                        {totalTxns} total transactions
-                    </div>
-                </div>
-            </Section>
+                </Section>
 
-            {/* Price Changes */}
-            <Section title="Price Change">
-                <div className="grid grid-cols-2 gap-2">
-                    <ChangeChip label="5m" value={pair.priceChange?.m5} />
-                    <ChangeChip label="1h" value={pair.priceChange?.h1} />
-                    <ChangeChip label="6h" value={pair.priceChange?.h6} />
-                    <ChangeChip label="24h" value={pair.priceChange?.h24} />
-                </div>
-            </Section>
+                {/* Pair Info */}
+                <Section title="Pair Info">
+                    <StatRow
+                        icon={<Clock size={14} className="text-zinc-500" />}
+                        label="Age"
+                        value={pairAge}
+                    />
+                </Section>
+            </div>
 
-            {/* Pair Info */}
-            <Section title="Pair Info">
-                <StatRow
-                    icon={<Clock size={14} className="text-zinc-500" />}
-                    label="Age"
-                    value={pairAge}
-                />
-            </Section>
+            {/* Live Market Flow - Takes remaining space */}
+            <div className="flex-1 min-h-0 border-t border-white/[0.06]">
+                <LiveMarketFlow transactions={transactions} isPolling={isPolling} />
+            </div>
         </div>
     );
 }

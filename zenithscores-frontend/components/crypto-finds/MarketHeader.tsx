@@ -2,6 +2,8 @@
 
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import { useDisciplineGate } from '@/hooks/useDisciplineGate';
+import { FlowRegime } from '@/lib/flow/flow-types';
+import FlowRegimeBadge from './FlowRegimeBadge';
 
 interface MarketHeaderProps {
     pair: {
@@ -13,9 +15,10 @@ interface MarketHeaderProps {
         priceChange: { h1?: number; h24?: number };
         url: string;
     };
+    flowRegime?: FlowRegime;
 }
 
-export default function MarketHeader({ pair }: MarketHeaderProps) {
+export default function MarketHeader({ pair, flowRegime = FlowRegime.QUIET }: MarketHeaderProps) {
     const { isLocked, localDecision } = useDisciplineGate();
 
     const priceChange24h = pair.priceChange?.h24 || 0;
@@ -72,6 +75,9 @@ export default function MarketHeader({ pair }: MarketHeaderProps) {
                         <span>{dg.icon}</span>
                         <span className={`text-xs font-bold ${dg.color}`}>DG: {dg.label}</span>
                     </div>
+
+                    {/* Flow Regime Badge */}
+                    <FlowRegimeBadge regime={flowRegime} compact />
 
                     {/* External Link */}
                     <a

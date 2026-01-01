@@ -6,8 +6,8 @@ import { X, Download, Image, FileJson, FileSpreadsheet, Copy, Check } from 'luci
 interface ExportModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onExport: (format: ExportFormat) => void;
-    symbol?: string;
+    onExport: (format: ExportFormat, options: ExportOptions) => void;
+    chartRef?: React.RefObject<HTMLCanvasElement>;
 }
 
 export type ExportFormat = 'png' | 'jpg' | 'svg' | 'json' | 'csv';
@@ -19,19 +19,25 @@ interface ExportOptions {
     transparent: boolean;
 }
 
-export default function ExportModal({ isOpen, onClose, onExport, symbol = 'Chart' }: ExportModalProps) {
+export default function ExportModal({ isOpen, onClose, onExport }: ExportModalProps) {
     const [format, setFormat] = useState<ExportFormat>('png');
+    const [options, setOptions] = useState<ExportOptions>({
+        includeDrawings: true,
+        includeIndicators: true,
+        resolution: '2x',
+        transparent: false,
+    });
     const [copied, setCopied] = useState(false);
 
     if (!isOpen) return null;
 
     const handleExport = () => {
-        onExport(format);
+        onExport(format, options);
         onClose();
     };
 
     const handleCopyToClipboard = async () => {
-        onExport('png');
+        onExport('png', { ...options, resolution: '1x' });
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -90,12 +96,65 @@ export default function ExportModal({ isOpen, onClose, onExport, symbol = 'Chart
                             </div>
                         </div>
 
-                        {/* Export Info */}
-                        <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                            <p className="text-xs text-blue-300">
-                                Exporting chart for <span className="font-semibold">{symbol}</span>
-                            </p>
-                        </div>
+                        {/* Image Options */}
+                        {(format === 'png' || format === 'jpg') && (
+                            <>
+                                {/* Resolution */}
+                                <div>
+                                    <label className="text-xs text-white/60 uppercase tracking-wider mb-2 block">
+                                        Resolution
+                                    </label>
+                                    <div className="flex gap-2">
+                                        {(['1x', '2x', '4x'] as const).map((res) => (
+                                            <button
+                                                key={res}
+                                                onClick={() => setOptions({ ...options, resolution: res })}
+                                                className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
+                                                    options.resolution === res
+                                                        ? 'bg-blue-500 text-white'
+                                                        : 'bg-white/5 text-white/60 hover:bg-white/10'
+                                                }`}
+                                            >
+                                                {res}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Toggles */}
+                                <div className="space-y-2">
+                                    <label className="flex items-center justify-between p-3 bg-white/5 rounded-lg cursor-pointer">
+                                        <span className="text-sm text-white">Include Drawings</span>
+                                        <input
+                                            type="checkbox"
+                                            checked={options.includeDrawings}
+                                            onChange={(e) => setOptions({ ...options, includeDrawings: e.target.checked })}
+                                            className="w-4 h-4 accent-blue-500"
+                                        />
+                                    </label>
+                                    <label className="flex items-center justify-between p-3 bg-white/5 rounded-lg cursor-pointer">
+                                        <span className="text-sm text-white">Include Indicators</span>
+                                        <input
+                                            type="checkbox"
+                                            checked={options.includeIndicators}
+                                            onChange={(e) => setOptions({ ...options, includeIndicators: e.target.checked })}
+                                            className="w-4 h-4 accent-blue-500"
+                                        />
+                                    </label>
+                                    {format === 'png' && (
+                                        <label className="flex items-center justify-between p-3 bg-white/5 rounded-lg cursor-pointer">
+                                            <span className="text-sm text-white">Transparent Background</span>
+                                            <input
+                                                type="checkbox"
+                                                checked={options.transparent}
+                                                onChange={(e) => setOptions({ ...options, transparent: e.target.checked })}
+                                                className="w-4 h-4 accent-blue-500"
+                                            />
+                                        </label>
+                                    )}
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Actions */}

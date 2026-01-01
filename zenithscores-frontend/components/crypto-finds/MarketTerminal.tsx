@@ -3,7 +3,10 @@
 import { useEffect, useState } from 'react';
 import MarketHeader from './MarketHeader';
 import MarketLog from './MarketLog';
+import LiveMarketFlow from './LiveMarketFlow';
 import { getPairCandles, getMarketLog } from '@/lib/actions/crypto-finds';
+import { useFlowSystem } from '@/hooks/useFlowSystem';
+import { FlowEvent } from '@/lib/flow/flow-types';
 
 interface MarketTerminalProps {
     pair: {
@@ -13,8 +16,12 @@ interface MarketTerminalProps {
         quoteToken: { symbol: string };
         priceUsd: number;
         priceChange: { h1?: number; h24?: number };
-        volume: { h1?: number; h24?: number };
+        volume: { h1?: number; h24?: number; m5?: number };
         liquidity: { usd?: number };
+        txns?: {
+            m5?: { buys: number; sells: number };
+            h1?: { buys: number; sells: number };
+        };
         url: string;
     } | null;
 }
@@ -23,6 +30,25 @@ export default function MarketTerminal({ pair }: MarketTerminalProps) {
     const [chartUrl, setChartUrl] = useState<string | null>(null);
     const [logs, setLogs] = useState<{ time: string; type: string; message: string }[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
+
+    // Flow System Integration
+    const { transactions, regime, flowEvents, isPolling } = useFlowSystem(pair);
+
+    // Merge flow events into market log
+    useEffect(() => {
+        if (flowEvents.length > 0) {
+            const formatted = flowEvents.slice(0, 5).map(e => ({
+                time: new Date(e.timestamp).toLocaleTimeString('en-US', {
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }),
+                type: e.type,
+                message: e.message
+            }));
+            setLogs(prev => [...formatted, ...prev].slice(0, 20));
+        }
+    }, [flowEvents]);
 
     useEffect(() => {
         if (!pair) return;
@@ -56,8 +82,8 @@ export default function MarketTerminal({ pair }: MarketTerminalProps) {
 
     return (
         <div className="h-full flex flex-col bg-[#0a0a0d]">
-            {/* Header */}
-            <MarketHeader pair={pair} />
+            {/* Header with Flow Badge */}
+            <MarketHeader pair={pair} flowRegime={regime} />
 
             {/* Chart - De-emphasized embed, Zenith overlays dominate */}
             <div className="flex-1 min-h-0 relative overflow-hidden">
@@ -87,13 +113,21 @@ export default function MarketTerminal({ pair }: MarketTerminalProps) {
                 <span className="text-[10px] text-zinc-600 uppercase tracking-[0.08em]">
                     Data Source
                 </span>
-                <span className="text-[10px] text-zinc-600/70">
-                    Dexscreener · TradingView
-                </span>
+                <div className="flex items-center gap-3">
+                    {isPolling && (
+                        <span className="flex items-center gap-1 text-[10px] text-emerald-500">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Live
+                        </span>
+                    )}
+                    <span className="text-[10px] text-zinc-600/70">
+                        Dexscreener · TradingView
+                    </span>
+                </div>
             </div>
 
             {/* Market Log */}
-            <div className="h-[180px] flex-shrink-0 border-t border-white/[0.06]">
+            <div className="h-[150px] flex-shrink-0 border-t border-white/[0.06]">
                 <MarketLog logs={logs} loading={loadingLogs} />
             </div>
         </div>
