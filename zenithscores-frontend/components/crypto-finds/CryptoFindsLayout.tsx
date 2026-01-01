@@ -68,7 +68,7 @@ export default function CryptoFindsLayout() {
     }
 
     return (
-        <div className="min-h-screen md:h-[calc(100vh-80px)] flex flex-col md:flex-row bg-[#0a0a0d] overflow-x-hidden">
+        <div className="h-[calc(100vh-80px)] flex bg-[#0a0a0d] overflow-hidden">
             {/* LEFT SIDEBAR - Discovery Feed (Hidden on mobile) */}
             <div className="hidden lg:flex lg:w-[280px] flex-shrink-0 border-r border-white/[0.06] overflow-hidden flex-col">
                 <FindsSidebar
@@ -81,13 +81,13 @@ export default function CryptoFindsLayout() {
                 />
             </div>
 
-            {/* MAIN PANEL - Terminal (Full width on mobile) */}
-            <div className="flex-1 min-w-0 w-full overflow-x-hidden">
+            {/* MAIN PANEL - Terminal */}
+            <div className="flex-1 min-w-0 overflow-hidden">
                 <MarketTerminal pair={selectedPair} />
             </div>
 
-            {/* RIGHT PANEL - Stats (Hidden on mobile and tablet) */}
-            <div className="hidden xl:flex xl:w-[320px] flex-shrink-0 border-l border-white/[0.06] overflow-hidden">
+            {/* RIGHT PANEL - Stats */}
+            <div className="hidden xl:block w-[280px] flex-shrink-0 border-l border-white/[0.06] overflow-y-auto">
                 <MarketStatsPanel pair={selectedPair} />
             </div>
         </div>
