@@ -78,16 +78,25 @@ export const getCryptoFindsFeed = unstable_cache(
         } = filters;
 
         try {
-            // Fetch trending pairs from Dexscreener
-            const response = await fetch(
-                `${DEXSCREENER_API}/search?q=trending`,
-                { next: { revalidate: 30 } }
-            );
+            // Fetch pairs from each allowed chain using search
+            const allPairs: DexPair[] = [];
 
-            if (!response.ok) throw new Error('Dexscreener API failed');
+            for (const chain of chains) {
+                const response = await fetch(
+                    `${DEXSCREENER_API}/search?q=${chain}`,
+                    { next: { revalidate: 60 } }
+                );
 
-            const data = await response.json();
-            const pairs: DexPair[] = data.pairs || [];
+                if (response.ok) {
+                    const data = await response.json();
+                    const chainPairs = (data.pairs || []).filter(
+                        (p: DexPair) => p.chainId === chain
+                    );
+                    allPairs.push(...chainPairs);
+                }
+            }
+
+            const pairs = allPairs;
 
             // STRICT FILTER LOGIC
             const curated = pairs
