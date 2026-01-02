@@ -19,7 +19,15 @@ interface NavLink {
 const CORE_LINKS: NavLink[] = [
   { label: 'Dashboard', href: '/command-center', icon: <LayoutDashboard size={16} /> },
   { label: 'Decision', href: '/decision-lab', icon: <Activity size={16} /> },
-  { label: 'Trade', href: '/trading', icon: <Wallet size={16} /> },
+  {
+    label: 'Trade',
+    href: '/trading',
+    icon: <Wallet size={16} />,
+    children: [
+      { label: 'Paper Trading', href: '/trading', description: 'Practice with simulated funds' },
+      { label: 'Arena', href: '/arena', description: 'Real money execution' }
+    ]
+  },
   {
     label: 'Markets',
     href: '/crypto',
