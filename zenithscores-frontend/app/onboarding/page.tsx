@@ -20,6 +20,7 @@ export default function OnboardingPage() {
 
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isCompleting, setIsCompleting] = useState(false);
     const [isIdle, setIsIdle] = useState(false);
 
     // Idle detection for ambient bar
@@ -40,12 +41,12 @@ export default function OnboardingPage() {
         };
     }, []);
 
-    // Redirect if already onboarded
+    // Redirect if already onboarded (but not if we're in the middle of completing)
     useEffect(() => {
-        if (status === 'authenticated' && session?.user?.hasCompletedOnboarding) {
+        if (!isCompleting && status === 'authenticated' && session?.user?.hasCompletedOnboarding) {
             router.replace('/command-center');
         }
-    }, [session, status, router]);
+    }, [session, status, router, isCompleting]);
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -106,9 +107,11 @@ export default function OnboardingPage() {
 
     // Handle final submission
     const handleComplete = async () => {
-        if (!session?.user?.id) return;
+        if (!session?.user?.id || isCompleting) return;
 
+        setIsCompleting(true);
         setIsSubmitting(true);
+
         try {
             const res = await fetch('/api/onboarding/complete', {
                 method: 'POST',
@@ -120,13 +123,14 @@ export default function OnboardingPage() {
             });
 
             if (res.ok) {
-                // Update session to reflect new state
-                await update();
-                router.replace('/command-center?welcome=true');
+                // Use window.location for hard redirect to avoid React state issues
+                window.location.href = '/command-center?welcome=true';
             } else {
+                setIsCompleting(false);
                 console.error('Failed to complete onboarding');
             }
         } catch (e) {
+            setIsCompleting(false);
             console.error('Onboarding error:', e);
         } finally {
             setIsSubmitting(false);
@@ -220,8 +224,8 @@ export default function OnboardingPage() {
                                     <label
                                         key={option.value}
                                         className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${experienceLevel === option.value
-                                                ? 'border-emerald-500 bg-emerald-500/10'
-                                                : 'border-white/10 hover:border-white/20'
+                                            ? 'border-emerald-500 bg-emerald-500/10'
+                                            : 'border-white/10 hover:border-white/20'
                                             }`}
                                     >
                                         <input
