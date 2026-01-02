@@ -29,6 +29,9 @@ import ChartPriceDisplay from '@/components/market/ChartPriceDisplay';
 import { generateMarketSignals } from '@/lib/pulse/signal-generator';
 import { DisciplineBadge } from '@/components/gate/DisciplineBadge';
 import { useDisciplineGate } from '@/hooks/useDisciplineGate';
+import ProfessionalChart from '@/components/charts/ProfessionalChart';
+import { useLiveChartData } from '@/hooks/useLiveChartData';
+import type { ChartMode } from '@/lib/charts/types';
 
 // Dynamic import for chart to avoid SSR issues
 const ZenithChartPro = dynamic(() => import('@/components/chart-engine/ZenithChartPro'), { ssr: false });
@@ -84,6 +87,9 @@ export default function TerminalView({
 
     // Mode is now LIVE-only (removed replay/history)
     const mode = 'LIVE' as const;
+
+    // Professional Chart Mode
+    const [chartMode, setChartMode] = useState<ChartMode>('line');
 
     const [suggestions, setSuggestions] = useState<Drawing[]>([]);
     const [ignoredIds, setIgnoredIds] = useState<Set<string>>(new Set());
@@ -143,6 +149,24 @@ export default function TerminalView({
         : (stockForexPrice.previousClose > 0
             ? ((stockForexPrice.price - stockForexPrice.previousClose) / stockForexPrice.previousClose) * 100
             : 0);
+
+    // Professional Chart Data
+    const dataSource = assetType === 'crypto' ? 'dexscreener' : assetType === 'forex' ? 'alphavantage' : 'finnhub';
+    const chartInterval = timeframe === '15m' ? '15m' : timeframe === '1H' ? '60m' : '1D';
+    const pollingInterval = assetType === 'crypto' ? 30000 : assetType === 'forex' ? 45000 : 60000;
+
+    const {
+        data: professionalChartData,
+        freshness,
+        isLoading: isChartLoading
+    } = useLiveChartData({
+        symbol,
+        source: dataSource,
+        interval: chartInterval,
+        apiKey: process.env.NEXT_PUBLIC_ALPHAVANTAGE_KEY || process.env.NEXT_PUBLIC_FINNHUB_KEY,
+        pollingInterval,
+        maxCandles: 100,
+    });
 
     // --- 2. DATA FLOW (LIVE-ONLY, no replay) ---
     const activeData = liveOHLCV;
@@ -381,32 +405,19 @@ export default function TerminalView({
                             </div>
 
                             {/* Chart */}
-                            <div className="flex-1 min-h-[400px] relative">
-                                {liveLoading ? (
+                            <div className="flex-1 min-h-[400px]">
+                                {isChartLoading ? (
                                     <div className="h-full flex items-center justify-center">
                                         <div className="text-gray-500">Loading chart data...</div>
                                     </div>
-                                ) : error ? (
-                                    <div className="h-full flex items-center justify-center">
-                                        <div className="text-red-400">{error}</div>
-                                    </div>
                                 ) : (
-                                    <div className="absolute inset-0">
-                                        <ZenithChartPro
-                                            data={activeData as any}
-                                            suggestions={suggestions}
-                                            symbol={symbol}
-                                            assetType={assetType}
-                                            currentPrice={displayPrice}
-                                        />
-                                        <div className="absolute top-4 left-4">
-                                            <SuggestionsPanel
-                                                suggestions={suggestions}
-                                                onAccept={handleAcceptSuggestion}
-                                                onIgnore={handleIgnoreSuggestion}
-                                            />
-                                        </div>
-                                    </div>
+                                    <ProfessionalChart
+                                        symbol={`${symbol} (${assetType.toUpperCase()})`}
+                                        data={professionalChartData}
+                                        mode={chartMode}
+                                        freshness={freshness}
+                                        onModeChange={setChartMode}
+                                    />
                                 )}
                             </div>
                             {/* Footer */}

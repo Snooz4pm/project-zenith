@@ -137,11 +137,15 @@ export default function RootLayout({
                           financial professional before making any investment decisions.
                         </p>
                         <div className="flex flex-wrap justify-center gap-4 text-xs text-gray-500">
-                          <a href="/terms" className="hover:text-cyan-400 transition-colors">Terms of Service</a>
+                          <a href="/zenith" className="hover:text-cyan-400 transition-colors">Platform</a>
                           <span className="text-white/10">•</span>
-                          <a href="/privacy" className="hover:text-cyan-400 transition-colors">Privacy Policy</a>
+                          <a href="/security" className="hover:text-cyan-400 transition-colors">Security</a>
                           <span className="text-white/10">•</span>
-                          <a href="/refund" className="hover:text-cyan-400 transition-colors">Refund Policy</a>
+                          <a href="/data" className="hover:text-cyan-400 transition-colors">Data</a>
+                          <span className="text-white/10">•</span>
+                          <a href="/terms" className="hover:text-cyan-400 transition-colors">Terms</a>
+                          <span className="text-white/10">•</span>
+                          <a href="/privacy" className="hover:text-cyan-400 transition-colors">Privacy</a>
                           <span className="text-white/10">•</span>
                           <span className="text-gray-600">© 2025 ZenithScores</span>
                         </div>
