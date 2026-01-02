@@ -42,7 +42,33 @@ export default function MarketPulseTile() {
         maintainAspectRatio: false,
         plugins: {
             legend: { display: false },
-            tooltip: { enabled: false },
+            tooltip: {
+                enabled: true,
+                mode: 'index' as const,
+                intersect: false,
+                backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                titleColor: '#10b981',
+                bodyColor: '#ffffff',
+                borderColor: '#10b981',
+                borderWidth: 1,
+                padding: 8,
+                displayColors: false,
+                callbacks: {
+                    title: () => '',
+                    label: (context: any) => {
+                        const value = Math.round(context.parsed.y);
+                        const index = context.dataIndex;
+                        const totalPoints = chartData.length;
+                        const secondsAgo = (totalPoints - index - 1) * 2; // ~2s per point
+
+                        const timeLabel = secondsAgo === 0 ? 'Now' :
+                                        secondsAgo < 60 ? `${secondsAgo}s ago` :
+                                        `${Math.floor(secondsAgo / 60)}m ago`;
+
+                        return `Strength: ${value}/100 • ${timeLabel}`;
+                    },
+                },
+            },
         },
         scales: {
             x: {
