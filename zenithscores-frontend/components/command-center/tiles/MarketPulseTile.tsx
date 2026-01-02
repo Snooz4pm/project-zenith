@@ -68,13 +68,19 @@ export default function MarketPulseTile() {
         <div className="h-full bg-black border border-white/[0.06] rounded-lg p-5 flex flex-col hover:border-emerald-500/20 transition-colors">
             <div className="mb-4">
                 <h3 className="text-sm font-medium text-white mb-1">Market Pulse</h3>
-                <p className="text-xs text-zinc-500">Platform activity momentum</p>
+                <p className="text-xs text-zinc-500">Platform Momentum</p>
             </div>
 
             {/* Pure emerald line chart - NO axes, NO labels */}
             <div className="flex-1 min-h-0">
                 {pulseData.length > 0 && (
-                    <Line data={chartData} options={chartOptions} />
+                    <Line data={{
+                        ...chartData,
+                        datasets: [{
+                            ...chartData.datasets[0],
+                            borderWidth: 1.5,
+                        }]
+                    }} options={chartOptions} />
                 )}
             </div>
 

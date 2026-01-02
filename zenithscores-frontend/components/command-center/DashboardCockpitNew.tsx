@@ -46,12 +46,12 @@ export default function DashboardCockpitNew({ user }: DashboardCockpitNewProps) 
             <div className="p-6">
                 <div className="max-w-[1600px] mx-auto grid grid-cols-12 gap-3 auto-rows-[minmax(160px,auto)]">
 
-                    {/* 1. Market Pulse - PRIMARY (TOP LEFT) */}
+                    {/* 1. Market Pulse - PRIMARY (TOP LEFT) - Reduced Height */}
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.05 }}
-                        className="col-span-12 lg:col-span-5 row-span-2"
+                        className="col-span-12 lg:col-span-5"
                     >
                         <MarketPulseTile />
                     </motion.div>
@@ -76,44 +76,48 @@ export default function DashboardCockpitNew({ user }: DashboardCockpitNewProps) 
                         <PLStatusTile />
                     </motion.div>
 
-                    {/* 4. Active Signals */}
+                    {/* ROW 2: Community, Decision Lab, Active Signals - EQUAL WIDTH */}
+
+                    {/* 4. Community Feed */}
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 }}
+                        className="col-span-12 lg:col-span-4"
+                    >
+                        <CommunityFeedTile />
+                    </motion.div>
+
+                    {/* 5. Decision Lab */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.25 }}
+                        className="col-span-12 sm:col-span-6 lg:col-span-4"
+                    >
+                        <DecisionLabTile />
+                    </motion.div>
+
+                    {/* 6. Active Signals */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
                         className="col-span-12 sm:col-span-6 lg:col-span-4"
                     >
                         <ActiveSignalsTile />
                     </motion.div>
 
-                    {/* 5. Crypto Finds (NO progress bars) */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.25 }}
-                        className="col-span-12 sm:col-span-6 lg:col-span-3"
-                    >
-                        <CryptoFindsTileNew />
-                    </motion.div>
+                    {/* ROW 3: Crypto Finds, Notes - HALF WIDTH */}
 
-                    {/* 7. Community Feed - RIGHT COLUMN */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="col-span-12 lg:col-span-3 row-span-2"
-                    >
-                        <CommunityFeedTile />
-                    </motion.div>
-
-                    {/* 6. Decision Lab Progress */}
+                    {/* 7. Crypto Finds */}
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.35 }}
-                        className="col-span-12 sm:col-span-6 lg:col-span-4"
+                        className="col-span-12 lg:col-span-6"
                     >
-                        <DecisionLabTile />
+                        <CryptoFindsTileNew />
                     </motion.div>
 
                     {/* 8. Notes Snapshot */}
@@ -121,7 +125,7 @@ export default function DashboardCockpitNew({ user }: DashboardCockpitNewProps) 
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4 }}
-                        className="col-span-12 sm:col-span-6 lg:col-span-3"
+                        className="col-span-12 lg:col-span-6"
                     >
                         <NotesSnapshotTile />
                     </motion.div>
