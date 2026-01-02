@@ -1,48 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Filler } from 'chart.js';
 import { emeraldPulse, microGlow, endpointPulse, rippleFeedback } from '@/lib/animations/passiveMotion';
 import { useIdleMode } from '@/hooks/useIdleMode';
+import { useRegimePolling, MarketType } from '@/hooks/useRegimePolling';
+import SegmentedControl from '@/components/ui/SegmentedControl';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler);
 
 export default function MarketPulseTile() {
-    const [pulseData, setPulseData] = useState<number[]>([]);
-    const [showRipple, setShowRipple] = useState(false);
+    const [marketType, setMarketType] = useState<MarketType>('crypto');
     const { isIdle } = useIdleMode();
+    const { regime, chartData, isLive } = useRegimePolling(marketType);
 
-    useEffect(() => {
-        // Generate aggregated platform activity (user progress × system activity)
-        // This represents: signal frequency + user activity + trade attempts + Decision Lab usage
-        const generatePulseData = () => {
-            const data = [];
-            for (let i = 0; i < 30; i++) {
-                // Simulate aggregated activity score (0-100)
-                const base = 50 + Math.sin(i / 5) * 20;
-                const noise = (Math.random() - 0.5) * 10;
-                data.push(Math.max(10, Math.min(90, base + noise)));
-            }
-            return data;
-        };
+    const marketOptions = [
+        { value: 'crypto', label: 'CRYPTO' },
+        { value: 'forex', label: 'FOREX' },
+        { value: 'stocks', label: 'STOCKS' },
+    ];
 
-        setPulseData(generatePulseData());
-
-        // Trigger ripple on data update
-        setShowRipple(true);
-        setTimeout(() => setShowRipple(false), 600);
-    }, []);
-
-    const chartData = {
-        labels: Array(30).fill(''),
+    const chartDataset = {
+        labels: Array(chartData.length).fill(''),
         datasets: [
             {
-                data: pulseData,
+                data: chartData,
                 borderColor: '#10b981', // emerald-500
                 backgroundColor: 'transparent',
-                borderWidth: 2,
+                borderWidth: 1.5,
                 tension: 0.4,
                 pointRadius: 0,
                 pointHoverRadius: 0,
@@ -65,6 +52,8 @@ export default function MarketPulseTile() {
             y: {
                 display: false,
                 grid: { display: false },
+                min: 0,
+                max: 100,
             },
         },
         interaction: {
@@ -82,31 +71,49 @@ export default function MarketPulseTile() {
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
             }}
         >
-            <div className="mb-4">
-                <h3 className="text-sm font-medium text-white mb-1">Market Pulse</h3>
-                <p className="text-xs text-zinc-500">Platform Momentum</p>
+            {/* Header with market selector */}
+            <div className="mb-4 flex items-start justify-between">
+                <div>
+                    <h3 className="text-sm font-medium text-white mb-1">Market Pulse</h3>
+                    <p className="text-xs text-zinc-500">Regime Strength Index</p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                    <SegmentedControl
+                        options={marketOptions}
+                        value={marketType}
+                        onChange={(value) => setMarketType(value as MarketType)}
+                    />
+                    {/* Regime info - top right */}
+                    <div className="text-right">
+                        <div className="text-xs text-zinc-500">
+                            Regime:{' '}
+                            <span className="text-white font-medium">{regime.label}</span>
+                        </div>
+                        <div className="text-xs text-zinc-600">
+                            Strength:{' '}
+                            <span className="text-emerald-500 font-medium">
+                                {Math.round(regime.strength)}/100
+                            </span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            {/* Pure emerald line chart with breathing pulse */}
+            {/* Chart with breathing pulse */}
             <div className="flex-1 min-h-0 relative">
                 <motion.div
                     className="h-full"
                     variants={emeraldPulse}
                     animate={isIdle ? 'calm' : 'idle'}
+                    key={marketType} // Force re-mount on market change for smooth transition
                 >
-                    {pulseData.length > 0 && (
-                        <Line data={{
-                            ...chartData,
-                            datasets: [{
-                                ...chartData.datasets[0],
-                                borderWidth: 1.5,
-                            }]
-                        }} options={chartOptions} />
+                    {chartData.length > 0 && (
+                        <Line data={chartDataset} options={chartOptions} />
                     )}
                 </motion.div>
 
                 {/* Chart endpoint energy indicator */}
-                {pulseData.length > 0 && (
+                {chartData.length > 0 && (
                     <motion.div
                         className="absolute bottom-2 right-2 w-2 h-2 rounded-full bg-emerald-500"
                         variants={endpointPulse}
@@ -114,9 +121,9 @@ export default function MarketPulseTile() {
                     />
                 )}
 
-                {/* Soundless ripple feedback */}
+                {/* Soundless ripple feedback when data updates */}
                 <AnimatePresence>
-                    {showRipple && (
+                    {isLive && (
                         <motion.div
                             className="absolute bottom-2 right-2 w-2 h-2 rounded-full border-2 border-emerald-500"
                             variants={rippleFeedback}
@@ -128,15 +135,19 @@ export default function MarketPulseTile() {
                 </AnimatePresence>
             </div>
 
-            {/* Minimal status indicator with micro-glow */}
+            {/* Bottom status bar */}
             <div className="mt-4 flex items-center justify-between text-xs">
-                <span className="text-zinc-500">Activity</span>
+                <span className="text-zinc-500">
+                    {marketType === 'crypto' && 'DexScreener • 30s'}
+                    {marketType === 'forex' && 'Alpha Vantage • 45s'}
+                    {marketType === 'stocks' && 'Finnhub • 60s'}
+                </span>
                 <motion.span
-                    className="text-emerald-500 font-medium"
+                    className={`font-medium ${isLive ? 'text-emerald-500' : 'text-zinc-600'}`}
                     variants={microGlow}
-                    animate="active"
+                    animate={isLive ? 'active' : undefined}
                 >
-                    Active
+                    {isLive ? 'Live' : 'Idle'}
                 </motion.span>
             </div>
         </motion.div>
