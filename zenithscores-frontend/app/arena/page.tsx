@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount } from 'wagmi';
 import { useSession } from 'next-auth/react';
-import { parseUnits } from 'viem';
 import { TrendingUp, TrendingDown, Wallet, Shield, Zap, RefreshCw } from 'lucide-react';
 import OrderPanel from '@/components/arena/OrderPanel';
 import PositionsTable from '@/components/arena/PositionsTable';
@@ -13,30 +12,13 @@ import { ArenaToken, ARENA_TOKENS, PositionSide, PositionWithPnL, ArenaPosition 
 import { enrichPositionWithPnL } from '@/lib/arena/pnl';
 import { TokenPrice } from '@/lib/arena/prices';
 
-// ERC20 ABI for token approvals
-const ERC20_ABI = [
-    {
-        name: 'approve',
-        type: 'function',
-        inputs: [
-            { name: 'spender', type: 'address' },
-            { name: 'amount', type: 'uint256' },
-        ],
-        outputs: [{ type: 'bool' }],
-    },
-] as const;
-
-// 0x Exchange Proxy address (Ethereum mainnet)
-const ZEROX_EXCHANGE_PROXY = '0xDef1C0ded9bec7F1a1670819833240f027b25EfF';
-
-// USDC address
-const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+// 0x constants for future swap execution (uncomment when ready)
+// const ZEROX_EXCHANGE_PROXY = '0xDef1C0ded9bec7F1a1670819833240f027b25EfF';
+// const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 
 export default function ArenaPage() {
     const { address, isConnected } = useAccount();
     const { data: session } = useSession();
-    const { writeContract, data: txHash } = useWriteContract();
-    const { isLoading: isTxPending, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({ hash: txHash });
 
     const [selectedToken, setSelectedToken] = useState<ArenaToken | null>(ARENA_TOKENS[0]);
     const [positions, setPositions] = useState<PositionWithPnL[]>([]);
