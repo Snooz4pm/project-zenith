@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Line } from 'react-chartjs-2';
+import { emeraldPulse, endpointPulse, rippleFeedback } from '@/lib/animations/passiveMotion';
+import { useIdleMode } from '@/hooks/useIdleMode';
 
 export default function ActiveSignalsTile() {
     const [signalData, setSignalData] = useState({
@@ -9,6 +12,8 @@ export default function ActiveSignalsTile() {
         confidence: 'Medium' as 'High' | 'Medium' | 'Low',
         frequency: [] as number[],
     });
+    const [showRipple, setShowRipple] = useState(false);
+    const { isIdle } = useIdleMode();
 
     useEffect(() => {
         // Generate signal frequency data
@@ -25,6 +30,10 @@ export default function ActiveSignalsTile() {
             confidence,
             frequency,
         });
+
+        // Trigger ripple on data update
+        setShowRipple(true);
+        setTimeout(() => setShowRipple(false), 600);
     }, []);
 
     const chartData = {
@@ -55,7 +64,14 @@ export default function ActiveSignalsTile() {
     };
 
     return (
-        <div className="h-full bg-black border border-white/[0.06] rounded-lg p-5 flex flex-col hover:border-emerald-500/20 transition-colors">
+        <motion.div
+            className="h-full bg-black border border-white/[0.06] rounded-lg p-5 flex flex-col transition-all duration-300"
+            whileHover={{
+                filter: 'brightness(1.02)',
+                borderColor: 'rgba(16, 185, 129, 0.15)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+            }}
+        >
             <div className="mb-3">
                 <h3 className="text-sm font-medium text-white mb-1">Active Signals</h3>
                 <p className="text-xs text-zinc-500">
@@ -63,11 +79,39 @@ export default function ActiveSignalsTile() {
                 </p>
             </div>
 
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 relative">
+                <motion.div
+                    className="h-full"
+                    variants={emeraldPulse}
+                    animate={isIdle ? 'calm' : 'idle'}
+                >
+                    {signalData.frequency.length > 0 && (
+                        <Line data={chartData} options={chartOptions} />
+                    )}
+                </motion.div>
+
+                {/* Chart endpoint energy indicator */}
                 {signalData.frequency.length > 0 && (
-                    <Line data={chartData} options={chartOptions} />
+                    <motion.div
+                        className="absolute bottom-2 right-2 w-2 h-2 rounded-full bg-emerald-500"
+                        variants={endpointPulse}
+                        animate="active"
+                    />
                 )}
+
+                {/* Soundless ripple feedback */}
+                <AnimatePresence>
+                    {showRipple && (
+                        <motion.div
+                            className="absolute bottom-2 right-2 w-2 h-2 rounded-full border-2 border-emerald-500"
+                            variants={rippleFeedback}
+                            initial="initial"
+                            animate="animate"
+                            exit={{ opacity: 0 }}
+                        />
+                    )}
+                </AnimatePresence>
             </div>
-        </div>
+        </motion.div>
     );
 }
