@@ -12,7 +12,6 @@ export default function LoginPage() {
     const [error, setError] = useState("")
     const [isIdle, setIsIdle] = useState(false)
 
-    // Idle detection for ambient bar
     useEffect(() => {
         let idleTimer: NodeJS.Timeout
         const resetIdle = () => {
@@ -59,23 +58,42 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#0a0a0f] relative overflow-hidden">
+        <div style={{
+            minHeight: '100vh',
+            display: 'flex',
+            backgroundColor: '#0a0a0f',
+            position: 'relative',
+            overflow: 'hidden'
+        }}>
 
             {/* Ambient Activity Bar */}
-            <div className="fixed left-0 top-0 bottom-0 w-1 z-50 flex items-end">
+            <div style={{
+                position: 'fixed',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: '4px',
+                zIndex: 50,
+                display: 'flex',
+                alignItems: 'flex-end'
+            }}>
                 <div
-                    className="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-t-full transition-all ease-in-out"
                     style={{
+                        width: '100%',
+                        background: 'linear-gradient(to top, #10b981, #34d399)',
+                        borderTopLeftRadius: '4px',
+                        borderTopRightRadius: '4px',
                         height: isIdle ? '30%' : '40%',
                         animation: isIdle
                             ? 'ambientPulseIdle 6s ease-in-out infinite'
                             : 'ambientPulse 4s ease-in-out infinite',
-                        boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)'
+                        boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
+                        transition: 'height 0.3s ease'
                     }}
                 />
             </div>
 
-            <style jsx>{`
+            <style jsx global>{`
                 @keyframes ambientPulse {
                     0%, 100% { height: 40%; }
                     50% { height: 70%; }
@@ -86,91 +104,178 @@ export default function LoginPage() {
                 }
             `}</style>
 
-            {/* Main Grid Layout - Desktop: 65/35 split */}
-            <div className="min-h-screen grid grid-cols-1 lg:grid-cols-[65%_35%]">
+            {/* Left Panel - Brand (65%) - DESKTOP ONLY */}
+            <div style={{
+                width: '65%',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                padding: '3rem 4rem',
+                position: 'relative'
+            }} className="hidden lg:flex">
 
-                {/* Left Panel - Brand & Value Prop */}
-                <div className="hidden lg:flex flex-col justify-center px-16 xl:px-24 py-12">
+                {/* Logo */}
+                <Link href="/" style={{
+                    position: 'absolute',
+                    top: '2rem',
+                    left: '3rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    textDecoration: 'none'
+                }}>
+                    <div style={{
+                        width: '40px',
+                        height: '40px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative'
+                    }}>
+                        <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            backgroundColor: '#10b981',
+                            opacity: 0.2,
+                            clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
+                        }} />
+                        <div style={{
+                            position: 'absolute',
+                            inset: '2px',
+                            backgroundColor: '#0a0a0f',
+                            clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
+                        }} />
+                        <span style={{ position: 'relative', color: '#10b981', fontWeight: 'bold', fontSize: '1.25rem' }}>Z</span>
+                    </div>
+                    <span style={{ fontSize: '1.125rem', fontWeight: 600, color: 'white' }}>ZenithScores</span>
+                </Link>
 
-                    {/* Logo */}
-                    <Link href="/" className="absolute top-8 left-12 flex items-center gap-3">
-                        <div className="relative w-10 h-10 flex items-center justify-center">
-                            <div
-                                className="absolute inset-0 bg-emerald-500 opacity-20"
-                                style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
-                            />
-                            <div
-                                className="absolute inset-[2px] bg-[#0a0a0f]"
-                                style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
-                            />
-                            <span className="relative text-emerald-500 font-bold text-xl">Z</span>
-                        </div>
-                        <span className="text-lg font-semibold text-white">ZenithScores</span>
-                    </Link>
+                <div style={{ maxWidth: '480px' }}>
+                    <h1 style={{
+                        fontSize: '3rem',
+                        fontWeight: 'bold',
+                        color: 'white',
+                        marginBottom: '1.5rem',
+                        lineHeight: 1.1
+                    }}>
+                        Market Intelligence,<br />
+                        <span style={{ color: '#10b981' }}>Engineered.</span>
+                    </h1>
 
-                    <div className="max-w-lg">
-                        <h1 className="text-5xl font-bold text-white mb-6 leading-tight tracking-tight">
-                            Market Intelligence,<br />
-                            <span className="text-emerald-500">Engineered.</span>
-                        </h1>
+                    <p style={{
+                        fontSize: '1.125rem',
+                        color: '#a1a1aa',
+                        marginBottom: '2.5rem',
+                        lineHeight: 1.6
+                    }}>
+                        Real-time analytics and AI-powered insights for professional traders.
+                        Non-custodial. Transparent. Built for precision.
+                    </p>
 
-                        <p className="text-lg text-zinc-400 mb-10 leading-relaxed">
-                            Real-time analytics and AI-powered insights for professional traders.
-                            Non-custodial. Transparent. Built for precision.
-                        </p>
-
-                        <div className="space-y-4 text-zinc-500 text-sm">
-                            <div className="flex items-center gap-3">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
-                                <span>Institutional-grade data from Finnhub & DexScreener</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {[
+                            'Institutional-grade data from Finnhub & DexScreener',
+                            'Zero custody — your keys, your assets',
+                            'Decision Lab for behavioral optimization'
+                        ].map((item, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{
+                                    width: '6px',
+                                    height: '6px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#10b981',
+                                    flexShrink: 0
+                                }} />
+                                <span style={{ color: '#71717a', fontSize: '0.875rem' }}>{item}</span>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
-                                <span>Zero custody — your keys, your assets</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
-                                <span>Decision Lab for behavioral optimization</span>
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </div>
+            </div>
 
-                {/* Right Panel - Login Card */}
-                <div className="flex items-center justify-center p-6 lg:p-12 bg-[#0d0d12] lg:border-l border-white/5">
-                    <div className="w-full max-w-[420px]">
+            {/* Right Panel - Login Card (35%) */}
+            <div style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '2rem',
+                backgroundColor: '#0d0d12',
+                borderLeft: '1px solid rgba(255,255,255,0.05)'
+            }} className="lg:w-[35%]">
+                <div style={{ width: '100%', maxWidth: '420px' }}>
 
-                        {/* Mobile Logo */}
-                        <div className="lg:hidden text-center mb-8">
-                            <Link href="/" className="inline-flex items-center gap-2 justify-center">
-                                <div className="relative w-10 h-10 flex items-center justify-center">
-                                    <div
-                                        className="absolute inset-0 bg-emerald-500 opacity-20"
-                                        style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
-                                    />
-                                    <div
-                                        className="absolute inset-[2px] bg-[#0a0a0f]"
-                                        style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
-                                    />
-                                    <span className="relative text-emerald-500 font-bold text-xl">Z</span>
-                                </div>
-                                <span className="text-lg font-semibold text-white">ZenithScores</span>
-                            </Link>
-                        </div>
+                    {/* Mobile Logo */}
+                    <div className="lg:hidden" style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                        <Link href="/" style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            textDecoration: 'none'
+                        }}>
+                            <div style={{
+                                width: '40px',
+                                height: '40px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                position: 'relative'
+                            }}>
+                                <div style={{
+                                    position: 'absolute',
+                                    inset: 0,
+                                    backgroundColor: '#10b981',
+                                    opacity: 0.2,
+                                    clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
+                                }} />
+                                <div style={{
+                                    position: 'absolute',
+                                    inset: '2px',
+                                    backgroundColor: '#0a0a0f',
+                                    clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
+                                }} />
+                                <span style={{ position: 'relative', color: '#10b981', fontWeight: 'bold', fontSize: '1.25rem' }}>Z</span>
+                            </div>
+                            <span style={{ fontSize: '1.125rem', fontWeight: 600, color: 'white' }}>ZenithScores</span>
+                        </Link>
+                    </div>
 
-                        <h2 className="text-2xl font-bold text-white mb-2">Welcome back</h2>
-                        <p className="text-zinc-500 mb-8">Sign in to access your dashboard</p>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white', marginBottom: '0.5rem' }}>
+                        Welcome back
+                    </h2>
+                    <p style={{ color: '#71717a', marginBottom: '2rem' }}>
+                        Sign in to access your dashboard
+                    </p>
 
-                        {/* Login Card */}
-                        <div className="bg-[#111116] border border-white/10 rounded-xl p-6 space-y-6">
+                    {/* Login Card */}
+                    <div style={{
+                        backgroundColor: '#111116',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '12px',
+                        padding: '1.5rem'
+                    }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
                             {/* Google Sign-in */}
                             <button
                                 type="button"
                                 onClick={handleGoogleLogin}
-                                className="w-full flex items-center justify-center gap-3 bg-white text-zinc-800 font-medium py-3 rounded-lg hover:bg-zinc-100 transition-colors"
+                                style={{
+                                    width: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.75rem',
+                                    backgroundColor: 'white',
+                                    color: '#27272a',
+                                    fontWeight: 500,
+                                    padding: '0.75rem',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    cursor: 'pointer'
+                                }}
                             >
-                                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                                <svg style={{ width: '20px', height: '20px' }} viewBox="0 0 24 24">
                                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -180,54 +285,82 @@ export default function LoginPage() {
                             </button>
 
                             {/* Divider */}
-                            <div className="relative">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-white/10" />
-                                </div>
-                                <div className="relative flex justify-center text-xs uppercase">
-                                    <span className="bg-[#111116] px-3 text-zinc-600">or</span>
-                                </div>
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
+                                <span style={{ padding: '0 0.75rem', color: '#52525b', fontSize: '0.75rem', textTransform: 'uppercase' }}>or</span>
+                                <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
                             </div>
 
                             {/* Email/Password Form */}
-                            <form onSubmit={handleCredentialsLogin} className="space-y-4">
+                            <form onSubmit={handleCredentialsLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                 <div>
-                                    <label className="block text-sm text-zinc-400 mb-2">Email</label>
-                                    <div className="relative">
-                                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                                    <label style={{ display: 'block', fontSize: '0.875rem', color: '#a1a1aa', marginBottom: '0.5rem' }}>Email</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <Mail style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: '#52525b' }} />
                                         <input
                                             type="email"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             placeholder="you@example.com"
-                                            className="w-full pl-10 pr-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-sm"
                                             required
+                                            style={{
+                                                width: '100%',
+                                                paddingLeft: '40px',
+                                                paddingRight: '16px',
+                                                paddingTop: '12px',
+                                                paddingBottom: '12px',
+                                                backgroundColor: '#0a0a0f',
+                                                border: '1px solid rgba(255,255,255,0.1)',
+                                                borderRadius: '8px',
+                                                color: 'white',
+                                                fontSize: '0.875rem',
+                                                outline: 'none'
+                                            }}
                                         />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <div className="flex justify-between items-center mb-2">
-                                        <label className="text-sm text-zinc-400">Password</label>
-                                        <Link href="/auth/forgot-password" className="text-xs text-emerald-500 hover:text-emerald-400 transition-colors">
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                        <label style={{ fontSize: '0.875rem', color: '#a1a1aa' }}>Password</label>
+                                        <Link href="/auth/forgot-password" style={{ fontSize: '0.75rem', color: '#10b981', textDecoration: 'none' }}>
                                             Forgot password?
                                         </Link>
                                     </div>
-                                    <div className="relative">
-                                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                                    <div style={{ position: 'relative' }}>
+                                        <Lock style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: '#52525b' }} />
                                         <input
                                             type="password"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             placeholder="••••••••"
-                                            className="w-full pl-10 pr-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-sm"
                                             required
+                                            style={{
+                                                width: '100%',
+                                                paddingLeft: '40px',
+                                                paddingRight: '16px',
+                                                paddingTop: '12px',
+                                                paddingBottom: '12px',
+                                                backgroundColor: '#0a0a0f',
+                                                border: '1px solid rgba(255,255,255,0.1)',
+                                                borderRadius: '8px',
+                                                color: 'white',
+                                                fontSize: '0.875rem',
+                                                outline: 'none'
+                                            }}
                                         />
                                     </div>
                                 </div>
 
                                 {error && (
-                                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                                    <div style={{
+                                        padding: '0.75rem',
+                                        borderRadius: '8px',
+                                        backgroundColor: 'rgba(239,68,68,0.1)',
+                                        border: '1px solid rgba(239,68,68,0.2)',
+                                        color: '#f87171',
+                                        fontSize: '0.875rem'
+                                    }}>
                                         {error}
                                     </div>
                                 )}
@@ -235,11 +368,25 @@ export default function LoginPage() {
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className="w-full py-3 bg-emerald-500 text-black font-semibold rounded-lg hover:bg-emerald-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.75rem',
+                                        backgroundColor: '#10b981',
+                                        color: 'black',
+                                        fontWeight: 600,
+                                        borderRadius: '8px',
+                                        border: 'none',
+                                        cursor: isLoading ? 'not-allowed' : 'pointer',
+                                        opacity: isLoading ? 0.5 : 1,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '0.5rem'
+                                    }}
                                 >
                                     {isLoading ? (
                                         <>
-                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <Loader2 style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
                                             Signing in...
                                         </>
                                     ) : (
@@ -251,14 +398,14 @@ export default function LoginPage() {
                                 </button>
                             </form>
                         </div>
-
-                        <p className="text-center text-sm text-zinc-500 mt-6">
-                            Don't have an account?{" "}
-                            <Link href="/auth/register" className="text-emerald-500 hover:text-emerald-400 transition-colors font-medium">
-                                Create one
-                            </Link>
-                        </p>
                     </div>
+
+                    <p style={{ textAlign: 'center', fontSize: '0.875rem', color: '#71717a', marginTop: '1.5rem' }}>
+                        Don't have an account?{" "}
+                        <Link href="/auth/register" style={{ color: '#10b981', fontWeight: 500, textDecoration: 'none' }}>
+                            Create one
+                        </Link>
+                    </p>
                 </div>
             </div>
         </div>
