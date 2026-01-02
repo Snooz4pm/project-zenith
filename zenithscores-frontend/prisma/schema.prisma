@@ -18,7 +18,12 @@ model User {
   created_at    DateTime  @default(now())
   last_login    DateTime?
 
-  // Launch-critical fields
+  // Onboarding fields
+  username               String?  @unique
+  experienceLevel        String?  // 'beginner' | 'intermediate' | 'advanced'
+  hasCompletedOnboarding Boolean  @default(false)
+
+  // Launch-critical fields (legacy, keeping for compatibility)
   calibrationCompleted Boolean  @default(false)
   tier                 String   @default("free")
   tradingStyle         Json?

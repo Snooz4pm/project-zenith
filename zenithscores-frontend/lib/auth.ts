@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { NextAuthOptions } from "next-auth"
 
-// Extend NextAuth types for calibrationCompleted and tier
+// Extend NextAuth types for onboarding and tier
 declare module "next-auth" {
     interface Session {
         user: {
@@ -13,6 +13,8 @@ declare module "next-auth" {
             email: string
             name?: string | null
             image?: string | null
+            username?: string | null
+            hasCompletedOnboarding: boolean
             calibrationCompleted: boolean
             tier: string
             isPremium: boolean
@@ -23,6 +25,8 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
     interface JWT {
         id?: string
+        username?: string | null
+        hasCompletedOnboarding?: boolean
         calibrationCompleted?: boolean
         tier?: string
         isPremium?: boolean
@@ -122,6 +126,8 @@ export const authOptions: NextAuthOptions = {
                     const dbUser = await prisma.user.findUnique({
                         where: { id: token.id as string },
                         select: {
+                            username: true,
+                            hasCompletedOnboarding: true,
                             calibrationCompleted: true,
                             tier: true,
                             subscriptionStatus: true,
@@ -132,6 +138,8 @@ export const authOptions: NextAuthOptions = {
                         }
                     })
                     if (dbUser) {
+                        token.username = dbUser.username
+                        token.hasCompletedOnboarding = dbUser.hasCompletedOnboarding ?? false
                         token.calibrationCompleted = dbUser.calibrationCompleted ?? false
                         token.tier = dbUser.tier || 'free'
 
@@ -149,6 +157,7 @@ export const authOptions: NextAuthOptions = {
                 } catch (e) {
                     console.error("[Auth] Failed to fetch user data:", e)
                     // Don't fail auth, just use defaults
+                    token.hasCompletedOnboarding = false
                     token.calibrationCompleted = false
                     token.tier = 'free'
                     token.isPremium = false
@@ -188,9 +197,11 @@ export const authOptions: NextAuthOptions = {
             return token
         },
         async session({ session, token }) {
-            console.log("[Auth] session callback:", { tokenId: token.id, calibrated: token.calibrationCompleted, tier: token.tier })
+            console.log("[Auth] session callback:", { tokenId: token.id, hasCompletedOnboarding: token.hasCompletedOnboarding, tier: token.tier })
             if (session.user) {
                 session.user.id = token.id as string
+                session.user.username = token.username || null
+                session.user.hasCompletedOnboarding = token.hasCompletedOnboarding ?? false
                 session.user.calibrationCompleted = token.calibrationCompleted ?? false
                 session.user.tier = token.tier || 'free'
                 session.user.isPremium = token.isPremium ?? false
@@ -201,14 +212,17 @@ export const authOptions: NextAuthOptions = {
     events: {
         async createUser({ user }) {
             console.log("[Auth] createUser event:", { userId: user.id })
-            // New user created via OAuth - ensure calibrationCompleted is false
+            // New user created via OAuth - ensure hasCompletedOnboarding is false
             try {
                 await prisma.user.update({
                     where: { id: user.id },
-                    data: { calibrationCompleted: false }
+                    data: {
+                        hasCompletedOnboarding: false,
+                        calibrationCompleted: false
+                    }
                 })
             } catch (e) {
-                console.error("[Auth] Failed to set calibrationCompleted for new user:", e)
+                console.error("[Auth] Failed to set hasCompletedOnboarding for new user:", e)
             }
         }
     },
