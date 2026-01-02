@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Users, Mail, Settings, Activity, Crown, Sparkles } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Users, Mail, Settings, Activity, Crown, Sparkles, Shield, Database } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import NotificationBell from '@/components/community/NotificationBell';
 
@@ -64,19 +64,11 @@ const COMMUNITY_LINK: NavLink = {
   icon: <Users size={16} />
 };
 
-// Public links - shown to everyone
+// Public links - shown to everyone (replaced Markets with Product pages)
 const PUBLIC_LINKS: NavLink[] = [
-  {
-    label: 'Markets',
-    href: '/crypto',
-    icon: <TrendingUp size={16} />,
-    children: [
-      { label: 'Crypto Finds', href: '/markets/crypto-finds', description: 'Discovery terminal' },
-      { label: 'Crypto', href: '/crypto', description: 'Cryptocurrency markets' },
-      { label: 'Stocks', href: '/stocks', description: 'Stock market data' },
-      { label: 'Forex', href: '/forex', description: 'Currency pairs' }
-    ]
-  }
+  { label: 'Platform', href: '/zenith', icon: <LayoutDashboard size={16} /> },
+  { label: 'Security', href: '/security', icon: <Shield size={16} /> },
+  { label: 'Data', href: '/data', icon: <Database size={16} /> }
 ];
 
 // Private links - shown only when logged in
