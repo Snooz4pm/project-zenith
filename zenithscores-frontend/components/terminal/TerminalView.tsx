@@ -30,7 +30,6 @@ import { generateMarketSignals } from '@/lib/pulse/signal-generator';
 import { DisciplineBadge } from '@/components/gate/DisciplineBadge';
 import { useDisciplineGate } from '@/hooks/useDisciplineGate';
 import ProfessionalChart from '@/components/charts/ProfessionalChart';
-import { useLiveChartData } from '@/hooks/useLiveChartData';
 import type { ChartMode } from '@/lib/charts/types';
 
 // Dynamic import for chart to avoid SSR issues
@@ -150,23 +149,55 @@ export default function TerminalView({
             ? ((stockForexPrice.price - stockForexPrice.previousClose) / stockForexPrice.previousClose) * 100
             : 0);
 
-    // Professional Chart Data
-    const dataSource = assetType === 'crypto' ? 'dexscreener' : assetType === 'forex' ? 'alphavantage' : 'finnhub';
-    const chartInterval = timeframe === '15m' ? '15m' : timeframe === '1H' ? '60m' : '1D';
-    const pollingInterval = assetType === 'crypto' ? 30000 : assetType === 'forex' ? 45000 : 60000;
+    // Convert existing OHLCV data to Professional Chart format
+    const professionalChartData = useMemo(() => {
+        if (!liveOHLCV || liveOHLCV.length === 0) return [];
 
-    const {
-        data: professionalChartData,
-        freshness,
-        isLoading: isChartLoading
-    } = useLiveChartData({
-        symbol,
-        source: dataSource,
-        interval: chartInterval,
-        apiKey: process.env.NEXT_PUBLIC_ALPHAVANTAGE_KEY || process.env.NEXT_PUBLIC_FINNHUB_KEY,
-        pollingInterval,
-        maxCandles: 100,
-    });
+        return liveOHLCV.map(candle => ({
+            timestamp: (candle as any).timestamp || candle.time * 1000,
+            open: candle.open,
+            high: candle.high,
+            low: candle.low,
+            close: candle.close,
+            volume: candle.volume || 0,
+        }));
+    }, [liveOHLCV]);
+
+    // Calculate freshness based on latest data
+    const latestDataPoint = professionalChartData[professionalChartData.length - 1] || null;
+    const freshness = useMemo(() => {
+        const now = Date.now();
+        const lastPollTime = fetchedAt || now;
+        const pollingInterval = assetType === 'crypto' ? 30000 : 60000;
+
+        if (!latestDataPoint) {
+            return {
+                status: 'paused' as const,
+                delaySeconds: 0,
+                lastPollTime,
+                nextPollTime: lastPollTime + pollingInterval,
+            };
+        }
+
+        const dataAge = now - latestDataPoint.timestamp;
+        const delaySeconds = Math.floor(dataAge / 1000);
+
+        let status: 'live' | 'delayed' | 'paused' | 'error' = 'live';
+        if (delaySeconds < 10) {
+            status = 'live';
+        } else if (delaySeconds < 300) {
+            status = 'delayed';
+        } else {
+            status = 'paused';
+        }
+
+        return {
+            status,
+            delaySeconds,
+            lastPollTime,
+            nextPollTime: lastPollTime + pollingInterval,
+        };
+    }, [latestDataPoint, fetchedAt, assetType]);
 
     // --- 2. DATA FLOW (LIVE-ONLY, no replay) ---
     const activeData = liveOHLCV;
@@ -406,9 +437,13 @@ export default function TerminalView({
 
                             {/* Chart */}
                             <div className="flex-1 min-h-[400px]">
-                                {isChartLoading ? (
+                                {liveLoading ? (
                                     <div className="h-full flex items-center justify-center">
                                         <div className="text-gray-500">Loading chart data...</div>
+                                    </div>
+                                ) : error ? (
+                                    <div className="h-full flex items-center justify-center">
+                                        <div className="text-red-400">{error}</div>
                                     </div>
                                 ) : (
                                     <ProfessionalChart
