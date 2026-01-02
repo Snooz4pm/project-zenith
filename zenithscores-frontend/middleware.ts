@@ -9,7 +9,7 @@ const PUBLIC_ROUTES = ['/', '/news', '/privacy', '/terms', '/crypto', '/stocks',
 const AUTH_ROUTES = ['/auth/login', '/auth/register', '/auth/error', '/auth/calibration']
 
 // Protected routes - require login AND completed onboarding
-const PROTECTED_ROUTES = ['/command-center', '/dashboard', '/trading', '/signals', '/academy', '/explore', '/profile', '/learning', '/learn', '/notebook', '/charts', '/community', '/decision-lab', '/flow', '/terminal', '/messages', '/notifications']
+const PROTECTED_ROUTES = ['/command-center', '/dashboard', '/trading', '/signals', '/academy', '/explore', '/profile', '/learning', '/learn', '/notebook', '/charts', '/community', '/decision-lab', '/flow', '/terminal', '/messages', '/notifications', '/arena']
 
 // Onboarding route - requires login but NOT completed onboarding
 const ONBOARDING_ROUTE = '/onboarding'

@@ -74,6 +74,36 @@ model User {
 
   // Discipline Gate
   disciplineState       DisciplineState?
+
+  // Trading Arena
+  arenaPositions        ArenaPosition[]         @relation("UserArenaPositions")
+}
+
+// Trading Arena - Perp-like positions backed by spot swaps
+model ArenaPosition {
+  id            String    @id @default(cuid())
+  walletAddress String
+  userId        String?
+  token         String    // e.g., "BTC", "SOL", "ETH"
+  tokenAddress  String    // Contract address for the token
+  chainId       Int       @default(1) // 1 = Ethereum, 8453 = Base
+  side          String    // 'long' | 'short'
+  entryPrice    Float
+  sizeUSD       Float
+  sizeTokens    Float
+  txHash        String?   // Transaction hash of the swap
+  isOpen        Boolean   @default(true)
+  openedAt      DateTime  @default(now())
+  closedAt      DateTime?
+  exitPrice     Float?
+  realizedPnL   Float?
+  closeTxHash   String?   // Transaction hash of the closing swap
+
+  user          User?     @relation("UserArenaPositions", fields: [userId], references: [id])
+
+  @@index([walletAddress])
+  @@index([userId])
+  @@index([isOpen])
 }
 
 // Required by NextAuth PrismaAdapter for OAuth

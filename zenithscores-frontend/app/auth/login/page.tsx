@@ -114,42 +114,6 @@ export default function LoginPage() {
                 position: 'relative'
             }} className="hidden lg:flex">
 
-                {/* Logo */}
-                <Link href="/" style={{
-                    position: 'absolute',
-                    top: '2rem',
-                    left: '3rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    textDecoration: 'none'
-                }}>
-                    <div style={{
-                        width: '40px',
-                        height: '40px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        position: 'relative'
-                    }}>
-                        <div style={{
-                            position: 'absolute',
-                            inset: 0,
-                            backgroundColor: '#10b981',
-                            opacity: 0.2,
-                            clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
-                        }} />
-                        <div style={{
-                            position: 'absolute',
-                            inset: '2px',
-                            backgroundColor: '#0a0a0f',
-                            clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
-                        }} />
-                        <span style={{ position: 'relative', color: '#10b981', fontWeight: 'bold', fontSize: '1.25rem' }}>Z</span>
-                    </div>
-                    <span style={{ fontSize: '1.125rem', fontWeight: 600, color: 'white' }}>ZenithScores</span>
-                </Link>
-
                 <div style={{ maxWidth: '480px' }}>
                     <h1 style={{
                         fontSize: '3rem',
@@ -204,41 +168,6 @@ export default function LoginPage() {
                 borderLeft: '1px solid rgba(255,255,255,0.05)'
             }} className="lg:w-[35%]">
                 <div style={{ width: '100%', maxWidth: '420px' }}>
-
-                    {/* Mobile Logo */}
-                    <div className="lg:hidden" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                        <Link href="/" style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            textDecoration: 'none'
-                        }}>
-                            <div style={{
-                                width: '40px',
-                                height: '40px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                position: 'relative'
-                            }}>
-                                <div style={{
-                                    position: 'absolute',
-                                    inset: 0,
-                                    backgroundColor: '#10b981',
-                                    opacity: 0.2,
-                                    clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
-                                }} />
-                                <div style={{
-                                    position: 'absolute',
-                                    inset: '2px',
-                                    backgroundColor: '#0a0a0f',
-                                    clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
-                                }} />
-                                <span style={{ position: 'relative', color: '#10b981', fontWeight: 'bold', fontSize: '1.25rem' }}>Z</span>
-                            </div>
-                            <span style={{ fontSize: '1.125rem', fontWeight: 600, color: 'white' }}>ZenithScores</span>
-                        </Link>
-                    </div>
 
                     <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white', marginBottom: '0.5rem' }}>
                         Welcome back
