@@ -148,7 +148,7 @@ export default function RootLayout({
                           <span className="text-white/10">•</span>
                           <a href="/privacy" className="hover:text-cyan-400 transition-colors">Privacy</a>
                           <span className="text-white/10">•</span>
-                          <span className="text-gray-600">© 2025 ZenithScores</span>
+                          <span className="text-gray-600">© 2026 ZenithScores</span>
                         </div>
                       </div>
                     </div>
