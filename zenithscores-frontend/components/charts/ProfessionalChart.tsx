@@ -153,15 +153,22 @@ export default function ProfessionalChart({
             const index = context.dataIndex;
             const point = data[index];
 
+            const formatPrice = (price: number) => {
+              if (price >= 1000) return `$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+              if (price >= 1) return `$${price.toFixed(2)}`;
+              if (price >= 0.01) return `$${price.toFixed(4)}`;
+              return `$${price.toFixed(8)}`;
+            };
+
             if (mode === 'candlestick') {
               return [
-                `Open:  $${point.open.toFixed(2)}`,
-                `High:  $${point.high.toFixed(2)}`,
-                `Low:   $${point.low.toFixed(2)}`,
-                `Close: $${point.close.toFixed(2)}`,
+                `Open:  ${formatPrice(point.open)}`,
+                `High:  ${formatPrice(point.high)}`,
+                `Low:   ${formatPrice(point.low)}`,
+                `Close: ${formatPrice(point.close)}`,
               ];
             } else {
-              return `Price: $${point.close.toFixed(2)}`;
+              return `Price: ${formatPrice(point.close)}`;
             }
           },
         },
@@ -192,7 +199,13 @@ export default function ProfessionalChart({
         ticks: {
           color: '#6b7280',
           font: { size: 10, family: 'monospace' },
-          callback: (value: any) => `$${value.toFixed(2)}`,
+          callback: (value: any) => {
+            const num = parseFloat(value);
+            if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
+            if (num >= 1) return `$${num.toFixed(2)}`;
+            if (num >= 0.01) return `$${num.toFixed(4)}`;
+            return `$${num.toFixed(6)}`;
+          },
         },
       },
     },

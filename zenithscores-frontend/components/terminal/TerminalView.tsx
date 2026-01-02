@@ -153,7 +153,7 @@ export default function TerminalView({
     const professionalChartData = useMemo(() => {
         if (!liveOHLCV || liveOHLCV.length === 0) return [];
 
-        return liveOHLCV.map(candle => ({
+        const converted = liveOHLCV.map(candle => ({
             timestamp: (candle as any).timestamp || candle.time * 1000,
             open: candle.open,
             high: candle.high,
@@ -161,7 +161,20 @@ export default function TerminalView({
             close: candle.close,
             volume: candle.volume || 0,
         }));
-    }, [liveOHLCV]);
+
+        // Log latest price for debugging
+        if (converted.length > 0) {
+            const latest = converted[converted.length - 1];
+            console.log('[ProfessionalChart] Latest candle:', {
+                symbol,
+                close: latest.close,
+                timestamp: new Date(latest.timestamp).toLocaleString(),
+                totalCandles: converted.length
+            });
+        }
+
+        return converted;
+    }, [liveOHLCV, symbol]);
 
     // Calculate freshness based on latest data
     const latestDataPoint = professionalChartData[professionalChartData.length - 1] || null;
