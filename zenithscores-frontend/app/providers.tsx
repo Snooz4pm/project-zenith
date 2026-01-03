@@ -6,7 +6,12 @@ import { wagmiConfig } from '@/lib/wagmi'
 import '@/lib/web3modal'
 import { ConnectionProvider, WalletProvider as SolanaWalletProvider } from '@solana/wallet-adapter-react'
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base'
-import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets'
+import {
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
+  BackpackWalletAdapter,
+  GlowWalletAdapter,
+} from '@solana/wallet-adapter-wallets'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
 import { clusterApiUrl } from '@solana/web3.js'
 import { useMemo } from 'react'
@@ -20,8 +25,8 @@ const queryClient = new QueryClient()
  * 
  * ONE WalletProvider for entire app
  * - Wagmi for EVM wallets (MetaMask, WalletConnect)
- * - Solana Wallet Adapter for Solana wallets (Phantom, Solflare)
- * - Unified WalletContext wraps bothNO per-page wallet contexts
+ * - Solana Wallet Adapter for Solana wallets (Phantom, Solflare, Backpack, Glow)
+ * - Unified WalletContext wraps both
  * ONE source of truth for wallet state
  */
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -32,6 +37,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     () => [
       new PhantomWalletAdapter(),
       new SolflareWalletAdapter(),
+      new BackpackWalletAdapter(),
+      new GlowWalletAdapter(),
     ],
     []
   )
