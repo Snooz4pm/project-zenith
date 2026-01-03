@@ -18,15 +18,21 @@ export default function TokenDiscoveryFeed({ onSelectToken, selectedToken }: Tok
   const fetchTokens = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/arena/discovery?minChainPriority=70');
+      console.log('[TokenDiscoveryFeed] Fetching tokens...');
+      const response = await fetch('/api/arena/discovery');
       const data = await response.json();
+
+      console.log('[TokenDiscoveryFeed] Response:', data);
 
       if (data.success) {
         setTokens(data.tokens);
         setLastUpdate(new Date());
+        console.log(`[TokenDiscoveryFeed] Loaded ${data.tokens.length} tokens`);
+      } else {
+        console.error('[TokenDiscoveryFeed] API returned error:', data);
       }
     } catch (error) {
-      console.error('Failed to fetch discovered tokens:', error);
+      console.error('[TokenDiscoveryFeed] Failed to fetch discovered tokens:', error);
     } finally {
       setIsLoading(false);
     }

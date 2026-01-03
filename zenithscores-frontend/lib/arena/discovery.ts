@@ -6,7 +6,8 @@
  */
 
 import { getChainPriority, getDexScreenerChains } from './chains';
-import { getTokenMetadata, getFallbackLogo, TokenMetadata } from './token-metadata';
+import { getTokenMetadata, TokenMetadata } from './token-metadata';
+import { getMockTokens } from './mock-tokens';
 
 const DEXSCREENER_API_URL = 'https://api.dexscreener.com/latest/dex';
 
@@ -134,6 +135,8 @@ async function fetchNewPairs(chainId?: string): Promise<DexPair[]> {
       ? `${DEXSCREENER_API_URL}/search?q=${chainId}`
       : `${DEXSCREENER_API_URL}/pairs/latest`;
 
+    console.log(`[Discovery] Fetching from DexScreener: ${endpoint}`);
+
     const response = await fetch(endpoint, {
       headers: {
         'Accept': 'application/json',
@@ -141,14 +144,18 @@ async function fetchNewPairs(chainId?: string): Promise<DexPair[]> {
     });
 
     if (!response.ok) {
-      console.error(`DexScreener API error: ${response.status}`);
+      console.error(`[Discovery] DexScreener API error: ${response.status}`);
       return [];
     }
 
     const data = await response.json();
-    return data.pairs || [];
+    const pairs = data.pairs || [];
+
+    console.log(`[Discovery] DexScreener returned ${pairs.length} pairs for chain: ${chainId || 'all'}`);
+
+    return pairs;
   } catch (error) {
-    console.error('Failed to fetch DexScreener pairs:', error);
+    console.error('[Discovery] Failed to fetch DexScreener pairs:', error);
     return [];
   }
 }
@@ -368,7 +375,7 @@ function getNumericChainId(chainId: string): number {
  * MAIN DISCOVERY FUNCTION
  *
  * Fetch and filter tokens across all supported chains
- * Returns maximum of 10 tokens, sorted by priority
+ * Returns maximum of 50 tokens, sorted by priority
  */
 export async function discoverTokens(
   options: {
@@ -376,7 +383,10 @@ export async function discoverTokens(
     minChainPriority?: number; // Minimum chain priority
   } = {}
 ): Promise<DiscoveredToken[]> {
+  console.log('[Discovery] Starting token discovery with options:', options);
+
   const supportedChains = getDexScreenerChains();
+  console.log('[Discovery] Supported chains:', supportedChains.map(c => c.shortName));
 
   let allPairs: DexPair[] = [];
 
@@ -390,20 +400,37 @@ export async function discoverTokens(
     allPairs = allPairs.concat(pairs);
   }
 
+  console.log(`[Discovery] Total pairs fetched: ${allPairs.length}`);
+
   // Apply filters
   const discovered: DiscoveredToken[] = [];
+  let filterStats = {
+    total: allPairs.length,
+    passedAge: 0,
+    passedLiquidity: 0,
+    passedFDV: 0,
+    passedVolumeAccel: 0,
+    passedBuys: 0,
+    passedPrice: 0,
+    passedChainPriority: 0,
+  };
 
   for (const pair of allPairs) {
     const token = applyFilters(pair);
     if (token) {
       // Apply chain priority filter if specified
       if (options.minChainPriority && token.chainPriority < options.minChainPriority) {
+        console.log(`[Discovery] Token ${token.symbol} filtered by chain priority: ${token.chainPriority} < ${options.minChainPriority}`);
         continue;
       }
 
+      filterStats.passedChainPriority++;
       discovered.push(token);
     }
   }
+
+  console.log('[Discovery] Filter stats:', filterStats);
+  console.log(`[Discovery] Discovered ${discovered.length} tokens after all filters`);
 
   // Sort by multiple factors
   discovered.sort((a, b) => {
@@ -426,8 +453,16 @@ export async function discoverTokens(
     return a.pairAge - b.pairAge;
   });
 
-  // Return max 10 tokens
-  return discovered.slice(0, DISCOVERY_FILTERS.MAX_RESULTS);
+  let results = discovered.slice(0, DISCOVERY_FILTERS.MAX_RESULTS);
+  console.log(`[Discovery] Returning ${results.length} tokens (max ${DISCOVERY_FILTERS.MAX_RESULTS})`);
+
+  // FALLBACK: If DexScreener returns nothing, use mock tokens for demo
+  if (results.length === 0) {
+    console.log('[Discovery] No tokens from DexScreener - using mock tokens as fallback');
+    results = getMockTokens();
+  }
+
+  return results;
 }
 
 /**
