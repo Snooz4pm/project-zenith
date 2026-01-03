@@ -115,7 +115,12 @@ class NewsAPI {
 // Export singleton instance
 export const newsAPI = new NewsAPI();
 
-// Export categories configuration
+// ============================================
+// NEWS STRATEGY: FOCUSED CATEGORIES ONLY
+// ============================================
+// REMOVED: Sports, Health, Science, World, Politics (noise, no edge)
+// KEPT: Crypto, Markets/Tech, Entertainment (releases only)
+
 export const CATEGORIES: Array<{
     slug: CategorySlug;
     name: string;
@@ -124,68 +129,140 @@ export const CATEGORIES: Array<{
     description: string;
 }> = [
         {
+            slug: 'crypto',
+            name: 'Crypto',
+            icon: '🪙',
+            color: 'from-orange-500 to-yellow-500',
+            description: 'Regulation, ETFs, Protocol upgrades',
+        },
+        {
             slug: 'technology',
-            name: 'Technology',
-            icon: '💻',
+            name: 'Markets & Tech',
+            icon: '📊',
             color: 'from-blue-500 to-cyan-500',
-            description: 'AI, Software, Hardware, Startups',
-        },
-        {
-            slug: 'business',
-            name: 'Business',
-            icon: '💼',
-            color: 'from-green-500 to-emerald-500',
-            description: 'Markets, Finance, Corporate News',
-        },
-        {
-            slug: 'politics',
-            name: 'Politics',
-            icon: '🏛️',
-            color: 'from-red-500 to-rose-500',
-            description: 'Government, Elections, Policy',
+            description: 'AI, Fintech, Market-moving tech',
         },
         {
             slug: 'entertainment',
-            name: 'Entertainment',
+            name: 'Releases',
             icon: '🎬',
             color: 'from-purple-500 to-pink-500',
-            description: 'Movies, Music, TV, Celebrity',
-        },
-        {
-            slug: 'sports',
-            name: 'Sports',
-            icon: '⚽',
-            color: 'from-orange-500 to-amber-500',
-            description: 'Athletics, Games, Tournaments',
-        },
-        {
-            slug: 'health',
-            name: 'Health',
-            icon: '🏥',
-            color: 'from-teal-500 to-cyan-500',
-            description: 'Medical, Wellness, Healthcare',
-        },
-        {
-            slug: 'science',
-            name: 'Science',
-            icon: '🔬',
-            color: 'from-indigo-500 to-purple-500',
-            description: 'Research, Discovery, Environment',
-        },
-        {
-            slug: 'world',
-            name: 'World',
-            icon: '🌍',
-            color: 'from-slate-500 to-gray-500',
-            description: 'International, Global Affairs',
+            description: 'Movies, Series, Streaming drops',
         },
     ];
+
+// ============================================
+// CONTENT FILTERING RULES
+// ============================================
+
+// Crypto: Institutional-grade sources only
+export const CRYPTO_TRUSTED_SOURCES = [
+    'coindesk',
+    'cointelegraph',
+    'the block',
+    'decrypt',
+    'bloomberg',
+    'reuters',
+    'wsj',
+];
+
+// Keyword allowlists (article must contain at least one)
+export const CRYPTO_ALLOWLIST = [
+    'sec', 'etf', 'hack', 'exploit', 'upgrade', 'mainnet',
+    'layer 2', 'governance', 'proposal', 'regulation', 'institutional',
+    'adoption', 'bitcoin', 'ethereum', 'defi', 'stablecoin'
+];
+
+export const CRYPTO_BLOCKLIST = [
+    'price prediction', 'to the moon', 'analyst says', 'influencer',
+    'opinion', 'could reach', 'might hit', 'bullish target'
+];
+
+// Entertainment: Release-focused content only
+export const ENTERTAINMENT_ALLOWLIST = [
+    'release', 'now streaming', 'trailer', 'premiere', 'box office',
+    'season premiere', 'official trailer', 'drops on netflix',
+    'coming to', 'available on', 'launches on'
+];
+
+export const ENTERTAINMENT_BLOCKLIST = [
+    'actor', 'actress', 'interview', 'relationship', 'divorce',
+    'outfit', 'red carpet', 'statement', 'drama', 'scandal',
+    'dating', 'married', 'broke up', 'feud'
+];
+
+/**
+ * Filter article based on category-specific rules
+ * Returns true if article should be KEPT
+ */
+export function shouldKeepArticle(article: {
+    title: string;
+    article: string;
+    category: string;
+    source: string
+}): boolean {
+    const text = `${article.title} ${article.article}`.toLowerCase();
+    const source = article.source.toLowerCase();
+    const category = article.category.toLowerCase();
+
+    // Crypto filtering
+    if (category === 'crypto') {
+        // Check for blocked terms
+        if (CRYPTO_BLOCKLIST.some(term => text.includes(term))) {
+            return false;
+        }
+        // Must contain at least one allowed term
+        if (!CRYPTO_ALLOWLIST.some(term => text.includes(term))) {
+            return false;
+        }
+        return true;
+    }
+
+    // Entertainment filtering (releases only)
+    if (category === 'entertainment') {
+        // Check for blocked terms (gossip, drama)
+        if (ENTERTAINMENT_BLOCKLIST.some(term => text.includes(term))) {
+            return false;
+        }
+        // Must be about a release/drop
+        if (!ENTERTAINMENT_ALLOWLIST.some(term => text.includes(term))) {
+            return false;
+        }
+        return true;
+    }
+
+    // Technology/Markets: light filtering
+    if (category === 'technology' || category === 'business') {
+        // Block obvious noise
+        const techBlocklist = ['opinion', 'review of'];
+        if (techBlocklist.some(term => text.includes(term))) {
+            return false;
+        }
+        return true;
+    }
+
+    // Block removed categories entirely
+    const removedCategories = ['sports', 'health', 'science', 'world', 'politics'];
+    if (removedCategories.includes(category)) {
+        return false;
+    }
+
+    return true;
+}
 
 /**
  * Get category info by slug
  */
 export function getCategoryBySlug(slug: string) {
     return CATEGORIES.find((cat) => cat.slug === slug);
+}
+
+/**
+ * Check if category is allowed
+ */
+export function isAllowedCategory(category: string): boolean {
+    const allowed = ['crypto', 'technology', 'business', 'entertainment'];
+    return allowed.includes(category.toLowerCase());
 }
 
 /**
@@ -216,4 +293,5 @@ export function getConfidenceColor(confidence: number): string {
     if (confidence >= 0.4) return 'text-yellow-400 bg-yellow-500/20';
     return 'text-gray-400 bg-gray-500/20';
 }
+
 

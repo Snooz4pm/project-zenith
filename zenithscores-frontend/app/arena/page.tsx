@@ -1,19 +1,54 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAccount } from 'wagmi';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
+import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
+import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
+import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
+import { clusterApiUrl } from '@solana/web3.js';
 import { Zap, Shield, Wallet, Info } from 'lucide-react';
 import { useWeb3Modal } from '@web3modal/wagmi/react';
 import SwapPanel from '@/components/arena/SwapPanel';
+import SolanaSwapPanel from '@/components/arena/SolanaSwapPanel';
 import TokenDiscoveryFeed from '@/components/arena/TokenDiscoveryFeed';
 import { DiscoveredToken } from '@/lib/arena/discovery';
 import { getChainConfig } from '@/lib/arena/chains';
 
-export default function TradingArenaPage() {
+// Import Solana wallet styles
+import '@solana/wallet-adapter-react-ui/styles.css';
+
+// Solana Wallet Configuration
+function SolanaWalletWrapper({ children }: { children: React.ReactNode }) {
+  const network = WalletAdapterNetwork.Mainnet;
+  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+
+  const wallets = useMemo(
+    () => [
+      new PhantomWalletAdapter(),
+      new SolflareWalletAdapter(),
+    ],
+    []
+  );
+
+  return (
+    <ConnectionProvider endpoint={endpoint}>
+      <WalletProvider wallets={wallets} autoConnect>
+        <WalletModalProvider>
+          {children}
+        </WalletModalProvider>
+      </WalletProvider>
+    </ConnectionProvider>
+  );
+}
+
+function ArenaContent() {
   const { address, isConnected, chainId } = useAccount();
   const { open } = useWeb3Modal();
 
   const [selectedToken, setSelectedToken] = useState<DiscoveredToken | null>(null);
+  const [blockchain, setBlockchain] = useState<'evm' | 'solana'>('evm');
 
   const chain = chainId ? getChainConfig(chainId) : null;
 
@@ -38,8 +73,32 @@ export default function TradingArenaPage() {
             </div>
 
             <div className="flex items-center gap-4">
+              {/* Blockchain Toggle */}
+              <div className="flex items-center gap-1 p-1 bg-white/5 rounded-lg">
+                <button
+                  onClick={() => setBlockchain('evm')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                    blockchain === 'evm'
+                      ? 'bg-emerald-500 text-black'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  EVM
+                </button>
+                <button
+                  onClick={() => setBlockchain('solana')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                    blockchain === 'solana'
+                      ? 'bg-purple-600 text-white'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Solana
+                </button>
+              </div>
+
               {/* Chain Indicator */}
-              {isConnected && chain && (
+              {blockchain === 'evm' && isConnected && chain && (
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5">
                   <div className="w-2 h-2 rounded-full bg-emerald-500" />
                   <span className="text-xs text-zinc-400">{chain.name}</span>
@@ -83,8 +142,7 @@ export default function TradingArenaPage() {
             <p className="text-xs text-zinc-400 leading-relaxed">
               ZenithScores scans multiple chains to surface <strong>early, undiscovered tokens</strong> before they trend.
               Click any token to see details, then execute <strong>real on-chain swaps</strong> directly from your wallet.
-              Your funds remain in your custody at all times. Swaps are powered by 0x Protocol across Ethereum, Base, Arbitrum,
-              and more.
+              Your funds remain in your custody at all times. {blockchain === 'evm' ? 'Swaps are powered by 0x Protocol across Ethereum, Base, Arbitrum, and more.' : 'Swaps are powered by Jupiter on Solana with 1.1% total fee per swap.'}
             </p>
           </div>
         </div>
@@ -102,39 +160,71 @@ export default function TradingArenaPage() {
             <div className="mt-6 p-4 bg-[#111116] border border-white/10 rounded-xl">
               <h4 className="text-sm font-semibold text-white mb-3">Supported Networks</h4>
               <div className="flex flex-wrap gap-2">
-                {['Ethereum', 'Base', 'Arbitrum', 'Optimism', 'Polygon', 'BNB Chain', 'Avalanche', 'Blast', 'Scroll'].map((network) => (
-                  <span
-                    key={network}
-                    className="px-2 py-1 bg-white/5 text-zinc-400 rounded text-xs"
-                  >
-                    {network}
+                {blockchain === 'evm' ? (
+                  <>
+                    {['Ethereum', 'Base', 'Arbitrum', 'Optimism', 'Polygon', 'BNB Chain', 'Avalanche', 'Blast', 'Scroll'].map((network) => (
+                      <span
+                        key={network}
+                        className="px-2 py-1 bg-white/5 text-zinc-400 rounded text-xs"
+                      >
+                        {network}
+                      </span>
+                    ))}
+                  </>
+                ) : (
+                  <span className="px-2 py-1 bg-purple-600/20 text-purple-400 rounded text-xs">
+                    Solana Mainnet
                   </span>
-                ))}
+                )}
               </div>
               <p className="text-[10px] text-zinc-600 mt-3">
-                All chains support 0x swaps with automatic fee routing to ZenithScores
+                {blockchain === 'evm'
+                  ? 'All chains support 0x swaps with automatic fee routing to ZenithScores'
+                  : 'Jupiter swaps with 1% platform fee + 0.1% referral bonus'}
               </p>
             </div>
           </div>
 
           {/* Right: Swap Panel (1/3) */}
           <div>
-            <SwapPanel
-              selectedToken={selectedToken}
-              onSwapComplete={() => {
-                console.log('Swap completed!');
-              }}
-            />
+            {blockchain === 'evm' ? (
+              <SwapPanel
+                selectedToken={selectedToken}
+                onSwapComplete={() => {
+                  console.log('EVM Swap completed!');
+                }}
+              />
+            ) : (
+              <SolanaSwapPanel
+                selectedToken={
+                  selectedToken
+                    ? {
+                        symbol: selectedToken.symbol,
+                        mint: selectedToken.address,
+                        decimals: 9, // Default, would need to fetch actual decimals
+                        name: selectedToken.metadata?.name,
+                        logo: selectedToken.metadata?.logo,
+                      }
+                    : null
+                }
+                onSwapComplete={() => {
+                  console.log('Solana Swap completed!');
+                }}
+              />
+            )}
 
             {/* How Fees Work */}
-            <div className="mt-4 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-lg">
+            <div className={`mt-4 p-4 ${blockchain === 'evm' ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-purple-600/5 border-purple-600/20'} border rounded-lg`}>
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-sm text-emerald-500 font-medium">Platform Fee: 0.4%</span>
+                <div className={`w-2 h-2 rounded-full ${blockchain === 'evm' ? 'bg-emerald-500' : 'bg-purple-600'}`} />
+                <span className={`text-sm ${blockchain === 'evm' ? 'text-emerald-500' : 'text-purple-400'} font-medium`}>
+                  Platform Fee: {blockchain === 'evm' ? '0.4%' : '1.0% + 0.1% referral'}
+                </span>
               </div>
               <p className="text-xs text-zinc-500">
-                A small fee on each swap helps us maintain the discovery engine and multi-chain infrastructure.
-                Fees are automatically included in quotes.
+                {blockchain === 'evm'
+                  ? 'A small fee on each swap helps us maintain the discovery engine and multi-chain infrastructure. Fees are automatically included in quotes.'
+                  : 'Jupiter charges 1% platform fee + 0.1% automatic referral bonus. This is 2.75x MORE than EVM chains! Fees are automatically included in quotes.'}
               </p>
             </div>
 
@@ -153,14 +243,33 @@ export default function TradingArenaPage() {
           <div className="mt-6 p-4 bg-purple-500/5 border border-purple-500/20 rounded-xl">
             <h4 className="text-sm font-semibold text-purple-500 mb-2">🔧 Developer Mode</h4>
             <div className="text-xs text-zinc-400 space-y-1">
-              <p>• Affiliate wallet: {process.env.NEXT_PUBLIC_AFFILIATE_WALLET || 'NOT SET'}</p>
-              <p>• Fee: 0.4% per swap</p>
-              <p>• Chains: All 0x-supported EVM chains</p>
+              {blockchain === 'evm' ? (
+                <>
+                  <p>• EVM Affiliate wallet: {process.env.NEXT_PUBLIC_AFFILIATE_WALLET || 'NOT SET'}</p>
+                  <p>• Fee: 0.4% per swap (0x Protocol)</p>
+                  <p>• Chains: All 0x-supported EVM chains</p>
+                </>
+              ) : (
+                <>
+                  <p>• Solana Fee wallet: {process.env.NEXT_PUBLIC_SOLANA_FEE_WALLET || 'NOT SET'}</p>
+                  <p>• Fee: 1% platform + 0.1% referral = 1.1% total (Jupiter)</p>
+                  <p>• Chain: Solana Mainnet</p>
+                </>
+              )}
               <p>• Discovery: DexScreener API (strict filtering)</p>
             </div>
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+// Wrap with Solana wallet provider
+export default function TradingArenaPage() {
+  return (
+    <SolanaWalletWrapper>
+      <ArenaContent />
+    </SolanaWalletWrapper>
   );
 }

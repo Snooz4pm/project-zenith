@@ -22,9 +22,7 @@ export interface ChainConfig {
 
   // Common stablecoins on this chain (for swapping)
   stablecoins: {
-    USDC?: string;
-    USDT?: string;
-    DAI?: string;
+    [key: string]: string;
   };
 
   // Default "sell token" (what users swap FROM)

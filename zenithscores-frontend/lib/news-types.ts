@@ -62,15 +62,12 @@ export interface SearchResponse {
     query: string;
 }
 
+// Only allowed categories (removed: sports, health, science, world, politics)
 export type CategorySlug =
+    | 'crypto'
     | 'technology'
     | 'business'
-    | 'politics'
-    | 'entertainment'
-    | 'sports'
-    | 'health'
-    | 'science'
-    | 'world';
+    | 'entertainment';
 
 export interface CategoryInfo {
     slug: CategorySlug;

@@ -21,7 +21,7 @@ import {
 import ArticleCard from '@/components/ArticleCard';
 import UniversalLoader from '@/components/UniversalLoader';
 import NewsBiasSelector from '@/components/news/NewsBiasSelector';
-import { newsAPI, CATEGORIES } from '@/lib/news-api';
+import { newsAPI, CATEGORIES, shouldKeepArticle } from '@/lib/news-api';
 import type { Article } from '@/lib/news-types';
 import { getUserNewsBiasesBatch } from '@/lib/actions/news';
 
@@ -85,7 +85,10 @@ export default function NewsPage() {
 
       const statsData = await newsAPI.getStats();
 
-      setArticles(data.articles);
+      // Apply content filtering based on category-specific rules
+      const filteredData = data.articles.filter(shouldKeepArticle);
+
+      setArticles(filteredData);
       setStats(statsData);
       setLastRefresh(new Date());
       setError(null);
