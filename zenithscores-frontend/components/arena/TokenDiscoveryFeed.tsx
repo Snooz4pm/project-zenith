@@ -18,7 +18,7 @@ export default function TokenDiscoveryFeed({ onSelectToken, selectedToken }: Tok
   const fetchTokens = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/arena/discovery?minChainPriority=70');
+      const response = await fetch('/api/arena/discovery');
       const data = await response.json();
 
       if (data.success) {
@@ -117,9 +117,8 @@ export default function TokenDiscoveryFeed({ onSelectToken, selectedToken }: Tok
           <button
             key={`${token.chainId}-${token.address}`}
             onClick={() => onSelectToken(token)}
-            className={`w-full p-4 text-left hover:bg-white/5 transition-colors ${
-              selectedToken?.address === token.address ? 'bg-emerald-500/10 border-l-2 border-emerald-500' : ''
-            }`}
+            className={`w-full p-4 text-left hover:bg-white/5 transition-colors ${selectedToken?.address === token.address ? 'bg-emerald-500/10 border-l-2 border-emerald-500' : ''
+              }`}
           >
             {/* Token Header */}
             <div className="flex items-start gap-3 mb-2">

@@ -91,37 +91,36 @@ export interface DiscoveredToken {
 }
 
 /**
- * FILTERING RULES (NON-NEGOTIABLE)
+ * FILTERING RULES (RELAXED FOR DISCOVERY)
  *
- * These rules define what makes a token "early" and "undiscovered"
+ * Lower thresholds to show more tokens
  */
 const DISCOVERY_FILTERS = {
-  // Age window: 20 minutes to 7 days
-  MIN_AGE_MINUTES: 20,
-  MAX_AGE_MINUTES: 7 * 24 * 60, // 7 days
+  // Age window: 5 minutes to 30 days
+  MIN_AGE_MINUTES: 5,
+  MAX_AGE_MINUTES: 30 * 24 * 60, // 30 days
 
-  // Liquidity: $8k - $250k (sweet spot for early discovery)
-  MIN_LIQUIDITY_USD: 8000,
-  MAX_LIQUIDITY_USD: 250000,
+  // Liquidity: $1k - $2M (much wider range)
+  MIN_LIQUIDITY_USD: 1000,
+  MAX_LIQUIDITY_USD: 2_000_000,
 
-  // FDV cap: under $50M
-  MAX_FDV: 50_000_000,
+  // FDV cap: under $200M
+  MAX_FDV: 200_000_000,
 
-  // Volume acceleration threshold
-  // volume_5m should be at least 1.8x the hourly average
-  MIN_VOLUME_ACCEL: 1.8,
+  // Volume acceleration threshold (lowered)
+  MIN_VOLUME_ACCEL: 0.5,
 
-  // Buy dominance in last 5 minutes
-  MIN_BUYS_5M: 8, // At least 8 buys
-  MAX_SELL_BUY_RATIO: 0.6, // Sells should be <= 60% of buys
+  // Buy activity (very relaxed)
+  MIN_BUYS_5M: 1, // At least 1 buy
+  MAX_SELL_BUY_RATIO: 1.5, // Sells can be more than buys
 
-  // Price restraint (avoid pumps)
-  MIN_PRICE_CHANGE_5M: 0.5, // At least +0.5%
-  MAX_PRICE_CHANGE_5M: 6.0, // But not more than +6%
-  MAX_PRICE_CHANGE_1H: 20.0, // And not more than +20% in 1h
+  // Price action (relaxed)
+  MIN_PRICE_CHANGE_5M: -10.0, // Allow negative
+  MAX_PRICE_CHANGE_5M: 30.0, // Up to +30%
+  MAX_PRICE_CHANGE_1H: 100.0, // Allow big movers
 
   // Maximum results per fetch
-  MAX_RESULTS: 10,
+  MAX_RESULTS: 30,
 };
 
 /**
@@ -313,8 +312,8 @@ function generateReason(
     age < 60
       ? `${Math.floor(age)} minutes ago`
       : age < 1440
-      ? `${Math.floor(age / 60)} hours ago`
-      : `${Math.floor(age / 1440)} days ago`;
+        ? `${Math.floor(age / 60)} hours ago`
+        : `${Math.floor(age / 1440)} days ago`;
 
   const reasons: string[] = [];
 
