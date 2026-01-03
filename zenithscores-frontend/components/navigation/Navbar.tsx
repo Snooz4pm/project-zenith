@@ -7,30 +7,31 @@ import { usePathname } from 'next/navigation';
 import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Users, Mail, Settings, Activity, Crown, Sparkles, Shield, Database, Loader2 } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import NotificationBell from '@/components/community/NotificationBell';
+import { useWallet } from '@/lib/wallet/WalletContext';
 import { useWeb3Modal } from '@web3modal/wagmi/react';
-import { useAccount } from 'wagmi';
+import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 
-// Wallet Connect Button Component
+/**
+ * Unified Wallet Connect Button
+ * 
+ * Displays:
+ * - "Connect Wallet" when disconnected
+ * - [Address] [Network Badge] when connected
+ * 
+ * ONE source of truth: WalletContext
+ * Read-only display (no manual selectors)
+ */
 function WalletConnectButton() {
-  const { address, isConnected, isConnecting } = useAccount();
-  const { open } = useWeb3Modal();
+  const { wallet, connect } = useWallet();
+  const { open: openEVMModal } = useWeb3Modal();
+  const { setVisible: openSolanaModal } = useWalletModal();
 
-  if (isConnecting) {
+  // Not connected
+  if (!wallet.isConnected) {
     return (
       <button
-        disabled
-        className="px-4 py-2 bg-white/10 text-zinc-400 font-medium rounded-lg flex items-center gap-2 cursor-not-allowed text-sm"
-      >
-        <Loader2 size={14} className="animate-spin" />
-        Connecting...
-      </button>
-    );
-  }
-
-  if (!isConnected) {
-    return (
-      <button
-        onClick={() => open()}
+        onClick={connect}
         className="group relative px-4 py-2 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition-all overflow-hidden"
         style={{
           boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
@@ -45,17 +46,34 @@ function WalletConnectButton() {
     );
   }
 
-  // Connected - show address
+  // Connected - show address + network badge (read-only)
+  const handleClick = () => {
+    // Open appropriate modal based on VM
+    if (wallet.vm === 'EVM') {
+      openEVMModal();
+    } else if (wallet.vm === 'SOLANA') {
+      openSolanaModal(true);
+    }
+  };
+
   return (
-    <button
-      onClick={() => open()}
-      className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2 hover:bg-emerald-500/20 transition-colors"
-    >
-      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-      <span className="text-sm font-mono text-emerald-500">
-        {address?.slice(0, 6)}...{address?.slice(-4)}
-      </span>
-    </button>
+    <div className="flex items-center gap-2">
+      {/* Network Badge (Read-Only) */}
+      <div className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-emerald-500" />
+        <span className="text-xs text-zinc-300 font-medium">{wallet.networkName}</span>
+      </div>
+
+      {/* Wallet Address */}
+      <button
+        onClick={handleClick}
+        className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2 hover:bg-emerald-500/20 transition-colors"
+      >
+        <span className="text-sm font-mono text-emerald-500">
+          {wallet.address?.slice(0, 6)}...{wallet.address?.slice(-4)}
+        </span>
+      </button>
+    </div>
   );
 }
 

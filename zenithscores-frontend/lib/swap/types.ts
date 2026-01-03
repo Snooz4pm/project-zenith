@@ -8,7 +8,6 @@ export type ChainType = 'SOLANA' | 'EVM';
 
 export interface SwapQuoteRequest {
   chainType: ChainType;
-  chainId?: number; // EVM chain ID (required for EVM)
   sellToken: string; // Token address or mint
   buyToken: string; // Token address or mint
   amount: string; // Raw amount (with decimals)
