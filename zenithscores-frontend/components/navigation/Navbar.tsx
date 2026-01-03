@@ -14,23 +14,29 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import WalletSelectorModal from '@/components/WalletSelectorModal';
 
 /**
- * Unified Wallet Connect Button
- * 
+ * Unified Wallet Connect Button (MULTI-SESSION)
+ *
  * Displays:
- * - "Connect Wallet" when disconnected → Opens selector modal
- * - [Address] [Network Badge] when connected
- * 
- * ONE source of truth: WalletContext
- * TWO wallet systems: Solana + EVM
+ * - "Connect Wallet" when no sessions → Opens selector modal
+ * - Solana + EVM badges when connected (both can be active)
+ *
+ * MULTI-SESSION AWARE:
+ * ✅ Both Solana and EVM can be connected simultaneously
+ * ✅ Shows badges for each active session
+ * ✅ Click badge to open respective wallet modal
  */
 function WalletConnectButton() {
-  const { wallet } = useWallet();
+  const { session } = useWallet();
   const { open: openEVMModal } = useWeb3Modal();
   const { setVisible: openSolanaModal } = useWalletModal();
   const [showSelector, setShowSelector] = useState(false);
 
-  // Not connected
-  if (!wallet.isConnected) {
+  const hasSolana = !!session.solana;
+  const hasEvm = !!session.evm;
+  const hasAnySession = hasSolana || hasEvm;
+
+  // No sessions connected
+  if (!hasAnySession) {
     return (
       <>
         <button
@@ -55,33 +61,38 @@ function WalletConnectButton() {
     );
   }
 
-  // Connected - show address + network badge (read-only)
-  const handleClick = () => {
-    // Open appropriate modal based on VM
-    if (wallet.vm === 'EVM') {
-      openEVMModal();
-    } else if (wallet.vm === 'SOLANA') {
-      openSolanaModal(true);
-    }
-  };
-
+  // Connected - show badges for active sessions
   return (
     <div className="flex items-center gap-2">
-      {/* Network Badge (Read-Only) */}
-      <div className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-emerald-500" />
-        <span className="text-xs text-zinc-300 font-medium">{wallet.networkName}</span>
-      </div>
+      {/* Solana Session */}
+      {hasSolana && (
+        <button
+          onClick={() => openSolanaModal(true)}
+          className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-lg flex items-center gap-2 hover:bg-purple-500/20 transition-colors"
+          title={session.solana!.address}
+        >
+          <div className="w-2 h-2 rounded-full bg-purple-500" />
+          <span className="text-xs text-purple-300 font-medium">Solana</span>
+          <span className="text-xs text-zinc-500">
+            {session.solana!.address.slice(0, 4)}...{session.solana!.address.slice(-4)}
+          </span>
+        </button>
+      )}
 
-      {/* Wallet Address */}
-      <button
-        onClick={handleClick}
-        className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2 hover:bg-emerald-500/20 transition-colors"
-      >
-        <span className="text-sm font-mono text-emerald-500">
-          {wallet.address?.slice(0, 6)}...{wallet.address?.slice(-4)}
-        </span>
-      </button>
+      {/* EVM Session */}
+      {hasEvm && (
+        <button
+          onClick={() => openEVMModal()}
+          className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center gap-2 hover:bg-blue-500/20 transition-colors"
+          title={session.evm!.address}
+        >
+          <div className="w-2 h-2 rounded-full bg-blue-500" />
+          <span className="text-xs text-blue-300 font-medium">{session.evm!.networkName}</span>
+          <span className="text-xs text-zinc-500">
+            {session.evm!.address.slice(0, 4)}...{session.evm!.address.slice(-4)}
+          </span>
+        </button>
+      )}
     </div>
   );
 }

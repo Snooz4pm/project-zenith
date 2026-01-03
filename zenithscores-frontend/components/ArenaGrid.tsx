@@ -86,13 +86,21 @@ export default function ArenaGrid({ onSelectToken }: ArenaGridProps) {
     if (tokens.length === 0) {
         return (
             <div className="flex items-center justify-center py-20">
-                <div className="text-center">
-                    <p className="text-zinc-400 mb-4">No tokens discovered</p>
+                <div className="text-center max-w-md">
+                    <AlertCircle className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-white mb-2">No Tokens Found Right Now</h3>
+                    <p className="text-zinc-400 mb-2 text-sm">
+                        No high-liquidity tokens match the current filters.
+                    </p>
+                    <p className="text-zinc-500 mb-6 text-xs">
+                        DexScreener may be temporarily down or filtering too aggressively.
+                        Try refreshing in a moment.
+                    </p>
                     <button
                         onClick={fetchTokens}
-                        className="px-4 py-2 bg-emerald-500 text-black font-medium rounded-lg hover:bg-emerald-400 transition-colors"
+                        className="px-6 py-2 bg-emerald-500 text-black font-medium rounded-lg hover:bg-emerald-400 transition-colors"
                     >
-                        Refresh
+                        Refresh Discovery
                     </button>
                 </div>
             </div>

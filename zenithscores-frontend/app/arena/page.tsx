@@ -25,7 +25,7 @@ import { GlobalToken } from '@/lib/discovery/normalize';
  * ✅ Non-custodial swaps only
  */
 export default function TradingArenaPage() {
-  const { wallet } = useWallet();
+  const { session } = useWallet();
   const [selectedToken, setSelectedToken] = useState<GlobalToken | null>(null);
   const [isSwapDrawerOpen, setIsSwapDrawerOpen] = useState(false);
 

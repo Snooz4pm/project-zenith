@@ -54,3 +54,44 @@ export function getVMFromChainId(chainId: ChainId): VM {
 export function getNetworkName(chainId: ChainId): string {
     return CHAIN_METADATA[chainId].name;
 }
+
+/**
+ * Convert DexScreener chainId string to ChainId
+ */
+export function normalizeChainId(dexChainId: string): ChainId {
+    const mapping: Record<string, ChainId> = {
+        'ethereum': '1',
+        'base': '8453',
+        'arbitrum': '42161',
+        'optimism': '10',
+        'polygon': '137',
+        'bsc': '56',
+        'avalanche': '43114',
+        'solana': 'solana',
+    };
+    return mapping[dexChainId.toLowerCase()] || '1';
+}
+
+/**
+ * Convert DiscoveredToken (from DexScreener) to GlobalToken
+ */
+export function discoveredToGlobalToken(discovered: any): GlobalToken {
+    const chainId = normalizeChainId(discovered.chainId);
+    const chainMeta = CHAIN_METADATA[chainId];
+
+    return {
+        id: `${chainId}-${discovered.address}`,
+        chainId,
+        chainType: chainMeta.vm,
+        networkName: chainMeta.name,
+        address: discovered.address,
+        symbol: discovered.symbol,
+        name: discovered.name,
+        logo: discovered.metadata?.logo || undefined,
+        liquidityUsd: discovered.liquidity || 0,
+        volume24h: discovered.volume24h || 0,
+        priceUsd: discovered.priceUSD || 0,
+        priceChange24h: discovered.priceAction || 0,
+        dex: discovered.dexId || 'Unknown',
+    };
+}

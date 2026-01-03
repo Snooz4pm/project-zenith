@@ -12,7 +12,7 @@ interface SwapDrawerProps {
 }
 
 export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
-    const { wallet, connect, switchNetwork, signAndSendTx } = useWallet();
+    const { session, switchEvmNetwork, signAndSendTx } = useWallet();
 
     const [amount, setAmount] = useState("");
     const [quote, setQuote] = useState<any>(null);
@@ -21,10 +21,14 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
     const [txHash, setTxHash] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
-    // Balance checks (CRITICAL for Option C)
-    const nativeBalance = parseFloat(wallet.nativeBalanceFormatted);
+    // Get active session based on token type (MULTI-SESSION)
+    const activeSession = token?.chainType === 'SOLANA' ? session.solana : session.evm;
+    const isConnected = !!activeSession;
+    const userAddress = activeSession?.address || null;
+    const nativeBalance = parseFloat(activeSession?.balanceFormatted || '0');
     const hasBalance = nativeBalance > 0;
-    const nativeSymbol = wallet.vm === 'SOLANA' ? 'SOL' : wallet.chainId === 56 ? 'BNB' : 'ETH';
+    const nativeSymbol = token?.chainType === 'SOLANA' ? 'SOL' :
+                        session.evm?.chainId === 56 ? 'BNB' : 'ETH';
     const insufficientBalance = amount && parseFloat(amount) > nativeBalance;
 
     // Reset state when drawer closes
@@ -38,16 +42,13 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
         }
     }, [isOpen]);
 
-    // Check if wallet is on correct VM
-    const isCorrectVM = token && wallet.vm === token.chainType;
-
     // Check if on correct network (EVM only)
     const isCorrectNetwork = !token || token.chainType === 'SOLANA' ||
-        (token.chainType === 'EVM' && wallet.chainId === parseInt(token.chainId));
+        (token.chainType === 'EVM' && session.evm && session.evm.chainId === parseInt(token.chainId));
 
     // Fetch quote when amount changes
     useEffect(() => {
-        if (!amount || !wallet.address || !token || !isCorrectVM || !isCorrectNetwork ||
+        if (!amount || !userAddress || !token || !isConnected || !isCorrectNetwork ||
             parseFloat(amount) <= 0 || insufficientBalance || !hasBalance) {
             setQuote(null);
             return;
@@ -58,7 +59,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
             setError(null);
 
             try {
-                const sellToken = wallet.vm === 'SOLANA'
+                const sellToken = token.chainType === 'SOLANA'
                     ? 'So11111111111111111111111111111111111111112'
                     : '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
 
@@ -68,12 +69,12 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        chainType: wallet.vm,
-                        chainId: wallet.chainId,
+                        chainType: token.chainType,
+                        chainId: session.evm?.chainId,
                         sellToken,
                         buyToken: token.address,
                         amount: amountInSmallestUnit,
-                        userAddress: wallet.address
+                        userAddress
                     })
                 });
 
@@ -94,10 +95,10 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
 
         const debounce = setTimeout(fetchQuote, 500);
         return () => clearTimeout(debounce);
-    }, [amount, wallet.address, wallet.vm, wallet.chainId, token, isCorrectVM, isCorrectNetwork, insufficientBalance, hasBalance]);
+    }, [amount, userAddress, token, isConnected, isCorrectNetwork, insufficientBalance, hasBalance, session.evm?.chainId]);
 
     const executeSwap = async () => {
-        if (!quote || !wallet.address) return;
+        if (!quote || !userAddress || !token) return;
 
         setLoading(true);
         setError(null);
@@ -107,11 +108,11 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    chainType: wallet.vm,
+                    chainType: token.chainType,
                     quote,
                     quoteResponse: quote,
-                    userPublicKey: wallet.address,
-                    userAddress: wallet.address,
+                    userPublicKey: userAddress,
+                    userAddress,
                 })
             });
 
@@ -121,7 +122,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
             }
 
             const txPayload = await res.json();
-            const hash = await signAndSendTx(txPayload);
+            const hash = await signAndSendTx(token.chainType, txPayload);
             setTxHash(hash);
             setSuccess(true);
 
@@ -138,7 +139,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
         if (!token || token.chainType !== 'EVM') return;
 
         try {
-            await switchNetwork(parseInt(token.chainId));
+            await switchEvmNetwork(parseInt(token.chainId));
         } catch (err: any) {
             setError(err.message || 'Failed to switch network');
         }
@@ -163,36 +164,18 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-4">
-                {!wallet.isConnected ? (
+                {!isConnected ? (
                     <div className="text-center py-12">
                         <WalletIcon className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-                        <p className="text-zinc-400 mb-4">Connect your wallet to swap</p>
-                        <button
-                            onClick={connect}
-                            className="px-6 py-3 bg-emerald-500 text-black font-semibold rounded-lg hover:bg-emerald-600 transition-colors"
-                        >
-                            Connect Wallet
-                        </button>
-                    </div>
-                ) : !isCorrectVM ? (
-                    <div className="text-center py-12">
-                        <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                        <p className="text-yellow-500 mb-2">Wrong Wallet Type</p>
-                        <p className="text-sm text-zinc-400 mb-6">
-                            You're connected to {wallet.networkName}
-                            <br />
-                            This token is on {token.networkName}
-                        </p>
-                        <p className="text-xs text-zinc-600">
-                            Please connect a {token.chainType === 'SOLANA' ? 'Solana' : 'EVM'} wallet
-                        </p>
+                        <p className="text-zinc-400 mb-4">Connect {token.chainType === 'SOLANA' ? 'Solana' : 'EVM'} wallet to swap</p>
+                        <p className="text-xs text-zinc-600">Close this drawer and click the token's swap button</p>
                     </div>
                 ) : !isCorrectNetwork ? (
                     <div className="text-center py-12">
                         <AlertCircle className="w-12 h-12 text-blue-500 mx-auto mb-4" />
                         <p className="text-blue-500 mb-2">Wrong Network</p>
                         <p className="text-sm text-zinc-400 mb-6">
-                            You're on {wallet.networkName}
+                            You're on {session.evm?.networkName}
                             <br />
                             This token is on {token.networkName}
                         </p>
@@ -209,7 +192,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
                         <h3 className="text-lg font-semibold mb-2">Swap Successful!</h3>
                         {txHash && (
                             <a
-                                href={wallet.vm === 'SOLANA'
+                                href={token.chainType === 'SOLANA'
                                     ? `https://solscan.io/tx/${txHash}`
                                     : `https://etherscan.io/tx/${txHash}`}
                                 target="_blank"
@@ -227,7 +210,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
                             <div className="flex justify-between items-center mb-2">
                                 <label className="text-sm text-zinc-400">You Pay</label>
                                 <div className="text-xs text-zinc-500">
-                                    Balance: {wallet.nativeBalanceFormatted} {nativeSymbol}
+                                    Balance: {activeSession?.balanceFormatted} {nativeSymbol}
                                 </div>
                             </div>
                             <div className={`bg-[#111116] rounded-lg p-4 border ${insufficientBalance ? 'border-red-500/50' : 'border-transparent'}`}>
@@ -249,7 +232,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
                                 <div className="flex justify-between items-center mt-2">
                                     <div className="text-sm text-zinc-500">{nativeSymbol}</div>
                                     <button
-                                        onClick={() => setAmount(wallet.nativeBalanceFormatted)}
+                                        onClick={() => setAmount(activeSession?.balanceFormatted || '0')}
                                         className="text-xs text-emerald-500 hover:text-emerald-400 font-medium"
                                     >
                                         MAX

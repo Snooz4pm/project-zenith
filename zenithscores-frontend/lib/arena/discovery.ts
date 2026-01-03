@@ -101,28 +101,30 @@ const DISCOVERY_FILTERS = {
   MIN_AGE_MINUTES: 1,
   MAX_AGE_MINUTES: 30 * 24 * 60, // 30 days
 
-  // Liquidity: $1k - $5M (broader range)
-  MIN_LIQUIDITY_USD: 1000,
+  // Liquidity: $100 - $5M (PHASE 1 FIX: lowered from $1k to $100)
+  MIN_LIQUIDITY_USD: 100,
   MAX_LIQUIDITY_USD: 5_000_000,
 
   // FDV cap: under $500M
   MAX_FDV: 500_000_000,
 
-  // Volume acceleration threshold (relaxed)
-  // volume_5m should be at least 0.5x the hourly average
-  MIN_VOLUME_ACCEL: 0.5,
+  // Volume acceleration threshold (PHASE 1 FIX: removed - accept any volume)
+  // DexScreener enrichment layer will handle "Hot" badges later
+  MIN_VOLUME_ACCEL: 0, // Accept all tokens regardless of volume spike
 
-  // Buy dominance in last 5 minutes (relaxed)
-  MIN_BUYS_5M: 1, // At least 1 buy
-  MAX_SELL_BUY_RATIO: 2.0, // Sells can be 2x buys
+  // Buy dominance (PHASE 1 FIX: removed strict filters)
+  // Tokens exist even if not actively trading
+  MIN_BUYS_5M: 0, // No minimum buys required
+  MAX_SELL_BUY_RATIO: 999, // Accept any sell/buy ratio
 
-  // Price restraint (avoid pumps) - relaxed
-  MIN_PRICE_CHANGE_5M: -50.0, // Allow any price change
-  MAX_PRICE_CHANGE_5M: 100.0, // Allow up to +100%
-  MAX_PRICE_CHANGE_1H: 200.0, // Allow up to +200% in 1h
+  // Price restraint (PHASE 1 FIX: allow all price movements)
+  // Swap routing will handle slippage protection
+  MIN_PRICE_CHANGE_5M: -999.0, // Allow any price change
+  MAX_PRICE_CHANGE_5M: 999.0, // Allow any pump
+  MAX_PRICE_CHANGE_1H: 999.0, // Allow any hourly change
 
   // Maximum results per fetch
-  MAX_RESULTS: 50, // Show more tokens
+  MAX_RESULTS: 100, // Show more tokens (increased from 50)
 };
 
 /**

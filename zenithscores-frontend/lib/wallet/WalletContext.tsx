@@ -1,40 +1,61 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode, useEffect, useState } from 'react';
-import { useAccount, useConnect, useSendTransaction, useChainId, useSwitchChain, useBalance } from 'wagmi';
+import { useAccount, useConnect, useSendTransaction, useChainId, useSwitchChain, useBalance, useDisconnect } from 'wagmi';
 import { useWallet as useSolanaWallet, useConnection } from '@solana/wallet-adapter-react';
 import { VersionedTransaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 /**
- * Unified Wallet Context
- * 
- * Auto-detects wallet and provides unified interface
- * MetaMask/WalletConnect → vm = "EVM"
- * Phantom/Solflare → vm = "SOLANA"
- * 
- * Solana ≠ EVM
- * Solana is NOT a network inside EVM
- * EVM networks share one VM
+ * Unified Wallet Session Context
+ *
+ * PRODUCTION ARCHITECTURE:
+ * ════════════════════════════════════════════════════════
+ * ✅ Solana and EVM sessions are ADDITIVE, not exclusive
+ * ✅ Connecting one does NOT disconnect the other
+ * ✅ VM determined by adapter used, not wallet brand
+ * ✅ WalletConnect = EVM ONLY (never Solana)
+ * ✅ Solana adapter = SOLANA ONLY
+ *
+ * Session Model:
+ * ──────────────
+ * WalletSession {
+ *   solana?: { connected, address, balance }
+ *   evm?: { connected, address, chainId, balance }
+ * }
+ *
+ * Both can exist simultaneously without conflicts.
  */
 
-export type VM = 'EVM' | 'SOLANA';
+export type ChainType = 'SOLANA' | 'EVM';
 
-export interface WalletState {
-    address: string | null;
-    vm: VM | null;
-    chainId?: number; // EVM only
-    networkName: string; // "Ethereum" | "Base" | "Arbitrum" | "BNB Chain" | "Solana"
-    isConnected: boolean;
-    nativeBalance: string; // Balance in native token (SOL, ETH, BNB, etc.)
-    nativeBalanceFormatted: string; // Human-readable balance
+export interface SolanaSession {
+    connected: boolean;
+    address: string;
+    balance: string;
+    balanceFormatted: string;
+}
+
+export interface EvmSession {
+    connected: boolean;
+    address: string;
+    chainId: number;
+    networkName: string;
+    balance: string;
+    balanceFormatted: string;
+}
+
+export interface WalletSession {
+    solana?: SolanaSession;
+    evm?: EvmSession;
 }
 
 interface WalletContextValue {
-    wallet: WalletState;
-    connect: () => void;
-    disconnect: () => void;
-    switchNetwork: (chainId: number) => Promise<void>; // EVM only
-    signAndSendTx: (txPayload: any) => Promise<string>;
+    session: WalletSession;
+    connectSolana: () => void;
+    connectEvm: () => void;
+    disconnect: (chainType: ChainType) => void;
+    switchEvmNetwork: (chainId: number) => Promise<void>;
+    signAndSendTx: (chainType: ChainType, txPayload: any) => Promise<string>;
 }
 
 const WalletContext = createContext<WalletContextValue | undefined>(undefined);
@@ -56,6 +77,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const { connect: evmConnect, connectors } = useConnect();
     const { sendTransactionAsync: sendEvmTx } = useSendTransaction();
     const { switchChainAsync } = useSwitchChain();
+    const { disconnect: evmDisconnect } = useDisconnect();
     const evmChainId = useChainId();
 
     // EVM balance
@@ -78,47 +100,52 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const [solanaBalance, setSolanaBalance] = useState<number>(0);
 
     useEffect(() => {
-        if (publicKey && connection) {
+        if (publicKey && connection && solanaConnected) {
             connection.getBalance(publicKey).then((lamports) => {
                 setSolanaBalance(lamports / LAMPORTS_PER_SOL);
+            }).catch(() => {
+                setSolanaBalance(0);
             });
+        } else {
+            setSolanaBalance(0);
         }
-    }, [publicKey, connection]);
+    }, [publicKey, connection, solanaConnected]);
 
-    // Auto-detect VM
-    const vm: VM | null =
-        solanaConnected && solanaAddress ? 'SOLANA' :
-            evmConnected && evmAddress ? 'EVM' :
-                null;
+    // Build session (CRITICAL: Both can exist simultaneously)
+    const session: WalletSession = {};
 
-    // Calculate balance
-    const nativeBalance = vm === 'SOLANA'
-        ? solanaBalance.toString()
-        : vm === 'EVM' && evmBalanceData
-            ? evmBalanceData.value.toString()
-            : '0';
+    if (solanaConnected && solanaAddress) {
+        session.solana = {
+            connected: true,
+            address: solanaAddress,
+            balance: solanaBalance.toString(),
+            balanceFormatted: solanaBalance.toFixed(4),
+        };
+    }
 
-    const nativeBalanceFormatted = vm === 'SOLANA'
-        ? solanaBalance.toFixed(4)
-        : vm === 'EVM' && evmBalanceData
-            ? (Number(evmBalanceData.value) / Math.pow(10, evmBalanceData.decimals)).toFixed(4)
-            : '0.0000';
+    if (evmConnected && evmAddress) {
+        session.evm = {
+            connected: true,
+            address: evmAddress,
+            chainId: evmChainId,
+            networkName: EVM_NETWORK_NAMES[evmChainId] || `Chain ${evmChainId}`,
+            balance: evmBalanceData?.value.toString() || '0',
+            balanceFormatted: evmBalanceData
+                ? (Number(evmBalanceData.value) / Math.pow(10, evmBalanceData.decimals)).toFixed(4)
+                : '0.0000',
+        };
+    }
 
-    // Build wallet state
-    const wallet: WalletState = {
-        address: vm === 'SOLANA' ? solanaAddress : evmAddress || null,
-        vm,
-        chainId: vm === 'EVM' ? evmChainId : undefined,
-        networkName: vm === 'SOLANA' ? 'Solana' : (vm === 'EVM' && evmChainId ? EVM_NETWORK_NAMES[evmChainId] || `Chain ${evmChainId}` : ''),
-        isConnected: vm !== null,
-        nativeBalance,
-        nativeBalanceFormatted,
+    // Connect Solana (does NOT disconnect EVM)
+    const connectSolana = () => {
+        // Solana connection handled by WalletSelectorModal
+        // This is a no-op, kept for API consistency
+        console.log('[WalletContext] Solana connection managed by wallet selector');
     };
 
-    // Unified connect
-    const connect = () => {
-        if (!wallet.isConnected) {
-            // Try EVM first (MetaMask is more common)
+    // Connect EVM (does NOT disconnect Solana)
+    const connectEvm = () => {
+        if (!evmConnected) {
             const connector = connectors[0];
             if (connector) {
                 evmConnect({ connector });
@@ -126,18 +153,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    // Unified disconnect
-    const disconnect = () => {
-        if (vm === 'SOLANA') {
+    // Disconnect specific chain (never disconnects both)
+    const disconnect = (chainType: ChainType) => {
+        if (chainType === 'SOLANA') {
             solanaDisconnect();
+        } else if (chainType === 'EVM') {
+            evmDisconnect();
         }
-        // EVM disconnect handled by wagmi
     };
 
     // Network switching (EVM only)
-    const switchNetwork = async (targetChainId: number): Promise<void> => {
-        if (vm !== 'EVM') {
-            throw new Error('Network switching only available for EVM wallets');
+    const switchEvmNetwork = async (targetChainId: number): Promise<void> => {
+        if (!session.evm) {
+            throw new Error('EVM wallet not connected');
         }
 
         if (!switchChainAsync) {
@@ -147,10 +175,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         await switchChainAsync({ chainId: targetChainId });
     };
 
-    // Unified transaction signing
-    const signAndSendTx = async (txPayload: any): Promise<string> => {
-        if (vm === 'SOLANA') {
-            // Solana transaction
+    // Transaction signing (requires chainType)
+    const signAndSendTx = async (chainType: ChainType, txPayload: any): Promise<string> => {
+        if (chainType === 'SOLANA') {
+            if (!session.solana) {
+                throw new Error('Solana wallet not connected');
+            }
+
             const txBuffer = Buffer.from(txPayload.data, 'base64');
             const transaction = VersionedTransaction.deserialize(txBuffer);
 
@@ -158,8 +189,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
             const signature = await sendSolanaTx(transaction, connection);
             return signature;
-        } else if (vm === 'EVM') {
-            // EVM transaction
+        } else if (chainType === 'EVM') {
+            if (!session.evm) {
+                throw new Error('EVM wallet not connected');
+            }
+
             const hash = await sendEvmTx({
                 to: txPayload.to as `0x${string}`,
                 data: txPayload.data as `0x${string}`,
@@ -169,14 +203,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             return hash;
         }
 
-        throw new Error('No wallet connected');
+        throw new Error(`Unsupported chain type: ${chainType}`);
     };
 
     const value: WalletContextValue = {
-        wallet,
-        connect,
+        session,
+        connectSolana,
+        connectEvm,
         disconnect,
-        switchNetwork,
+        switchEvmNetwork,
         signAndSendTx,
     };
 

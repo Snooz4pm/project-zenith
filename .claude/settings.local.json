@@ -27,7 +27,10 @@
       "Bash(npm run dev:*)",
       "Bash(timeout 10 tail:*)",
       "Bash(ls:*)",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Bash(time curl -s 'https://token.jup.ag/all')",
+      "Bash(curl:*)",
+      "Bash(node test-jupiter.js:*)"
     ]
   }
 }

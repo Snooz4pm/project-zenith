@@ -40,7 +40,7 @@ interface TokenCardProps {
  * This ensures honest UX and prevents broken swaps.
  */
 export default function TokenCard({ token, onSelect }: TokenCardProps) {
-    const { wallet, switchNetwork } = useWallet();
+    const { session, switchEvmNetwork } = useWallet();
     const [showWalletSelector, setShowWalletSelector] = useState(false);
     const [preferredVM, setPreferredVM] = useState<'EVM' | 'SOLANA' | null>(null);
     const [isSwitching, setIsSwitching] = useState(false);
@@ -49,65 +49,71 @@ export default function TokenCard({ token, onSelect }: TokenCardProps) {
     const priceChangeColor = token.priceChange24h >= 0 ? 'text-emerald-500' : 'text-red-500';
 
     /**
-     * ONE-CLICK SWAP ORCHESTRATION
+     * ONE-CLICK SWAP ORCHESTRATION (MULTI-SESSION)
      */
     const handleSwapClick = async () => {
-        // Case 1: Wallet not connected
-        if (!wallet.isConnected) {
-            setPreferredVM(token.chainType);
-            setShowWalletSelector(true);
-            return;
-        }
-
-        // Case 2: VM mismatch (Solana ↔ EVM)
-        if (token.chainType !== wallet.vm) {
-            setPreferredVM(token.chainType);
-            setShowWalletSelector(true);
-            return;
-        }
-
-        // Case 3: EVM + Wrong network → Auto-switch
-        if (
-            wallet.vm === 'EVM' &&
-            token.chainType === 'EVM' &&
-            wallet.chainId !== parseInt(token.chainId)
-        ) {
-            setIsSwitching(true);
-            try {
-                await switchNetwork(parseInt(token.chainId));
-                // After switch, open swap drawer
-                onSelect(token);
-            } catch (err) {
-                console.error('[TokenCard] Network switch failed:', err);
-            } finally {
-                setIsSwitching(false);
+        // For Solana tokens
+        if (token.chainType === 'SOLANA') {
+            if (!session.solana) {
+                // No Solana session → Open Solana wallet selector
+                setPreferredVM('SOLANA');
+                setShowWalletSelector(true);
+                return;
             }
+            // Solana connected → Open swap drawer
+            onSelect(token);
             return;
         }
 
-        // Case 4: All good → Open swap drawer
-        onSelect(token);
+        // For EVM tokens
+        if (token.chainType === 'EVM') {
+            if (!session.evm) {
+                // No EVM session → Open EVM wallet selector
+                setPreferredVM('EVM');
+                setShowWalletSelector(true);
+                return;
+            }
+
+            // EVM connected but wrong network → Auto-switch
+            if (session.evm.chainId !== parseInt(token.chainId)) {
+                setIsSwitching(true);
+                try {
+                    await switchEvmNetwork(parseInt(token.chainId));
+                    // After switch, open swap drawer
+                    onSelect(token);
+                } catch (err) {
+                    console.error('[TokenCard] Network switch failed:', err);
+                } finally {
+                    setIsSwitching(false);
+                }
+                return;
+            }
+
+            // EVM connected, correct network → Open swap drawer
+            onSelect(token);
+            return;
+        }
     };
 
-    // Determine button state
+    // Determine button state (MULTI-SESSION AWARE)
     let buttonText = `Swap ${token.symbol}`;
     let buttonStyle = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500';
     let isDisabled = false;
 
-    if (!wallet.isConnected) {
-        buttonText = 'Connect Wallet';
-        buttonStyle = 'bg-blue-500/10 border-blue-500/20 text-blue-500';
-    } else if (token.chainType !== wallet.vm) {
-        buttonText = token.chainType === 'SOLANA' ? 'Connect Solana Wallet' : 'Connect EVM Wallet';
-        buttonStyle = 'bg-yellow-500/10 border-yellow-500/20 text-yellow-500';
-    } else if (
-        wallet.vm === 'EVM' &&
-        token.chainType === 'EVM' &&
-        wallet.chainId !== parseInt(token.chainId)
-    ) {
-        buttonText = isSwitching ? 'Switching...' : 'Switch Network';
-        buttonStyle = 'bg-blue-500/10 border-blue-500/20 text-blue-500';
-        isDisabled = isSwitching;
+    if (token.chainType === 'SOLANA') {
+        if (!session.solana) {
+            buttonText = 'Connect Solana Wallet';
+            buttonStyle = 'bg-purple-500/10 border-purple-500/20 text-purple-500';
+        }
+    } else if (token.chainType === 'EVM') {
+        if (!session.evm) {
+            buttonText = 'Connect EVM Wallet';
+            buttonStyle = 'bg-blue-500/10 border-blue-500/20 text-blue-500';
+        } else if (session.evm.chainId !== parseInt(token.chainId)) {
+            buttonText = isSwitching ? 'Switching...' : 'Switch Network';
+            buttonStyle = 'bg-blue-500/10 border-blue-500/20 text-blue-500';
+            isDisabled = isSwitching;
+        }
     }
 
     return (
