@@ -31,7 +31,7 @@ function WalletConnectButton() {
   if (!wallet.isConnected) {
     return (
       <button
-        onClick={connect}
+        onClick={() => openEVMModal()}
         className="group relative px-4 py-2 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition-all overflow-hidden"
         style={{
           boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
