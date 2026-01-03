@@ -2,6 +2,7 @@
 
 import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useWallet } from '@solana/wallet-adapter-react';
+import type { WalletName } from '@solana/wallet-adapter-base';
 import { X } from 'lucide-react';
 
 interface WalletSelectorModalProps {
