@@ -52,6 +52,8 @@ export interface WalletSession {
 
 interface WalletContextValue {
     session: WalletSession;
+    preferredVM: ChainType | null;
+    setPreferredVM: (vm: ChainType | null) => void;
     connectSolana: () => void;
     connectEvm: () => void;
     disconnect: (chainType: ChainType) => void;
@@ -64,6 +66,7 @@ const WalletContext = createContext<WalletContextValue | undefined>(undefined);
 export function WalletProvider({ children }: { children: ReactNode }) {
     // EVM wallet (MetaMask, WalletConnect, etc.)
     const { address: evmAddress, isConnected: evmConnected } = useAccount();
+    const [preferredVM, setPreferredVM] = useState<ChainType | null>(null);
     const { connect: evmConnect, connectors } = useConnect();
     const { sendTransactionAsync: sendEvmTx } = useSendTransaction();
     const { switchChainAsync } = useSwitchChain();
@@ -199,6 +202,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     const value: WalletContextValue = {
         session,
+        preferredVM,
+        setPreferredVM,
         connectSolana,
         connectEvm,
         disconnect,
