@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { X } from 'lucide-react';
@@ -15,24 +14,15 @@ interface WalletSelectorModalProps {
  * Wallet Selector Modal
  * 
  * Let user choose between Solana or EVM wallets
- * Auto-opens correct modal if preferredVM is set
+ * For VM mismatches, auto-opens the correct modal (sync, not async)
  */
 export default function WalletSelectorModal({ isOpen, onClose, preferredVM }: WalletSelectorModalProps) {
     const { open: openEVMModal } = useWeb3Modal();
     const { setVisible: openSolanaModal } = useWalletModal();
 
-    // Auto-open the correct modal if VM preference is set
-    useEffect(() => {
-        if (isOpen && preferredVM) {
-            if (preferredVM === 'SOLANA') {
-                handleSelectSolana();
-            } else if (preferredVM === 'EVM') {
-                handleSelectEVM();
-            }
-        }
-    }, [isOpen, preferredVM]);
-
     const handleSelectSolana = () => {
+        // CRITICAL: Must be called synchronously in click handler
+        // Browser blocks wallet popups if called from useEffect
         openSolanaModal(true);
         onClose();
     };
@@ -42,9 +32,21 @@ export default function WalletSelectorModal({ isOpen, onClose, preferredVM }: Wa
         onClose();
     };
 
-    // Don't show modal UI if auto-opening
+    // Don't show modal if not open
     if (!isOpen) return null;
-    if (isOpen && preferredVM) return null; // Will auto-open via useEffect
+
+    // If preferred VM is set, auto-select it
+    // This runs when user clicks token with wrong VM
+    if (preferredVM) {
+        // Auto-trigger the correct handler synchronously
+        if (preferredVM === 'SOLANA') {
+            handleSelectSolana();
+            return null;
+        } else if (preferredVM === 'EVM') {
+            handleSelectEVM();
+            return null;
+        }
+    }
 
     return (
         <>

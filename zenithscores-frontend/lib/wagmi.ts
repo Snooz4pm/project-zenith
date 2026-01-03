@@ -2,19 +2,40 @@
 
 import { createConfig, http } from 'wagmi'
 import { mainnet, base, arbitrum, bsc } from 'wagmi/chains'
-import { walletConnect, injected } from 'wagmi/connectors'
+import { walletConnect, injected, coinbaseWallet } from 'wagmi/connectors'
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!
 
+/**
+ * EVM Wallet Config
+ * 
+ * Phantom is EXCLUDED from EVM connectors
+ * Phantom must only be used via Solana adapter
+ */
 export const wagmiConfig = createConfig({
     chains: [mainnet, bsc, base, arbitrum],
 
     connectors: [
+        // Injected (MetaMask only - NOT Phantom)
+        injected({
+            target() {
+                return {
+                    id: 'metaMask',
+                    name: 'MetaMask',
+                    provider: typeof window !== 'undefined' && window.ethereum && !window.ethereum.isPhantom
+                        ? window.ethereum
+                        : undefined,
+                }
+            },
+        }),
+        // WalletConnect
         walletConnect({
             projectId,
+            showQrModal: true,
         }),
-        injected({
-            shimDisconnect: true,
+        // Coinbase Wallet
+        coinbaseWallet({
+            appName: 'ZenithScores',
         }),
     ],
 
