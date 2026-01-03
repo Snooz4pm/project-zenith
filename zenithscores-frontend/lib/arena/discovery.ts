@@ -188,73 +188,33 @@ function applyFilters(pair: DexPair): DiscoveredToken | null {
   const pairAgeMs = now - pair.pairCreatedAt;
   const pairAgeMinutes = pairAgeMs / 1000 / 60;
 
-  // Age filter
-  if (
-    pairAgeMinutes < DISCOVERY_FILTERS.MIN_AGE_MINUTES ||
-    pairAgeMinutes > DISCOVERY_FILTERS.MAX_AGE_MINUTES
-  ) {
-    return null;
-  }
-
-  // Liquidity filter
+  // Only filter: must have valid data
   const liquidityUSD = pair.liquidity?.usd || 0;
-  if (
-    liquidityUSD < DISCOVERY_FILTERS.MIN_LIQUIDITY_USD ||
-    liquidityUSD > DISCOVERY_FILTERS.MAX_LIQUIDITY_USD
-  ) {
+
+  // Skip if completely broken data
+  if (liquidityUSD === 0 || !pair.priceUsd || pair.priceUsd === '0') {
     return null;
   }
 
-  // FDV filter
-  const fdv = pair.fdv || 0;
-  if (fdv > DISCOVERY_FILTERS.MAX_FDV) {
+  // Skip if no pair creation time
+  if (!pair.pairCreatedAt || pairAgeMinutes < 0) {
     return null;
   }
 
-  // Volume acceleration
+  // === ACCEPT EVERYTHING ELSE ===
+
   const volumeAccel = calculateVolumeAccel(pair);
-  if (volumeAccel < DISCOVERY_FILTERS.MIN_VOLUME_ACCEL) {
-    return null;
-  }
-
-  // Buy dominance
-  const buys5m = pair.txns.m5.buys || 0;
-  const sells5m = pair.txns.m5.sells || 0;
-
-  if (buys5m < DISCOVERY_FILTERS.MIN_BUYS_5M) {
-    return null;
-  }
-
-  if (sells5m > buys5m * DISCOVERY_FILTERS.MAX_SELL_BUY_RATIO) {
-    return null;
-  }
-
-  // Price action filters
-  const priceChange5m = pair.priceChange.m5 || 0;
-  const priceChange1h = pair.priceChange.h1 || 0;
-
-  if (
-    priceChange5m < DISCOVERY_FILTERS.MIN_PRICE_CHANGE_5M ||
-    priceChange5m > DISCOVERY_FILTERS.MAX_PRICE_CHANGE_5M
-  ) {
-    return null;
-  }
-
-  if (Math.abs(priceChange1h) > DISCOVERY_FILTERS.MAX_PRICE_CHANGE_1H) {
-    return null;
-  }
-
-  // === PASSED ALL FILTERS ===
-
   const buyDominance = calculateBuyDominance(pair);
+  const priceChange5m = pair.priceChange.m5 || 0;
+  const fdv = pair.fdv || 0;
 
   // Build signals array
   const signals: string[] = [];
   if (pairAgeMinutes < 120) signals.push('Very new pair');
-  if (volumeAccel > 3) signals.push('High volume spike');
-  if (buyDominance > 0.75) signals.push('Strong buy pressure');
-  if (liquidityUSD < 20000) signals.push('Low liquidity entry');
-  if (fdv > 0 && fdv < 1_000_000) signals.push('Micro-cap');
+  if (volumeAccel > 2) signals.push('Volume spike');
+  if (buyDominance > 0.7) signals.push('Buy pressure');
+  if (liquidityUSD < 50000) signals.push('Early liquidity');
+  if (fdv > 0 && fdv < 5_000_000) signals.push('Low FDV');
 
   // Generate human-readable reason
   const reason = generateReason(pair, {
