@@ -11,38 +11,47 @@ import { useWallet } from '@/lib/wallet/WalletContext';
 import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import WalletSelectorModal from '@/components/WalletSelectorModal';
 
 /**
  * Unified Wallet Connect Button
  * 
  * Displays:
- * - "Connect Wallet" when disconnected
+ * - "Connect Wallet" when disconnected → Opens selector modal
  * - [Address] [Network Badge] when connected
  * 
  * ONE source of truth: WalletContext
- * Read-only display (no manual selectors)
+ * TWO wallet systems: Solana + EVM
  */
 function WalletConnectButton() {
-  const { wallet, connect } = useWallet();
+  const { wallet } = useWallet();
   const { open: openEVMModal } = useWeb3Modal();
   const { setVisible: openSolanaModal } = useWalletModal();
+  const [showSelector, setShowSelector] = useState(false);
 
   // Not connected
   if (!wallet.isConnected) {
     return (
-      <button
-        onClick={() => openEVMModal()}
-        className="group relative px-4 py-2 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition-all overflow-hidden"
-        style={{
-          boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
-        }}
-      >
-        <span className="relative z-10 flex items-center gap-2">
-          <Wallet size={16} />
-          Connect Wallet
-        </span>
-        <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
-      </button>
+      <>
+        <button
+          onClick={() => setShowSelector(true)}
+          className="group relative px-4 py-2 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition-all overflow-hidden"
+          style={{
+            boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
+          }}
+        >
+          <span className="relative z-10 flex items-center gap-2">
+            <Wallet size={16} />
+            Connect Wallet
+          </span>
+          <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
+        </button>
+
+        <WalletSelectorModal
+          isOpen={showSelector}
+          onClose={() => setShowSelector(false)}
+        />
+      </>
     );
   }
 
