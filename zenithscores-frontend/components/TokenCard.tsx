@@ -12,11 +12,32 @@ interface TokenCardProps {
 
 /**
  * TokenCard Component
- * 
- * One-click swap orchestration:
- * - Auto-switches EVM networks
- * - Prompts correct wallet for VM mismatch
- * - Opens swap drawer when ready
+ *
+ * One-click swap orchestration with intelligent VM routing.
+ *
+ * PRODUCTION RULES (Scenario 3 Fix):
+ * ════════════════════════════════════════════════════════
+ * ✅ VM is determined by CONNECTION METHOD, not wallet brand
+ * ✅ WalletConnect = EVM ONLY (Phantom via WC = EVM mode)
+ * ✅ Solana adapter = SOLANA ONLY
+ * ❌ NEVER auto-switch VM silently
+ * ❌ NEVER attempt Solana swaps via WalletConnect
+ *
+ * Orchestration Logic:
+ * ────────────────────
+ * 1. Not connected → Open wallet selector (with preferred VM)
+ * 2. VM mismatch → Prompt correct wallet type (Solana vs EVM)
+ * 3. EVM + wrong chain → Auto-switch network
+ * 4. All aligned → Open swap drawer
+ *
+ * Example Flows:
+ * ──────────────
+ * • Phantom (Solana adapter) + Solana token → ✅ Swap
+ * • Phantom (WalletConnect) + ETH token → ✅ Swap
+ * • Phantom (WalletConnect) + Solana token → ⚠️ Prompt "Connect Solana Wallet"
+ * • MetaMask + Base token (wrong network) → 🔄 Auto-switch to Base
+ *
+ * This ensures honest UX and prevents broken swaps.
  */
 export default function TokenCard({ token, onSelect }: TokenCardProps) {
     const { wallet, switchNetwork } = useWallet();
