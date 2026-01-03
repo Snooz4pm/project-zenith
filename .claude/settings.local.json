@@ -30,7 +30,8 @@
       "Bash(git diff:*)",
       "Bash(time curl -s 'https://token.jup.ag/all')",
       "Bash(curl:*)",
-      "Bash(node test-jupiter.js:*)"
+      "Bash(node test-jupiter.js:*)",
+      "Bash(node:*)"
     ]
   }
 }

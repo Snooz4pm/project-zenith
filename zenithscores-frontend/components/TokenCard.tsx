@@ -43,24 +43,59 @@ export default function TokenCard({ token, onSelect }: TokenCardProps) {
     const { session, switchEvmNetwork } = useWallet();
     const [showWalletSelector, setShowWalletSelector] = useState(false);
     const [preferredVM, setPreferredVM] = useState<'EVM' | 'SOLANA' | null>(null);
-    const [isSwitching, setIsSwitching] = useState(false);
+    const [noRoute, setNoRoute] = useState(false);
 
-    const chainMeta = CHAIN_METADATA[token.chainId];
-    const priceChangeColor = token.priceChange24h >= 0 ? 'text-emerald-500' : 'text-red-500';
+    /**
+     * ROUTE VERIFICATION (ZENITH HONEST UX)
+     */
+    const checkRouteExists = async (): Promise<boolean> => {
+        try {
+            if (token.chainType === 'SOLANA') {
+                const nativeMint = 'So11111111111111111111111111111111111111112';
+                // Use our proxy API
+                const res = await fetch(`/api/arena/solana/quote?inputMint=${nativeMint}&outputMint=${token.address}&amount=1000000`);
+                const data = await res.json();
+                return !!data.outAmount; // Jupiter returns outAmount if route exists
+            } else {
+                // EVM 0x Price check (lighter than quote)
+                const sellToken = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+                const url = `https://api.0x.org/swap/v1/price?sellToken=${sellToken}&buyToken=${token.address}&sellAmount=10000000000000000&chainId=${token.chainId}`;
+
+                const res = await fetch(url, {
+                    headers: { '0x-api-key': process.env.NEXT_PUBLIC_0X_API_KEY || '' }
+                });
+                return res.ok;
+            }
+        } catch (err) {
+            console.error('[RouteCheck] Error:', err);
+            return false;
+        }
+    };
 
     /**
      * ONE-CLICK SWAP ORCHESTRATION (MULTI-SESSION)
      */
     const handleSwapClick = async () => {
+        // Reset route state
+        setNoRoute(false);
+
         // For Solana tokens
         if (token.chainType === 'SOLANA') {
             if (!session.solana) {
-                // No Solana session → Open Solana wallet selector
                 setPreferredVM('SOLANA');
                 setShowWalletSelector(true);
                 return;
             }
-            // Solana connected → Open swap drawer
+
+            setIsSwitching(true); // Reuse loading state
+            const exists = await checkRouteExists();
+            setIsSwitching(false);
+
+            if (!exists) {
+                setNoRoute(true);
+                return;
+            }
+
             onSelect(token);
             return;
         }
@@ -68,7 +103,6 @@ export default function TokenCard({ token, onSelect }: TokenCardProps) {
         // For EVM tokens
         if (token.chainType === 'EVM') {
             if (!session.evm) {
-                // No EVM session → Open EVM wallet selector
                 setPreferredVM('EVM');
                 setShowWalletSelector(true);
                 return;
@@ -79,7 +113,12 @@ export default function TokenCard({ token, onSelect }: TokenCardProps) {
                 setIsSwitching(true);
                 try {
                     await switchEvmNetwork(parseInt(token.chainId));
-                    // After switch, open swap drawer
+                    // Check route after switch
+                    const exists = await checkRouteExists();
+                    if (!exists) {
+                        setNoRoute(true);
+                        return;
+                    }
                     onSelect(token);
                 } catch (err) {
                     console.error('[TokenCard] Network switch failed:', err);
@@ -89,18 +128,30 @@ export default function TokenCard({ token, onSelect }: TokenCardProps) {
                 return;
             }
 
-            // EVM connected, correct network → Open swap drawer
+            // Correct network → Check route
+            setIsSwitching(true);
+            const exists = await checkRouteExists();
+            setIsSwitching(false);
+
+            if (!exists) {
+                setNoRoute(true);
+                return;
+            }
+
             onSelect(token);
             return;
         }
     };
 
     // Determine button state (MULTI-SESSION AWARE)
-    let buttonText = `Swap ${token.symbol}`;
+    let buttonText = isSwitching ? 'Verifying...' : `Swap ${token.symbol}`;
     let buttonStyle = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500';
-    let isDisabled = false;
+    let isDisabled = isSwitching;
 
-    if (token.chainType === 'SOLANA') {
+    if (noRoute) {
+        buttonText = 'No Route Available';
+        buttonStyle = 'bg-red-500/10 border-red-500/20 text-red-500';
+    } else if (token.chainType === 'SOLANA') {
         if (!session.solana) {
             buttonText = 'Connect Solana Wallet';
             buttonStyle = 'bg-purple-500/10 border-purple-500/20 text-purple-500';
