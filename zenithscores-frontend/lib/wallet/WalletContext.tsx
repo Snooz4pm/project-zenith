@@ -4,6 +4,7 @@ import React, { createContext, useContext, ReactNode, useEffect, useState } from
 import { useAccount, useConnect, useSendTransaction, useChainId, useSwitchChain, useBalance, useDisconnect } from 'wagmi';
 import { useWallet as useSolanaWallet, useConnection } from '@solana/wallet-adapter-react';
 import { VersionedTransaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { ChainType, EVM_CHAIN_MAP, chainIdToChainType } from '@/lib/chains';
 
 /**
  * Unified Wallet Session Context
@@ -26,7 +27,7 @@ import { VersionedTransaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
  * Both can exist simultaneously without conflicts.
  */
 
-export type ChainType = 'SOLANA' | 'EVM';
+// Types moved to lib/chains.ts
 
 export interface SolanaSession {
     connected: boolean;
@@ -59,17 +60,6 @@ interface WalletContextValue {
 }
 
 const WalletContext = createContext<WalletContextValue | undefined>(undefined);
-
-// Network name mapping for EVM chains
-const EVM_NETWORK_NAMES: Record<number, string> = {
-    1: 'Ethereum',
-    56: 'BNB Chain',
-    8453: 'Base',
-    42161: 'Arbitrum',
-    10: 'Optimism',
-    137: 'Polygon',
-    43114: 'Avalanche',
-};
 
 export function WalletProvider({ children }: { children: ReactNode }) {
     // EVM wallet (MetaMask, WalletConnect, etc.)
@@ -124,11 +114,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
 
     if (evmConnected && evmAddress) {
+        const chainMeta = EVM_CHAIN_MAP[evmChainId];
         session.evm = {
             connected: true,
             address: evmAddress,
             chainId: evmChainId,
-            networkName: EVM_NETWORK_NAMES[evmChainId] || `Chain ${evmChainId}`,
+            networkName: chainMeta?.name || `Chain ${evmChainId}`,
             balance: evmBalanceData?.value.toString() || '0',
             balanceFormatted: evmBalanceData
                 ? (Number(evmBalanceData.value) / Math.pow(10, evmBalanceData.decimals)).toFixed(4)

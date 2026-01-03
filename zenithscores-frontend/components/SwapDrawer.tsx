@@ -20,6 +20,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
     const [error, setError] = useState<string | null>(null);
     const [txHash, setTxHash] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [quoteTimestamp, setQuoteTimestamp] = useState<number | null>(null);
 
     // Get active session based on token type (MULTI-SESSION)
     const activeSession = token?.chainType === 'SOLANA' ? session.solana : session.evm;
@@ -28,7 +29,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
     const nativeBalance = parseFloat(activeSession?.balanceFormatted || '0');
     const hasBalance = nativeBalance > 0;
     const nativeSymbol = token?.chainType === 'SOLANA' ? 'SOL' :
-                        session.evm?.chainId === 56 ? 'BNB' : 'ETH';
+        session.evm?.chainId === 56 ? 'BNB' : 'ETH';
     const insufficientBalance = amount && parseFloat(amount) > nativeBalance;
 
     // Reset state when drawer closes
@@ -39,8 +40,16 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
             setError(null);
             setTxHash(null);
             setSuccess(false);
+            setQuoteTimestamp(null);
         }
     }, [isOpen]);
+
+    // Wallet Guard: Auto-close if connection drops (mid-flow check)
+    useEffect(() => {
+        if (isOpen && !isConnected && !success) {
+            onClose();
+        }
+    }, [isConnected, isOpen, success, onClose]);
 
     // Check if on correct network (EVM only)
     const isCorrectNetwork = !token || token.chainType === 'SOLANA' ||
@@ -51,6 +60,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
         if (!amount || !userAddress || !token || !isConnected || !isCorrectNetwork ||
             parseFloat(amount) <= 0 || insufficientBalance || !hasBalance) {
             setQuote(null);
+            setQuoteTimestamp(null);
             return;
         }
 
@@ -85,6 +95,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
 
                 const data = await res.json();
                 setQuote(data);
+                setQuoteTimestamp(Date.now());
             } catch (err: any) {
                 console.error('[SwapDrawer] Quote error:', err);
                 setError(err.message || "Failed to fetch quote");
@@ -99,6 +110,13 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
 
     const executeSwap = async () => {
         if (!quote || !userAddress || !token) return;
+
+        // Quote Expiration Guard: Quotes older than 20s are risky
+        if (quoteTimestamp && Date.now() - quoteTimestamp > 20000) {
+            setError("Quote expired. Refreshing...");
+            setQuote(null); // This triggers useEffect to refetch
+            return;
+        }
 
         setLoading(true);
         setError(null);
@@ -281,9 +299,9 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
                             className="w-full py-4 bg-emerald-500 text-black font-semibold rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? 'Processing...' :
-                             !hasBalance ? `No ${nativeSymbol} Balance` :
-                             insufficientBalance ? 'Insufficient Balance' :
-                             'Swap'}
+                                !hasBalance ? `No ${nativeSymbol} Balance` :
+                                    insufficientBalance ? 'Insufficient Balance' :
+                                        'Swap'}
                         </button>
 
                         <div className="mt-4 p-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg">

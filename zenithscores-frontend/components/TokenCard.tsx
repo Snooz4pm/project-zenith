@@ -42,26 +42,41 @@ interface TokenCardProps {
 export default function TokenCard({ token, onSelect }: TokenCardProps) {
     const { session, switchEvmNetwork } = useWallet();
     const [showWalletSelector, setShowWalletSelector] = useState(false);
-    const [preferredVM, setPreferredVM] = useState<'EVM' | 'SOLANA' | null>(null);
-    const [isSwitching, setIsSwitching] = useState(false);
-    const [noRoute, setNoRoute] = useState(false);
+    const [isCheckingRoute, setIsCheckingRoute] = useState(false);
+    const [routeExists, setRouteExists] = useState<boolean | null>(null);
+
+    const chainMeta = CHAIN_METADATA[token.chainId];
+    const priceChangeColor = token.priceChange24h >= 0 ? 'text-emerald-500' : 'text-red-500';
+
+    // Derive state (EXACT state machine)
+    type TokenCardState = 'DISCONNECTED' | 'WRONG_CHAIN' | 'CHECKING_ROUTE' | 'NO_ROUTE' | 'READY';
+
+    let state: TokenCardState = 'READY';
+    if (!session.solana && !session.evm) {
+        state = 'DISCONNECTED';
+    } else if (token.chainType === 'SOLANA' && !session.solana) {
+        state = 'WRONG_CHAIN';
+    } else if (token.chainType === 'EVM' && !session.evm) {
+        state = 'WRONG_CHAIN';
+    } else if (isCheckingRoute) {
+        state = 'CHECKING_ROUTE';
+    } else if (routeExists === false) {
+        state = 'NO_ROUTE';
+    }
 
     /**
      * ROUTE VERIFICATION (ZENITH HONEST UX)
      */
-    const checkRouteExists = async (): Promise<boolean> => {
+    const verifyRoute = async (): Promise<boolean> => {
         try {
             if (token.chainType === 'SOLANA') {
                 const nativeMint = 'So11111111111111111111111111111111111111112';
-                // Use our proxy API
                 const res = await fetch(`/api/arena/solana/quote?inputMint=${nativeMint}&outputMint=${token.address}&amount=1000000`);
                 const data = await res.json();
-                return !!data.outAmount; // Jupiter returns outAmount if route exists
+                return !!data.outAmount;
             } else {
-                // EVM 0x Price check (lighter than quote)
                 const sellToken = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
                 const url = `https://api.0x.org/swap/v1/price?sellToken=${sellToken}&buyToken=${token.address}&sellAmount=10000000000000000&chainId=${token.chainId}`;
-
                 const res = await fetch(url, {
                     headers: { '0x-api-key': process.env.NEXT_PUBLIC_0X_API_KEY || '' }
                 });
@@ -77,95 +92,85 @@ export default function TokenCard({ token, onSelect }: TokenCardProps) {
      * ONE-CLICK SWAP ORCHESTRATION (MULTI-SESSION)
      */
     const handleSwapClick = async () => {
-        // Reset route state
-        setNoRoute(false);
-
-        // For Solana tokens
-        if (token.chainType === 'SOLANA') {
-            if (!session.solana) {
-                setPreferredVM('SOLANA');
-                setShowWalletSelector(true);
-                return;
-            }
-
-            setIsSwitching(true); // Reuse loading state
-            const exists = await checkRouteExists();
-            setIsSwitching(false);
-
-            if (!exists) {
-                setNoRoute(true);
-                return;
-            }
-
-            onSelect(token);
+        // 1. Handle Disconnected
+        if (state === 'DISCONNECTED') {
+            setPreferredVM(token.chainType);
+            setShowWalletSelector(true);
             return;
         }
 
-        // For EVM tokens
-        if (token.chainType === 'EVM') {
-            if (!session.evm) {
-                setPreferredVM('EVM');
-                setShowWalletSelector(true);
-                return;
-            }
-
-            // EVM connected but wrong network → Auto-switch
-            if (session.evm.chainId !== parseInt(token.chainId)) {
-                setIsSwitching(true);
-                try {
-                    await switchEvmNetwork(parseInt(token.chainId));
-                    // Check route after switch
-                    const exists = await checkRouteExists();
-                    if (!exists) {
-                        setNoRoute(true);
-                        return;
-                    }
-                    onSelect(token);
-                } catch (err) {
-                    console.error('[TokenCard] Network switch failed:', err);
-                } finally {
-                    setIsSwitching(false);
-                }
-                return;
-            }
-
-            // Correct network → Check route
-            setIsSwitching(true);
-            const exists = await checkRouteExists();
-            setIsSwitching(false);
-
-            if (!exists) {
-                setNoRoute(true);
-                return;
-            }
-
-            onSelect(token);
+        // 2. Handle VM Mismatch (Wrong Chain)
+        if (state === 'WRONG_CHAIN') {
+            setPreferredVM(token.chainType);
+            setShowWalletSelector(true);
             return;
         }
+
+        // 3. Handle EVM Network Switch
+        if (token.chainType === 'EVM' && session.evm && session.evm.chainId !== parseInt(token.chainId)) {
+            setIsCheckingRoute(true);
+            try {
+                await switchEvmNetwork(parseInt(token.chainId));
+                // After switch, verify route
+                const exists = await verifyRoute();
+                setRouteExists(exists);
+                if (exists) onSelect(token);
+            } catch (err) {
+                console.error('[TokenCard] Network switch failed:', err);
+            } finally {
+                setIsCheckingRoute(false);
+            }
+            return;
+        }
+
+        // 4. Verify Route (if not already verified or previously failed)
+        if (routeExists === null || routeExists === false) {
+            setIsCheckingRoute(true);
+            const exists = await verifyRoute();
+            setRouteExists(exists);
+            setIsCheckingRoute(false);
+
+            if (exists) {
+                onSelect(token);
+            }
+            return;
+        }
+
+        // 5. Ready -> Open drawer
+        onSelect(token);
     };
 
-    // Determine button state (MULTI-SESSION AWARE)
-    let buttonText = isSwitching ? 'Verifying...' : `Swap ${token.symbol}`;
+    // Determine button appearance per state
+    let buttonText = `Swap ${token.symbol}`;
     let buttonStyle = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500';
-    let isDisabled = isSwitching;
+    let isDisabled = false;
 
-    if (noRoute) {
-        buttonText = 'No Route Available';
-        buttonStyle = 'bg-red-500/10 border-red-500/20 text-red-500';
-    } else if (token.chainType === 'SOLANA') {
-        if (!session.solana) {
-            buttonText = 'Connect Solana Wallet';
+    switch (state) {
+        case 'DISCONNECTED':
+            buttonText = 'Connect Wallet';
+            buttonStyle = 'bg-white/5 border-white/10 text-white';
+            break;
+        case 'WRONG_CHAIN':
+            buttonText = `Connect ${token.chainType === 'SOLANA' ? 'Solana' : 'EVM'}`;
             buttonStyle = 'bg-purple-500/10 border-purple-500/20 text-purple-500';
-        }
-    } else if (token.chainType === 'EVM') {
-        if (!session.evm) {
-            buttonText = 'Connect EVM Wallet';
+            break;
+        case 'CHECKING_ROUTE':
+            buttonText = 'Verifying...';
             buttonStyle = 'bg-blue-500/10 border-blue-500/20 text-blue-500';
-        } else if (session.evm.chainId !== parseInt(token.chainId)) {
-            buttonText = isSwitching ? 'Switching...' : 'Switch Network';
-            buttonStyle = 'bg-blue-500/10 border-blue-500/20 text-blue-500';
-            isDisabled = isSwitching;
-        }
+            isDisabled = true;
+            break;
+        case 'NO_ROUTE':
+            buttonText = 'No Route Yet';
+            buttonStyle = 'bg-red-500/10 border-red-500/20 text-red-500';
+            isDisabled = false; // Allow retry
+            break;
+        case 'READY':
+            // Check if network switch is needed for EVM
+            if (token.chainType === 'EVM' && session.evm && session.evm.chainId !== parseInt(token.chainId)) {
+                buttonText = 'Switch Network';
+                buttonStyle = 'bg-blue-500/10 border-blue-500/20 text-blue-500';
+            }
+            break;
     }
 
     return (
