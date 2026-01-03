@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { ClosePositionRequest } from '@/lib/arena/types';
-import { calculateRealizedPnL } from '@/lib/arena/pnl';
+import { ClosePositionRequest } from '@/lib/arena/archive/types';
+import { calculateRealizedPnL } from '@/lib/arena/archive/pnl';
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);

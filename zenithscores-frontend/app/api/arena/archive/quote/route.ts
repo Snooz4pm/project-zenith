@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildLongSwap, buildCloseLongSwap } from '@/lib/arena/execution';
+import { buildLongSwap, buildCloseLongSwap } from '@/lib/arena/archive/execution';
 
 export async function POST(req: NextRequest) {
     try {

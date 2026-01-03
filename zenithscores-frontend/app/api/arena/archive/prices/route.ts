@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { fetchAllTokenPrices } from '@/lib/arena/prices';
+import { fetchAllTokenPrices } from '@/lib/arena/archive/prices';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
