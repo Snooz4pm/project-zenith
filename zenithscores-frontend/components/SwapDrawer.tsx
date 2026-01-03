@@ -21,6 +21,12 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
     const [txHash, setTxHash] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
+    // Balance checks (CRITICAL for Option C)
+    const nativeBalance = parseFloat(wallet.nativeBalanceFormatted);
+    const hasBalance = nativeBalance > 0;
+    const nativeSymbol = wallet.vm === 'SOLANA' ? 'SOL' : wallet.chainId === 56 ? 'BNB' : 'ETH';
+    const insufficientBalance = amount && parseFloat(amount) > nativeBalance;
+
     // Reset state when drawer closes
     useEffect(() => {
         if (!isOpen) {
@@ -41,7 +47,8 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
 
     // Fetch quote when amount changes
     useEffect(() => {
-        if (!amount || !wallet.address || !token || !isCorrectVM || !isCorrectNetwork) {
+        if (!amount || !wallet.address || !token || !isCorrectVM || !isCorrectNetwork ||
+            parseFloat(amount) <= 0 || insufficientBalance || !hasBalance) {
             setQuote(null);
             return;
         }
@@ -87,7 +94,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
 
         const debounce = setTimeout(fetchQuote, 500);
         return () => clearTimeout(debounce);
-    }, [amount, wallet.address, wallet.vm, wallet.chainId, token, isCorrectVM, isCorrectNetwork]);
+    }, [amount, wallet.address, wallet.vm, wallet.chainId, token, isCorrectVM, isCorrectNetwork, insufficientBalance, hasBalance]);
 
     const executeSwap = async () => {
         if (!quote || !wallet.address) return;
@@ -217,19 +224,41 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
                 ) : (
                     <>
                         <div className="mb-2">
-                            <label className="text-sm text-zinc-400 block mb-2">You Pay</label>
-                            <div className="bg-[#111116] rounded-lg p-4">
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="text-sm text-zinc-400">You Pay</label>
+                                <div className="text-xs text-zinc-500">
+                                    Balance: {wallet.nativeBalanceFormatted} {nativeSymbol}
+                                </div>
+                            </div>
+                            <div className={`bg-[#111116] rounded-lg p-4 border ${insufficientBalance ? 'border-red-500/50' : 'border-transparent'}`}>
                                 <input
                                     type="number"
                                     value={amount}
-                                    onChange={e => setAmount(e.target.value)}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        // Prevent negative and ensure valid number
+                                        if (val === '' || (parseFloat(val) >= 0 && !isNaN(parseFloat(val)))) {
+                                            setAmount(val);
+                                        }
+                                    }}
                                     placeholder="0.0"
+                                    min="0"
+                                    step="any"
                                     className="w-full bg-transparent text-2xl font-semibold outline-none"
                                 />
-                                <div className="text-sm text-zinc-500 mt-2">
-                                    {wallet.vm === 'SOLANA' ? 'SOL' : wallet.chainId === 56 ? 'BNB' : 'ETH'}
+                                <div className="flex justify-between items-center mt-2">
+                                    <div className="text-sm text-zinc-500">{nativeSymbol}</div>
+                                    <button
+                                        onClick={() => setAmount(wallet.nativeBalanceFormatted)}
+                                        className="text-xs text-emerald-500 hover:text-emerald-400 font-medium"
+                                    >
+                                        MAX
+                                    </button>
                                 </div>
                             </div>
+                            {insufficientBalance && (
+                                <p className="text-xs text-red-500 mt-1">Insufficient {nativeSymbol} balance</p>
+                            )}
                         </div>
 
                         <div className="flex justify-center -my-1 relative z-10">
@@ -265,10 +294,13 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
 
                         <button
                             onClick={executeSwap}
-                            disabled={!quote || loading || !amount}
+                            disabled={!quote || loading || !amount || parseFloat(amount) <= 0 || insufficientBalance || !hasBalance}
                             className="w-full py-4 bg-emerald-500 text-black font-semibold rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {loading ? 'Processing...' : 'Swap'}
+                            {loading ? 'Processing...' :
+                             !hasBalance ? `No ${nativeSymbol} Balance` :
+                             insufficientBalance ? 'Insufficient Balance' :
+                             'Swap'}
                         </button>
 
                         <div className="mt-4 p-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg">

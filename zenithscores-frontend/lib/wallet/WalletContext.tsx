@@ -1,9 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode } from 'react';
-import { useAccount, useConnect, useSendTransaction, useChainId, useSwitchChain } from 'wagmi';
+import React, { createContext, useContext, ReactNode, useEffect, useState } from 'react';
+import { useAccount, useConnect, useSendTransaction, useChainId, useSwitchChain, useBalance } from 'wagmi';
 import { useWallet as useSolanaWallet, useConnection } from '@solana/wallet-adapter-react';
-import { VersionedTransaction } from '@solana/web3.js';
+import { VersionedTransaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 /**
  * Unified Wallet Context
@@ -25,6 +25,8 @@ export interface WalletState {
     chainId?: number; // EVM only
     networkName: string; // "Ethereum" | "Base" | "Arbitrum" | "BNB Chain" | "Solana"
     isConnected: boolean;
+    nativeBalance: string; // Balance in native token (SOL, ETH, BNB, etc.)
+    nativeBalanceFormatted: string; // Human-readable balance
 }
 
 interface WalletContextValue {
@@ -56,6 +58,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const { switchChainAsync } = useSwitchChain();
     const evmChainId = useChainId();
 
+    // EVM balance
+    const { data: evmBalanceData } = useBalance({
+        address: evmAddress,
+    });
+
     // Solana wallet (Phantom, Solflare, etc.)
     const {
         publicKey,
@@ -67,11 +74,35 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     const solanaAddress = publicKey?.toBase58() || null;
 
+    // Solana balance
+    const [solanaBalance, setSolanaBalance] = useState<number>(0);
+
+    useEffect(() => {
+        if (publicKey && connection) {
+            connection.getBalance(publicKey).then((lamports) => {
+                setSolanaBalance(lamports / LAMPORTS_PER_SOL);
+            });
+        }
+    }, [publicKey, connection]);
+
     // Auto-detect VM
     const vm: VM | null =
         solanaConnected && solanaAddress ? 'SOLANA' :
             evmConnected && evmAddress ? 'EVM' :
                 null;
+
+    // Calculate balance
+    const nativeBalance = vm === 'SOLANA'
+        ? solanaBalance.toString()
+        : vm === 'EVM' && evmBalanceData
+            ? evmBalanceData.value.toString()
+            : '0';
+
+    const nativeBalanceFormatted = vm === 'SOLANA'
+        ? solanaBalance.toFixed(4)
+        : vm === 'EVM' && evmBalanceData
+            ? (Number(evmBalanceData.value) / Math.pow(10, evmBalanceData.decimals)).toFixed(4)
+            : '0.0000';
 
     // Build wallet state
     const wallet: WalletState = {
@@ -80,6 +111,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         chainId: vm === 'EVM' ? evmChainId : undefined,
         networkName: vm === 'SOLANA' ? 'Solana' : (vm === 'EVM' && evmChainId ? EVM_NETWORK_NAMES[evmChainId] || `Chain ${evmChainId}` : ''),
         isConnected: vm !== null,
+        nativeBalance,
+        nativeBalanceFormatted,
     };
 
     // Unified connect
