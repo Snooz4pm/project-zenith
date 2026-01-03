@@ -32,7 +32,7 @@ export default function WalletSelectorModal({ isOpen, onClose, preferredVM }: Wa
             console.log('[WalletSelector] Connecting Solana wallet:', walletName);
 
             // Select the wallet adapter
-            selectSolanaWallet(walletName);
+            selectSolanaWallet(walletName as WalletName);
 
             // Connect (this opens the wallet extension)
             await connectSolanaWallet();
