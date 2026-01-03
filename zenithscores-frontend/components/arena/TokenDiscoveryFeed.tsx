@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { RefreshCw, ExternalLink, TrendingUp, Droplets, Clock, Zap } from 'lucide-react';
+import { RefreshCw, ExternalLink, TrendingUp, Droplets, Clock, Zap, Shield } from 'lucide-react';
 import { DiscoveredToken } from '@/lib/arena/discovery';
+import { getFallbackLogo, getCategoryColor } from '@/lib/arena/token-metadata';
 
 interface TokenDiscoveryFeedProps {
   onSelectToken: (token: DiscoveredToken) => void;
@@ -121,17 +122,60 @@ export default function TokenDiscoveryFeed({ onSelectToken, selectedToken }: Tok
             }`}
           >
             {/* Token Header */}
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-start gap-3 mb-2">
+              {/* Token Logo */}
+              <img
+                src={token.metadata.logo || getFallbackLogo(token.symbol, token.metadata.color)}
+                alt={token.symbol}
+                className="w-10 h-10 rounded-full bg-white/5 flex-shrink-0"
+                onError={(e) => {
+                  e.currentTarget.src = getFallbackLogo(token.symbol, token.metadata.color);
+                }}
+              />
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <h4 className="font-bold text-white">{token.symbol}</h4>
+
+                  {/* Chain Badge */}
                   <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${getChainColor(token.chainId)}`}>
                     {token.chainId.toUpperCase()}
                   </span>
+
+                  {/* Category Badge */}
+                  {token.metadata.category && (
+                    <span
+                      className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                      style={{
+                        backgroundColor: `${getCategoryColor(token.metadata.category)}15`,
+                        color: getCategoryColor(token.metadata.category),
+                        border: `1px solid ${getCategoryColor(token.metadata.category)}40`,
+                      }}
+                    >
+                      {token.metadata.category}
+                    </span>
+                  )}
+
+                  {/* Verified Badge */}
+                  {token.metadata.isVerified && (
+                    <Shield size={12} className="text-blue-500" />
+                  )}
+
+                  {/* Scam Warning */}
+                  {token.metadata.isScam && (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/20 text-red-500 border border-red-500/40">
+                      ⚠️ SCAM
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-zinc-500 truncate">{token.name}</p>
+                {token.metadata.description && (
+                  <p className="text-[10px] text-zinc-600 truncate mt-0.5">{token.metadata.description}</p>
+                )}
               </div>
-              <div className="text-right">
+
+              {/* Price */}
+              <div className="text-right flex-shrink-0">
                 <div className="text-sm font-bold text-white">${token.priceUSD.toFixed(8)}</div>
                 <div className="text-xs text-emerald-500">+{token.priceAction.toFixed(1)}%</div>
               </div>

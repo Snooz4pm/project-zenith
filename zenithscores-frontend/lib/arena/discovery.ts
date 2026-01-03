@@ -6,6 +6,7 @@
  */
 
 import { getChainPriority, getDexScreenerChains } from './chains';
+import { getTokenMetadata, getFallbackLogo, TokenMetadata } from './token-metadata';
 
 const DEXSCREENER_API_URL = 'https://api.dexscreener.com/latest/dex';
 
@@ -84,6 +85,9 @@ export interface DiscoveredToken {
   dexId: string;
   pairAddress: string;
   dexScreenerUrl: string;
+
+  // Token metadata (logo, description, etc.)
+  metadata: TokenMetadata;
 }
 
 /**
@@ -286,6 +290,9 @@ function applyFilters(pair: DexPair): DiscoveredToken | null {
     dexId: pair.dexId,
     pairAddress: pair.pairAddress,
     dexScreenerUrl: pair.url,
+
+    // Enrich with metadata (logo, description, category)
+    metadata: getTokenMetadata(pair.baseToken.symbol, pair.baseToken.address, pair),
   };
 }
 

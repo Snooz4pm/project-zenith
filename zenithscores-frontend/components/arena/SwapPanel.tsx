@@ -6,6 +6,7 @@ import { parseUnits, formatUnits, Address } from 'viem';
 import { ArrowDown, Loader2, ExternalLink, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { getChainConfig, isChainSupported } from '@/lib/arena/chains';
 import { DiscoveredToken } from '@/lib/arena/discovery';
+import { getFallbackLogo } from '@/lib/arena/token-metadata';
 
 interface SwapPanelProps {
   selectedToken: DiscoveredToken | null;
@@ -266,11 +267,21 @@ export default function SwapPanel({ selectedToken, onSwapComplete }: SwapPanelPr
           <span className="text-xs text-zinc-500">You Receive</span>
           {quote && <span className="text-xs text-emerald-500">BEST PRICE</span>}
         </div>
-        <div className="flex items-center gap-2">
-          <div className="text-2xl font-mono text-white w-full truncate">
+        <div className="flex items-center gap-3">
+          {selectedToken && (
+            <img
+              src={selectedToken.metadata.logo || getFallbackLogo(selectedToken.symbol, selectedToken.metadata.color)}
+              alt={selectedToken.symbol}
+              className="w-8 h-8 rounded-full bg-white/5 flex-shrink-0"
+              onError={(e) => {
+                e.currentTarget.src = getFallbackLogo(selectedToken.symbol, selectedToken.metadata.color);
+              }}
+            />
+          )}
+          <div className="text-2xl font-mono text-white flex-1 truncate">
             {quote ? formatUnits(BigInt(quote.buyAmount), 18) : '0.0'}
           </div>
-          <div className="px-3 py-1.5 bg-white/5 rounded-lg font-medium text-white text-sm whitespace-nowrap">
+          <div className="px-3 py-1.5 bg-white/5 rounded-lg font-medium text-white text-sm whitespace-nowrap flex-shrink-0">
             {selectedToken?.symbol || 'TOKEN'}
           </div>
         </div>
