@@ -4,9 +4,60 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Users, Mail, Settings, Activity, Crown, Sparkles, Shield, Database } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Users, Mail, Settings, Activity, Crown, Sparkles, Shield, Database, Loader2 } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import NotificationBell from '@/components/community/NotificationBell';
+import { useWeb3Modal } from '@web3modal/wagmi/react';
+import { useAccount } from 'wagmi';
+
+// Wallet Connect Button Component
+function WalletConnectButton() {
+  const { address, isConnected, isConnecting } = useAccount();
+  const { open } = useWeb3Modal();
+
+  if (isConnecting) {
+    return (
+      <button
+        disabled
+        className="px-4 py-2 bg-white/10 text-zinc-400 font-medium rounded-lg flex items-center gap-2 cursor-not-allowed text-sm"
+      >
+        <Loader2 size={14} className="animate-spin" />
+        Connecting...
+      </button>
+    );
+  }
+
+  if (!isConnected) {
+    return (
+      <button
+        onClick={() => open()}
+        className="group relative px-4 py-2 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition-all overflow-hidden"
+        style={{
+          boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
+        }}
+      >
+        <span className="relative z-10 flex items-center gap-2">
+          <Wallet size={16} />
+          Connect Wallet
+        </span>
+        <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
+      </button>
+    );
+  }
+
+  // Connected - show address
+  return (
+    <button
+      onClick={() => open()}
+      className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2 hover:bg-emerald-500/20 transition-colors"
+    >
+      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+      <span className="text-sm font-mono text-emerald-500">
+        {address?.slice(0, 6)}...{address?.slice(-4)}
+      </span>
+    </button>
+  );
+}
 
 interface NavLink {
   label: string;
@@ -290,22 +341,8 @@ export default function Navbar() {
                 {/* Notification Bell */}
                 <NotificationBell />
 
-                {/* Upgrade Button (Free Users) */}
-                {!session.user.isPremium && (
-                  <Link
-                    href="/profile/subscription"
-                    className="group relative px-4 py-2 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 transition-all overflow-hidden"
-                    style={{
-                      boxShadow: '0 0 20px rgba(168, 85, 247, 0.4)',
-                    }}
-                  >
-                    <span className="relative z-10 flex items-center gap-2">
-                      <Sparkles size={16} />
-                      Upgrade
-                    </span>
-                    <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
-                  </Link>
-                )}
+                {/* Wallet Connect Button */}
+                <WalletConnectButton />
 
                 {/* User Menu Dropdown */}
                 <div className="relative user-dropdown">
