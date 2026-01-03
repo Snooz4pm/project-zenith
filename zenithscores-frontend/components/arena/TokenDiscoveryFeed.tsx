@@ -18,7 +18,7 @@ export default function TokenDiscoveryFeed({ onSelectToken, selectedToken }: Tok
   const fetchTokens = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/arena/discovery');
+      const response = await fetch('/api/arena/discovery?minChainPriority=70');
       const data = await response.json();
 
       if (data.success) {

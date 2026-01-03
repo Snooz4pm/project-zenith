@@ -12,6 +12,7 @@ import { Zap, Shield, Wallet, Info } from 'lucide-react';
 import { useWeb3Modal } from '@web3modal/wagmi/react';
 import SwapPanel from '@/components/arena/SwapPanel';
 import SolanaSwapPanel from '@/components/arena/SolanaSwapPanel';
+import WalletStatus from '@/components/arena/WalletStatus';
 import TokenDiscoveryFeed from '@/components/arena/TokenDiscoveryFeed';
 import { DiscoveredToken } from '@/lib/arena/discovery';
 import { getChainConfig } from '@/lib/arena/chains';
@@ -77,21 +78,19 @@ function ArenaContent() {
               <div className="flex items-center gap-1 p-1 bg-white/5 rounded-lg">
                 <button
                   onClick={() => setBlockchain('evm')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                    blockchain === 'evm'
-                      ? 'bg-emerald-500 text-black'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
+                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${blockchain === 'evm'
+                    ? 'bg-emerald-500 text-black'
+                    : 'text-zinc-400 hover:text-white'
+                    }`}
                 >
                   EVM
                 </button>
                 <button
                   onClick={() => setBlockchain('solana')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                    blockchain === 'solana'
-                      ? 'bg-purple-600 text-white'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
+                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${blockchain === 'solana'
+                    ? 'bg-purple-600 text-white'
+                    : 'text-zinc-400 hover:text-white'
+                    }`}
                 >
                   Solana
                 </button>
@@ -112,20 +111,25 @@ function ArenaContent() {
               </div>
 
               {/* Wallet Status */}
-              {isConnected ? (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10">
-                  <Wallet size={14} className="text-emerald-500" />
-                  <span className="text-xs text-emerald-500">
-                    {address?.slice(0, 6)}...{address?.slice(-4)}
-                  </span>
-                </div>
+              {blockchain === 'evm' ? (
+                <WalletStatus targetChainId={selectedToken ? parseInt(selectedToken.chainId) : undefined} />
               ) : (
-                <button
-                  onClick={handleConnect}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm rounded-lg transition-colors"
-                >
-                  Connect Wallet
-                </button>
+                // Solana wallet handled by SolanaSwapPanel
+                isConnected ? (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-500/10">
+                    <Wallet size={14} className="text-purple-500" />
+                    <span className="text-xs text-purple-500">
+                      {address?.slice(0, 6)}...{address?.slice(-4)}
+                    </span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleConnect}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm rounded-lg transition-colors"
+                  >
+                    Connect Wallet
+                  </button>
+                )
               )}
             </div>
           </div>
@@ -199,12 +203,12 @@ function ArenaContent() {
                 selectedToken={
                   selectedToken
                     ? {
-                        symbol: selectedToken.symbol,
-                        mint: selectedToken.address,
-                        decimals: 9, // Default, would need to fetch actual decimals
-                        name: selectedToken.metadata?.name,
-                        logo: selectedToken.metadata?.logo,
-                      }
+                      symbol: selectedToken.symbol,
+                      mint: selectedToken.address,
+                      decimals: 9, // Default, would need to fetch actual decimals
+                      name: selectedToken.metadata?.name,
+                      logo: selectedToken.metadata?.logo,
+                    }
                     : null
                 }
                 onSwapComplete={() => {
