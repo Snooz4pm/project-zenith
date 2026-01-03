@@ -8,6 +8,7 @@ import { X } from 'lucide-react';
 interface WalletSelectorModalProps {
     isOpen: boolean;
     onClose: () => void;
+    preferredVM?: 'EVM' | 'SOLANA' | null;
 }
 
 /**
@@ -17,10 +18,10 @@ interface WalletSelectorModalProps {
  * - EVM: Opens Web3Modal
  * - Solana: Calls select() + connect() directly
  */
-export default function WalletSelectorModal({ isOpen, onClose }: WalletSelectorModalProps) {
+export default function WalletSelectorModal({ isOpen, onClose, preferredVM }: WalletSelectorModalProps) {
     const { open: openEVMModal } = useWeb3Modal();
     const { select: selectSolanaWallet, connect: connectSolanaWallet } = useWallet();
-    const { preferredVM, setPreferredVM } = useWallet();
+    const { setPreferredVM } = useWallet();
 
     /**
      * Connect Solana Wallet

@@ -40,7 +40,7 @@ interface TokenCardProps {
  * This ensures honest UX and prevents broken swaps.
  */
 export default function TokenCard({ token, onSelect }: TokenCardProps) {
-    const { session, switchEvmNetwork, setPreferredVM } = useWallet();
+    const { session, switchEvmNetwork, preferredVM, setPreferredVM } = useWallet();
     const [showWalletSelector, setShowWalletSelector] = useState(false);
     const [isCheckingRoute, setIsCheckingRoute] = useState(false);
     const [routeExists, setRouteExists] = useState<boolean | null>(null);
