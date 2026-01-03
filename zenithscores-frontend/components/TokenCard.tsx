@@ -43,6 +43,7 @@ export default function TokenCard({ token, onSelect }: TokenCardProps) {
     const { session, switchEvmNetwork } = useWallet();
     const [showWalletSelector, setShowWalletSelector] = useState(false);
     const [preferredVM, setPreferredVM] = useState<'EVM' | 'SOLANA' | null>(null);
+    const [isSwitching, setIsSwitching] = useState(false);
     const [noRoute, setNoRoute] = useState(false);
 
     /**
