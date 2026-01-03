@@ -75,35 +75,62 @@ model User {
   // Discipline Gate
   disciplineState       DisciplineState?
 
-  // Trading Arena
-  arenaPositions        ArenaPosition[]         @relation("UserArenaPositions")
+  // Trading Arena (Real swaps only)
+  arenaSwaps            ArenaSwap[]             @relation("UserArenaSwaps")
 }
 
-// Trading Arena - Perp-like positions backed by spot swaps
-model ArenaPosition {
-  id            String    @id @default(cuid())
-  walletAddress String
-  userId        String?
-  token         String    // e.g., "BTC", "SOL", "ETH"
-  tokenAddress  String    // Contract address for the token
-  chainId       Int       @default(1) // 1 = Ethereum, 8453 = Base
-  side          String    // 'long' | 'short'
-  entryPrice    Float
-  sizeUSD       Float
-  sizeTokens    Float
-  txHash        String?   // Transaction hash of the swap
-  isOpen        Boolean   @default(true)
-  openedAt      DateTime  @default(now())
-  closedAt      DateTime?
-  exitPrice     Float?
-  realizedPnL   Float?
-  closeTxHash   String?   // Transaction hash of the closing swap
+// Trading Arena - Real swap analytics (non-custodial, revenue tracking only)
+model ArenaSwap {
+  id                String    @id @default(cuid())
+  walletAddress     String    // User's wallet (non-custodial)
+  userId            String?   // Optional authenticated user ID
 
-  user          User?     @relation("UserArenaPositions", fields: [userId], references: [id])
+  // Multi-chain support
+  chainId           Int       // 1=Ethereum, 8453=Base, 42161=Arbitrum, 10=Optimism, 137=Polygon, etc.
+  chainName         String?   // "Ethereum", "Base", "Arbitrum"
+
+  // Swap tokens
+  sellToken         String    // Symbol (e.g., "ETH", "USDC")
+  sellTokenAddress  String    // Contract address
+  buyToken          String    // Symbol (e.g., "PEPE", "DOGE")
+  buyTokenAddress   String    // Contract address
+
+  // Amounts (stored as strings to preserve precision)
+  sellAmount        String    // Amount sold in smallest unit (wei)
+  buyAmount         String    // Amount received in smallest unit
+  sellAmountUSD     Float?    // USD value at execution
+  buyAmountUSD      Float?    // USD value at execution
+
+  // Revenue tracking (0x affiliate fees)
+  affiliateFee      Float?    // Fee earned in USD
+  affiliateFeeBps   Int?      // Basis points (e.g., 30 = 0.3%)
+  feeToken          String?   // Which token fee was taken in
+
+  // On-chain data
+  txHash            String    @unique // Transaction hash
+  txStatus          String    @default("pending") // pending, confirmed, failed
+  blockNumber       Int?
+  gasUsed           String?   // Gas used (wei)
+  gasPrice          String?   // Gas price (gwei)
+
+  // Discovery metadata (if from DexScreener)
+  tokenAge          Int?      // Age in minutes when swapped
+  liquidityUSD      Float?    // Liquidity at swap time
+  volumeAccel       Float?    // Volume acceleration score
+
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  confirmedAt       DateTime?
+
+  user              User?     @relation("UserArenaSwaps", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([walletAddress])
   @@index([userId])
-  @@index([isOpen])
+  @@index([chainId])
+  @@index([txHash])
+  @@index([txStatus])
+  @@index([createdAt(sort: Desc)])
+  @@index([buyTokenAddress]) // For token analytics
 }
 
 // Required by NextAuth PrismaAdapter for OAuth
