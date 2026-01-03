@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { X } from 'lucide-react';
@@ -8,21 +8,29 @@ import { X } from 'lucide-react';
 interface WalletSelectorModalProps {
     isOpen: boolean;
     onClose: () => void;
+    preferredVM?: 'EVM' | 'SOLANA' | null;
 }
 
 /**
  * Wallet Selector Modal
  * 
  * Let user choose between Solana or EVM wallets
- * Opens appropriate modal based on selection
- * 
- * TWO wallet systems, ONE UI
+ * Auto-opens correct modal if preferredVM is set
  */
-export default function WalletSelectorModal({ isOpen, onClose }: WalletSelectorModalProps) {
+export default function WalletSelectorModal({ isOpen, onClose, preferredVM }: WalletSelectorModalProps) {
     const { open: openEVMModal } = useWeb3Modal();
     const { setVisible: openSolanaModal } = useWalletModal();
 
-    if (!isOpen) return null;
+    // Auto-open the correct modal if VM preference is set
+    useEffect(() => {
+        if (isOpen && preferredVM) {
+            if (preferredVM === 'SOLANA') {
+                handleSelectSolana();
+            } else if (preferredVM === 'EVM') {
+                handleSelectEVM();
+            }
+        }
+    }, [isOpen, preferredVM]);
 
     const handleSelectSolana = () => {
         openSolanaModal(true);
@@ -33,6 +41,10 @@ export default function WalletSelectorModal({ isOpen, onClose }: WalletSelectorM
         openEVMModal();
         onClose();
     };
+
+    // Don't show modal UI if auto-opening
+    if (!isOpen) return null;
+    if (isOpen && preferredVM) return null; // Will auto-open via useEffect
 
     return (
         <>
@@ -96,7 +108,7 @@ export default function WalletSelectorModal({ isOpen, onClose }: WalletSelectorM
                 <div className="px-6 pb-6">
                     <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg">
                         <p className="text-xs text-zinc-400 text-center">
-                            <strong className="text-blue-400">Tip:</strong> Choose based on  which tokens you want to trade
+                            <strong className="text-blue-400">Tip:</strong> Choose based on which tokens you want to trade
                         </p>
                     </div>
                 </div>
