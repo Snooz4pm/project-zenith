@@ -15,15 +15,13 @@ interface SwapDrawerProps {
 }
 
 const USDC_ADDRESSES: Record<number, `0x${string}`> = {
-    1: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-    8453: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-    42161: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'
+    56: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', // BSC USDC
 };
 
 const CHAIN_SLUG_TO_ID: Record<string, number> = {
-    'ethereum': 1,
-    'base': 8453,
-    'arbitrum': 42161
+    'bsc': 56,
+    'bnb': 56,
+    'binance': 56
 };
 
 export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
@@ -38,8 +36,8 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Derived State
-    const targetChainId = CHAIN_SLUG_TO_ID[token?.chainId?.toLowerCase() || 'ethereum'] || 1;
+    // Derived State - BSC ONLY
+    const targetChainId = CHAIN_SLUG_TO_ID[token?.chainId?.toLowerCase() || 'bsc'] || 56;
     const isWrongNetwork = isConnected && connectedChainId !== targetChainId;
     const usdcAddress = USDC_ADDRESSES[targetChainId];
 
@@ -256,12 +254,12 @@ export default function SwapDrawer({ token, onClose }: SwapDrawerProps) {
                                 <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                                     <div className="text-emerald-400 text-xs font-bold mb-1">Transaction Sent</div>
                                     <a
-                                        href={`${token.chainId === 'base' ? 'https://basescan.org' : token.chainId === 'arbitrum' ? 'https://arbiscan.io' : 'https://etherscan.io'}/tx/${hash}`}
+                                        href={`https://bscscan.com/tx/${hash}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="text-[10px] text-zinc-400 hover:text-white flex items-center gap-1"
                                     >
-                                        View on Explorer <ExternalLink size={10} />
+                                        View on BscScan <ExternalLink size={10} />
                                     </a>
                                 </div>
                             )}
