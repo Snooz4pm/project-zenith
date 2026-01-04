@@ -1,99 +1,74 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { fetchAllCanonicalTokens, fetchCanonicalTokensByChain } from '@/lib/discovery/canonical-lists';
-import { enrichTokens } from '@/lib/discovery/enrichment';
-import { ChainId } from '@/lib/discovery/normalize';
+import { NextResponse } from "next/server";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 /**
  * GET /api/tokens
  *
- * PHASE 2 IMPLEMENTATION - TWO-LAYER DISCOVERY SYSTEM
- *
- * Layer 1: Canonical Token Lists (ALWAYS WORKS)
- * - Solana: Jupiter token list
- * - EVM: Top tokens per chain
- *
- * Layer 2: DexScreener Enrichment (OPTIONAL)
- * - Adds prices, volume, liquidity
- * - If fails, tokens still exist (just no market data)
- *
- * This ensures arena NEVER looks empty
- *
- * Query params:
- * - limit?: number (default: 100)
- * - chainId?: string (filter by chain)
- * - mode?: 'all' | 'hot' | 'new' (default: 'all')
+ * BULLETPROOF TOKEN DISCOVERY
+ * ═══════════════════════════
+ * - Never throws
+ * - Always returns JSON
+ * - Empty array on failure
  */
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const limit = parseInt(searchParams.get('limit') || '100');
-    const chainId = searchParams.get('chainId') as ChainId | undefined;
-    const mode = searchParams.get('mode') || 'all';
+    const url = new URL(req.url);
+    const limit = Number(url.searchParams.get("limit") ?? 50);
 
-    console.log('[API /tokens] PHASE 2 - Two-layer discovery');
-    console.log('[API /tokens] Params:', { limit, chainId, mode });
+    console.log("[api/tokens] Fetching from Raydium...");
 
-    // LAYER 1: Fetch canonical tokens (ALWAYS WORKS)
-    let canonicalTokens = chainId
-      ? await fetchCanonicalTokensByChain(chainId)
-      : await fetchAllCanonicalTokens();
+    // 1️⃣ Try Raydium first (most reliable for Solana)
+    const raydiumRes = await fetch(
+      "https://api.raydium.io/v2/sdk/liquidity/mainnet.json",
+      { cache: "no-store" }
+    );
 
-    console.log(`[API /tokens] Layer 1: ${canonicalTokens.length} canonical tokens`);
-
-    if (canonicalTokens.length === 0) {
-      console.warn('[API /tokens] Layer 1 failed - no canonical tokens found');
-      return NextResponse.json({
-        success: true,
-        tokens: [],
-        count: 0,
-        source: 'Canonical Lists (Empty)',
-        timestamp: new Date().toISOString(),
-      });
+    if (!raydiumRes.ok) {
+      throw new Error(`Raydium API failed with status ${raydiumRes.status}`);
     }
 
-    // LAYER 2: Enrich with DexScreener (OPTIONAL - tokens exist even if this fails)
-    let enrichedTokens = await enrichTokens(canonicalTokens, limit);
+    const raydiumData = await raydiumRes.json();
 
-    console.log(`[API /tokens] Layer 2: ${enrichedTokens.length} enriched tokens`);
+    const tokens = parseRaydiumPools(raydiumData).slice(0, limit);
 
-    // Filter by mode
-    if (mode === 'hot') {
-      enrichedTokens = enrichedTokens
-        .filter(t => t.volume24h > 50000)
-        .sort((a, b) => b.volume24h - a.volume24h);
-    } else if (mode === 'new') {
-      enrichedTokens = enrichedTokens
-        .filter(t => t.liquidityUsd > 0 && t.liquidityUsd < 50000)
-        .sort((a, b) => a.liquidityUsd - b.liquidityUsd);
-    }
+    console.log(`[api/tokens] Returning ${tokens.length} tokens`);
 
-    // Apply limit
-    const finalTokens = enrichedTokens.slice(0, limit);
+    return NextResponse.json(tokens);
+  } catch (err) {
+    console.error("[api/tokens] fatal:", err);
 
-    console.log(`[API /tokens] Returning ${finalTokens.length} tokens (mode: ${mode})`);
-
-    return NextResponse.json({
-      success: true,
-      tokens: finalTokens,
-      count: finalTokens.length,
-      source: 'Canonical Lists + DexScreener Enrichment (Phase 2)',
-      mode,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error: any) {
-    console.error('[API /tokens] Error:', error);
-
-    // CRITICAL: Even on error, return empty array (not HTTP 500)
-    // This prevents arena from showing error state
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to fetch tokens',
-      tokens: [],
-      count: 0,
-      source: 'Error Fallback',
-      timestamp: new Date().toISOString(),
-    });
+    // ❗ NEVER CRASH — return empty array with 200
+    return NextResponse.json([], { status: 200 });
   }
+}
+
+/**
+ * Parse Raydium pools into GlobalToken format
+ * Defensive: handles missing fields gracefully
+ */
+function parseRaydiumPools(data: any) {
+  if (!data?.official) {
+    console.warn("[api/tokens] No official pools in Raydium data");
+    return [];
+  }
+
+  const pools = Object.values(data.official);
+
+  return pools.map((pool: any) => ({
+    id: `solana-${pool.baseMint}`,
+    chainType: "SOLANA",
+    chainId: "solana",
+    networkName: "Solana",
+    address: pool.baseMint ?? "",
+    symbol: pool.baseSymbol ?? "???",
+    name: pool.baseName ?? pool.baseSymbol ?? "Unknown",
+    logo: null,
+    decimals: pool.baseDecimals ?? 9,
+    priceUsd: pool.price ?? 0,
+    priceChange24h: 0,
+    liquidityUsd: pool.liquidity ?? 0,
+    volume24h: pool.volume24h ?? 0,
+    dex: "Raydium",
+  }));
 }
