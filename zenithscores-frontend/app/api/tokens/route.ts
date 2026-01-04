@@ -3,6 +3,8 @@ import { fetchAllCanonicalTokens, fetchCanonicalTokensByChain } from '@/lib/disc
 import { enrichTokens } from '@/lib/discovery/enrichment';
 import { ChainId } from '@/lib/discovery/normalize';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/tokens
  *
