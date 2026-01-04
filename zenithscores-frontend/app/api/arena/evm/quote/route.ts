@@ -24,6 +24,8 @@ function get0xBaseUrl(chainId: number): string {
  */
 export async function GET(req: NextRequest) {
     console.log('[EVM Quote] GET Request received');
+    console.log('[EVM Quote] 0x key exists:', !!process.env.ZEROX_API_KEY);
+    console.log('[EVM Quote] OX_API_KEY exists:', !!process.env.OX_API_KEY);
 
     try {
         const { searchParams } = new URL(req.url);

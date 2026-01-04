@@ -27,6 +27,9 @@ const CHAIN_ID_MAP: Record<string, number> = {
  *   - quote: 0x quote object (if executable)
  */
 export async function POST(req: Request) {
+  console.log('[EVM Route] POST Request received');
+  console.log('[EVM Route] 0x key exists:', !!process.env.ZEROX_API_KEY);
+  
   try {
     const { chain, sellToken, buyToken, sellAmount } = await req.json();
 
