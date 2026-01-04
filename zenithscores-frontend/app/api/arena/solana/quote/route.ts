@@ -35,31 +35,38 @@ export async function GET(req: Request) {
 
     const PROXY = process.env.JUPITER_PROXY_URL;
     if (!PROXY) {
-      console.error('[Solana Quote] JUPITER_PROXY_URL missing');
       return Response.json(
         { error: 'Proxy not configured' },
         { status: 500 }
       );
     }
 
-    const url = `${PROXY}/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippageBps}&swapMode=ExactIn`;
+    const url = new URL(`${PROXY}/quote`);
+    url.searchParams.set('inputMint', inputMint);
+    url.searchParams.set('outputMint', outputMint);
+    url.searchParams.set('amount', amount);
+    url.searchParams.set('slippageBps', slippageBps ?? '50');
+    url.searchParams.set('swapMode', 'ExactIn');
 
-    console.log('[Solana Quote] Fetching:', url);
-
-    const res = await fetch(url, { cache: 'no-store' });
-    const text = await res.text();
+    const res = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    });
 
     if (!res.ok) {
+      const text = await res.text();
       console.error('[Solana Quote] Proxy error:', text);
       return Response.json(
-        { error: 'Jupiter proxy error', detail: text },
-        { status: 502 }
+        { error: 'Jupiter proxy failed', detail: text },
+        { status: 500 }
       );
     }
 
-    return new Response(text, {
-      headers: { 'content-type': 'application/json' },
-    });
+    const data = await res.json();
+    return Response.json(data);
 
   } catch (err) {
     console.error('[Solana Quote] Fatal:', err);
