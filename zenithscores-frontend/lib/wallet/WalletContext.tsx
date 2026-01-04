@@ -1,33 +1,23 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode, useEffect, useState } from 'react';
-import { useAccount, useConnect, useSendTransaction, useChainId, useSwitchChain, useBalance, useDisconnect } from 'wagmi';
+import { useAccount, useConnect, useSendTransaction, useSwitchChain, useBalance, useDisconnect, useChainId } from 'wagmi';
 import { useWallet as useSolanaWallet, useConnection } from '@solana/wallet-adapter-react';
 import { VersionedTransaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { ChainType, EVM_CHAIN_MAP, chainIdToChainType } from '@/lib/chains';
+import { ChainType, EVM_CHAIN_MAP } from '@/lib/chains';
 
 /**
- * Unified Wallet Session Context
- *
- * PRODUCTION ARCHITECTURE:
+ * VM-FIRST WALLET ARCHITECTURE
  * ════════════════════════════════════════════════════════
- * ✅ Solana and EVM sessions are ADDITIVE, not exclusive
- * ✅ Connecting one does NOT disconnect the other
- * ✅ VM determined by adapter used, not wallet brand
- * ✅ WalletConnect = EVM ONLY (never Solana)
- * ✅ Solana adapter = SOLANA ONLY
- *
- * Session Model:
- * ──────────────
- * WalletSession {
- *   solana?: { connected, address, balance }
- *   evm?: { connected, address, chainId, balance }
- * }
- *
- * Both can exist simultaneously without conflicts.
+ * 
+ * CORE RULE:
+ * activeVM = "SOLANA" | "EVM" | null
+ * 
+ * - wagmi hooks ONLY run when activeVM === "EVM" OR evmConnected
+ * - Solana hooks ONLY run when activeVM === "SOLANA" OR solanaConnected
+ * - Discovery fetches based on activeVM
+ * - Never mix VMs in one response
  */
-
-// Types moved to lib/chains.ts
 
 export interface SolanaSession {
     connected: boolean;
@@ -51,9 +41,18 @@ export interface WalletSession {
 }
 
 interface WalletContextValue {
+    // VM State (source of truth)
+    activeVM: ChainType | null;
+    setActiveVM: (vm: ChainType | null) => void;
+
+    // Sessions
     session: WalletSession;
+
+    // Legacy (for backward compat during transition)
     preferredVM: ChainType | null;
     setPreferredVM: (vm: ChainType | null) => void;
+
+    // Actions
     connectSolana: () => void;
     connectEvm: () => void;
     disconnect: (chainType: ChainType) => void;
@@ -64,22 +63,33 @@ interface WalletContextValue {
 const WalletContext = createContext<WalletContextValue | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
-    // EVM wallet (MetaMask, WalletConnect, etc.)
-    const { address: evmAddress, isConnected: evmConnected } = useAccount();
+    // ════════════════════════════════════════════════════════
+    // VM STATE (SOURCE OF TRUTH)
+    // ════════════════════════════════════════════════════════
+    const [activeVM, setActiveVM] = useState<ChainType | null>(null);
     const [preferredVM, setPreferredVM] = useState<ChainType | null>(null);
+
+    // ════════════════════════════════════════════════════════
+    // EVM HOOKS (Always mounted but guarded)
+    // ════════════════════════════════════════════════════════
+    const { address: evmAddress, isConnected: evmConnected } = useAccount();
     const { connect: evmConnect, connectors } = useConnect();
     const { sendTransactionAsync: sendEvmTx } = useSendTransaction();
     const { switchChainAsync } = useSwitchChain();
     const { disconnect: evmDisconnect } = useDisconnect();
+
+    // CRITICAL: Only read chainId when EVM is connected
     const evmChainId = useChainId();
 
-    // EVM balance (ONLY query when connected to prevent ProviderNotFoundError)
+    // CRITICAL: Only query balance when EVM is actually connected
     const { data: evmBalanceData } = useBalance({
         address: evmConnected ? evmAddress : undefined,
         query: { enabled: evmConnected },
     });
 
-    // Solana wallet (Phantom, Solflare, etc.)
+    // ════════════════════════════════════════════════════════
+    // SOLANA HOOKS (Always mounted but guarded)
+    // ════════════════════════════════════════════════════════
     const {
         publicKey,
         connected: solanaConnected,
@@ -89,10 +99,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const { connection } = useConnection();
 
     const solanaAddress = publicKey?.toBase58() || null;
-
-    // Solana balance
     const [solanaBalance, setSolanaBalance] = useState<number>(0);
 
+    // Fetch Solana balance (only when connected)
     useEffect(() => {
         if (publicKey && connection && solanaConnected) {
             connection.getBalance(publicKey).then((lamports) => {
@@ -105,7 +114,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
     }, [publicKey, connection, solanaConnected]);
 
-    // Build session (CRITICAL: Both can exist simultaneously)
+    // ════════════════════════════════════════════════════════
+    // AUTO-SET VM BASED ON CONNECTION
+    // ════════════════════════════════════════════════════════
+    useEffect(() => {
+        if (solanaConnected && !evmConnected) {
+            setActiveVM('SOLANA');
+        } else if (evmConnected && !solanaConnected) {
+            setActiveVM('EVM');
+        }
+        // If both connected, keep current activeVM
+    }, [solanaConnected, evmConnected]);
+
+    // ════════════════════════════════════════════════════════
+    // BUILD SESSION OBJECTS
+    // ════════════════════════════════════════════════════════
     const session: WalletSession = {};
 
     if (solanaConnected && solanaAddress) {
@@ -131,15 +154,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         };
     }
 
-    // Connect Solana (does NOT disconnect EVM)
+    // ════════════════════════════════════════════════════════
+    // ACTIONS
+    // ════════════════════════════════════════════════════════
     const connectSolana = () => {
-        // Solana connection handled by WalletSelectorModal
-        // This is a no-op, kept for API consistency
-        console.log('[WalletContext] Solana connection managed by wallet selector');
+        setActiveVM('SOLANA');
+        console.log('[WalletContext] VM set to SOLANA');
     };
 
-    // Connect EVM (does NOT disconnect Solana)
     const connectEvm = () => {
+        setActiveVM('EVM');
         if (!evmConnected) {
             const connector = connectors[0];
             if (connector) {
@@ -148,60 +172,56 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    // Disconnect specific chain (never disconnects both)
     const disconnect = (chainType: ChainType) => {
         if (chainType === 'SOLANA') {
             solanaDisconnect();
+            if (activeVM === 'SOLANA') setActiveVM(null);
         } else if (chainType === 'EVM') {
             evmDisconnect();
+            if (activeVM === 'EVM') setActiveVM(null);
         }
     };
 
-    // Network switching (EVM only)
     const switchEvmNetwork = async (targetChainId: number): Promise<void> => {
         if (!session.evm) {
             throw new Error('EVM wallet not connected');
         }
-
         if (!switchChainAsync) {
             throw new Error('Wallet does not support network switching');
         }
-
         await switchChainAsync({ chainId: targetChainId });
     };
 
-    // Transaction signing (requires chainType)
     const signAndSendTx = async (chainType: ChainType, txPayload: any): Promise<string> => {
         if (chainType === 'SOLANA') {
             if (!session.solana) {
                 throw new Error('Solana wallet not connected');
             }
-
             const txBuffer = Buffer.from(txPayload.data, 'base64');
             const transaction = VersionedTransaction.deserialize(txBuffer);
-
             if (!sendSolanaTx) throw new Error('Solana wallet not connected');
-
             const signature = await sendSolanaTx(transaction, connection);
             return signature;
         } else if (chainType === 'EVM') {
             if (!session.evm) {
                 throw new Error('EVM wallet not connected');
             }
-
             const hash = await sendEvmTx({
                 to: txPayload.to as `0x${string}`,
                 data: txPayload.data as `0x${string}`,
                 value: BigInt(txPayload.value || '0'),
             });
-
             return hash;
         }
-
         throw new Error(`Unsupported chain type: ${chainType}`);
     };
 
+    // ════════════════════════════════════════════════════════
+    // CONTEXT VALUE
+    // ════════════════════════════════════════════════════════
     const value: WalletContextValue = {
+        activeVM,
+        setActiveVM,
         session,
         preferredVM,
         setPreferredVM,
