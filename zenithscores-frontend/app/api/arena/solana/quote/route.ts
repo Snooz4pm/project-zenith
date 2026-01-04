@@ -64,11 +64,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // TEMPORARY: Verify proxy URL is loaded (remove after confirmation)
+    console.log(
+      '[SOLANA] JUPITER_PROXY_URL =',
+      process.env.JUPITER_PROXY_URL
+    );
+
     // Use Railway proxy in production, direct Jupiter API in local dev
     const JUPITER_API = process.env.JUPITER_PROXY_URL || 'https://quote-api.jup.ag/v6';
-
-    // TEMPORARY: Verify proxy URL (remove after confirmation)
-    console.log('[SOLANA] Using proxy:', process.env.JUPITER_PROXY_URL);
 
     if (!JUPITER_API) {
       console.error('[Solana Quote] JUPITER_PROXY_URL not configured');
