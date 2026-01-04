@@ -49,7 +49,16 @@ async function fetchSolanaTokens(limit: number) {
             return NextResponse.json(SOLANA_FALLBACK, { status: 200 });
         }
 
-        const json = await res.json();
+        // Defensive: Read as text first to handle non-JSON responses
+        const text = await res.text();
+
+        let json;
+        try {
+            json = JSON.parse(text);
+        } catch (parseErr) {
+            console.error("[Solana] Raydium returned non-JSON:", text.substring(0, 100));
+            return NextResponse.json(SOLANA_FALLBACK, { status: 200 });
+        }
 
         if (!json?.official) {
             console.error("[Solana] Invalid Raydium payload");
@@ -96,7 +105,16 @@ async function fetchEvmTokens(limit: number) {
             return NextResponse.json(EVM_FALLBACK, { status: 200 });
         }
 
-        const json = await res.json();
+        // Defensive: Read as text first to handle non-JSON responses
+        const text = await res.text();
+
+        let json;
+        try {
+            json = JSON.parse(text);
+        } catch (parseErr) {
+            console.error("[EVM] DexScreener returned non-JSON:", text.substring(0, 100));
+            return NextResponse.json(EVM_FALLBACK, { status: 200 });
+        }
 
         if (!json?.pairs) {
             console.error("[EVM] Invalid DexScreener payload");

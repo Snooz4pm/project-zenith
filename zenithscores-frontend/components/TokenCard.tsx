@@ -45,7 +45,13 @@ export default function TokenCard({ token, onSelect }: TokenCardProps) {
     const [isCheckingRoute, setIsCheckingRoute] = useState(false);
     const [routeExists, setRouteExists] = useState<boolean | null>(null);
 
-    const chainMeta = CHAIN_METADATA[token.chainId];
+    // Safe chain metadata with fallback for unknown chains
+    const chainMeta = CHAIN_METADATA[token.chainId as keyof typeof CHAIN_METADATA] || {
+        name: token.networkName || 'Unknown',
+        logo: token.chainType === 'SOLANA' ? '◎' : 'Ξ',
+        color: token.chainType === 'SOLANA' ? '#14F195' : '#627EEA',
+        vm: token.chainType,
+    };
     const priceChangeColor = token.priceChange24h >= 0 ? 'text-emerald-500' : 'text-red-500';
 
     // Derive state (EXACT state machine)
@@ -205,14 +211,24 @@ export default function TokenCard({ token, onSelect }: TokenCardProps) {
 
                             {/* Chain Badge */}
                             <span
-                                className="px-2 py-0.5 rounded text-[10px] font-medium"
+                                className="px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1"
                                 style={{
                                     backgroundColor: `${chainMeta.color}15`,
                                     color: chainMeta.color,
                                     border: `1px solid ${chainMeta.color}40`,
                                 }}
                             >
-                                {chainMeta.logo} {token.networkName}
+                                {chainMeta.logo.startsWith('http') ? (
+                                    <img
+                                        src={chainMeta.logo}
+                                        alt={chainMeta.name}
+                                        className="w-3 h-3 rounded-full"
+                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                    />
+                                ) : (
+                                    <span>{chainMeta.logo}</span>
+                                )}
+                                {token.networkName}
                             </span>
                         </div>
 

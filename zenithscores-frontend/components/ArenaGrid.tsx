@@ -39,7 +39,28 @@ export default function ArenaGrid({ onSelectToken }: ArenaGridProps) {
 
         try {
             const response = await fetch(`/api/arena/tokens?vm=${vm}&limit=50`);
-            const data = await response.json();
+
+            // Defensive: Read as text first to catch HTML responses
+            const text = await response.text();
+
+            // Check if response looks like HTML (error page)
+            if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
+                console.error('[ArenaGrid] API returned HTML instead of JSON');
+                setTokens([]);
+                setError('Discovery service unavailable');
+                return;
+            }
+
+            // Safely parse JSON
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (parseErr) {
+                console.error('[ArenaGrid] Invalid JSON:', text.substring(0, 100));
+                setTokens([]);
+                setError('Invalid response from discovery');
+                return;
+            }
 
             if (Array.isArray(data)) {
                 setTokens(data);

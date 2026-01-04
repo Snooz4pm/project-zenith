@@ -25,21 +25,62 @@ export interface GlobalToken {
 }
 
 /**
- * Chain metadata for display
+ * Chain metadata for display (real logos from TrustWallet CDN)
  */
 export const CHAIN_METADATA: Record<ChainId, { name: string; logo: string; color: string; vm: VM }> = {
     // Solana (NOT an EVM network)
-    'solana': { name: 'Solana', logo: '◎', color: '#14F195', vm: 'SOLANA' },
+    'solana': {
+        name: 'Solana',
+        logo: 'https://assets.trustwalletapp.com/blockchains/solana/info/logo.png',
+        color: '#14F195',
+        vm: 'SOLANA'
+    },
 
-    // EVM Networks (share same VM)
-    '1': { name: 'Ethereum', logo: 'Ξ', color: '#627EEA', vm: 'EVM' },
-    '56': { name: 'BNB Chain', logo: 'BNB', color: '#F3BA2F', vm: 'EVM' },
-    '8453': { name: 'Base', logo: '🔵', color: '#0052FF', vm: 'EVM' },
-    '137': { name: 'Polygon', logo: 'MATIC', color: '#8247E5', vm: 'EVM' },
-    '42161': { name: 'Arbitrum', logo: 'ARB', color: '#28A0F0', vm: 'EVM' },
-    '10': { name: 'Optimism', logo: 'OP', color: '#FF0420', vm: 'EVM' },
-    '43114': { name: 'Avalanche', logo: 'AVAX', color: '#E84142', vm: 'EVM' },
+    // EVM Networks
+    '1': {
+        name: 'Ethereum',
+        logo: 'https://assets.trustwalletapp.com/blockchains/ethereum/info/logo.png',
+        color: '#627EEA',
+        vm: 'EVM'
+    },
+    '56': {
+        name: 'BNB Chain',
+        logo: 'https://assets.trustwalletapp.com/blockchains/binance/info/logo.png',
+        color: '#F3BA2F',
+        vm: 'EVM'
+    },
+    '8453': {
+        name: 'Base',
+        logo: 'https://assets.trustwalletapp.com/blockchains/base/info/logo.png',
+        color: '#0052FF',
+        vm: 'EVM'
+    },
+    '137': {
+        name: 'Polygon',
+        logo: 'https://assets.trustwalletapp.com/blockchains/polygon/info/logo.png',
+        color: '#8247E5',
+        vm: 'EVM'
+    },
+    '42161': {
+        name: 'Arbitrum',
+        logo: 'https://assets.trustwalletapp.com/blockchains/arbitrum/info/logo.png',
+        color: '#28A0F0',
+        vm: 'EVM'
+    },
+    '10': {
+        name: 'Optimism',
+        logo: 'https://assets.trustwalletapp.com/blockchains/optimism/info/logo.png',
+        color: '#FF0420',
+        vm: 'EVM'
+    },
+    '43114': {
+        name: 'Avalanche',
+        logo: 'https://assets.trustwalletapp.com/blockchains/avalanchec/info/logo.png',
+        color: '#e95959ff',
+        vm: 'EVM'
+    },
 };
+
 
 /**
  * Determine VM from chain ID
