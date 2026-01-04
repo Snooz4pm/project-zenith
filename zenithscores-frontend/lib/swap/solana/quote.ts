@@ -55,6 +55,12 @@ export async function getSolanaQuote(params: SolanaQuoteParams): Promise<SolanaQ
         throw new Error('Invalid swap amount - must be at least 1 lamport');
     }
 
+    // Jupiter minimum: 0.001 SOL = 1,000,000 lamports (prevents "no route" for dust amounts)
+    const MIN_AMOUNT_LAMPORTS = 1_000_000;
+    if (Number(amountStr) < MIN_AMOUNT_LAMPORTS) {
+        throw new Error('Amount too small - minimum 0.001 SOL required');
+    }
+
     // Build query params
     const queryParams = new URLSearchParams({
         inputMint,
@@ -63,12 +69,20 @@ export async function getSolanaQuote(params: SolanaQuoteParams): Promise<SolanaQ
         slippageBps: String(slippageBps),
     });
 
+    console.log('[getSolanaQuote] Requesting quote:', {
+        inputMint,
+        outputMint,
+        amount: amountStr,
+        slippageBps
+    });
+
     // Call OUR API proxy (not Jupiter directly - avoids CORS)
     const res = await fetch(`/api/arena/solana/quote?${queryParams.toString()}`);
 
     if (!res.ok) {
         const error = await res.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(error.error || 'No Solana route available');
+        console.error('[getSolanaQuote] API error:', error);
+        throw new Error(error.error || error.details || 'No Solana route available');
     }
 
     return res.json();
