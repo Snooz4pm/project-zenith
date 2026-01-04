@@ -83,10 +83,12 @@ export async function GET() {
     console.log(`[Solana Discovery] Total: ${unique.length} unique tokens`);
 
     return NextResponse.json({
-        success: true,
-        tokens: unique,
-        count: unique.length,
-        engine: 'solana',
-        cached: true
+        meta: {
+            total: unique.length,
+            chains: ['solana'],
+            timestamp: Date.now(),
+            cached: true,
+        },
+        tokens: unique
     });
 }

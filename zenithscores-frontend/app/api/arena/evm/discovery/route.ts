@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const revalidate = 43200; // 12 hours ISR cache
+export const revalidate = 86400; // 24 hours ISR cache (Strict User Rule)
 
 // ════════════════════════════════════════════════════════
 // TIER-1 TOKEN LISTS (TRUSTED SOURCES)
@@ -113,20 +113,20 @@ export async function GET() {
     console.log(`[EVM Registry] Aggregated ${finalTokens.length} unique tokens from ${totalFetched} raw entries in ${duration}ms`);
 
     return NextResponse.json({
-      success: true,
-      tokens: finalTokens,
-      count: finalTokens.length,
-      engine: 'evm',
-      cached: true,
-      timestamp: Date.now()
+      meta: {
+        total: finalTokens.length,
+        chains: ['ethereum', 'bsc', 'base', 'arbitrum', 'polygon'],
+        timestamp: Date.now(),
+        cached: true,
+      },
+      tokens: finalTokens
     });
 
   } catch (err) {
     console.error('[EVM Registry] Fatal error:', err);
     return NextResponse.json({
-      success: false,
-      tokens: [],
-      error: String(err)
+      meta: { total: 0, chains: [], error: String(err) },
+      tokens: []
     });
   }
 }

@@ -14,6 +14,7 @@ export interface DiscoveredToken {
     priceUsd?: number;
     liquidityUsd: number;
     volume24hUsd: number;
+    pairCreatedAt?: number; // Timestamp (ms)
     source: TokenSource;
 }
 
