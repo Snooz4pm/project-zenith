@@ -34,13 +34,17 @@ async function fetchTokens(engine: ArenaEngine): Promise<Token[]> {
 
 export default function ArenaPage() {
   const [engine, setEngine] = useState<ArenaEngine>('none');
-  const [page, setPage] = useState(1);
 
-  // React Query with aggressive caching - DISABLED until engine selected
+  // Filters
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [minLiquidity, setMinLiquidity] = useState(0);
+
+  // React Query with aggressive caching
   const { data: tokens = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['arena', engine],
     queryFn: () => fetchTokens(engine),
-    enabled: engine !== 'none', // NO FETCH until engine selected
+    enabled: engine !== 'none',
     staleTime: STALE_TIME,
     gcTime: CACHE_TIME,
     retry: 2,
@@ -49,14 +53,54 @@ export default function ArenaPage() {
   const selectEngine = (selected: ArenaEngine) => {
     setEngine(selected);
     setPage(1);
+    setSearch("");
+    setMinLiquidity(0);
   };
 
-  const visibleTokens = tokens.slice(0, page * PAGE_SIZE);
-  const hasMore = visibleTokens.length < tokens.length;
+  // ═══════════════════════════════════════════════════════════
+  // MEMOIZED FILTER PIPELINE (FAST & NON-DESTRUCTIVE)
+  // ═══════════════════════════════════════════════════════════
+  const filteredTokens = useMemo(() => {
+    if (!tokens) return [];
+
+    return tokens.filter(t => {
+      // 1. Search Filter (Symbol, Name, Address)
+      if (search) {
+        const query = search.toLowerCase();
+        const match =
+          t.symbol.toLowerCase().includes(query) ||
+          t.name.toLowerCase().includes(query) ||
+          t.address.toLowerCase().includes(query);
+        if (!match) return false;
+      }
+
+      // 2. Liquidity Filter
+      if (minLiquidity > 0) {
+        if ((t.liquidityUsd || 0) < minLiquidity) return false;
+      }
+
+      return true;
+    });
+  }, [tokens, search, minLiquidity]);
 
   // ═══════════════════════════════════════════════════════════
-  // STATE: NO ENGINE SELECTED → Show Engine Selector
+  // PAGINATION (Slice AFTER filtering)
   // ═══════════════════════════════════════════════════════════
+  const visibleTokens = useMemo(() => {
+    return filteredTokens.slice(0, page * PAGE_SIZE);
+  }, [filteredTokens, page]);
+
+  const hasMore = visibleTokens.length < filteredTokens.length;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, minLiquidity]);
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER HELPERS
+  // ═══════════════════════════════════════════════════════════
+
   if (engine === 'none') {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
@@ -66,7 +110,6 @@ export default function ArenaPage() {
             <p className="text-zinc-500">Select your trading engine to begin</p>
           </div>
 
-          {/* Solana Engine Card */}
           <button
             onClick={() => selectEngine('solana')}
             className="w-full p-6 bg-gradient-to-br from-purple-500/10 to-green-500/10 border border-purple-500/30 rounded-2xl hover:border-purple-500/60 hover:scale-[1.02] transition-all group"
@@ -88,7 +131,6 @@ export default function ArenaPage() {
             </div>
           </button>
 
-          {/* EVM Engine Card */}
           <button
             onClick={() => selectEngine('evm')}
             className="w-full p-6 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-2xl hover:border-blue-500/60 hover:scale-[1.02] transition-all group"
@@ -114,28 +156,26 @@ export default function ArenaPage() {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // STATE: LOADING → Show Loading State
-  // ═══════════════════════════════════════════════════════════
+  // Loading Skeleton
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 text-emerald-500 animate-spin mx-auto mb-4" />
-          <p className="text-zinc-400 mb-2">
+      <div className="min-h-screen bg-[#0a0a0f] text-white p-6">
+        <div className="max-w-7xl mx-auto mb-6">
+          <h1 className="text-2xl font-bold mb-2">
             Discovering {engine === 'solana' ? 'Solana' : 'EVM'} tokens...
-          </p>
-          <p className="text-xs text-zinc-600">
-            Loading ~{engine === 'solana' ? '14k' : '15k'} tokens (cached after first load)
-          </p>
+          </h1>
+          <p className="text-sm text-zinc-500">Loading ~14k tokens (cached after first load)</p>
+        </div>
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          {[...Array(12)].map((_, i) => (
+            <div key={i} className="h-20 bg-white/5 rounded-xl animate-pulse" />
+          ))}
         </div>
       </div>
     );
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // STATE: ERROR → Show Error State
-  // ═══════════════════════════════════════════════════════════
+  // Error State
   if (isError) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
@@ -143,80 +183,70 @@ export default function ArenaPage() {
           <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-4" />
           <p className="text-red-400 mb-4">Discovery failed</p>
           <div className="flex gap-3 justify-center">
-            <button
-              onClick={() => refetch()}
-              className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 rounded-lg hover:bg-emerald-500/20"
-            >
-              <RefreshCw className="w-4 h-4 inline mr-2" />
-              Retry
+            <button onClick={() => refetch()} className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 rounded-lg">
+              <RefreshCw className="w-4 h-4 inline mr-2" /> Retry
             </button>
-            <button
-              onClick={() => setEngine('none')}
-              className="px-4 py-2 bg-white/5 text-zinc-400 rounded-lg hover:bg-white/10"
-            >
-              Back
-            </button>
+            <button onClick={() => selectEngine('none')} className="px-4 py-2 bg-white/5 text-zinc-400 rounded-lg">Back</button>
           </div>
         </div>
       </div>
     );
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // STATE: LOADED BUT EMPTY → Show Empty State
-  // ═══════════════════════════════════════════════════════════
-  if (tokens.length === 0) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="w-10 h-10 text-zinc-600 mx-auto mb-4" />
-          <p className="text-zinc-400 mb-4">No tokens found</p>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={() => refetch()}
-              className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 rounded-lg"
+  const engineColor = engine === 'solana' ? 'text-purple-400' : 'text-blue-400';
+  const engineName = engine === 'solana' ? 'Solana' : 'EVM';
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0f] text-white p-6">
+      {/* Header & Filters */}
+      <div className="max-w-7xl mx-auto mb-6 space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">
+              <span className={engineColor}>{engineName}</span> Arena
+            </h1>
+            <p className="text-sm text-zinc-500">
+              Showing {visibleTokens.length.toLocaleString()} of {filteredTokens.length.toLocaleString()} tokens
+              {filteredTokens.length !== tokens.length && ` (filtered from ${tokens.length.toLocaleString()})`}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              placeholder="Search symbol..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="bg-[#111116] border border-white/10 rounded-lg px-4 py-2 text-sm w-48 focus:border-white/30 outline-none transition-colors"
+            />
+            <select
+              value={minLiquidity}
+              onChange={(e) => setMinLiquidity(Number(e.target.value))}
+              className="bg-[#111116] border border-white/10 rounded-lg px-4 py-2 text-sm outline-none focus:border-white/30"
             >
-              Retry
-            </button>
+              <option value={0}>Min Liquidity: All</option>
+              <option value={10000}>$10k</option>
+              <option value={50000}>$50k</option>
+              <option value={100000}>$100k</option>
+              <option value={500000}>$500k</option>
+              <option value={1000000}>$1M</option>
+            </select>
             <button
-              onClick={() => setEngine('none')}
-              className="px-4 py-2 bg-white/5 text-zinc-400 rounded-lg hover:bg-white/10"
+              onClick={() => selectEngine('none')}
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-zinc-400"
             >
               Switch Engine
             </button>
           </div>
         </div>
       </div>
-    );
-  }
 
-  // ═══════════════════════════════════════════════════════════
-  // STATE: LOADED WITH TOKENS → Show Token Grid
-  // ═══════════════════════════════════════════════════════════
-  const engineColor = engine === 'solana' ? 'text-purple-400' : 'text-blue-400';
-  const engineName = engine === 'solana' ? 'Solana' : 'EVM';
-
-  return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white p-6">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">
-              <span className={engineColor}>{engineName}</span> Arena
-            </h1>
-            <p className="text-sm text-zinc-500">
-              Showing {visibleTokens.length.toLocaleString()} of {tokens.length.toLocaleString()} tokens
-            </p>
-          </div>
-          <button
-            onClick={() => setEngine('none')}
-            className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-zinc-400"
-          >
-            Switch Engine
-          </button>
+      {/* Empty State (Filtered) */}
+      {filteredTokens.length === 0 && (
+        <div className="text-center py-20 text-zinc-500">
+          <p className="text-lg mb-2">No tokens match your filters</p>
+          <p className="text-sm">Try lowering liquidity or searching for something else</p>
         </div>
-      </div>
+      )}
 
       {/* Token Grid */}
       <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -258,7 +288,7 @@ export default function ArenaPage() {
             onClick={() => setPage(p => p + 1)}
             className="px-6 py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 rounded-lg hover:bg-emerald-500/20 transition-colors"
           >
-            Load More ({(tokens.length - visibleTokens.length).toLocaleString()} remaining)
+            Load More ({(filteredTokens.length - visibleTokens.length).toLocaleString()} remaining)
           </button>
         </div>
       )}
