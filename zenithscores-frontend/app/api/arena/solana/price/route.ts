@@ -27,8 +27,11 @@ export async function POST(req: Request) {
     // 1 SOL = 1,000,000,000 lamports
     const amount = "1000000000";
 
+    // Use env-based Jupiter URL (jup.ag/api for Vercel DNS compatibility)
+    const JUPITER_API = process.env.JUPITER_QUOTE_API || 'https://jup.ag/api';
+
     const url =
-      `https://quote-api.jup.ag/v6/quote` +
+      `${JUPITER_API}/quote` +
       `?inputMint=${inputMint}` +
       `&outputMint=${outputMint}` +
       `&amount=${amount}` +
