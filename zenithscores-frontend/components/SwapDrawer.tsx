@@ -68,7 +68,8 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
     // Unified wallet (single source of truth)
     const activeChain = fromToken?.chainType === 'SOLANA' ? 'solana' : fromToken?.chainType === 'EVM' ? 'evm' : 'none';
     const { isConnected, address: userAddress } = useUnifiedWallet(activeChain);
-    const chainId = fromToken?.chainId ? parseInt(fromToken.chainId) : 56; // Default to BSC
+    // FORCE BSC (56) for all EVM swaps - only BSC is supported
+    const chainId = 56;
     const chainType = fromToken?.chainType || toToken?.chainType; // For gas/explorer logic
 
     // Balance fetching (lazy - only for selected fromToken)
