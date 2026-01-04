@@ -5,7 +5,7 @@ import { Zap, Shield, Info } from 'lucide-react';
 import { useWallet } from '@/lib/wallet/WalletContext';
 import ArenaGrid from '@/components/ArenaGrid';
 import { SwapDrawer } from '@/components/SwapDrawer';
-import { GlobalToken } from '@/lib/discovery/normalize';
+import { DiscoveredToken } from '@/lib/discovery/types';
 
 /**
  * Trading Arena
@@ -26,10 +26,10 @@ import { GlobalToken } from '@/lib/discovery/normalize';
  */
 export default function TradingArenaPage() {
   const { session } = useWallet();
-  const [selectedToken, setSelectedToken] = useState<GlobalToken | null>(null);
+  const [selectedToken, setSelectedToken] = useState<DiscoveredToken | null>(null);
   const [isSwapDrawerOpen, setIsSwapDrawerOpen] = useState(false);
 
-  const handleSelectToken = (token: GlobalToken) => {
+  const handleSelectToken = (token: DiscoveredToken) => {
     setSelectedToken(token);
     setIsSwapDrawerOpen(true);
   };
