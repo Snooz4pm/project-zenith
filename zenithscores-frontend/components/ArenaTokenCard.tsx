@@ -17,10 +17,11 @@ interface Token {
 
 interface ArenaTokenCardProps {
   token: Token;
+  badges?: string[];
   onClick: (token: Token) => void;
 }
 
-export function ArenaTokenCard({ token, onClick }: ArenaTokenCardProps) {
+export function ArenaTokenCard({ token, badges, onClick }: ArenaTokenCardProps) {
   const [isVisible, setIsVisible] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
