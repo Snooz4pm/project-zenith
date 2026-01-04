@@ -64,11 +64,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get Jupiter API URL from environment (CRITICAL for Vercel deployment)
-    const JUPITER_API = process.env.JUPITER_QUOTE_API || 'https://quote-api.jup.ag/v6';
+    // Use Railway proxy in production, direct Jupiter API in local dev
+    const JUPITER_API = process.env.JUPITER_PROXY_URL || 'https://quote-api.jup.ag/v6';
 
     if (!JUPITER_API) {
-      console.error('[Solana Quote] JUPITER_QUOTE_API not configured');
+      console.error('[Solana Quote] JUPITER_PROXY_URL not configured');
       return Response.json(
         { error: 'Jupiter API not configured' },
         { status: 500 }
@@ -171,8 +171,8 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // Get Jupiter API URL
-    const JUPITER_API = process.env.JUPITER_QUOTE_API || 'https://quote-api.jup.ag/v6';
+    // Use Railway proxy in production, direct Jupiter API in local dev
+    const JUPITER_API = process.env.JUPITER_PROXY_URL || 'https://quote-api.jup.ag/v6';
 
     // Build Jupiter URL with swapMode
     const url =

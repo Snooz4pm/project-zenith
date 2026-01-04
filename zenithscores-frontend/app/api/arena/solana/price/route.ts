@@ -27,8 +27,8 @@ export async function POST(req: Request) {
     // 1 SOL = 1,000,000,000 lamports
     const amount = "1000000000";
 
-    // Use env-based Jupiter URL (v6 is the stable production endpoint)
-    const JUPITER_API = process.env.JUPITER_QUOTE_API || 'https://quote-api.jup.ag/v6';
+    // Use Railway proxy in production, direct Jupiter API in local dev
+    const JUPITER_API = process.env.JUPITER_PROXY_URL || 'https://quote-api.jup.ag/v6';
 
     const url =
       `${JUPITER_API}/quote` +
