@@ -2,14 +2,30 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const revalidate = 86400; // 24 hours ISR cache
+export const revalidate = 43200; // 12 hours ISR cache
 
 // ════════════════════════════════════════════════════════
-// LAYER 1: REGISTRY CONFIG (AUTHORITATIVE)
+// TIER-1 TOKEN LISTS (TRUSTED SOURCES)
 // ════════════════════════════════════════════════════════
-const UNISWAP_LIST_URL = 'https://tokens.uniswap.org';
+const TOKEN_LISTS = [
+  'https://tokens.uniswap.org',
+  'https://gateway.ipfs.io/ipns/tokens.uniswap.org',
+  'https://tokens.coingecko.com/uniswap/all.json',
+  'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/tokenlist.json',
+  'https://raw.githubusercontent.com/compound-finance/token-list/master/compound.tokenlist.json',
+  'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens.json',
+  // BSC Critical Lists
+  'https://tokens.pancakeswap.finance/pancakeswap-extended.json',
+  'https://tokens.pancakeswap.finance/pancakeswap-top-100.json'
+];
 
-const CHAIN_MAP: Record<number, { chain: string; name: string; chainId: string }> = {
+interface ChainMeta {
+  chain: string;
+  name: string;
+  chainId: string;
+}
+
+const CHAIN_MAP: Record<number, ChainMeta> = {
   1: { chain: 'ethereum', name: 'Ethereum', chainId: '1' },
   56: { chain: 'bsc', name: 'BNB Chain', chainId: '56' },
   8453: { chain: 'base', name: 'Base', chainId: '8453' },
@@ -20,57 +36,89 @@ const CHAIN_MAP: Record<number, { chain: string; name: string; chainId: string }
 /**
  * GET /api/arena/evm/discovery
  * 
- * EVM Token Registry (Layer 1)
- * Source: Uniswap Unified Token List
- * Coverage: High-quality, verified tokens across 5 major chains
- * Strategy: Registry-First (No fallback to raw indexers)
+ * EVM Token Registry (Aggregated Layer 1)
+ * Merges multiple Tier-1 token lists to build a comprehensive registry.
+ * Target: 20k-50k unique tokens.
  */
 export async function GET() {
-  try {
-    console.log('[EVM Registry] Fetching Uniswap Token List...');
+  const startTime = Date.now();
+  console.log('[EVM Registry] Starting aggregation...');
 
-    const res = await fetch(UNISWAP_LIST_URL, {
-      next: { revalidate: 86400 }
+  try {
+    // 1. Fetch all lists in parallel
+    const results = await Promise.allSettled(
+      TOKEN_LISTS.map(async (url) => {
+        try {
+          const res = await fetch(url, { next: { revalidate: 43200 } });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          return data.tokens || [];
+        } catch (err) {
+          console.warn(`[EVM Registry] Failed to fetch ${url}:`, err);
+          return []; // Fail safe
+        }
+      })
+    );
+
+    // 2. Flatten and Aggregation Map
+    // Key: "chain:address" (lifecycle safe)
+    const tokenMap = new Map<string, any>();
+    let totalFetched = 0;
+
+    results.forEach((result) => {
+      if (result.status === 'fulfilled') {
+        const tokens = result.value;
+        totalFetched += tokens.length;
+
+        for (const t of tokens) {
+          const chainId = t.chainId;
+          const address = t.address?.toLowerCase();
+
+          // Only process supported chains & valid addresses
+          if (CHAIN_MAP[chainId] && address) {
+            const splitKey = CHAIN_MAP[chainId].chain;
+            const key = `${splitKey}:${address}`;
+
+            // Deduplicate: First writer wins (usually Uniswap as it's first in list)
+            // Or overwrite if we want to merge metadata (simple: first wins for speed)
+            if (!tokenMap.has(key)) {
+              tokenMap.set(key, t);
+            }
+          }
+        }
+      }
     });
 
-    if (!res.ok) {
-      console.error('[EVM Registry] Failed to fetch list:', res.status);
-      return NextResponse.json({ success: false, tokens: [], count: 0 });
-    }
+    // 3. Normalize to DiscoveredToken
+    const finalTokens = Array.from(tokenMap.values()).map(t => {
+      const meta = CHAIN_MAP[t.chainId];
+      return {
+        chain: meta.chain,
+        chainType: 'EVM',
+        chainId: meta.chainId,
+        networkName: meta.name,
+        address: t.address, // Keep original case or lowercase? Usually keep checksummed if from list, but efficient map used lowercase key.
+        // We return t.address from source (usually checksummed)
+        symbol: t.symbol,
+        name: t.name,
+        decimals: t.decimals,
+        logoURI: t.logoURI,
+        liquidityUsd: 0, // Registry only
+        volume24hUsd: 0, // Registry only
+        source: 'AGGREGATED_REGISTRY'
+      };
+    });
 
-    const data = await res.json();
-    const rawTokens = data.tokens || [];
-
-    // Filter & Normalize
-    const tokens = rawTokens
-      .filter((t: any) => CHAIN_MAP[t.chainId])
-      .map((t: any) => {
-        const meta = CHAIN_MAP[t.chainId];
-        return {
-          chain: meta.chain,
-          chainType: 'EVM',
-          chainId: meta.chainId,
-          networkName: meta.name,
-          address: t.address,
-          symbol: t.symbol,
-          name: t.name,
-          decimals: t.decimals,
-          logoURI: t.logoURI,
-          // L2 Enrichment data (missing in L1 registry)
-          liquidityUsd: 0,
-          volume24hUsd: 0,
-          source: 'UNISWAP_REGISTRY'
-        };
-      });
-
-    console.log(`[EVM Registry] Loaded ${tokens.length} verified tokens`);
+    const duration = Date.now() - startTime;
+    console.log(`[EVM Registry] Aggregated ${finalTokens.length} unique tokens from ${totalFetched} raw entries in ${duration}ms`);
 
     return NextResponse.json({
       success: true,
-      tokens,
-      count: tokens.length,
+      tokens: finalTokens,
+      count: finalTokens.length,
       engine: 'evm',
-      cached: true
+      cached: true,
+      timestamp: Date.now()
     });
 
   } catch (err) {

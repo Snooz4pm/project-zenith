@@ -4,6 +4,10 @@ import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Zap, Globe, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
+import { ArenaTokenCard } from '@/components/ArenaTokenCard';
+import { SwapDrawer } from '@/components/SwapDrawer';
+import { useWallet } from '@/lib/wallet/WalletContext';
+import { DiscoveredToken } from '@/lib/discovery/types';
 
 type ArenaEngine = 'none' | 'solana' | 'evm';
 
@@ -34,12 +38,17 @@ async function fetchTokens(engine: ArenaEngine): Promise<Token[]> {
 }
 
 export default function ArenaPage() {
+  const { session } = useWallet();
   const [engine, setEngine] = useState<ArenaEngine>('none');
 
   // Filters (User Input)
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [minLiquidity, setMinLiquidity] = useState(0);
+
+  // Swap Drawer State
+  const [selectedToken, setSelectedToken] = useState<DiscoveredToken | null>(null);
+  const [isSwapDrawerOpen, setIsSwapDrawerOpen] = useState(false);
 
   // Debounce expensive filter inputs
   const debouncedSearch = useDebounce(search, 300);
@@ -123,6 +132,41 @@ export default function ArenaPage() {
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, debouncedLiquidity]);
+
+  // ═══════════════════════════════════════════════════════════
+  // TOKEN CLICK HANDLER (GOLDEN RULE: NO AUTO-WALLET POPUP)
+  // ═══════════════════════════════════════════════════════════
+  const handleTokenClick = (token: Token) => {
+    // Convert Token to DiscoveredToken format
+    const discoveredToken: DiscoveredToken = {
+      chainType: token.chainType as 'SOLANA' | 'EVM',
+      chainId: token.chain,
+      chain: token.chain,
+      address: token.address,
+      symbol: token.symbol,
+      name: token.name,
+      logoURI: token.logoURI,
+      liquidityUsd: token.liquidityUsd || 0,
+      volume24hUsd: token.volume24hUsd || 0,
+      source: (token.source || 'DEXSCREENER') as 'RAYDIUM' | 'JUPITER' | 'DEXSCREENER',
+    };
+
+    // Check if wallet is connected for this chain type
+    const isConnected = token.chainType === 'SOLANA'
+      ? !!session.solana
+      : !!session.evm;
+
+    if (!isConnected) {
+      // User must manually connect wallet
+      // Show a message or do nothing - NO auto-popup
+      alert(`Please connect your ${token.chainType === 'SOLANA' ? 'Solana' : 'EVM'} wallet to trade this token.`);
+      return;
+    }
+
+    // Wallet connected → open swap panel
+    setSelectedToken(discoveredToken);
+    setIsSwapDrawerOpen(true);
+  };
 
   // ═══════════════════════════════════════════════════════════
   // RENDER HELPERS
@@ -278,33 +322,11 @@ export default function ArenaPage() {
       {/* Token Grid */}
       <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         {visibleTokens.map((token, i) => (
-          <div
+          <ArenaTokenCard
             key={`${token.address}-${i}`}
-            className="p-3 bg-[#111116] border border-white/5 rounded-xl hover:border-white/20 transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              {token.logoURI ? (
-                <img
-                  src={token.logoURI}
-                  alt=""
-                  className="w-8 h-8 rounded-full"
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center text-xs font-bold">
-                  {token.symbol?.[0] || '?'}
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold text-sm truncate">{token.symbol || 'UNKNOWN'}</div>
-                <div className="text-[10px] text-zinc-600 truncate">{token.name || 'Unknown'}</div>
-              </div>
-            </div>
-            <div className="flex justify-between text-[10px] text-zinc-500">
-              <span>{token.liquidityUsd ? `$${(token.liquidityUsd / 1000).toFixed(0)}K` : '-'}</span>
-              <span className="text-zinc-600">{token.source || token.chain}</span>
-            </div>
-          </div>
+            token={token}
+            onClick={handleTokenClick}
+          />
         ))}
       </div>
 
@@ -319,6 +341,13 @@ export default function ArenaPage() {
           </button>
         </div>
       )}
+
+      {/* Swap Drawer */}
+      <SwapDrawer
+        isOpen={isSwapDrawerOpen}
+        onClose={() => setIsSwapDrawerOpen(false)}
+        token={selectedToken}
+      />
     </div>
   );
 }
