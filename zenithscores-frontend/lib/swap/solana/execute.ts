@@ -3,61 +3,46 @@ import { WalletContextState } from '@solana/wallet-adapter-react';
 import { SolanaQuote } from './quote';
 
 /**
- * Solana Swap Execution (Jupiter API v6)
+ * Solana Swap Execution
  * 
  * WRITE operation - requires connected wallet
  * Two-step process: 1) Get swap transaction, 2) Sign and send
  */
 
 /**
- * Step 1: Get swap transaction from Jupiter
- * Requires user's public key but NOT signature yet
+ * Step 1: Get swap transaction via API route (which forwards to Railway proxy)
  */
 export async function getSolanaSwapTransaction(
-    quote: SolanaQuote,
+    quoteResponse: SolanaQuote,
     userPublicKey: string
-): Promise<{ swapTransaction: string }> {
-    console.log('[Solana Swap] Getting swap transaction from Jupiter');
-    console.log('[Solana Swap] Input:', {
-        inputMint: quote.inputMint,
-        outputMint: quote.outputMint,
-        inAmount: quote.inAmount,
-        outAmount: quote.outAmount,
-        userPublicKey,
-    });
+): Promise<{ swapTransaction: string; lastValidBlockHeight?: number }> {
+    console.log('[Solana Swap] Getting swap transaction');
+    console.log('[Solana Swap] User:', userPublicKey);
 
-    // Get Jupiter API URL from environment (v6 is the stable production endpoint)
-    const JUPITER_API = process.env.JUPITER_QUOTE_API || 'https://quote-api.jup.ag/v6';
-
-    const res = await fetch(`${JUPITER_API}/swap`, {
+    // Call our API route which forwards to Railway proxy
+    const res = await fetch('/api/arena/solana/swap', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            quoteResponse: quote,
+            quoteResponse,
             userPublicKey,
             wrapAndUnwrapSol: true,
-            // feeAccount: process.env.ZENITH_SOL_FEE_RECIPIENT, // Platform fee wallet
         }),
     });
 
-    console.log('[Solana Swap] Jupiter swap response status:', res.status);
+    const data = await res.json();
 
     if (!res.ok) {
-        const text = await res.text();
-        console.error('[Solana Swap] Jupiter error:', text);
-        throw new Error(`Failed to build swap transaction: ${text}`);
+        console.error('[Solana Swap] API error:', data);
+        throw new Error(data.error || 'Failed to build swap transaction');
     }
-
-    const data = await res.json();
 
     if (!data.swapTransaction) {
         console.error('[Solana Swap] No swapTransaction in response:', data);
-        throw new Error('No swap transaction returned from Jupiter');
+        throw new Error('No swap transaction returned');
     }
 
-    console.log('[Solana Swap] Swap transaction received successfully');
+    console.log('[Solana Swap] Swap transaction received');
     return data;
 }
 
@@ -79,7 +64,7 @@ export async function executeSolanaSwap(
         throw new Error('Wallet does not support signing');
     }
 
-    // Deserialize the transaction
+    // Deserialize - MUST use VersionedTransaction
     const swapTransactionBuf = Buffer.from(swapTransactionBase64, 'base64');
     const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
 

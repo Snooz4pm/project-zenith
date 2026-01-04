@@ -6,66 +6,45 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/arena/solana/swap
  *
- * Execute a Solana swap using Jupiter
- *
- * Body:
- *   - quote: Jupiter quote from /quote endpoint
- *   - userPublicKey: User's Solana wallet address
- *
- * Returns:
- *   - swapTransaction: Base64 serialized transaction
+ * Forward swap request to Railway Jupiter proxy
+ * Body: { quoteResponse, userPublicKey, wrapAndUnwrapSol? }
+ * Returns: { swapTransaction, lastValidBlockHeight }
  */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { quote, userPublicKey } = body;
 
-    if (!quote || !userPublicKey) {
+    const PROXY = process.env.JUPITER_PROXY_URL;
+    if (!PROXY) {
       return NextResponse.json(
-        { error: 'Missing quote or userPublicKey' },
-        { status: 400 }
+        { error: 'Proxy not configured' },
+        { status: 500 }
       );
     }
 
-    console.log('[Jupiter Swap] Building transaction for:', userPublicKey);
+    console.log('[Solana Swap] Forwarding to proxy:', PROXY);
 
-    // Use Railway proxy in production, direct Jupiter API in local dev
-    const JUPITER_API = process.env.JUPITER_PROXY_URL || 'https://quote-api.jup.ag/v6';
-
-    // Ask Jupiter to build the swap transaction
-    const res = await fetch(`${JUPITER_API}/swap`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        quoteResponse: quote,
-        userPublicKey,
-        wrapAndUnwrapSol: true,
-        dynamicComputeUnitLimit: true,
-        prioritizationFeeLamports: "auto"
-      })
+    // Forward directly to Railway proxy - no modification
+    const res = await fetch(`${PROXY}/swap`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
-
-    if (!res.ok) {
-      console.error('[Jupiter Swap] HTTP error:', res.status);
-      return NextResponse.json(
-        { error: 'Failed to build swap transaction' },
-        { status: res.status }
-      );
-    }
 
     const data = await res.json();
 
-    console.log('[Jupiter Swap] Transaction built successfully');
+    if (!res.ok) {
+      console.error('[Solana Swap] Proxy error:', data);
+      return NextResponse.json(data, { status: res.status });
+    }
 
-    return NextResponse.json({
-      swapTransaction: data.swapTransaction,
-      lastValidBlockHeight: data.lastValidBlockHeight
-    });
+    console.log('[Solana Swap] Success - swapTransaction received');
+    return NextResponse.json(data);
 
   } catch (err) {
-    console.error('[Jupiter Swap] Fatal error:', err);
+    console.error('[Solana Swap] Fatal error:', err);
     return NextResponse.json(
-      { error: String(err) },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
