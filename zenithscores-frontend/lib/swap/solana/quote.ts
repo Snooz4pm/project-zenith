@@ -1,20 +1,18 @@
-import { Connection, PublicKey } from '@solana/web3.js';
-
 /**
- * Solana Quote Fetcher (Jupiter API v6)
+ * Solana Quote Fetcher (Jupiter v6)
  * 
  * READ-ONLY - No wallet required
- * Uses Jupiter's direct API (no SDK needed for quotes)
+ * Routes through API proxy to avoid CORS
  */
 
 export interface SolanaQuoteParams {
     inputMint: string;
     outputMint: string;
-    amount: number; // in lamports/smallest unit
-    slippageBps?: number;
+    amount: number; // In base units (lamports, smallest token unit)
+    slippageBps?: number; // Default 50 = 0.5%
 }
 
-export interface SolanaQuote {
+export interface JupiterQuote {
     inputMint: string;
     inAmount: string;
     outputMint: string;
@@ -22,13 +20,34 @@ export interface SolanaQuote {
     otherAmountThreshold: string;
     swapMode: string;
     slippageBps: number;
+    platformFee: any;
     priceImpactPct: string;
     routePlan: any[];
+    contextSlot?: number;
+    timeTaken?: number;
 }
 
-export async function getSolanaQuote(params: SolanaQuoteParams): Promise<SolanaQuote> {
+/**
+ * Convert SOL/token amount to smallest unit (lamports = 10^9)
+ */
+export function toSolanaAmount(amount: number, decimals: number = 9): number {
+    return Math.floor(amount * Math.pow(10, decimals));
+}
+
+/**
+ * Convert lamports to human-readable amount
+ */
+export function fromSolanaAmount(lamports: number, decimals: number = 9): number {
+    return lamports / Math.pow(10, decimals);
+}
+
+/**
+ * Get Solana swap quote from Jupiter (via our API proxy)
+ */
+export async function getSolanaQuote(params: SolanaQuoteParams): Promise<JupiterQuote> {
     const { inputMint, outputMint, amount, slippageBps = 50 } = params;
 
+    // Build query params
     const queryParams = new URLSearchParams({
         inputMint,
         outputMint,
@@ -36,9 +55,8 @@ export async function getSolanaQuote(params: SolanaQuoteParams): Promise<SolanaQ
         slippageBps: String(slippageBps),
     });
 
-    const res = await fetch(
-        `https://quote-api.jup.ag/v6/quote?${queryParams.toString()}`
-    );
+    // Call OUR API proxy (not Jupiter directly - avoids CORS)
+    const res = await fetch(`/api/arena/solana/quote?${queryParams.toString()}`);
 
     if (!res.ok) {
         const error = await res.json().catch(() => ({ error: 'Unknown error' }));
@@ -46,18 +64,4 @@ export async function getSolanaQuote(params: SolanaQuoteParams): Promise<SolanaQ
     }
 
     return res.json();
-}
-
-/**
- * Helper: Convert token amount to lamports (with decimals)
- */
-export function toSolanaAmount(amount: number, decimals: number): number {
-    return Math.floor(amount * Math.pow(10, decimals));
-}
-
-/**
- * Helper: Convert lamports to token amount (with decimals)
- */
-export function fromSolanaAmount(lamports: number, decimals: number): number {
-    return lamports / Math.pow(10, decimals);
 }

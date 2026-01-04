@@ -1,80 +1,75 @@
-import { NextResponse } from "next/server";
+import { NextRequest } from 'next/server';
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 /**
- * POST /api/arena/solana/quote
- *
- * Generic Jupiter quote checker - works for ANY token pair
- *
- * Body:
- *   - inputMint: From token address
- *   - outputMint: To token address
- *   - amount: Amount in smallest units (lamports)
- *
- * Returns:
- *   - executable: boolean (can Jupiter route this?)
- *   - quote: Jupiter quote object (if executable)
+ * GET /api/arena/solana/quote
+ * 
+ * Jupiter v6 Quote Proxy (SERVER-SIDE ONLY)
+ * Prevents CORS issues and provides logging
  */
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const { inputMint, outputMint, amount } = body;
+export async function GET(req: NextRequest) {
+  console.log('[Solana Quote] Request received');
 
-    // Validate inputs
+  try {
+    const { searchParams } = new URL(req.url);
+
+    const inputMint = searchParams.get('inputMint');
+    const outputMint = searchParams.get('outputMint');
+    const amount = searchParams.get('amount');
+    const slippageBps = searchParams.get('slippageBps') || '50';
+
+    // Validation
     if (!inputMint || !outputMint || !amount) {
-      return NextResponse.json({
-        executable: false,
-        error: 'Missing required fields'
-      });
+      console.error('[Solana Quote] Missing params:', { inputMint, outputMint, amount });
+      return Response.json(
+        { error: 'Missing required parameters: inputMint, outputMint, amount' },
+        { status: 400 }
+      );
     }
 
-    // Ask Jupiter: "Can you route this swap?"
-    const url =
-      `https://quote-api.jup.ag/v6/quote` +
-      `?inputMint=${inputMint}` +
-      `&outputMint=${outputMint}` +
-      `&amount=${amount}` +
-      `&onlyDirectRoutes=false` +
-      `&slippageBps=50`; // 0.5% slippage
-
-    console.log('[Jupiter Quote] Checking route:', { inputMint, outputMint, amount });
-
-    const res = await fetch(url, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(10000)
+    // Build Jupiter URL
+    const jupiterUrl = new URLSearchParams({
+      inputMint,
+      outputMint,
+      amount,
+      slippageBps,
     });
 
+    const fullUrl = `https://quote-api.jup.ag/v6/quote?${jupiterUrl.toString()}`;
+    console.log('[Solana Quote] Calling Jupiter:', fullUrl);
+
+    const res = await fetch(fullUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10000), // 10s timeout
+    });
+
+    console.log('[Solana Quote] Jupiter response status:', res.status);
+
     if (!res.ok) {
-      console.error('[Jupiter Quote] HTTP error:', res.status);
-      return NextResponse.json({
-        executable: false,
-        error: 'Jupiter API error'
-      });
+      const text = await res.text();
+      console.error('[Solana Quote] Jupiter error:', text);
+      return Response.json(
+        { error: 'Jupiter quote failed', details: text },
+        { status: res.status }
+      );
     }
 
     const data = await res.json();
+    console.log('[Solana Quote] Success - route found');
 
-    // Jupiter returns routes if swap is possible
-    const hasRoute = Boolean(data?.data?.length || data?.routePlan);
-    const quote = data?.data?.[0] || data;
+    return Response.json(data);
 
-    console.log('[Jupiter Quote] Route found:', hasRoute);
-
-    return NextResponse.json({
-      executable: hasRoute,
-      quote: hasRoute ? quote : null,
-      inAmount: quote?.inAmount,
-      outAmount: quote?.outAmount,
-      priceImpactPct: quote?.priceImpactPct
-    });
-
-  } catch (err) {
-    console.error('[Jupiter Quote] Fatal error:', err);
-    return NextResponse.json({
-      executable: false,
-      error: String(err)
-    });
+  } catch (e: any) {
+    console.error('[Solana Quote] Error:', e);
+    return Response.json(
+      { error: 'Internal server error', message: e.message },
+      { status: 500 }
+    );
   }
 }
