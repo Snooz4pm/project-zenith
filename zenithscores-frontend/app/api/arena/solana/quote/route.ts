@@ -65,8 +65,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Get Jupiter API URL from environment (CRITICAL for Vercel deployment)
-    // Using jup.ag/api instead of quote-api.jup.ag for better DNS resolution on Vercel
-    const JUPITER_API = process.env.JUPITER_QUOTE_API || 'https://jup.ag/api';
+    const JUPITER_API = process.env.JUPITER_QUOTE_API || 'https://quote-api.jup.ag/v6';
 
     if (!JUPITER_API) {
       console.error('[Solana Quote] JUPITER_QUOTE_API not configured');

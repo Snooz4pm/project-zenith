@@ -29,8 +29,8 @@ export async function POST(req: Request) {
 
     console.log('[Jupiter Swap] Building transaction for:', userPublicKey);
 
-    // Use env-based Jupiter URL (jup.ag/api for Vercel DNS compatibility)
-    const JUPITER_API = process.env.JUPITER_QUOTE_API || 'https://jup.ag/api';
+    // Use env-based Jupiter URL (v6 is the stable production endpoint)
+    const JUPITER_API = process.env.JUPITER_QUOTE_API || 'https://quote-api.jup.ag/v6';
 
     // Ask Jupiter to build the swap transaction
     const res = await fetch(`${JUPITER_API}/swap`, {

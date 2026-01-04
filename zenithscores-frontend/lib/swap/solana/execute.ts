@@ -26,8 +26,8 @@ export async function getSolanaSwapTransaction(
         userPublicKey,
     });
 
-    // Get Jupiter API URL from environment (jup.ag/api for Vercel DNS compatibility)
-    const JUPITER_API = process.env.JUPITER_QUOTE_API || 'https://jup.ag/api';
+    // Get Jupiter API URL from environment (v6 is the stable production endpoint)
+    const JUPITER_API = process.env.JUPITER_QUOTE_API || 'https://quote-api.jup.ag/v6';
 
     const res = await fetch(`${JUPITER_API}/swap`, {
         method: 'POST',
