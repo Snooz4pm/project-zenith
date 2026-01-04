@@ -8,6 +8,7 @@ import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, Us
 import { useSession, signOut } from 'next-auth/react';
 import NotificationBell from '@/components/community/NotificationBell';
 import { useWallet } from '@/lib/wallet/WalletContext';
+import { useUnifiedWallet } from '@/lib/wallet/useUnifiedWallet';
 import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
@@ -23,13 +24,17 @@ import WalletSelectorModal from '@/components/WalletSelectorModal';
  * MULTI-SESSION AWARE:
  * ✅ Both Solana and EVM can be connected simultaneously
  * ✅ Shows badges for each active session
- * ✅ Click badge to open respective wallet modal
+ * ✅ Click badge to disconnect
  */
 function WalletConnectButton() {
   const { session } = useWallet();
   const { open: openEVMModal } = useWeb3Modal();
   const { setVisible: openSolanaModal } = useWalletModal();
   const [showSelector, setShowSelector] = useState(false);
+
+  // Unified disconnect handlers
+  const { disconnect: disconnectEvm } = useUnifiedWallet('evm');
+  const { disconnect: disconnectSolana } = useUnifiedWallet('solana');
 
   const hasSolana = !!session.solana;
   const hasEvm = !!session.evm;
@@ -66,32 +71,38 @@ function WalletConnectButton() {
     <div className="flex items-center gap-2">
       {/* Solana Session */}
       {hasSolana && (
-        <button
-          onClick={() => openSolanaModal(true)}
-          className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-lg flex items-center gap-2 hover:bg-purple-500/20 transition-colors"
-          title={session.solana!.address}
-        >
-          <div className="w-2 h-2 rounded-full bg-purple-500" />
-          <span className="text-xs text-purple-300 font-medium">Solana</span>
-          <span className="text-xs text-zinc-500">
-            {session.solana!.address.slice(0, 4)}...{session.solana!.address.slice(-4)}
-          </span>
-        </button>
+        <div className="group relative">
+          <button
+            onClick={() => disconnectSolana()}
+            className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-lg flex items-center gap-2 hover:bg-purple-500/20 hover:border-red-500/40 transition-colors"
+            title="Click to disconnect"
+          >
+            <div className="w-2 h-2 rounded-full bg-purple-500 group-hover:bg-red-500" />
+            <span className="text-xs text-purple-300 font-medium group-hover:text-red-400">Solana</span>
+            <span className="text-xs text-zinc-500">
+              {session.solana!.address.slice(0, 4)}...{session.solana!.address.slice(-4)}
+            </span>
+            <X size={12} className="text-zinc-600 group-hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </button>
+        </div>
       )}
 
       {/* EVM Session */}
       {hasEvm && (
-        <button
-          onClick={() => openEVMModal()}
-          className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center gap-2 hover:bg-blue-500/20 transition-colors"
-          title={session.evm!.address}
-        >
-          <div className="w-2 h-2 rounded-full bg-blue-500" />
-          <span className="text-xs text-blue-300 font-medium">{session.evm!.networkName}</span>
-          <span className="text-xs text-zinc-500">
-            {session.evm!.address.slice(0, 4)}...{session.evm!.address.slice(-4)}
-          </span>
-        </button>
+        <div className="group relative">
+          <button
+            onClick={() => disconnectEvm()}
+            className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center gap-2 hover:bg-blue-500/20 hover:border-red-500/40 transition-colors"
+            title="Click to disconnect"
+          >
+            <div className="w-2 h-2 rounded-full bg-blue-500 group-hover:bg-red-500" />
+            <span className="text-xs text-blue-300 font-medium group-hover:text-red-400">{session.evm!.networkName}</span>
+            <span className="text-xs text-zinc-500">
+              {session.evm!.address.slice(0, 4)}...{session.evm!.address.slice(-4)}
+            </span>
+            <X size={12} className="text-zinc-600 group-hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </button>
+        </div>
       )}
     </div>
   );

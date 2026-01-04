@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useWallet } from "@/lib/wallet/WalletContext";
+import { useUnifiedWallet } from "@/lib/wallet/useUnifiedWallet";
 import { DiscoveredToken } from "@/lib/discovery/types";
-import { X, ArrowDown, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import { useWalletClient } from "wagmi";
+import { X, ArrowDown, Loader2, CheckCircle2, AlertCircle, Settings, ExternalLink } from "lucide-react";
+import { useWalletClient, usePublicClient } from "wagmi";
 import { useConnection, useWallet as useSolanaWallet } from "@solana/wallet-adapter-react";
-import { getEvmQuote, approveEvmIfNeeded, executeEvmSwap } from "@/lib/swap/evm";
-import { getSolanaQuote, getSolanaSwapTransaction, executeSolanaSwap, toSolanaAmount } from "@/lib/swap/solana";
+import { getEvmQuote, approveEvmIfNeeded, executeEvmSwap, calculateGasCost } from "@/lib/swap/evm";
+import { getSolanaQuote, getSolanaSwapTransaction, executeSolanaSwap } from "@/lib/swap/solana";
 
 interface SwapDrawerProps {
     isOpen: boolean;
@@ -16,11 +16,30 @@ interface SwapDrawerProps {
     availableTokens?: DiscoveredToken[];
 }
 
-type SwapState = 'idle' | 'checking' | 'ready' | 'approving' | 'swapping' | 'success' | 'error';
+type SwapState = 'idle' | 'checking' | 'ready' | 'approving' | 'swapping' | 'confirming' | 'success' | 'error';
+
+const SLIPPAGE_PRESETS = [
+    { label: 'Auto', value: 0.5 },
+    { label: '0.1%', value: 0.1 },
+    { label: '0.5%', value: 0.5 },
+    { label: '1%', value: 1.0 },
+];
+
+const EXPLORER_URLS: Record<number, string> = {
+    1: 'https://etherscan.io/tx/',
+    56: 'https://bscscan.com/tx/',
+    137: 'https://polygonscan.com/tx/',
+    42161: 'https://arbiscan.io/tx/',
+    10: 'https://optimistic.etherscan.io/tx/',
+    8453: 'https://basescan.org/tx/',
+};
+
+const PLATFORM_FEE_BPS = 50; // 0.5%
+const PLATFORM_FEE_WALLET = process.env.NEXT_PUBLIC_FEE_WALLET || '0x0000000000000000000000000000000000000000';
 
 export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: SwapDrawerProps) {
-    const { session } = useWallet();
     const { data: evmWalletClient } = useWalletClient();
+    const publicClient = usePublicClient();
     const { connection } = useConnection();
     const solanaWallet = useSolanaWallet();
 
@@ -30,17 +49,30 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
     const [showFromPicker, setShowFromPicker] = useState(false);
     const [showToPicker, setShowToPicker] = useState(false);
 
-    // Swap state
+    // Swap controls
     const [amount, setAmount] = useState("");
+    const [slippage, setSlippage] = useState(0.5); // 0.5%
+    const [showSlippageSettings, setShowSlippageSettings] = useState(false);
+    const [customSlippage, setCustomSlippage] = useState("");
+
+    // Swap state
     const [state, setState] = useState<SwapState>('idle');
     const [error, setError] = useState<string | null>(null);
     const [txHash, setTxHash] = useState<string | null>(null);
     const [quote, setQuote] = useState<any>(null);
 
-    // Derive connection status
-    const chainType = fromToken?.chainType || toToken?.chainType;
-    const isConnected = chainType === 'SOLANA' ? !!session.solana : !!session.evm;
-    const userAddress = chainType === 'SOLANA' ? session.solana?.address : session.evm?.address;
+    // Unified wallet (single source of truth)
+    const activeChain = fromToken?.chainType === 'SOLANA' ? 'solana' : fromToken?.chainType === 'EVM' ? 'evm' : 'none';
+    const { isConnected, address: userAddress } = useUnifiedWallet(activeChain);
+    const chainId = fromToken?.chainId ? parseInt(fromToken.chainId) : 1;
+    const chainType = fromToken?.chainType || toToken?.chainType; // For gas/explorer logic
+
+    // Calculate preview values
+    const gasEstimateEth = quote && chainType === 'EVM' ? calculateGasCost(quote) : 0;
+    const minReceived = quote?.minBuyAmount
+        ? (Number(quote.minBuyAmount) / Math.pow(10, toToken?.decimals || 18)).toFixed(6)
+        : '—';
+    const platformFeePercent = (PLATFORM_FEE_BPS / 10000) * 100;
 
     // Reset on close
     useEffect(() => {
@@ -48,16 +80,18 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
             setFromToken(null);
             setToToken(token);
             setAmount("");
+            setSlippage(0.5);
             setState('idle');
             setError(null);
             setTxHash(null);
             setQuote(null);
             setShowFromPicker(false);
             setShowToPicker(false);
+            setShowSlippageSettings(false);
         }
     }, [isOpen, token]);
 
-    // Route check (on amount change)
+    // Route check (on amount/slippage change)
     useEffect(() => {
         if (!amount || !fromToken || !toToken || !isConnected || parseFloat(amount) <= 0) {
             setQuote(null);
@@ -78,6 +112,7 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
                         inputMint: fromToken.address,
                         outputMint: toToken.address,
                         amount: amountInSmallestUnit,
+                        slippageBps: Math.floor(slippage * 100),
                     });
                     setQuote(solanaQuote);
                     setState('ready');
@@ -86,21 +121,24 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
                         sellToken: fromToken.address,
                         buyToken: toToken.address,
                         sellAmount: String(amountInSmallestUnit),
-                        chainId: parseInt(fromToken.chainId),
+                        chainId,
+                        slippagePercentage: slippage / 100,
+                        affiliateAddress: PLATFORM_FEE_WALLET,
+                        buyTokenPercentageFee: String(PLATFORM_FEE_BPS / 10000),
                     });
                     setQuote(evmQuote);
                     setState('ready');
                 }
             } catch (err: any) {
                 console.error('[SwapDrawer] Route check failed:', err);
-                setError('No route available for this pair');
+                setError(err.message || 'No route available');
                 setState('error');
             }
         };
 
         const debounce = setTimeout(checkRoute, 800);
         return () => clearTimeout(debounce);
-    }, [amount, fromToken, toToken, isConnected]);
+    }, [amount, fromToken, toToken, isConnected, slippage, chainId]);
 
     // Execute swap
     const handleSwap = async () => {
@@ -115,6 +153,10 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
                 const { swapTransaction } = await getSolanaSwapTransaction(quote, userAddress);
                 const txid = await executeSolanaSwap(swapTransaction, solanaWallet, connection);
                 setTxHash(txid);
+                setState('confirming');
+
+                // Wait for confirmation
+                await connection.confirmTransaction(txid, 'confirmed');
                 setState('success');
             } else {
                 // EVM flow
@@ -127,8 +169,14 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
                 }
 
                 setState('swapping');
-                const txHash = await executeEvmSwap(quote, evmWalletClient);
-                setTxHash(txHash);
+                const hash = await executeEvmSwap(quote, evmWalletClient);
+                setTxHash(hash);
+                setState('confirming');
+
+                // Wait for confirmation
+                if (publicClient) {
+                    await publicClient.waitForTransactionReceipt({ hash: hash as `0x${string}` });
+                }
                 setState('success');
             }
 
@@ -143,18 +191,67 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
     if (!isOpen) return null;
 
     const canSwap = state === 'ready' && quote && isConnected;
-    const isLoading = state === 'checking' || state === 'approving' || state === 'swapping';
+    const isLoading = ['checking', 'approving', 'swapping', 'confirming'].includes(state);
+    const explorerUrl = txHash && chainType === 'SOLANA'
+        ? `https://solscan.io/tx/${txHash}`
+        : txHash && EXPLORER_URLS[chainId]
+            ? `${EXPLORER_URLS[chainId]}${txHash}`
+            : null;
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl max-w-md w-full p-6">
+            <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold text-white">Swap</h2>
-                    <button onClick={onClose} className="text-zinc-500 hover:text-white">
-                        <X className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowSlippageSettings(!showSlippageSettings)}
+                            className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                        >
+                            <Settings className="w-5 h-5 text-zinc-500" />
+                        </button>
+                        <button onClick={onClose} className="text-zinc-500 hover:text-white">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
+
+                {/* Slippage Settings */}
+                {showSlippageSettings && (
+                    <div className="mb-4 p-4 bg-[#111116] border border-white/10 rounded-xl">
+                        <label className="text-sm font-semibold text-white mb-3 block">Slippage Tolerance</label>
+                        <div className="flex gap-2 mb-3">
+                            {SLIPPAGE_PRESETS.map(preset => (
+                                <button
+                                    key={preset.label}
+                                    onClick={() => setSlippage(preset.value)}
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${slippage === preset.value
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-white/5 text-zinc-400 hover:bg-white/10'
+                                        }`}
+                                >
+                                    {preset.label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex gap-2">
+                            <input
+                                type="number"
+                                value={customSlippage}
+                                onChange={(e) => {
+                                    setCustomSlippage(e.target.value);
+                                    const val = parseFloat(e.target.value);
+                                    if (val > 0 && val <= 50) setSlippage(val);
+                                }}
+                                placeholder="Custom %"
+                                className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm outline-none focus:border-blue-500"
+                            />
+                            <span className="flex items-center text-sm text-zinc-500">%</span>
+                        </div>
+                        <p className="mt-2 text-xs text-zinc-600">Current: {slippage}%</p>
+                    </div>
+                )}
 
                 {/* From Token */}
                 <div className="mb-2">
@@ -165,7 +262,7 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
                     >
                         {fromToken ? (
                             <div className="flex items-center gap-3">
-                                <span className="text-2xl">{fromToken.symbol}</span>
+                                <span className="text-lg font-semibold">{fromToken.symbol}</span>
                                 <span className="text-sm text-zinc-500">{fromToken.name}</span>
                             </div>
                         ) : (
@@ -190,7 +287,7 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
                 </div>
 
                 {/* To Token */}
-                <div className="mb-6">
+                <div className="mb-4">
                     <label className="text-xs text-zinc-500 mb-2 block">To</label>
                     <button
                         onClick={() => setShowToPicker(true)}
@@ -198,7 +295,7 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
                     >
                         {toToken ? (
                             <div className="flex items-center gap-3">
-                                <span className="text-2xl">{toToken.symbol}</span>
+                                <span className="text-lg font-semibold">{toToken.symbol}</span>
                                 <span className="text-sm text-zinc-500">{toToken.name}</span>
                             </div>
                         ) : (
@@ -207,44 +304,89 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
                     </button>
                 </div>
 
+                {/* Fee Breakdown */}
+                {quote && state === 'ready' && (
+                    <div className="mb-4 p-4 bg-[#111116] border border-white/10 rounded-xl space-y-2 text-sm">
+                        <div className="flex justify-between">
+                            <span className="text-zinc-500">Minimum Received</span>
+                            <span className="font-medium text-white">{minReceived} {toToken?.symbol}</span>
+                        </div>
+                        {chainType === 'EVM' && gasEstimateEth > 0 && (
+                            <div className="flex justify-between">
+                                <span className="text-zinc-500">Est. Gas Fee</span>
+                                <span className="font-medium text-white">~{gasEstimateEth.toFixed(6)} ETH</span>
+                            </div>
+                        )}
+                        <div className="flex justify-between">
+                            <span className="text-zinc-500">Platform Fee</span>
+                            <span className="font-medium text-white">{platformFeePercent}%</span>
+                        </div>
+                        <div className="pt-2 border-t border-white/5 text-xs text-zinc-600">
+                            Includes a {platformFeePercent}% platform fee
+                        </div>
+                    </div>
+                )}
+
                 {/* Status Messages */}
                 {state === 'checking' && (
                     <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg flex items-center gap-2 text-blue-400 text-sm">
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
                         <span>Checking route...</span>
                     </div>
                 )}
 
                 {state === 'ready' && quote && (
                     <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center gap-2 text-green-400 text-sm">
-                        <CheckCircle2 className="w-4 h-4" />
+                        <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                         <span>Route available</span>
+                    </div>
+                )}
+
+                {state === 'approving' && (
+                    <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg flex items-center gap-2 text-blue-400 text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                        <span>Approving token...</span>
+                    </div>
+                )}
+
+                {state === 'swapping' && (
+                    <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg flex items-center gap-2 text-blue-400 text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                        <span>Signing transaction...</span>
+                    </div>
+                )}
+
+                {state === 'confirming' && (
+                    <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg flex items-center gap-2 text-blue-400 text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                        <span>Waiting for confirmation...</span>
                     </div>
                 )}
 
                 {error && (
                     <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-2 text-red-400 text-sm">
-                        <AlertCircle className="w-4 h-4" />
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
                         <span>{error}</span>
                     </div>
                 )}
 
                 {state === 'success' && txHash && (
                     <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm">
-                        <div className="flex items-center gap-2 mb-1">
-                            <CheckCircle2 className="w-4 h-4" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                             <span className="font-semibold">Swap successful!</span>
                         </div>
-                        <a
-                            href={chainType === 'SOLANA'
-                                ? `https://solscan.io/tx/${txHash}`
-                                : `https://etherscan.io/tx/${txHash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs underline"
-                        >
-                            View transaction
-                        </a>
+                        {explorerUrl && (
+                            <a
+                                href={explorerUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-xs underline hover:text-green-300 transition-colors"
+                            >
+                                <span>View transaction</span>
+                                <ExternalLink className="w-3 h-3" />
+                            </a>
+                        )}
                     </div>
                 )}
 
@@ -255,7 +397,10 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
                     className="w-full py-4 bg-blue-500 hover:bg-blue-600 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-bold rounded-xl transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
-                    {state === 'approving' ? 'Approving...' : state === 'swapping' ? 'Swapping...' : 'Swap'}
+                    {state === 'approving' ? 'Approving...' :
+                        state === 'swapping' ? 'Signing...' :
+                            state === 'confirming' ? 'Confirming...' :
+                                'Swap'}
                 </button>
 
                 {/* Token Pickers */}
@@ -285,7 +430,7 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
     );
 }
 
-// Token Picker Modal
+// Token Picker Modal (unchanged)
 function TokenPickerModal({
     isOpen,
     onClose,
@@ -305,15 +450,8 @@ function TokenPickerModal({
 
     const filteredTokens = useMemo(() => {
         let result = availableTokens;
-
-        if (filterChainType) {
-            result = result.filter(t => t.chainType === filterChainType);
-        }
-
-        if (excludeToken) {
-            result = result.filter(t => t.address !== excludeToken.address);
-        }
-
+        if (filterChainType) result = result.filter(t => t.chainType === filterChainType);
+        if (excludeToken) result = result.filter(t => t.address !== excludeToken.address);
         if (search) {
             const query = search.toLowerCase();
             result = result.filter(t =>
@@ -322,7 +460,6 @@ function TokenPickerModal({
                 t.address.toLowerCase() === query
             );
         }
-
         return result.slice(0, 100);
     }, [availableTokens, filterChainType, excludeToken, search]);
 
@@ -337,7 +474,6 @@ function TokenPickerModal({
                         <X className="w-5 h-5" />
                     </button>
                 </div>
-
                 <input
                     type="text"
                     value={search}
@@ -345,7 +481,6 @@ function TokenPickerModal({
                     placeholder="Search..."
                     className="w-full p-3 bg-[#111116] border border-white/10 rounded-lg mb-4 outline-none focus:border-white/30"
                 />
-
                 <div className="flex-1 overflow-y-auto space-y-1">
                     {filteredTokens.length === 0 ? (
                         <div className="text-center py-8 text-zinc-500">No tokens found</div>

@@ -4,7 +4,7 @@
  * Clean exports for import organization
  */
 
-export { getEvmQuote } from './quote';
+export { getEvmQuote, calculateGasCost } from './quote';
 export { approveEvmIfNeeded } from './approve';
 export { executeEvmSwap } from './execute';
 

@@ -9,14 +9,9 @@ export const revalidate = 86400; // 24 hours ISR cache (Strict User Rule)
 // ════════════════════════════════════════════════════════
 const TOKEN_LISTS = [
   'https://tokens.uniswap.org',
-  'https://gateway.ipfs.io/ipns/tokens.uniswap.org',
   'https://tokens.coingecko.com/uniswap/all.json',
   'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/tokenlist.json',
-  'https://raw.githubusercontent.com/compound-finance/token-list/master/compound.tokenlist.json',
-  'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens.json',
-  // BSC Critical Lists
   'https://tokens.pancakeswap.finance/pancakeswap-extended.json',
-  'https://tokens.pancakeswap.finance/pancakeswap-top-100.json'
 ];
 
 interface ChainMeta {
@@ -38,30 +33,47 @@ const CHAIN_MAP: Record<number, ChainMeta> = {
  * 
  * EVM Token Registry (Aggregated Layer 1)
  * Merges multiple Tier-1 token lists to build a comprehensive registry.
- * Target: 20k-50k unique tokens.
  */
 export async function GET() {
   const startTime = Date.now();
-  console.log('[EVM Registry] Starting aggregation...');
+  console.log('[EVM Discovery] START');
 
   try {
-    // 1. Fetch all lists in parallel
+    // 1. Fetch all lists in parallel with timeout
+    console.log('[EVM Discovery] Fetching', TOKEN_LISTS.length, 'token lists...');
+
     const results = await Promise.allSettled(
       TOKEN_LISTS.map(async (url) => {
         try {
-          const res = await fetch(url, { next: { revalidate: 43200 } });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          console.log('[EVM Discovery] Fetching:', url);
+          const res = await fetch(url, {
+            next: { revalidate: 43200 },
+            signal: AbortSignal.timeout(15000) // 15s timeout per list
+          });
+
+          if (!res.ok) {
+            console.warn(`[EVM Discovery] HTTP ${res.status} for ${url}`);
+            throw new Error(`HTTP ${res.status}`);
+          }
+
+          const contentType = res.headers.get('content-type');
+          if (!contentType?.includes('application/json')) {
+            console.warn(`[EVM Discovery] Non-JSON response from ${url}`);
+            throw new Error('Non-JSON response');
+          }
+
           const data = await res.json();
-          return data.tokens || [];
+          const tokens = data.tokens || [];
+          console.log(`[EVM Discovery] Fetched ${tokens.length} tokens from ${url}`);
+          return tokens;
         } catch (err) {
-          console.warn(`[EVM Registry] Failed to fetch ${url}:`, err);
-          return []; // Fail safe
+          console.error(`[EVM Discovery] Failed ${url}:`, String(err));
+          return []; // Fail safe - continue with other lists
         }
       })
     );
 
-    // 2. Flatten and Aggregation Map
-    // Key: "chain:address" (lifecycle safe)
+    // 2. Flatten and deduplicate
     const tokenMap = new Map<string, any>();
     let totalFetched = 0;
 
@@ -79,8 +91,7 @@ export async function GET() {
             const splitKey = CHAIN_MAP[chainId].chain;
             const key = `${splitKey}:${address}`;
 
-            // Deduplicate: First writer wins (usually Uniswap as it's first in list)
-            // Or overwrite if we want to merge metadata (simple: first wins for speed)
+            // First writer wins (deduplication)
             if (!tokenMap.has(key)) {
               tokenMap.set(key, t);
             }
@@ -88,6 +99,8 @@ export async function GET() {
         }
       }
     });
+
+    console.log(`[EVM Discovery] Deduped: ${tokenMap.size} unique from ${totalFetched} total`);
 
     // 3. Normalize to DiscoveredToken
     const finalTokens = Array.from(tokenMap.values()).map(t => {
@@ -97,20 +110,19 @@ export async function GET() {
         chainType: 'EVM',
         chainId: meta.chainId,
         networkName: meta.name,
-        address: t.address, // Keep original case or lowercase? Usually keep checksummed if from list, but efficient map used lowercase key.
-        // We return t.address from source (usually checksummed)
-        symbol: t.symbol,
-        name: t.name,
-        decimals: t.decimals,
+        address: t.address,
+        symbol: t.symbol || 'UNKNOWN',
+        name: t.name || 'Unknown Token',
+        decimals: t.decimals || 18,
         logoURI: t.logoURI,
         liquidityUsd: 0, // Registry only
         volume24hUsd: 0, // Registry only
-        source: 'AGGREGATED_REGISTRY'
+        source: 'DEXSCREENER'
       };
     });
 
     const duration = Date.now() - startTime;
-    console.log(`[EVM Registry] Aggregated ${finalTokens.length} unique tokens from ${totalFetched} raw entries in ${duration}ms`);
+    console.log(`[EVM Discovery] SUCCESS: ${finalTokens.length} tokens in ${duration}ms`);
 
     return NextResponse.json({
       meta: {
@@ -118,15 +130,22 @@ export async function GET() {
         chains: ['ethereum', 'bsc', 'base', 'arbitrum', 'polygon'],
         timestamp: Date.now(),
         cached: true,
+        duration
       },
       tokens: finalTokens
     });
 
   } catch (err) {
-    console.error('[EVM Registry] Fatal error:', err);
+    console.error('[EVM DISCOVERY ERROR]', err);
+    // CRITICAL: Return 200 with empty tokens instead of 500
     return NextResponse.json({
-      meta: { total: 0, chains: [], error: String(err) },
+      meta: {
+        total: 0,
+        chains: [],
+        timestamp: Date.now(),
+        error: String(err)
+      },
       tokens: []
-    });
+    }, { status: 200 });
   }
 }
