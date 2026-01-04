@@ -1,77 +1,92 @@
-export const dynamic = 'force-dynamic';
-
 import { NextResponse } from 'next/server';
 
-const REGISTRY_URL = 'https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/src/tokens/solana.tokenlist.json';
-const RAYDIUM_AMM = 'https://api.raydium.io/v2/sdk/liquidity/mainnet.json';
-const RAYDIUM_CLMM = 'https://api.raydium.io/v2/sdk/clmm/mainnet.json';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 21600; // 6 hours ISR cache
 
 /**
- * Solana Token Discovery
+ * GET /api/arena/solana/discovery
  * 
- * Authoritative sources:
- * - Solana Token Registry (Base list)
- * - Raydium Pools (Liquidity Truth)
- * 
- * This ensures Zenith "finds" tokens that are actually tradable.
+ * SOLANA-ONLY token discovery
+ * Sources: Raydium + Orca
+ * Cache: 6 hours
+ * Returns: ALL tokens (no filtering)
  */
 export async function GET() {
+    const tokens: any[] = [];
+
+    // 1. Raydium
     try {
-        const [registryRes, ammRes, clmmRes] = await Promise.all([
-            fetch(REGISTRY_URL).catch(() => null),
-            fetch(RAYDIUM_AMM).catch(() => null),
-            fetch(RAYDIUM_CLMM).catch(() => null),
-        ]);
-
-        if (!registryRes) throw new Error('Failed to fetch Solana Registry');
-
-        const registryJson = await registryRes.json();
-        const ammJson = ammRes ? await ammRes.json() : {};
-        const clmmJson = clmmRes ? await clmmRes.json() : {};
-
-        const registryTokens = registryJson.tokens || [];
-
-        // Extract mints with pools on Raydium
-        const raydiumMints = new Set<string>();
-
-        const extract = (pools: any) => {
-            if (!pools) return;
-            const list = Array.isArray(pools) ? pools : Object.values(pools);
-            list.forEach((p: any) => {
-                if (p.baseMint) raydiumMints.add(p.baseMint);
-                if (p.quoteMint) raydiumMints.add(p.quoteMint);
-            });
-        };
-
-        extract(ammJson.official);
-        extract(ammJson.unOfficial);
-        extract(clmmJson.official);
-        extract(clmmJson.unOfficial);
-
-        const tokens = registryTokens
-            .filter((t: any) => t.chainId === 101 && raydiumMints.has(t.address))
-            .map((t: any) => ({
-                chainType: 'SOLANA',
-                chainId: 'solana',
-                address: t.address,
-                symbol: t.symbol,
-                name: t.name,
-                decimals: t.decimals,
-                logo: t.logoURI,
-                source: 'RAYDIUM',
-            }));
-
-        return NextResponse.json({
-            success: true,
-            tokens,
-            count: tokens.length,
-            timestamp: new Date().toISOString()
+        const res = await fetch('https://api.raydium.io/v2/sdk/liquidity/mainnet.json', {
+            next: { revalidate: 21600 }
         });
-    } catch (error: any) {
-        console.error('[API Solana Discovery] Error:', error);
-        return NextResponse.json(
-            { success: false, error: 'Solana discovery failed', tokens: [] },
-            { status: 500 }
-        );
+
+        if (res.ok) {
+            const json = await res.json();
+            const raydiumTokens = Object.values(json.official ?? {}).map((p: any) => ({
+                chain: 'solana',
+                chainType: 'SOLANA',
+                address: p.baseMint,
+                symbol: p.baseSymbol || 'UNKNOWN',
+                name: p.baseName || p.baseSymbol || 'Unknown Token',
+                decimals: p.baseDecimals ?? 9,
+                logoURI: null,
+                liquidityUsd: Number(p.liquidity ?? 0),
+                volume24hUsd: Number(p.volume24h ?? 0),
+                source: 'RAYDIUM'
+            }));
+            tokens.push(...raydiumTokens);
+            console.log(`[Solana Discovery] Raydium: ${raydiumTokens.length}`);
+        }
+    } catch (err) {
+        console.error('[Solana Discovery] Raydium failed:', err);
     }
+
+    // 2. Orca
+    try {
+        const res = await fetch('https://api.mainnet.orca.so/v1/whirlpool/list', {
+            next: { revalidate: 21600 }
+        });
+
+        if (res.ok) {
+            const json = await res.json();
+            const orcaTokens = (json.whirlpools ?? []).map((p: any) => ({
+                chain: 'solana',
+                chainType: 'SOLANA',
+                address: p.tokenA?.mint || p.address,
+                symbol: p.tokenA?.symbol || 'UNKNOWN',
+                name: p.tokenA?.name || p.tokenA?.symbol || 'Unknown Token',
+                decimals: p.tokenA?.decimals ?? 9,
+                logoURI: p.tokenA?.logoURI ?? null,
+                liquidityUsd: Number(p.tvl ?? 0),
+                volume24hUsd: Number(p.volume?.day ?? 0),
+                source: 'ORCA'
+            }));
+            tokens.push(...orcaTokens);
+            console.log(`[Solana Discovery] Orca: ${orcaTokens.length}`);
+        }
+    } catch (err) {
+        console.error('[Solana Discovery] Orca failed:', err);
+    }
+
+    // Dedupe by address
+    const seen = new Set<string>();
+    const unique = tokens.filter(t => {
+        if (!t.address || seen.has(t.address)) return false;
+        seen.add(t.address);
+        return true;
+    });
+
+    // Sort by liquidity
+    unique.sort((a, b) => b.liquidityUsd - a.liquidityUsd);
+
+    console.log(`[Solana Discovery] Total: ${unique.length} unique tokens`);
+
+    return NextResponse.json({
+        success: true,
+        tokens: unique,
+        count: unique.length,
+        engine: 'solana',
+        cached: true
+    });
 }
