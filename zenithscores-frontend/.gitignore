@@ -44,3 +44,6 @@ next-env.d.ts
 count_users.js
 check_scenarios.js
 inspect_data.js
+
+# Test data files
+raydium-test.json

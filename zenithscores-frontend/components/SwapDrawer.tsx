@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useWallet } from "@/lib/wallet/WalletContext";
-import { GlobalToken, CHAIN_METADATA } from "@/lib/discovery/normalize";
+import { DiscoveredToken, CHAIN_METADATA } from "@/lib/discovery/normalize";
 import { X, ArrowDown, ExternalLink, AlertCircle, CheckCircle2, Wallet as WalletIcon } from "lucide-react";
 
 interface SwapDrawerProps {
     isOpen: boolean;
     onClose: () => void;
-    token: GlobalToken | null;
+    token: DiscoveredToken | null;
 }
 
 export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
@@ -52,8 +52,8 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
     }, [isConnected, isOpen, success, onClose]);
 
     // Check if on correct network (EVM only)
-    const isCorrectNetwork = !token || token.chainType === 'SOLANA' ||
-        (token.chainType === 'EVM' && session.evm && session.evm.chainId === parseInt(token.chainId));
+    const isCorrectNetwork = !token || token.vm === 'SOLANA' ||
+        (token.vm === 'EVM' && session.evm && session.evm.chainId === parseInt(token.chainId));
 
     // Fetch quote when amount changes
     useEffect(() => {
@@ -69,7 +69,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
             setError(null);
 
             try {
-                const sellToken = token.chainType === 'SOLANA'
+                const sellToken = token.vm === 'SOLANA'
                     ? 'So11111111111111111111111111111111111111112'
                     : '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
 
@@ -79,7 +79,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        chainType: token.chainType,
+                        chainType: token.vm,
                         chainId: session.evm?.chainId,
                         sellToken,
                         buyToken: token.address,
@@ -126,7 +126,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    chainType: token.chainType,
+                    chainType: token.vm,
                     quote,
                     quoteResponse: quote,
                     userPublicKey: userAddress,
@@ -140,7 +140,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
             }
 
             const txPayload = await res.json();
-            const hash = await signAndSendTx(token.chainType, txPayload);
+            const hash = await signAndSendTx(token.vm, txPayload);
             setTxHash(hash);
             setSuccess(true);
 
@@ -154,7 +154,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
     };
 
     const handleSwitchNetwork = async () => {
-        if (!token || token.chainType !== 'EVM') return;
+        if (!token || token.vm !== 'EVM') return;
 
         try {
             await switchEvmNetwork(parseInt(token.chainId));
@@ -185,7 +185,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
                 {!isConnected ? (
                     <div className="text-center py-12">
                         <WalletIcon className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-                        <p className="text-zinc-400 mb-4">Connect {token.chainType === 'SOLANA' ? 'Solana' : 'EVM'} wallet to swap</p>
+                        <p className="text-zinc-400 mb-4">Connect {token.vm === 'SOLANA' ? 'Solana' : 'EVM'} wallet to swap</p>
                         <p className="text-xs text-zinc-600">Close this drawer and click the token's swap button</p>
                     </div>
                 ) : !isCorrectNetwork ? (
@@ -210,7 +210,7 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
                         <h3 className="text-lg font-semibold mb-2">Swap Successful!</h3>
                         {txHash && (
                             <a
-                                href={token.chainType === 'SOLANA'
+                                href={token.vm === 'SOLANA'
                                     ? `https://solscan.io/tx/${txHash}`
                                     : `https://etherscan.io/tx/${txHash}`}
                                 target="_blank"

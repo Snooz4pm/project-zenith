@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { GlobalToken } from '@/lib/discovery/normalize';
+import { DiscoveredToken } from '@/lib/discovery/types';
 import { useWallet } from '@/lib/wallet/WalletContext';
 import TokenCard from './TokenCard';
 import { Loader2, AlertCircle, Wallet } from 'lucide-react';
 
 interface ArenaGridProps {
-    onSelectToken: (token: GlobalToken) => void;
+    onSelectToken: (token: DiscoveredToken) => void;
 }
 
 /**
@@ -20,7 +20,7 @@ interface ArenaGridProps {
  */
 export default function ArenaGrid({ onSelectToken }: ArenaGridProps) {
     const { activeVM, session, setActiveVM } = useWallet();
-    const [tokens, setTokens] = useState<GlobalToken[]>([]);
+    const [tokens, setTokens] = useState<DiscoveredToken[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -38,37 +38,30 @@ export default function ArenaGrid({ onSelectToken }: ArenaGridProps) {
         setError(null);
 
         try {
-            const response = await fetch(`/api/arena/tokens?vm=${vm}&limit=50`);
+            // New route returns all tokens - we filter client side for responsiveness
+            const response = await fetch('/api/arena/discovery');
 
-            // Defensive: Read as text first to catch HTML responses
             const text = await response.text();
 
-            // Check if response looks like HTML (error page)
             if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
-                console.error('[ArenaGrid] API returned HTML instead of JSON');
+                console.error('[ArenaGrid] API returned HTML');
                 setTokens([]);
-                setError('Discovery service unavailable');
+                setError('Discovery service Unavailable');
                 return;
             }
 
-            // Safely parse JSON
-            let data;
-            try {
-                data = JSON.parse(text);
-            } catch (parseErr) {
-                console.error('[ArenaGrid] Invalid JSON:', text.substring(0, 100));
-                setTokens([]);
-                setError('Invalid response from discovery');
-                return;
-            }
+            const data = JSON.parse(text);
+            const allTokens = data.tokens || [];
 
-            if (Array.isArray(data)) {
-                setTokens(data);
-            } else {
-                setTokens([]);
-            }
+            // Filter by active VM
+            const filtered = allTokens.filter((t: DiscoveredToken) =>
+                t.chainType === vm
+            );
+
+            setTokens(filtered);
+
         } catch (err: any) {
-            console.error('[ArenaGrid] Failed to fetch tokens:', err);
+            console.error('[ArenaGrid] Fetch error:', err);
             setError(err.message || 'Failed to load tokens');
         } finally {
             setLoading(false);
@@ -189,7 +182,7 @@ export default function ArenaGrid({ onSelectToken }: ArenaGridProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {tokens.map((token) => (
                     <TokenCard
-                        key={token.id}
+                        key={`${token.chainId}:${token.address}`}
                         token={token}
                         onSelect={onSelectToken}
                     />

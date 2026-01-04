@@ -1,47 +1,99 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { discoverTokens, searchToken } from '@/lib/arena/discovery';
 
-/**
- * GET /api/arena/discovery
- *
- * Returns early/undiscovered tokens from DexScreener
- *
- * Query params:
- * - chainId?: string (filter by chain, e.g., "base", "ethereum")
- * - minChainPriority?: number (minimum chain priority score)
- * - search?: string (search for specific token)
- */
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+    const page = Number(searchParams.get('page') ?? 1);
+    const limit = Number(searchParams.get('limit') ?? 100);
 
-    const chainId = searchParams.get('chainId') || undefined;
-    const minChainPriority = parseInt(searchParams.get('minChainPriority') || '0');
-    const search = searchParams.get('search');
+    console.log('[Discovery API] Fetching tokens for production...');
 
-    let tokens;
+    // 1. Fetch Solana pools (Raydium)
+    const raydiumRes = await fetch(
+      'https://api.raydium.io/v2/sdk/liquidity/mainnet.json',
+      { cache: 'no-store' }
+    );
 
-    if (search) {
-      // Search mode
-      tokens = await searchToken(search);
+    let solanaTokens: any[] = [];
+
+    if (raydiumRes.ok) {
+      const raydiumJson = await raydiumRes.json();
+      solanaTokens = Object.values(raydiumJson.official ?? {})
+        .filter((p: any) => (p.liquidity ?? 0) >= 10_000)
+        .map((p: any) => ({
+          chain: 'solana',
+          chainType: 'SOLANA',
+          chainId: 'solana',
+          address: p.baseMint,
+          symbol: p.baseSymbol,
+          name: p.baseSymbol, // Raydium JSON doesn't provide full name
+          decimals: p.baseDecimals,
+          liquidityUsd: Number(p.liquidity),
+          volume24hUsd: Number(p.volume24h ?? 0),
+          source: 'RAYDIUM'
+        }));
     } else {
-      // Discovery mode
-      tokens = await discoverTokens({
-        chainId,
-        minChainPriority: minChainPriority > 0 ? minChainPriority : undefined,
-      });
+      console.error(`[Discovery API] Raydium failed: ${raydiumRes.status}`);
     }
 
+    // 2. Fetch EVM tokens (DexScreener)
+    const chains = ['ethereum', 'bsc', 'base', 'arbitrum'];
+    const evmResults = await Promise.all(
+      chains.map(chain =>
+        fetch(`https://api.dexscreener.com/latest/dex/pairs/${chain}`)
+          .then(r => r.json())
+          .catch(err => {
+            console.error(`[Discovery API] ${chain} DexScreener failed:`, err);
+            return null;
+          })
+      )
+    );
+
+    const evmTokens = evmResults.flatMap((res, i) =>
+      res?.pairs
+        ?.filter((p: any) => (p.liquidity?.usd ?? 0) >= 10_000 && (p.volume?.h24 ?? 0) >= 1_000)
+        .map((p: any) => ({
+          chain: chains[i],
+          chainType: 'EVM',
+          chainId: p.chainId === 'ethereum' ? '1' :
+            p.chainId === 'bsc' ? '56' :
+              p.chainId === 'base' ? '8453' :
+                p.chainId === 'arbitrum' ? '42161' : p.chainId,
+          address: p.baseToken.address,
+          symbol: p.baseToken.symbol,
+          name: p.baseToken.name,
+          logoURI: p.baseToken.logoURI || p.info?.imageUrl,
+          priceUsd: Number(p.priceUsd),
+          liquidityUsd: Number(p.liquidity.usd),
+          volume24hUsd: Number(p.volume.h24 ?? 0),
+          source: 'DEXSCREENER'
+        })) ?? []
+    );
+
+    const tokens = [...solanaTokens, ...evmTokens];
+
+    // Sort by liquidity descending
+    tokens.sort((a, b) => b.liquidityUsd - a.liquidityUsd);
+
+    const start = (page - 1) * limit;
+    const paged = tokens.slice(start, start + limit);
+
+    console.log(`[Discovery API] Returning ${paged.length} items (Total: ${tokens.length})`);
+
     return NextResponse.json({
-      success: true,
-      tokens,
-      count: tokens.length,
-      timestamp: new Date().toISOString(),
+      page,
+      limit,
+      total: tokens.length,
+      pages: Math.ceil(tokens.length / limit),
+      items: paged, // Frontend expects 'items' (check ArenaGrid.tsx) or we adapt
     });
-  } catch (error: any) {
-    console.error('[Discovery API] Error:', error);
+  } catch (err) {
+    console.error('[DISCOVERY ERROR]', err);
     return NextResponse.json(
-      { error: 'Failed to fetch discovered tokens' },
+      { error: 'Discovery failed', items: [], page: 1, total: 0 },
       { status: 500 }
     );
   }
