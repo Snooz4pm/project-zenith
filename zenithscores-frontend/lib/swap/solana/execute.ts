@@ -26,7 +26,10 @@ export async function getSolanaSwapTransaction(
         userPublicKey,
     });
 
-    const res = await fetch('https://quote-api.jup.ag/v6/swap', {
+    // Get Jupiter API URL from environment
+    const JUPITER_API = process.env.JUPITER_QUOTE_API || 'https://quote-api.jup.ag/v6';
+
+    const res = await fetch(`${JUPITER_API}/swap`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -35,7 +38,7 @@ export async function getSolanaSwapTransaction(
             quoteResponse: quote,
             userPublicKey,
             wrapAndUnwrapSol: true,
-            // feeAccount: 'YOUR_FEE_ACCOUNT_HERE', // Optional: for revenue
+            // feeAccount: process.env.ZENITH_SOL_FEE_RECIPIENT, // Platform fee wallet
         }),
     });
 

@@ -64,6 +64,17 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Get Jupiter API URL from environment (CRITICAL for Vercel deployment)
+    const JUPITER_API = process.env.JUPITER_QUOTE_API || 'https://quote-api.jup.ag/v6';
+
+    if (!JUPITER_API) {
+      console.error('[Solana Quote] JUPITER_QUOTE_API not configured');
+      return Response.json(
+        { error: 'Jupiter API not configured' },
+        { status: 500 }
+      );
+    }
+
     // Build Jupiter URL
     const jupiterParams = new URLSearchParams({
       inputMint,
@@ -72,7 +83,7 @@ export async function GET(req: NextRequest) {
       slippageBps,
     });
 
-    const fullUrl = `https://quote-api.jup.ag/v6/quote?${jupiterParams.toString()}`;
+    const fullUrl = `${JUPITER_API}/quote?${jupiterParams.toString()}`;
     console.log('[Solana Quote] Calling Jupiter:', fullUrl);
 
     const res = await fetch(fullUrl, {
