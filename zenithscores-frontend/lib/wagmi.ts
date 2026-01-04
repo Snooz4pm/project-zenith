@@ -1,50 +1,50 @@
 'use client'
 
 import { createConfig, http } from 'wagmi'
-import { mainnet, base, arbitrum, bsc } from 'wagmi/chains'
-import { walletConnect, injected, coinbaseWallet } from 'wagmi/connectors'
+import { mainnet, bsc, base, arbitrum } from 'wagmi/chains'
+import { injected, walletConnect } from 'wagmi/connectors'
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!
 
 /**
- * EVM Wallet Config
- * 
- * Phantom is EXCLUDED from EVM connectors
- * Phantom must only be used via Solana adapter
+ * EVM Wallet Config (FINAL)
+ *
+ * - NO Coinbase Wallet (causes provider bugs)
+ * - NO Phantom EVM interference
+ * - MetaMask / Trust / Binance Wallet via injected()
+ * - WalletConnect for mobile & QR
  */
 export const wagmiConfig = createConfig({
-    chains: [mainnet, bsc, base, arbitrum],
+  chains: [mainnet, bsc, base, arbitrum],
 
-    connectors: [
-        // Injected (MetaMask only - NOT Phantom)
-        injected({
-            target() {
-                return {
-                    id: 'metaMask',
-                    name: 'MetaMask',
-                    provider: typeof window !== 'undefined' && window.ethereum && !window.ethereum.isPhantom
-                        ? window.ethereum
-                        : undefined,
-                }
-            },
-        }),
-        // WalletConnect
-        walletConnect({
-            projectId,
-            showQrModal: true,
-        }),
-        // Coinbase Wallet
-        coinbaseWallet({
-            appName: 'ZenithScores',
-        }),
-    ],
+  connectors: [
+    injected({
+      target() {
+        return {
+          id: 'metaMask',
+          name: 'MetaMask',
+          provider:
+            typeof window !== 'undefined' &&
+            window.ethereum &&
+            !window.ethereum.isPhantom
+              ? window.ethereum
+              : undefined,
+        }
+      },
+    }),
 
-    transports: {
-        [mainnet.id]: http(),
-        [bsc.id]: http('https://bsc-dataseed.binance.org'), // Dedicated BSC RPC
-        [base.id]: http(),
-        [arbitrum.id]: http(),
-    },
+    walletConnect({
+      projectId,
+      showQrModal: true,
+    }),
+  ],
 
-    ssr: false,
+  transports: {
+    [mainnet.id]: http(),
+    [bsc.id]: http('https://bsc-dataseed.binance.org'),
+    [base.id]: http(),
+    [arbitrum.id]: http(),
+  },
+
+  ssr: false,
 })
