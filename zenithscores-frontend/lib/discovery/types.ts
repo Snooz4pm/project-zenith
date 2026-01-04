@@ -16,6 +16,8 @@ export interface DiscoveredToken {
     volume24hUsd: number;
     pairCreatedAt?: number; // Timestamp (ms)
     source: TokenSource;
+    swappable?: boolean; // false for LP tokens, wrapped assets, etc.
+    tags?: string[]; // e.g. ['lp-token', 'perps', 'vault']
 }
 
 // Legacy type alias for compatibility if needed

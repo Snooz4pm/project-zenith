@@ -47,11 +47,19 @@ export function fromSolanaAmount(lamports: number, decimals: number = 9): number
 export async function getSolanaQuote(params: SolanaQuoteParams): Promise<SolanaQuote> {
     const { inputMint, outputMint, amount, slippageBps = 50 } = params;
 
+    // Ensure amount is stringified integer (lamports) - CRITICAL for Jupiter
+    const amountStr = String(Math.floor(amount));
+
+    // Validation: amount must be positive integer (no floats, no decimals)
+    if (!/^\d+$/.test(amountStr) || Number(amountStr) < 1) {
+        throw new Error('Invalid swap amount - must be at least 1 lamport');
+    }
+
     // Build query params
     const queryParams = new URLSearchParams({
         inputMint,
         outputMint,
-        amount: String(amount),
+        amount: amountStr, // CRITICAL: Must be stringified integer
         slippageBps: String(slippageBps),
     });
 

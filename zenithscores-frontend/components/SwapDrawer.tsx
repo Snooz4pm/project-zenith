@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useUnifiedWallet } from "@/lib/wallet/useUnifiedWallet";
 import { DiscoveredToken } from "@/lib/discovery/types";
 import { X, ArrowDown, Loader2, CheckCircle2, AlertCircle, Settings, ExternalLink } from "lucide-react";
-import { useWalletClient, usePublicClient } from "wagmi";
+import { useWalletClient, usePublicClient, useBalance } from "wagmi";
 import { useConnection, useWallet as useSolanaWallet } from "@solana/wallet-adapter-react";
 import { getEvmQuote, approveEvmIfNeeded, executeEvmSwap, calculateGasCost } from "@/lib/swap/evm";
 import { getSolanaQuote, getSolanaSwapTransaction, executeSolanaSwap } from "@/lib/swap/solana";
@@ -17,6 +17,7 @@ interface SwapDrawerProps {
 }
 
 type SwapState = 'idle' | 'checking' | 'ready' | 'approving' | 'swapping' | 'confirming' | 'success' | 'error';
+type RouteStatus = 'idle' | 'no-route' | 'amount-too-small' | 'insufficient-balance' | 'available';
 
 const SLIPPAGE_PRESETS = [
     { label: 'Auto', value: 0.5 },
@@ -60,6 +61,7 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
     const [error, setError] = useState<string | null>(null);
     const [txHash, setTxHash] = useState<string | null>(null);
     const [quote, setQuote] = useState<any>(null);
+    const [routeStatus, setRouteStatus] = useState<RouteStatus>('idle');
 
     // Unified wallet (single source of truth)
     const activeChain = fromToken?.chainType === 'SOLANA' ? 'solana' : fromToken?.chainType === 'EVM' ? 'evm' : 'none';
@@ -67,12 +69,58 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
     const chainId = fromToken?.chainId ? parseInt(fromToken.chainId) : 1;
     const chainType = fromToken?.chainType || toToken?.chainType; // For gas/explorer logic
 
+    // Balance fetching (lazy - only for selected fromToken)
+    const { data: evmBalance } = useBalance({
+        address: userAddress as `0x${string}`,
+        token: fromToken?.chainType === 'EVM' && fromToken.address !== 'ETH' ? fromToken.address as `0x${string}` : undefined,
+        chainId: fromToken?.chainType === 'EVM' ? chainId : undefined,
+        // Note: Conditional fetching handled by React Query when address/token are undefined
+    });
+
+    const balance = fromToken?.chainType === 'EVM' ? evmBalance : null; // Solana balance TODO
+
     // Calculate preview values
     const gasEstimateEth = quote && chainType === 'EVM' ? calculateGasCost(quote) : 0;
     const minReceived = quote?.minBuyAmount
         ? (Number(quote.minBuyAmount) / Math.pow(10, toToken?.decimals || 18)).toFixed(6)
         : '—';
     const platformFeePercent = (PLATFORM_FEE_BPS / 10000) * 100;
+
+    // Swap button logic and text
+    const getButtonState = () => {
+        if (!isConnected) return { text: 'Connect Wallet', disabled: true };
+        if (!fromToken || !toToken) return { text: 'Select Tokens', disabled: true };
+        if (!amount || parseFloat(amount) <= 0) return { text: 'Enter Amount', disabled: true };
+
+        // Check balance
+        if (balance && fromToken.chainType === 'EVM') {
+            const sellAmount = parseFloat(amount);
+            const availableBalance = parseFloat(balance.formatted);
+            if (sellAmount > availableBalance) {
+                return { text: `Insufficient ${fromToken.symbol} Balance`, disabled: true };
+            }
+        }
+
+        // Check route status
+        if (state === 'checking') return { text: 'Checking Route...', disabled: true };
+        if (routeStatus === 'no-route') return { text: 'No Route Available', disabled: true };
+        if (routeStatus === 'amount-too-small') return { text: 'Amount Too Small', disabled: true };
+        if (state === 'error') return { text: 'Quote Failed', disabled: true };
+
+        // Loading states
+        if (state === 'approving') return { text: 'Approving...', disabled: true };
+        if (state === 'swapping') return { text: 'Signing...', disabled: true };
+        if (state === 'confirming') return { text: 'Confirming...', disabled: true };
+
+        // Ready to swap
+        if (state === 'ready' && quote) return { text: 'Swap', disabled: false };
+
+        return { text: 'Swap', disabled: true };
+    };
+
+    const buttonState = getButtonState();
+    const canSwap = !buttonState.disabled;
+    const isLoading = ['checking', 'approving', 'swapping', 'confirming'].includes(state);
 
     // Reset on close
     useEffect(() => {
@@ -107,6 +155,17 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
                 const decimals = fromToken.decimals || 9;
                 const amountInSmallestUnit = Math.floor(parseFloat(amount) * Math.pow(10, decimals));
 
+                // Debug logging (CRITICAL - verify amount is integer)
+                console.log('[SwapDrawer] Quote request:', {
+                    from: fromToken.symbol,
+                    to: toToken.symbol,
+                    inputAmount: amount,
+                    decimals,
+                    amountInSmallestUnit,
+                    fromAddress: fromToken.address,
+                    toAddress: toToken.address,
+                });
+
                 if (fromToken.chainType === 'SOLANA') {
                     const solanaQuote = await getSolanaQuote({
                         inputMint: fromToken.address,
@@ -114,7 +173,15 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
                         amount: amountInSmallestUnit,
                         slippageBps: Math.floor(slippage * 100),
                     });
+
+                    // Validate route exists (critical for Jupiter)
+                    if (!solanaQuote || !solanaQuote.routePlan || solanaQuote.routePlan.length === 0) {
+                        setRouteStatus('no-route');
+                        throw new Error('No executable swap route for this token pair');
+                    }
+
                     setQuote(solanaQuote);
+                    setRouteStatus('available');
                     setState('ready');
                 } else {
                     const evmQuote = await getEvmQuote({
@@ -127,11 +194,25 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
                         buyTokenPercentageFee: String(PLATFORM_FEE_BPS / 10000),
                     });
                     setQuote(evmQuote);
+                    setRouteStatus('available');
                     setState('ready');
                 }
             } catch (err: any) {
                 console.error('[SwapDrawer] Route check failed:', err);
-                setError(err.message || 'No route available');
+
+                // Classify error for UX
+                const errorMsg = String(err.message || err).toLowerCase();
+                if (errorMsg.includes('no route') || errorMsg.includes('no executable')) {
+                    setRouteStatus('no-route');
+                    setError('No available route for this token pair');
+                } else if (errorMsg.includes('insufficient') || errorMsg.includes('amount too small')) {
+                    setRouteStatus('amount-too-small');
+                    setError('Amount too small for available liquidity');
+                } else {
+                    setRouteStatus('idle');
+                    setError(err.message || 'Quote failed');
+                }
+
                 setState('error');
             }
         };
@@ -190,8 +271,6 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
 
     if (!isOpen) return null;
 
-    const canSwap = state === 'ready' && quote && isConnected;
-    const isLoading = ['checking', 'approving', 'swapping', 'confirming'].includes(state);
     const explorerUrl = txHash && chainType === 'SOLANA'
         ? `https://solscan.io/tx/${txHash}`
         : txHash && EXPLORER_URLS[chainId]

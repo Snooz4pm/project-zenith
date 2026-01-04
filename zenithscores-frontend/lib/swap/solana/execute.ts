@@ -17,6 +17,15 @@ export async function getSolanaSwapTransaction(
     quote: SolanaQuote,
     userPublicKey: string
 ): Promise<{ swapTransaction: string }> {
+    console.log('[Solana Swap] Getting swap transaction from Jupiter');
+    console.log('[Solana Swap] Input:', {
+        inputMint: quote.inputMint,
+        outputMint: quote.outputMint,
+        inAmount: quote.inAmount,
+        outAmount: quote.outAmount,
+        userPublicKey,
+    });
+
     const res = await fetch('https://quote-api.jup.ag/v6/swap', {
         method: 'POST',
         headers: {
@@ -30,12 +39,23 @@ export async function getSolanaSwapTransaction(
         }),
     });
 
+    console.log('[Solana Swap] Jupiter swap response status:', res.status);
+
     if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(error.error || 'Failed to build swap transaction');
+        const text = await res.text();
+        console.error('[Solana Swap] Jupiter error:', text);
+        throw new Error(`Failed to build swap transaction: ${text}`);
     }
 
-    return res.json();
+    const data = await res.json();
+
+    if (!data.swapTransaction) {
+        console.error('[Solana Swap] No swapTransaction in response:', data);
+        throw new Error('No swap transaction returned from Jupiter');
+    }
+
+    console.log('[Solana Swap] Swap transaction received successfully');
+    return data;
 }
 
 /**
@@ -46,6 +66,8 @@ export async function executeSolanaSwap(
     wallet: WalletContextState,
     connection: Connection
 ): Promise<string> {
+    console.log('[Solana Swap] Executing swap...');
+
     if (!wallet.publicKey) {
         throw new Error('Wallet not connected');
     }
@@ -58,8 +80,12 @@ export async function executeSolanaSwap(
     const swapTransactionBuf = Buffer.from(swapTransactionBase64, 'base64');
     const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
 
+    console.log('[Solana Swap] Transaction deserialized, requesting signature...');
+
     // Sign the transaction
     const signedTransaction = await wallet.signTransaction(transaction);
+
+    console.log('[Solana Swap] Transaction signed, sending to network...');
 
     // Send and confirm
     const rawTransaction = signedTransaction.serialize();
@@ -68,8 +94,12 @@ export async function executeSolanaSwap(
         maxRetries: 2,
     });
 
+    console.log('[Solana Swap] Transaction sent:', txid);
+    console.log('[Solana Swap] Waiting for confirmation...');
+
     // Wait for confirmation
     await connection.confirmTransaction(txid, 'confirmed');
 
+    console.log('[Solana Swap] Transaction confirmed!');
     return txid;
 }

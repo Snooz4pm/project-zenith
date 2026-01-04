@@ -41,7 +41,7 @@ export const wagmiConfig = createConfig({
 
     transports: {
         [mainnet.id]: http(),
-        [bsc.id]: http(),
+        [bsc.id]: http('https://bsc-dataseed.binance.org'), // Dedicated BSC RPC
         [base.id]: http(),
         [arbitrum.id]: http(),
     },
