@@ -57,8 +57,8 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        // Check API key
-        const apiKey = process.env.NEXT_PUBLIC_0X_API_KEY;
+        // Check API key (backend only - not exposed to client)
+        const apiKey = process.env.OX_API_KEY;
         if (!apiKey) {
             console.error('[EVM Quote] 0x API key not configured');
             return Response.json(

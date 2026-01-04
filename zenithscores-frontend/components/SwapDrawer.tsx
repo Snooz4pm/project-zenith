@@ -35,8 +35,10 @@ const EXPLORER_URLS: Record<number, string> = {
     8453: 'https://basescan.org/tx/',
 };
 
-const PLATFORM_FEE_BPS = 50; // 0.5%
-const PLATFORM_FEE_WALLET = process.env.NEXT_PUBLIC_FEE_WALLET || '0x0000000000000000000000000000000000000000';
+// Fee configuration (from env)
+const PLATFORM_FEE_BPS = parseInt(process.env.ZENITH_FEE_BPS || '50'); // 0.5% default
+const EVM_FEE_WALLET = process.env.ZENITH_EVM_FEE_RECIPIENT || '0x0000000000000000000000000000000000000000';
+const SOL_FEE_WALLET = process.env.ZENITH_SOL_FEE_RECIPIENT || '';
 
 export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: SwapDrawerProps) {
     const { data: evmWalletClient } = useWalletClient();
@@ -190,7 +192,7 @@ export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: Swa
                         sellAmount: String(amountInSmallestUnit),
                         chainId,
                         slippagePercentage: slippage / 100,
-                        affiliateAddress: PLATFORM_FEE_WALLET,
+                        affiliateAddress: EVM_FEE_WALLET,
                         buyTokenPercentageFee: String(PLATFORM_FEE_BPS / 10000),
                     });
                     setQuote(evmQuote);
