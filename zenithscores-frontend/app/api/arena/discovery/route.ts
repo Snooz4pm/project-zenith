@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
           chain: 'solana',
           chainType: 'SOLANA',
           chainId: 'solana',
+          networkName: 'Solana',
           address: p.baseMint,
           symbol: p.baseSymbol,
           name: p.baseSymbol, // Raydium JSON doesn't provide full name
@@ -55,22 +56,31 @@ export async function GET(req: NextRequest) {
     const evmTokens = evmResults.flatMap((res, i) =>
       res?.pairs
         ?.filter((p: any) => (p.liquidity?.usd ?? 0) >= 10_000 && (p.volume?.h24 ?? 0) >= 1_000)
-        .map((p: any) => ({
-          chain: chains[i],
-          chainType: 'EVM',
-          chainId: p.chainId === 'ethereum' ? '1' :
-            p.chainId === 'bsc' ? '56' :
-              p.chainId === 'base' ? '8453' :
-                p.chainId === 'arbitrum' ? '42161' : p.chainId,
-          address: p.baseToken.address,
-          symbol: p.baseToken.symbol,
-          name: p.baseToken.name,
-          logoURI: p.baseToken.logoURI || p.info?.imageUrl,
-          priceUsd: Number(p.priceUsd),
-          liquidityUsd: Number(p.liquidity.usd),
-          volume24hUsd: Number(p.volume.h24 ?? 0),
-          source: 'DEXSCREENER'
-        })) ?? []
+        .map((p: any) => {
+          const chain = chains[i];
+          const networkName = chain === 'ethereum' ? 'Ethereum' :
+            chain === 'bsc' ? 'BNB Chain' :
+              chain === 'base' ? 'Base' :
+                chain === 'arbitrum' ? 'Arbitrum' : chain;
+
+          return {
+            chain,
+            chainType: 'EVM',
+            chainId: p.chainId === 'ethereum' ? '1' :
+              p.chainId === 'bsc' ? '56' :
+                p.chainId === 'base' ? '8453' :
+                  p.chainId === 'arbitrum' ? '42161' : p.chainId,
+            networkName,
+            address: p.baseToken.address,
+            symbol: p.baseToken.symbol,
+            name: p.baseToken.name,
+            logoURI: p.baseToken.logoURI || p.info?.imageUrl,
+            priceUsd: Number(p.priceUsd),
+            liquidityUsd: Number(p.liquidity.usd),
+            volume24hUsd: Number(p.volume.h24 ?? 0),
+            source: 'DEXSCREENER'
+          };
+        }) ?? []
     );
 
     const tokens = [...solanaTokens, ...evmTokens];

@@ -5,6 +5,7 @@ export interface DiscoveredToken {
     chainType: ChainType;
     chainId: string;
     chain: string; // 'solana' | 'ethereum' | 'bsc' etc
+    networkName?: string; // Human-readable network name (e.g. "Solana", "Ethereum")
     address: string;
     symbol: string;
     name: string;
