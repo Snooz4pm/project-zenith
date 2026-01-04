@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Zap, Globe, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { useDebounce } from '@/hooks/use-debounce';
 
 type ArenaEngine = 'none' | 'solana' | 'evm';
 
@@ -35,10 +36,17 @@ async function fetchTokens(engine: ArenaEngine): Promise<Token[]> {
 export default function ArenaPage() {
   const [engine, setEngine] = useState<ArenaEngine>('none');
 
-  // Filters
+  // Filters (User Input)
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [minLiquidity, setMinLiquidity] = useState(0);
+
+  // Debounce expensive filter inputs
+  const debouncedSearch = useDebounce(search, 300);
+  const debouncedLiquidity = useDebounce(minLiquidity, 300);
+
+  // Two-phase rendering state
+  const [isFilterReady, setIsFilterReady] = useState(false);
 
   // React Query with aggressive caching
   const { data: tokens = [], isLoading, isError, refetch } = useQuery({
@@ -50,23 +58,41 @@ export default function ArenaPage() {
     retry: 2,
   });
 
+  // Reset deferred state when engine changes or tokens update
+  useEffect(() => {
+    setIsFilterReady(false);
+    if (tokens.length > 0) {
+      // Small delay to allow initial paint of raw list
+      const timer = setTimeout(() => setIsFilterReady(true), 50);
+      return () => clearTimeout(timer);
+    }
+  }, [tokens, engine]);
+
   const selectEngine = (selected: ArenaEngine) => {
     setEngine(selected);
     setPage(1);
     setSearch("");
     setMinLiquidity(0);
+    setIsFilterReady(false); // Reset immediate
   };
 
   // ═══════════════════════════════════════════════════════════
-  // MEMOIZED FILTER PIPELINE (FAST & NON-DESTRUCTIVE)
+  // MEMOIZED FILTER PIPELINE (Two-Phase)
   // ═══════════════════════════════════════════════════════════
   const filteredTokens = useMemo(() => {
     if (!tokens) return [];
 
+    // Phase 1: Instant First Paint (Bypass heavy filters)
+    // Only return enough for the first page to ensure speed
+    if (!isFilterReady) {
+      return tokens;
+    }
+
+    // Phase 2: Full Filtering (Debounced)
     return tokens.filter(t => {
-      // 1. Search Filter (Symbol, Name, Address)
-      if (search) {
-        const query = search.toLowerCase();
+      // 1. Search Filter
+      if (debouncedSearch) {
+        const query = debouncedSearch.toLowerCase();
         const match =
           t.symbol.toLowerCase().includes(query) ||
           t.name.toLowerCase().includes(query) ||
@@ -75,18 +101,19 @@ export default function ArenaPage() {
       }
 
       // 2. Liquidity Filter
-      if (minLiquidity > 0) {
-        if ((t.liquidityUsd || 0) < minLiquidity) return false;
+      if (debouncedLiquidity > 0) {
+        if ((t.liquidityUsd || 0) < debouncedLiquidity) return false;
       }
 
       return true;
     });
-  }, [tokens, search, minLiquidity]);
+  }, [tokens, isFilterReady, debouncedSearch, debouncedLiquidity]);
 
   // ═══════════════════════════════════════════════════════════
-  // PAGINATION (Slice AFTER filtering)
+  // PAGINATION
   // ═══════════════════════════════════════════════════════════
   const visibleTokens = useMemo(() => {
+    // If not ready, safe slice. If ready, standard slice.
     return filteredTokens.slice(0, page * PAGE_SIZE);
   }, [filteredTokens, page]);
 
@@ -95,7 +122,7 @@ export default function ArenaPage() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [search, minLiquidity]);
+  }, [debouncedSearch, debouncedLiquidity]);
 
   // ═══════════════════════════════════════════════════════════
   // RENDER HELPERS
@@ -156,7 +183,7 @@ export default function ArenaPage() {
     );
   }
 
-  // Loading Skeleton
+  // Loading Skeleton - OPTIMIZED: Reduced count for faster render
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] text-white p-6">
@@ -167,7 +194,7 @@ export default function ArenaPage() {
           <p className="text-sm text-zinc-500">Loading ~14k tokens (cached after first load)</p>
         </div>
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {[...Array(12)].map((_, i) => (
+          {[...Array(6)].map((_, i) => (
             <div key={i} className="h-20 bg-white/5 rounded-xl animate-pulse" />
           ))}
         </div>
