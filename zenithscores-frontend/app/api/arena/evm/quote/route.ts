@@ -50,6 +50,12 @@ export async function GET(req: NextRequest) {
         const apiKey = process.env.OX_API_KEY;
         const feeRecipient = process.env.ZENITH_EVM_FEE_RECIPIENT;
 
+        // Debug: Check if env vars are loaded
+        console.log('[0x ENV CHECK]', {
+            hasKey: !!apiKey,
+            hasFeeRecipient: !!feeRecipient,
+        });
+
         if (!apiKey) {
             console.error('[EVM Quote] 0x API key not configured');
             return Response.json({ error: '0x API key not configured' }, { status: 500 });
