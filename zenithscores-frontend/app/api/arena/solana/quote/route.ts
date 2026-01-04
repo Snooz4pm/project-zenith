@@ -13,148 +13,58 @@ const KNOWN_MINTS: Record<string, string> = {
 
 /**
  * GET /api/arena/solana/quote
- * 
+ *
  * Jupiter v6 Quote Proxy (SERVER-SIDE ONLY)
- * Prevents CORS issues and provides validation
+ * Hardened version with explicit proxy handling
  */
-export async function GET(req: NextRequest) {
-  console.log('[Solana Quote] Request received');
-
+export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
 
-    let inputMint = searchParams.get('inputMint');
-    let outputMint = searchParams.get('outputMint');
+    const inputMint = searchParams.get('inputMint');
+    const outputMint = searchParams.get('outputMint');
     const amount = searchParams.get('amount');
-    const slippageBps = searchParams.get('slippageBps') || '50';
+    const slippageBps = searchParams.get('slippageBps') ?? '50';
 
-    // Validation
     if (!inputMint || !outputMint || !amount) {
-      console.error('[Solana Quote] Missing params:', { inputMint, outputMint, amount });
       return Response.json(
-        { error: 'Missing required parameters: inputMint, outputMint, amount' },
+        { error: 'Missing params' },
         { status: 400 }
       );
     }
 
-    // Resolve symbol to mint if needed
-    if (KNOWN_MINTS[inputMint.toUpperCase()]) {
-      inputMint = KNOWN_MINTS[inputMint.toUpperCase()];
-    }
-    if (KNOWN_MINTS[outputMint.toUpperCase()]) {
-      outputMint = KNOWN_MINTS[outputMint.toUpperCase()];
-    }
-
-    // Validate amount is integer (lamports)
-    if (!/^\d+$/.test(amount)) {
-      console.error('[Solana Quote] Invalid amount format:', amount);
+    const PROXY = process.env.JUPITER_PROXY_URL;
+    if (!PROXY) {
+      console.error('[Solana Quote] JUPITER_PROXY_URL missing');
       return Response.json(
-        { error: 'amount must be a stringified integer (lamports)' },
-        { status: 400 }
-      );
-    }
-
-    // Validate mints are base58 addresses
-    const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-    if (!base58Regex.test(inputMint) || !base58Regex.test(outputMint)) {
-      console.error('[Solana Quote] Invalid mint addresses:', { inputMint, outputMint });
-      return Response.json(
-        { error: 'Invalid Solana mint addresses' },
-        { status: 400 }
-      );
-    }
-
-    // TEMPORARY: Verify proxy URL is loaded (remove after confirmation)
-    console.log(
-      '[SOLANA] JUPITER_PROXY_URL =',
-      process.env.JUPITER_PROXY_URL
-    );
-
-    // Use Railway proxy in production, direct Jupiter API in local dev
-    const JUPITER_API = process.env.JUPITER_PROXY_URL || 'https://quote-api.jup.ag/v6';
-
-    if (!JUPITER_API) {
-      console.error('[Solana Quote] JUPITER_PROXY_URL not configured');
-      return Response.json(
-        { error: 'Jupiter API not configured' },
+        { error: 'Proxy not configured' },
         { status: 500 }
       );
     }
 
-    // Build Jupiter URL with CRITICAL swapMode parameter
-    const jupiterParams = new URLSearchParams({
-      inputMint,
-      outputMint,
-      amount,
-      slippageBps,
-      swapMode: 'ExactIn', // CRITICAL: Jupiter v6 needs this
-    });
+    const url = `${PROXY}/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippageBps}&swapMode=ExactIn`;
 
-    const fullUrl = `${JUPITER_API}/quote?${jupiterParams.toString()}`;
-    console.log('[Solana Quote] Calling Jupiter:', fullUrl);
+    console.log('[Solana Quote] Fetching:', url);
 
-    const res = await fetch(fullUrl, {
-      headers: {
-        'Accept': 'application/json',
-      },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(15000), // 15s timeout
-    });
-
-    console.log('[Solana Quote] Jupiter response status:', res.status);
-
-    // Log raw response
+    const res = await fetch(url, { cache: 'no-store' });
     const text = await res.text();
 
     if (!res.ok) {
-      console.error('[Solana Quote] Jupiter HTTP error:', {
-        status: res.status,
-        response: text.substring(0, 500)
-      });
+      console.error('[Solana Quote] Proxy error:', text);
       return Response.json(
-        { error: 'Jupiter quote failed', details: text, status: res.status },
-        { status: res.status }
+        { error: 'Jupiter proxy error', detail: text },
+        { status: 502 }
       );
     }
 
-    // Parse and validate
-    try {
-      const json = JSON.parse(text);
+    return new Response(text, {
+      headers: { 'content-type': 'application/json' },
+    });
 
-      // DEBUG LOG (User requirement - exact format)
-      console.log('[JUPITER RAW]', {
-        hasData: !!json,
-        hasInAmount: !!json.inAmount,
-        hasOutAmount: !!json.outAmount,
-        error: json.error,
-        routePlan: json.routePlan ? 'exists' : 'missing',
-      });
-
-      // Check if we have a valid quote
-      if (json.inAmount && json.outAmount && json.routePlan) {
-        console.log('[Solana Quote] SUCCESS - route found');
-        return Response.json(json);
-      }
-
-      // NO ROUTE FOUND - This is VALID, not an error
-      console.log('[Solana Quote] NO_ROUTE - valid state (amount too small or illiquid pair)');
-      return Response.json({
-        status: 'NO_ROUTE',
-        reason: 'No routes available. Try a larger amount or different token pair.',
-      });
-
-    } catch (e) {
-      console.error('[Solana Quote] Failed to parse Jupiter response:', text.substring(0, 500));
-      return Response.json(
-        { error: 'Invalid JSON response from Jupiter' },
-        { status: 500 }
-      );
-    }
-
-  } catch (e: any) {
-    console.error('[Solana Quote] Error:', e);
+  } catch (err) {
+    console.error('[Solana Quote] Fatal:', err);
     return Response.json(
-      { error: 'Internal server error', message: e.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
