@@ -73,9 +73,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const { disconnect: evmDisconnect } = useDisconnect();
     const evmChainId = useChainId();
 
-    // EVM balance
+    // EVM balance (ONLY query when connected to prevent ProviderNotFoundError)
     const { data: evmBalanceData } = useBalance({
-        address: evmAddress,
+        address: evmConnected ? evmAddress : undefined,
+        query: { enabled: evmConnected },
     });
 
     // Solana wallet (Phantom, Solflare, etc.)
