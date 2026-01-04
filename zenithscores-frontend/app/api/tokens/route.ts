@@ -1,74 +1,54 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server"
 
-export const dynamic = "force-dynamic";
+export const runtime = "nodejs"          // Force Node runtime
+export const dynamic = "force-dynamic"   // Force dynamic rendering
 
-/**
- * GET /api/tokens
- *
- * BULLETPROOF TOKEN DISCOVERY
- * ═══════════════════════════
- * - Never throws
- * - Always returns JSON
- * - Empty array on failure
- */
 export async function GET(req: Request) {
   try {
-    const url = new URL(req.url);
-    const limit = Number(url.searchParams.get("limit") ?? 50);
+    const url = new URL(req.url)
+    const limit = Number(url.searchParams.get("limit") ?? 50)
 
-    console.log("[api/tokens] Fetching from Raydium...");
+    console.log("[api/tokens] fetching Raydium pools")
 
-    // 1️⃣ Try Raydium first (most reliable for Solana)
-    const raydiumRes = await fetch(
+    const res = await fetch(
       "https://api.raydium.io/v2/sdk/liquidity/mainnet.json",
-      { cache: "no-store" }
-    );
+      {
+        cache: "no-store",
+        headers: {
+          "accept": "application/json",
+        },
+      }
+    )
 
-    if (!raydiumRes.ok) {
-      throw new Error(`Raydium API failed with status ${raydiumRes.status}`);
+    if (!res.ok) {
+      console.error("[api/tokens] Raydium HTTP error", res.status)
+      return NextResponse.json([], { status: 200 })
     }
 
-    const raydiumData = await raydiumRes.json();
+    const json = await res.json()
 
-    const tokens = parseRaydiumPools(raydiumData).slice(0, limit);
+    if (!json || !json.official) {
+      console.error("[api/tokens] invalid Raydium payload")
+      return NextResponse.json([], { status: 200 })
+    }
 
-    console.log(`[api/tokens] Returning ${tokens.length} tokens`);
+    const tokens = Object.values(json.official)
+      .map((pool: any) => ({
+        chainType: "SOLANA",
+        chainId: "SOLANA",
+        address: pool.baseMint,
+        symbol: pool.baseSymbol ?? "UNKNOWN",
+        name: pool.baseName ?? pool.baseSymbol ?? "Unknown",
+        priceUsd: pool.price ?? null,
+        liquidityUsd: pool.liquidity ?? 0,
+        volume24h: pool.volume24h ?? 0,
+        dex: "Raydium",
+      }))
+      .slice(0, limit)
 
-    return NextResponse.json(tokens);
+    return NextResponse.json(tokens, { status: 200 })
   } catch (err) {
-    console.error("[api/tokens] fatal:", err);
-
-    // ❗ NEVER CRASH — return empty array with 200
-    return NextResponse.json([], { status: 200 });
+    console.error("[api/tokens] FATAL ERROR", err)
+    return NextResponse.json([], { status: 200 })
   }
-}
-
-/**
- * Parse Raydium pools into GlobalToken format
- * Defensive: handles missing fields gracefully
- */
-function parseRaydiumPools(data: any) {
-  if (!data?.official) {
-    console.warn("[api/tokens] No official pools in Raydium data");
-    return [];
-  }
-
-  const pools = Object.values(data.official);
-
-  return pools.map((pool: any) => ({
-    id: `solana-${pool.baseMint}`,
-    chainType: "SOLANA",
-    chainId: "solana",
-    networkName: "Solana",
-    address: pool.baseMint ?? "",
-    symbol: pool.baseSymbol ?? "???",
-    name: pool.baseName ?? pool.baseSymbol ?? "Unknown",
-    logo: null,
-    decimals: pool.baseDecimals ?? 9,
-    priceUsd: pool.price ?? 0,
-    priceChange24h: 0,
-    liquidityUsd: pool.liquidity ?? 0,
-    volume24h: pool.volume24h ?? 0,
-    dex: "Raydium",
-  }));
 }
