@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useWallet } from "@/lib/wallet/WalletContext";
 import { DiscoveredToken } from "@/lib/discovery/types";
 import { X, ArrowDown, ExternalLink, AlertCircle, CheckCircle2, Wallet as WalletIcon } from "lucide-react";
@@ -9,9 +9,10 @@ interface SwapDrawerProps {
     isOpen: boolean;
     onClose: () => void;
     token: DiscoveredToken | null; // Initial TO token (optional)
+    availableTokens?: DiscoveredToken[]; // Tokens from Arena (no fetching)
 }
 
-export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
+export function SwapDrawer({ isOpen, onClose, token, availableTokens = [] }: SwapDrawerProps) {
     const { session, switchEvmNetwork, signAndSendTx } = useWallet();
 
     // FROM + TO token state
@@ -190,6 +191,16 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
         } catch (err: any) {
             setError(err.message || 'Failed to switch network');
         }
+    };
+
+    const handleSelectFrom = (selectedToken: DiscoveredToken) => {
+        setFromToken(selectedToken);
+        setShowFromPicker(false);
+    };
+
+    const handleSelectTo = (selectedToken: DiscoveredToken) => {
+        setToToken(selectedToken);
+        setShowToPicker(false);
     };
 
     if (!isOpen) return null;
@@ -396,12 +407,10 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
                 <TokenPickerModal
                     isOpen={showFromPicker}
                     onClose={() => setShowFromPicker(false)}
-                    onSelect={(token) => {
-                        setFromToken(token);
-                        setShowFromPicker(false);
-                    }}
+                    onSelect={handleSelectFrom}
                     filterChainType={toToken?.chainType}
                     excludeToken={toToken}
+                    availableTokens={availableTokens}
                 />
             )}
 
@@ -410,12 +419,10 @@ export function SwapDrawer({ isOpen, onClose, token }: SwapDrawerProps) {
                 <TokenPickerModal
                     isOpen={showToPicker}
                     onClose={() => setShowToPicker(false)}
-                    onSelect={(token) => {
-                        setToToken(token);
-                        setShowToPicker(false);
-                    }}
+                    onSelect={handleSelectTo}
                     filterChainType={fromToken?.chainType}
                     excludeToken={fromToken}
+                    availableTokens={availableTokens}
                 />
             )}
         </div>
@@ -428,56 +435,44 @@ function TokenPickerModal({
     onClose,
     onSelect,
     filterChainType,
-    excludeToken
+    excludeToken,
+    availableTokens = []
 }: {
     isOpen: boolean;
     onClose: () => void;
     onSelect: (token: DiscoveredToken) => void;
     filterChainType?: string;
     excludeToken?: DiscoveredToken | null;
+    availableTokens?: DiscoveredToken[];
 }) {
-    const [tokens, setTokens] = useState<DiscoveredToken[]>([]);
     const [search, setSearch] = useState("");
-    const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        if (!isOpen) return;
+    // Filter tokens in-memory (no fetching)
+    const filteredTokens = useMemo(() => {
+        let result = availableTokens;
 
-        const fetchTokens = async () => {
-            setLoading(true);
-            try {
-                const res = await fetch('/api/arena/discovery');
-                if (res.ok) {
-                    const data = await res.json();
-                    let allTokens = data.tokens || [];
+        // Filter by chain type
+        if (filterChainType) {
+            result = result.filter(t => t.chainType === filterChainType);
+        }
 
-                    // Filter by chain type if specified
-                    if (filterChainType) {
-                        allTokens = allTokens.filter((t: DiscoveredToken) => t.chainType === filterChainType);
-                    }
+        // Exclude selected token
+        if (excludeToken) {
+            result = result.filter(t => t.address !== excludeToken.address);
+        }
 
-                    // Exclude the other selected token
-                    if (excludeToken) {
-                        allTokens = allTokens.filter((t: DiscoveredToken) => t.address !== excludeToken.address);
-                    }
+        // Search filter
+        if (search) {
+            const query = search.toLowerCase();
+            result = result.filter(t =>
+                t.symbol.toLowerCase().includes(query) ||
+                t.name.toLowerCase().includes(query) ||
+                t.address.toLowerCase() === query
+            );
+        }
 
-                    setTokens(allTokens.slice(0, 100)); // Limit to 100 tokens for performance
-                }
-            } catch (err) {
-                console.error('[TokenPicker] Failed to fetch tokens:', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchTokens();
-    }, [isOpen, filterChainType, excludeToken]);
-
-    const filteredTokens = tokens.filter(t =>
-        t.symbol.toLowerCase().includes(search.toLowerCase()) ||
-        t.name.toLowerCase().includes(search.toLowerCase()) ||
-        t.address.toLowerCase().includes(search.toLowerCase())
-    );
+        return result.slice(0, 100); // Limit for performance
+    }, [availableTokens, filterChainType, excludeToken, search]);
 
     if (!isOpen) return null;
 
@@ -501,12 +496,10 @@ function TokenPickerModal({
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-2">
-                    {loading ? (
-                        <div className="text-center py-8 text-zinc-500">Loading tokens...</div>
-                    ) : filteredTokens.length === 0 ? (
+                    {filteredTokens.length === 0 ? (
                         <div className="text-center py-8 text-zinc-500">No tokens found</div>
                     ) : (
-                        <div className="space-y-1">
+                        <div className="space-y-1 max-h-96 overflow-y-auto">
                             {filteredTokens.map((token) => (
                                 <button
                                     key={`${token.chainType}-${token.address}`}

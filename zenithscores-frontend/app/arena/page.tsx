@@ -538,6 +538,7 @@ export default function ArenaPage() {
         isOpen={isSwapDrawerOpen}
         onClose={() => setIsSwapDrawerOpen(false)}
         token={selectedToken}
+        availableTokens={filteredTokens}
       />
 
       {/* Zenith Connect Modal */}
