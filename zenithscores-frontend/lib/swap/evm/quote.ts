@@ -2,6 +2,7 @@
  * EVM Quote Fetcher (0x Protocol)
  * 
  * READ-ONLY - No wallet required
+ * Routes through API proxy to avoid CORS
  * Supports slippage and platform fee capture
  */
 
@@ -52,38 +53,17 @@ export async function getEvmQuote(params: EvmQuoteParams): Promise<EvmQuote> {
         chainId: String(chainId),
     });
 
-    if (takerAddress) {
-        queryParams.append('takerAddress', takerAddress);
-    }
+    if (takerAddress) queryParams.append('takerAddress', takerAddress);
+    if (slippagePercentage !== undefined) queryParams.append('slippagePercentage', String(slippagePercentage));
+    if (affiliateAddress) queryParams.append('affiliateAddress', affiliateAddress);
+    if (buyTokenPercentageFee) queryParams.append('buyTokenPercentageFee', buyTokenPercentageFee);
 
-    if (slippagePercentage !== undefined) {
-        queryParams.append('slippagePercentage', String(slippagePercentage));
-    }
-
-    // Platform fee capture (revenue)
-    if (affiliateAddress && buyTokenPercentageFee) {
-        queryParams.append('affiliateAddress', affiliateAddress);
-        queryParams.append('feeRecipient', affiliateAddress);
-        queryParams.append('buyTokenPercentageFee', buyTokenPercentageFee);
-    }
-
-    const apiKey = process.env.NEXT_PUBLIC_0X_API_KEY;
-    if (!apiKey) {
-        throw new Error('0x API key not configured');
-    }
-
-    const res = await fetch(
-        `https://api.0x.org/swap/v1/quote?${queryParams.toString()}`,
-        {
-            headers: {
-                '0x-api-key': apiKey,
-            },
-        }
-    );
+    // Call OUR API proxy (not 0x directly - avoids CORS)
+    const res = await fetch(`/api/arena/evm/quote?${queryParams.toString()}`);
 
     if (!res.ok) {
-        const error = await res.json().catch(() => ({ reason: 'Unknown error' }));
-        throw new Error(error.reason || 'No EVM route available');
+        const error = await res.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(error.error || 'No EVM route available');
     }
 
     return res.json();

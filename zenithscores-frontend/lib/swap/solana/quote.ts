@@ -12,7 +12,7 @@ export interface SolanaQuoteParams {
     slippageBps?: number; // Default 50 = 0.5%
 }
 
-export interface JupiterQuote {
+export interface SolanaQuote {
     inputMint: string;
     inAmount: string;
     outputMint: string;
@@ -44,7 +44,7 @@ export function fromSolanaAmount(lamports: number, decimals: number = 9): number
 /**
  * Get Solana swap quote from Jupiter (via our API proxy)
  */
-export async function getSolanaQuote(params: SolanaQuoteParams): Promise<JupiterQuote> {
+export async function getSolanaQuote(params: SolanaQuoteParams): Promise<SolanaQuote> {
     const { inputMint, outputMint, amount, slippageBps = 50 } = params;
 
     // Build query params
