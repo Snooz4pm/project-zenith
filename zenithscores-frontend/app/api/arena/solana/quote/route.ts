@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -75,12 +75,13 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Build Jupiter URL
+    // Build Jupiter URL with CRITICAL swapMode parameter
     const jupiterParams = new URLSearchParams({
       inputMint,
       outputMint,
       amount,
       slippageBps,
+      swapMode: 'ExactIn', // CRITICAL: Jupiter v6 needs this
     });
 
     const fullUrl = `${JUPITER_API}/quote?${jupiterParams.toString()}`;
@@ -100,20 +101,44 @@ export async function GET(req: NextRequest) {
     const text = await res.text();
 
     if (!res.ok) {
-      console.error('[Solana Quote] Jupiter error response:', text);
+      console.error('[Solana Quote] Jupiter HTTP error:', {
+        status: res.status,
+        response: text.substring(0, 500)
+      });
       return Response.json(
         { error: 'Jupiter quote failed', details: text, status: res.status },
         { status: res.status }
       );
     }
 
-    // Parse and return
+    // Parse and validate
     try {
-      const data = JSON.parse(text);
-      console.log('[Solana Quote] Success - route found');
-      return Response.json(data);
+      const json = JSON.parse(text);
+
+      // DEBUG LOG (User requirement - exact format)
+      console.log('[JUPITER RAW]', {
+        hasData: !!json,
+        hasInAmount: !!json.inAmount,
+        hasOutAmount: !!json.outAmount,
+        error: json.error,
+        routePlan: json.routePlan ? 'exists' : 'missing',
+      });
+
+      // Check if we have a valid quote
+      if (json.inAmount && json.outAmount && json.routePlan) {
+        console.log('[Solana Quote] SUCCESS - route found');
+        return Response.json(json);
+      }
+
+      // NO ROUTE FOUND - This is VALID, not an error
+      console.log('[Solana Quote] NO_ROUTE - valid state (amount too small or illiquid pair)');
+      return Response.json({
+        status: 'NO_ROUTE',
+        reason: 'No routes available. Try a larger amount or different token pair.',
+      });
+
     } catch (e) {
-      console.error('[Solana Quote] Failed to parse Jupiter response:', text);
+      console.error('[Solana Quote] Failed to parse Jupiter response:', text.substring(0, 500));
       return Response.json(
         { error: 'Invalid JSON response from Jupiter' },
         { status: 500 }
@@ -126,5 +151,94 @@ export async function GET(req: NextRequest) {
       { error: 'Internal server error', message: e.message },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * POST /api/arena/solana/quote
+ *
+ * Alternative POST handler for SwapDrawer compatibility
+ */
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { inputMint, outputMint, amount } = body;
+
+    if (!inputMint || !outputMint || !amount) {
+      return NextResponse.json({
+        executable: false,
+        error: 'Missing required fields: inputMint, outputMint, amount'
+      }, { status: 400 });
+    }
+
+    // Get Jupiter API URL
+    const JUPITER_API = process.env.JUPITER_QUOTE_API || 'https://quote-api.jup.ag/v6';
+
+    // Build Jupiter URL with swapMode
+    const url =
+      `${JUPITER_API}/quote` +
+      `?inputMint=${inputMint}` +
+      `&outputMint=${outputMint}` +
+      `&amount=${amount}` +
+      `&slippageBps=50` +
+      `&swapMode=ExactIn`;
+
+    console.log('[Solana Quote POST] Calling Jupiter:', url);
+
+    const res = await fetch(url, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!res.ok) {
+      console.error('[Solana Quote POST] Jupiter HTTP error:', res.status);
+      return NextResponse.json({
+        executable: false,
+        error: 'Jupiter API error',
+        status: 'HTTP_ERROR'
+      });
+    }
+
+    const json = await res.json();
+
+    // DEBUG LOG (User requirement)
+    console.log('[JUPITER RAW]', {
+      hasData: !!json,
+      hasInAmount: !!json.inAmount,
+      hasOutAmount: !!json.outAmount,
+      error: json.error,
+      routePlan: json.routePlan ? 'exists' : 'missing',
+    });
+
+    // Check if we have a valid route
+    const hasRoute = json.inAmount && json.outAmount && json.routePlan;
+
+    if (!hasRoute) {
+      console.log('[Solana Quote POST] NO_ROUTE - valid state');
+      return NextResponse.json({
+        executable: false,
+        quote: null,
+        status: 'NO_ROUTE',
+        reason: 'No routes available. Try a larger amount or different token pair.'
+      });
+    }
+
+    console.log('[Solana Quote POST] SUCCESS - route found');
+    return NextResponse.json({
+      executable: true,
+      quote: json,
+      inAmount: json.inAmount,
+      outAmount: json.outAmount,
+      priceImpactPct: json.priceImpactPct,
+      status: 'OK'
+    });
+
+  } catch (err: any) {
+    console.error('[Solana Quote POST] Fatal error:', err);
+    return NextResponse.json({
+      executable: false,
+      error: err.message || 'Internal server error',
+      status: 'ERROR'
+    }, { status: 500 });
   }
 }

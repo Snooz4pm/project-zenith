@@ -36,7 +36,8 @@ export async function POST(req: Request) {
       `&outputMint=${outputMint}` +
       `&amount=${amount}` +
       `&onlyDirectRoutes=false` +
-      `&slippageBps=50`;
+      `&slippageBps=50` +
+      `&swapMode=ExactIn`; // CRITICAL: Jupiter v6 needs this
 
     const res = await fetch(url, {
       cache: "no-store",
@@ -44,19 +45,29 @@ export async function POST(req: Request) {
     });
 
     if (!res.ok) {
-      console.error("[Solana Price] Jupiter API error:", res.status);
-      return NextResponse.json({ price: null });
+      console.error("[Solana Price] Jupiter API HTTP error:", res.status);
+      return NextResponse.json({ price: null, status: 'HTTP_ERROR' });
     }
 
-    const data = await res.json();
+    const json = await res.json();
 
-    // Calculate price from inAmount/outAmount
-    if (data.inAmount && data.outAmount) {
-      const price = Number(data.outAmount) / Number(data.inAmount);
-      return NextResponse.json({ price });
+    // DEBUG LOG (User requirement)
+    console.log('[JUPITER RAW]', {
+      hasData: !!json,
+      hasInAmount: !!json.inAmount,
+      hasOutAmount: !!json.outAmount,
+      error: json.error,
+    });
+
+    // Jupiter v6 returns quote object directly (not data array)
+    if (json.inAmount && json.outAmount) {
+      const price = Number(json.outAmount) / Number(json.inAmount);
+      return NextResponse.json({ price, status: 'OK' });
     }
 
-    return NextResponse.json({ price: null });
+    // No route found - this is VALID, not an error
+    console.log('[Solana Price] No route available (valid state)');
+    return NextResponse.json({ price: null, status: 'NO_ROUTE' });
   } catch (err) {
     console.error("[Solana Price] Fatal error:", err);
     return NextResponse.json({ price: null });
