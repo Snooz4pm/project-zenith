@@ -18,6 +18,14 @@ const KNOWN_MINTS: Record<string, string> = {
  * Hardened version with explicit proxy handling
  */
 export async function GET(req: Request) {
+  // TEMPORARY TEST: Verify route registration
+  return Response.json({
+    ok: true,
+    message: 'Quote route is registered and working',
+    timestamp: new Date().toISOString(),
+    env: !!process.env.JUPITER_PROXY_URL
+  });
+
   try {
     const { searchParams } = new URL(req.url);
 
