@@ -2,8 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useWallet } from "@/lib/wallet/WalletContext";
-import { DiscoveredToken, CHAIN_METADATA } from "@/lib/discovery/normalize";
+import { DiscoveredToken } from "@/lib/discovery/types";
 import { X, ArrowDown, ExternalLink, AlertCircle, CheckCircle2, Wallet as WalletIcon } from "lucide-react";
+
+const CHAIN_METADATA: Record<string, { name: string; logo: string; color: string; vm: 'SOLANA' | 'EVM' }> = {
+    'solana': { name: 'Solana', logo: 'https://assets.trustwalletapp.com/blockchains/solana/info/logo.png', color: '#14F195', vm: 'SOLANA' },
+    '1': { name: 'Ethereum', logo: 'https://assets.trustwalletapp.com/blockchains/ethereum/info/logo.png', color: '#627EEA', vm: 'EVM' },
+    '8453': { name: 'Base', logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/info/logo.png', color: '#0052FF', vm: 'EVM' },
+    '42161': { name: 'Arbitrum', logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/arbitrum/info/logo.png', color: '#2D374B', vm: 'EVM' },
+    '56': { name: 'BSC', logo: 'https://assets.trustwalletapp.com/blockchains/binance/info/logo.png', color: '#F3BA2F', vm: 'EVM' },
+};
 
 interface SwapDrawerProps {
     isOpen: boolean;
