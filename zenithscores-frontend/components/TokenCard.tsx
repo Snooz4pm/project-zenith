@@ -262,18 +262,18 @@ export default function TokenCard({ token, onSelect }: TokenCardProps) {
                 </div>
 
                 {/* Metrics Row (Only if available) */}
-                {(token.liquidityUSD || token.volume24h) && (
+                {(token.liquidityUsd || token.volume24hUsd) && (
                     <div className="grid grid-cols-2 gap-2 mb-3">
                         <div className="text-center">
                             <div className="text-[10px] text-zinc-500 mb-0.5">Liquidity</div>
                             <div className="text-xs font-medium text-white">
-                                {token.liquidityUSD ? `$${(token.liquidityUSD / 1000).toFixed(0)}K` : '-'}
+                                {token.liquidityUsd ? `$${(token.liquidityUsd / 1000).toFixed(0)}K` : '-'}
                             </div>
                         </div>
                         <div className="text-center">
                             <div className="text-[10px] text-zinc-500 mb-0.5">Volume 24h</div>
                             <div className="text-xs font-medium text-white">
-                                {token.volume24h ? `$${(token.volume24h / 1000).toFixed(0)}K` : '-'}
+                                {token.volume24hUsd ? `$${(token.volume24hUsd / 1000).toFixed(0)}K` : '-'}
                             </div>
                         </div>
                     </div>
