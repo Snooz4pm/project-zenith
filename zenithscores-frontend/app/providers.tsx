@@ -40,7 +40,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <WagmiProvider config={wagmiConfig}>
+    <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
       <QueryClientProvider client={queryClient}>
         <ConnectionProvider endpoint={endpoint}>
           <SolanaWalletProvider wallets={wallets} autoConnect={false}>
