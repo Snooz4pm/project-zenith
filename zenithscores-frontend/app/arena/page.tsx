@@ -13,24 +13,13 @@ import { ZenithPagination } from '@/components/ZenithPagination';
 
 type ArenaEngine = 'none' | 'solana' | 'evm';
 
-interface Token {
-  chain: string;
-  chainType: string;
-  address: string;
-  symbol: string;
-  name: string;
-  logoURI?: string;
-  liquidityUsd?: number;
-  volume24hUsd?: number;
-  pairCreatedAt?: number;
-  source?: string;
-}
+
 
 const PAGE_SIZE = 50;
 const STALE_TIME = 24 * 60 * 60 * 1000; // 24 hours (User Requirement: Cache HARD)
 const CACHE_TIME = 24 * 60 * 60 * 1000; // 24 hours
 
-async function fetchTokens(engine: ArenaEngine): Promise<Token[]> {
+async function fetchTokens(engine: ArenaEngine): Promise<DiscoveredToken[]> {
   if (engine === 'none') return [];
 
   const res = await fetch(`/api/arena/${engine}/discovery`);
@@ -136,7 +125,7 @@ export default function ArenaPage() {
   const debouncedLiquidity = useDebounce(minLiquidity, 300);
 
   // Preset Logic Definitions
-  const PRESET_LOGIC: Record<string, (t: Token) => boolean> = {
+  const PRESET_LOGIC: Record<string, (t: DiscoveredToken) => boolean> = {
     TRENDING: (t) => {
       // Intent: High attention, high participation
       const liq = t.liquidityUsd || 0;
@@ -278,7 +267,7 @@ export default function ArenaPage() {
     </button>
   );
 
-  const getTokenBadges = (t: Token): string[] => {
+  const getTokenBadges = (t: DiscoveredToken): string[] => {
     const badges: string[] = [];
     // Priority order
     if (PRESET_LOGIC.NEW(t)) badges.push('NEW');
@@ -291,33 +280,20 @@ export default function ArenaPage() {
   // ═══════════════════════════════════════════════════════════
   // TOKEN CLICK HANDLER (NO ALERTS)
   // ═══════════════════════════════════════════════════════════
-  const handleTokenClick = (token: Token) => {
-    const discoveredToken: DiscoveredToken = {
-      chainType: token.chainType as 'SOLANA' | 'EVM',
-      chainId: token.chain,
-      chain: token.chain,
-      address: token.address,
-      symbol: token.symbol,
-      name: token.name,
-      logoURI: token.logoURI,
-      liquidityUsd: token.liquidityUsd || 0,
-      volume24hUsd: token.volume24hUsd || 0,
-      source: (token.source || 'DEXSCREENER') as 'RAYDIUM' | 'JUPITER' | 'DEXSCREENER',
-    };
-
+  const handleTokenClick = (token: DiscoveredToken) => {
     const isConnected = token.chainType === 'SOLANA'
       ? !!session.solana
       : !!session.evm;
 
     if (!isConnected) {
       // Open Zenith Connect Modal (No browser alert)
-      setPendingToken(discoveredToken);
-      setConnectChain(discoveredToken.chainType);
+      setPendingToken(token);
+      setConnectChain(token.chainType);
       setShowConnectModal(true);
       return;
     }
 
-    setSelectedToken(discoveredToken);
+    setSelectedToken(token);
     setIsSwapDrawerOpen(true);
   };
 

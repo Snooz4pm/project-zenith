@@ -2,23 +2,12 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-
-interface Token {
-  chain: string;
-  chainType: string;
-  address: string;
-  symbol: string;
-  name: string;
-  logoURI?: string;
-  liquidityUsd?: number;
-  volume24hUsd?: number;
-  source?: string;
-}
+import { DiscoveredToken } from '@/lib/discovery/types';
 
 interface ArenaTokenCardProps {
-  token: Token;
+  token: DiscoveredToken;
   badges?: string[];
-  onClick: (token: Token) => void;
+  onClick: (token: DiscoveredToken) => void;
 }
 
 export function ArenaTokenCard({ token, badges, onClick }: ArenaTokenCardProps) {
