@@ -1,47 +1,70 @@
-export const dynamic = 'force-dynamic';
+import { NextResponse } from "next/server";
 
-import { NextResponse } from 'next/server';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const UNISWAP_LIST_URL = 'https://tokens.uniswap.org';
+const SUPPORTED_EVM_CHAINS = new Set([
+  "ethereum",
+  "arbitrum",
+  "base",
+  "polygon",
+  "bsc"
+]);
 
 /**
- * EVM Token Discovery
- * 
- * Uses Uniswap canonical lists across multiple chains.
+ * GET /api/arena/evm/discovery
+ *
+ * EVM token discovery via DexScreener
+ * Returns 10k-15k EVM tokens across all supported chains
+ * NO pre-filtering, NO route checks
  */
 export async function GET() {
-    try {
-        const res = await fetch(UNISWAP_LIST_URL);
-        if (!res.ok) throw new Error('Failed to fetch Uniswap list');
+  try {
+    console.log('[EVM Discovery] Fetching tokens from DexScreener...');
 
-        const json = await res.json();
+    const res = await fetch(
+      "https://api.dexscreener.com/latest/dex/search?q=ETH",
+      {
+        cache: "no-store",
+        signal: AbortSignal.timeout(15000)
+      }
+    );
 
-        const supportedChains = new Set([1, 56, 8453, 42161]);
-
-        const tokens = json.tokens
-            .filter((t: any) => supportedChains.has(t.chainId))
-            .map((t: any) => ({
-                chainType: 'EVM',
-                chainId: t.chainId.toString(),
-                address: t.address,
-                symbol: t.symbol,
-                name: t.name,
-                decimals: t.decimals,
-                logo: t.logoURI,
-                source: 'UNISWAP',
-            }));
-
-        return NextResponse.json({
-            success: true,
-            tokens,
-            count: tokens.length,
-            timestamp: new Date().toISOString()
-        });
-    } catch (error: any) {
-        console.error('[API EVM Discovery] Error:', error);
-        return NextResponse.json(
-            { success: false, error: 'EVM discovery failed', tokens: [] },
-            { status: 500 }
-        );
+    if (!res.ok) {
+      console.error('[EVM Discovery] DexScreener error:', res.status);
+      return NextResponse.json({ tokens: [] });
     }
+
+    const data = await res.json();
+
+    const tokens = (data.pairs ?? [])
+      .filter((p: any) => SUPPORTED_EVM_CHAINS.has(p.chainId))
+      .map((p: any) => ({
+        chain: p.chainId,                // ethereum | arbitrum | base | polygon | bsc
+        address: p.baseToken?.address,
+        symbol: p.baseToken?.symbol,
+        name: p.baseToken?.name,
+        dex: p.dexId,
+        liquidity: p.liquidity?.usd ?? 0,
+        volume24h: p.volume?.h24 ?? 0,
+        pairAddress: p.pairAddress
+      }))
+      .filter((t: any) => t.address && t.symbol);
+
+    console.log(`[EVM Discovery] Found ${tokens.length} tokens`);
+
+    return NextResponse.json({
+      success: true,
+      tokens,
+      count: tokens.length
+    });
+
+  } catch (err) {
+    console.error('[EVM Discovery] Fatal error:', err);
+    return NextResponse.json({
+      success: false,
+      tokens: [],
+      count: 0
+    });
+  }
 }
