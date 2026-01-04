@@ -1,9 +1,14 @@
 'use client';
 
 import { useWeb3Modal } from '@web3modal/wagmi/react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
+import { useWallet } from '@/lib/wallet/WalletContext';
 import type { WalletName } from '@solana/wallet-adapter-base';
+import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { X } from 'lucide-react';
+
+const phantomAdapter = new PhantomWalletAdapter();
+const solflareAdapter = new SolflareWalletAdapter();
 
 interface WalletSelectorModalProps {
     isOpen: boolean;
@@ -20,7 +25,7 @@ interface WalletSelectorModalProps {
  */
 export default function WalletSelectorModal({ isOpen, onClose, preferredVM }: WalletSelectorModalProps) {
     const { open: openEVMModal } = useWeb3Modal();
-    const { select: selectSolanaWallet, connect: connectSolanaWallet } = useWallet();
+    const { select: selectSolanaWallet, connect: connectSolanaWallet } = useSolanaWallet();
     const { setPreferredVM } = useWallet();
 
     /**
@@ -38,6 +43,8 @@ export default function WalletSelectorModal({ isOpen, onClose, preferredVM }: Wa
             // Connect (this opens the wallet extension)
             await connectSolanaWallet();
 
+            // Clear intent
+            setPreferredVM(null);
             onClose();
         } catch (error) {
             console.error('[WalletSelector] Solana connect error:', error);
@@ -47,6 +54,7 @@ export default function WalletSelectorModal({ isOpen, onClose, preferredVM }: Wa
 
     const handleSelectEVM = () => {
         openEVMModal();
+        setPreferredVM(null);
         onClose();
     };
 
@@ -98,7 +106,7 @@ export default function WalletSelectorModal({ isOpen, onClose, preferredVM }: Wa
                         >
                             <div className="flex items-center justify-between">
                                 <span className="font-medium text-white">Phantom</span>
-                                <span className="text-2xl">🟣</span>
+                                <img src={phantomAdapter.icon} alt="Phantom" className="w-6 h-6" />
                             </div>
                         </button>
 
@@ -109,7 +117,7 @@ export default function WalletSelectorModal({ isOpen, onClose, preferredVM }: Wa
                         >
                             <div className="flex items-center justify-between">
                                 <span className="font-medium text-white">Solflare</span>
-                                <span className="text-2xl">🔥</span>
+                                <img src={solflareAdapter.icon} alt="Solflare" className="w-6 h-6" />
                             </div>
                         </button>
                     </div>
