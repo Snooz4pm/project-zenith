@@ -30,30 +30,43 @@ export interface EvmQuote {
 }
 
 /**
+ * Get 0x API URL for BSC
+ */
+function get0xApiUrl(chainId: number): string {
+    // Only BSC is supported
+    if (chainId === 56) {
+        return 'https://bsc.api.0x.org';
+    }
+    throw new Error(`Unsupported chainId: ${chainId}. Only BSC (56) is supported.`);
+}
+
+/**
  * Fetch quote from 0x (READ-ONLY)
  * Does NOT require wallet connection
  */
 export async function getEvmQuote(params: EvmQuoteParams): Promise<EvmQuote> {
-    const { sellToken, buyToken, sellAmount, chainId, takerAddress } = params;
+    const { sellToken, buyToken, sellAmount, chainId = 56, takerAddress } = params;
 
     const queryParams = new URLSearchParams({
         sellToken,
         buyToken,
         sellAmount,
-        chainId: String(chainId),
     });
 
     if (takerAddress) {
         queryParams.append('takerAddress', takerAddress);
     }
 
-    const apiKey = process.env.NEXT_PUBLIC_0X_API_KEY;
+    // Support both env var names for API key
+    const apiKey = process.env.ZEROX_API_KEY || process.env.OX_API_KEY || process.env.NEXT_PUBLIC_0X_API_KEY;
     if (!apiKey) {
         throw new Error('0x API key not configured');
     }
 
+    const apiUrl = get0xApiUrl(chainId);
+
     const res = await fetch(
-        `https://api.0x.org/swap/v1/quote?${queryParams.toString()}`,
+        `${apiUrl}/swap/v1/quote?${queryParams.toString()}`,
         {
             headers: {
                 '0x-api-key': apiKey,

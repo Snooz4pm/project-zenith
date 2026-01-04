@@ -39,17 +39,13 @@ export function getUSDCAddress(chainType: ChainType, chainId?: number): string {
         return 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
     }
 
-    // EVM USDC addresses by chain
+    // BSC USDC address (ONLY BSC supported for EVM)
     const usdcAddresses: Record<number, string> = {
-        1: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // Ethereum
         56: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', // BSC
-        137: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', // Polygon
-        8453: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // Base
-        42161: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // Arbitrum
-        10: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607', // Optimism
     };
 
-    return usdcAddresses[chainId || 1] || usdcAddresses[1];
+    // Default to BSC (56)
+    return usdcAddresses[chainId || 56] || usdcAddresses[56];
 }
 
 /**
@@ -79,12 +75,12 @@ export async function routeQuoteRequest(params: {
         }).then(res => res.json());
     }
 
-    // Route to 0x API
+    // Route to 0x API (BSC only)
     return fetch('/api/swap/0x/quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            chainId: params.chainId || 1,
+            chainId: params.chainId || 56, // Default to BSC
             sellToken: params.sellToken,
             buyToken: params.buyToken,
             sellAmount: params.amount,

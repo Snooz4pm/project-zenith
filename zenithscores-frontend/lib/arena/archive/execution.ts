@@ -1,7 +1,8 @@
 // 0x Swap Execution for Trading Arena
 // This module handles the swap execution via 0x API
+// BSC ONLY
 
-const ZEROX_API_URL = 'https://api.0x.org';
+const ZEROX_API_URL = 'https://bsc.api.0x.org';
 
 export interface SwapQuote {
     buyTokenAddress: string;

@@ -1,21 +1,25 @@
 'use client'
 
 import { createConfig, http } from 'wagmi'
-import { mainnet, bsc, base, arbitrum } from 'wagmi/chains'
+import { bsc } from 'wagmi/chains'
 import { injected, walletConnect } from 'wagmi/connectors'
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!
 
 /**
- * EVM Wallet Config (FINAL)
+ * EVM Wallet Config (BSC ONLY - FINAL)
  *
- * - NO Coinbase Wallet (causes provider bugs)
- * - NO Phantom EVM interference
- * - MetaMask / Trust / Binance Wallet via injected()
- * - WalletConnect for mobile & QR
+ * ✅ BSC / BNB Chain ONLY
+ * ❌ NO Ethereum, Base, Arbitrum, Avalanche, Polygon
+ * ❌ NO Coinbase Wallet (causes provider bugs)
+ * ❌ NO Phantom EVM (Solana-only wallet)
+ *
+ * Connectors:
+ * - MetaMask / Trust Wallet / Binance Wallet via injected()
+ * - WalletConnect for mobile & QR scanning
  */
 export const wagmiConfig = createConfig({
-  chains: [mainnet, bsc, base, arbitrum],
+  chains: [bsc],
 
   connectors: [
     injected({
@@ -40,10 +44,7 @@ export const wagmiConfig = createConfig({
   ],
 
   transports: {
-    [mainnet.id]: http(),
     [bsc.id]: http('https://bsc-dataseed.binance.org'),
-    [base.id]: http(),
-    [arbitrum.id]: http(),
   },
 
   ssr: false,

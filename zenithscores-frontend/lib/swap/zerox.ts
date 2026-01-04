@@ -7,8 +7,12 @@
 import { SwapQuoteRequest, SwapQuote, SwapTransaction } from './types';
 import { SUPPORTED_CHAINS } from '@/lib/arena/chains';
 
-const AFFILIATE_WALLET = process.env.NEXT_PUBLIC_AFFILIATE_WALLET || '0x0000000000000000000000000000000000000000';
-const AFFILIATE_FEE_BPS = 40; // 0.4%
+// Fee recipient wallet - uses your configured fee wallet
+const AFFILIATE_WALLET = process.env.ZENITH_FEE_RECIPIENT || 
+                         process.env.ZENITH_EVM_FEE_RECIPIENT || 
+                         process.env.NEXT_PUBLIC_AFFILIATE_WALLET || 
+                         '0xd54c82c9fe252acafbbd2375e6678f4848e78afe'; // Your wallet as hardcoded fallback
+const AFFILIATE_FEE_BPS = parseInt(process.env.ZENITH_FEE_BPS || '50'); // 0.5% default
 
 /**
  * Get 0x API URL for chain
@@ -28,8 +32,8 @@ function getZeroXApiUrl(chainId: number): string {
 function detectChainId(tokenAddress: string): number {
   // Simple heuristic: most EVM chains use 0x addresses
   // In production, chain should be explicit in request
-  // For now, default to Base (8453) for arena tokens
-  return 8453;
+  // Default to BSC (56) - the only supported EVM chain
+  return 56;
 }
 
 export async function getZeroXQuote(request: SwapQuoteRequest): Promise<SwapQuote> {
@@ -52,10 +56,13 @@ export async function getZeroXQuote(request: SwapQuoteRequest): Promise<SwapQuot
       buyTokenPercentageFee: (AFFILIATE_FEE_BPS / 10000).toString(),
     });
 
+    // Use ZEROX_API_KEY (backend env var)
+    const apiKey = process.env.ZEROX_API_KEY || process.env.OX_API_KEY || '';
+    
     const response = await fetch(`${apiUrl}/swap/v1/quote?${params}`, {
       headers: {
         'Accept': 'application/json',
-        '0x-api-key': process.env.ZEROX_API_KEY || '',
+        '0x-api-key': apiKey,
       },
     });
 
@@ -118,10 +125,13 @@ export async function buildZeroXTx(params: {
       buyTokenPercentageFee: (AFFILIATE_FEE_BPS / 10000).toString(),
     });
 
+    // Use ZEROX_API_KEY (backend env var)
+    const apiKey = process.env.ZEROX_API_KEY || process.env.OX_API_KEY || '';
+    
     const response = await fetch(`${apiUrl}/swap/v1/quote?${queryParams}`, {
       headers: {
         'Accept': 'application/json',
-        '0x-api-key': process.env.ZEROX_API_KEY || '',
+        '0x-api-key': apiKey,
       },
     });
 

@@ -13,17 +13,15 @@ export interface TokenInfo {
     priceUsd?: string;
 }
 
-// 0x Token API
+// 0x Token API - BSC ONLY
 async function fetch0xTokens(chainId: number): Promise<TokenInfo[]> {
     try {
-        const apiKey = process.env.NEXT_PUBLIC_0X_API_KEY;
+        const apiKey = process.env.ZEROX_API_KEY || process.env.OX_API_KEY || process.env.NEXT_PUBLIC_0X_API_KEY;
         if (!apiKey) return [];
 
-        const baseUrl = chainId === 1 ? 'https://api.0x.org' :
-            chainId === 8453 ? 'https://base.api.0x.org' :
-                chainId === 42161 ? 'https://arbitrum.api.0x.org' : '';
-
-        if (!baseUrl) return [];
+        // Only BSC is supported
+        if (chainId !== 56) return [];
+        const baseUrl = 'https://bsc.api.0x.org';
 
         const res = await fetch(
             `${baseUrl}/swap/v1/tokens`,
@@ -57,11 +55,12 @@ async function fetch0xTokens(chainId: number): Promise<TokenInfo[]> {
     }
 }
 
-// DexScreener API
+// DexScreener API - BSC ONLY
 async function fetchDexScreenerTokens(chainId: number): Promise<TokenInfo[]> {
     try {
-        const chainSlug = chainId === 1 ? 'ethereum' : chainId === 8453 ? 'base' : chainId === 42161 ? 'arbitrum' : '';
-        if (!chainSlug) return [];
+        // Only BSC is supported
+        if (chainId !== 56) return [];
+        const chainSlug = 'bsc';
 
         const res = await fetch(
             `https://api.dexscreener.com/latest/dex/search?q=${chainSlug}`,
@@ -75,12 +74,12 @@ async function fetchDexScreenerTokens(chainId: number): Promise<TokenInfo[]> {
             symbol: p.baseToken.symbol,
             name: p.baseToken.name,
             address: p.baseToken.address,
-            decimals: 18, // Fallback, DexScreener doesn't always provide decimals in search
-            chainId: p.chainId === 'ethereum' ? 1 : p.chainId === 'base' ? 8453 : 42161,
+            decimals: 18,
+            chainId: 56, // BSC only
             priceUsd: p.priceUsd,
             logoURI: p.info?.imageUrl,
             source: 'dexscreener'
-        })).filter((t: any) => t.chainId === chainId); // Double check chain match
+        })).filter((t: any) => t.chainId === 56);
     } catch (e) {
         console.error('DexScreener fetch error:', e);
         return [];

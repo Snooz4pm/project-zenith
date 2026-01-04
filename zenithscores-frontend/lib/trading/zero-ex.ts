@@ -1,14 +1,11 @@
 
+// BSC ONLY - no other EVM chains supported
 const CHAIN_API_URLS: Record<number, string> = {
-    1: 'https://api.0x.org',
-    8453: 'https://base.api.0x.org',
-    42161: 'https://arbitrum.api.0x.org'
+    56: 'https://bsc.api.0x.org'
 };
 
 const USDC_ADDRESSES: Record<number, string> = {
-    1: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-    8453: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-    42161: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'
+    56: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d' // BSC USDC
 };
 
 export interface QuoteParams {
@@ -92,7 +89,7 @@ export interface SimpleQuoteParams {
 }
 
 export async function getZeroExQuote(params: SimpleQuoteParams) {
-    const chainId = params.chainId || 1; // Default to Ethereum mainnet
+    const chainId = params.chainId || 56; // Default to BSC (only supported EVM chain)
 
     // Convert sellAmount from wei string to number for amount
     // For ETH/WETH, 18 decimals; for USDC/USDT, 6 decimals

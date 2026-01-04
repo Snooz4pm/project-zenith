@@ -7,18 +7,14 @@ export const dynamic = 'force-dynamic';
 const ZENITH_FEE_BPS = parseInt(process.env.ZENITH_FEE_BPS || '50'); // 0.5%
 
 /**
- * Get 0x API base URL for chain (CRITICAL - different endpoints per chain)
+ * Get 0x API base URL for chain (BSC ONLY)
  */
 function get0xBaseUrl(chainId: number): string {
-    switch (chainId) {
-        case 1: return 'https://api.0x.org';
-        case 137: return 'https://polygon.api.0x.org';
-        case 42161: return 'https://arbitrum.api.0x.org';
-        case 8453: return 'https://base.api.0x.org';
-        case 56: return 'https://bsc.api.0x.org';
-        case 10: return 'https://optimism.api.0x.org';
-        default: throw new Error(`Unsupported chainId: ${chainId}`);
+    // ONLY BSC is supported
+    if (chainId === 56) {
+        return 'https://bsc.api.0x.org';
     }
+    throw new Error(`Unsupported chainId: ${chainId}. Only BSC (56) is supported.`);
 }
 
 /**
@@ -47,8 +43,8 @@ export async function GET(req: NextRequest) {
         }
 
         const chainId = parseInt(chainIdStr);
-        const apiKey = process.env.OX_API_KEY;
-        const feeRecipient = process.env.ZENITH_EVM_FEE_RECIPIENT;
+        const apiKey = process.env.ZEROX_API_KEY || process.env.OX_API_KEY;
+        const feeRecipient = process.env.ZENITH_EVM_FEE_RECIPIENT || process.env.ZENITH_FEE_RECIPIENT;
 
         if (!apiKey) {
             console.error('[EVM Quote] 0x API key not configured');
@@ -124,14 +120,15 @@ export async function POST(req: Request) {
             );
         }
 
-        const apiKey = process.env.OX_API_KEY;
-        const feeRecipient = process.env.ZENITH_EVM_FEE_RECIPIENT;
+        const apiKey = process.env.ZEROX_API_KEY || process.env.OX_API_KEY;
+        const feeRecipient = process.env.ZENITH_EVM_FEE_RECIPIENT || process.env.ZENITH_FEE_RECIPIENT;
 
         if (!apiKey) {
             return Response.json({ error: '0x API key not configured' }, { status: 500 });
         }
 
-        const baseUrl = get0xBaseUrl(chainId || 1);
+        // Default to BSC (56) if no chainId provided
+        const baseUrl = get0xBaseUrl(chainId || 56);
         const url = new URL(`${baseUrl}/swap/v1/quote`);
 
         url.searchParams.set('sellToken', sellToken);

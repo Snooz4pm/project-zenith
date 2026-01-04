@@ -3,12 +3,11 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// ONLY BSC is supported
 const CHAIN_ID_MAP: Record<string, number> = {
-  ethereum: 1,
-  polygon: 137,
   bsc: 56,
-  arbitrum: 42161,
-  base: 8453
+  bnb: 56,
+  binance: 56
 };
 
 /**
@@ -62,9 +61,10 @@ export async function POST(req: Request) {
       'Content-Type': 'application/json'
     };
 
-    // Add API key if available
-    if (process.env.ZEROX_API_KEY) {
-      headers['0x-api-key'] = process.env.ZEROX_API_KEY;
+    // Add API key if available (support both env var names)
+    const apiKey = process.env.ZEROX_API_KEY || process.env.OX_API_KEY;
+    if (apiKey) {
+      headers['0x-api-key'] = apiKey;
     }
 
     const res = await fetch(url, {
