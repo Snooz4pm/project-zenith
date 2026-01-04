@@ -16,8 +16,11 @@ import '@solana/wallet-adapter-react-ui/styles.css'
 
 const queryClient = new QueryClient()
 
-// Solana RPC endpoint - use Helius/dedicated RPC in production
-const SOLANA_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
+// Solana RPC endpoint - MUST use Helius (no fallback to public RPC)
+const SOLANA_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL!
+if (!SOLANA_RPC_URL) {
+  console.error('NEXT_PUBLIC_SOLANA_RPC_URL is not configured!')
+}
 
 /**
  * Global Providers
