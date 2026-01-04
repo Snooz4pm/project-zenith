@@ -5,106 +5,137 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const page = Number(searchParams.get('page') ?? 1);
-    const limit = Number(searchParams.get('limit') ?? 100);
+    console.log('[Discovery API] Fetching ALL tokens - NO FILTERS');
 
-    console.log('[Discovery API] Fetching tokens for production...');
+    let allTokens: any[] = [];
 
-    // 1. Fetch Solana pools (Raydium)
-    const raydiumRes = await fetch(
-      'https://api.raydium.io/v2/sdk/liquidity/mainnet.json',
-      { cache: 'no-store' }
-    );
+    // 1. Raydium (Solana)
+    try {
+      const raydiumRes = await fetch('https://api.raydium.io/v2/sdk/liquidity/mainnet.json', {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(10000)
+      });
 
-    let solanaTokens: any[] = [];
+      if (raydiumRes.ok) {
+        const raydiumJson = await raydiumRes.json();
+        const raydiumTokens = Object.values(raydiumJson.official ?? {})
+          .map((p: any) => ({
+            chain: 'solana',
+            chainType: 'SOLANA',
+            chainId: 'solana',
+            networkName: 'Solana',
+            address: p.baseMint,
+            symbol: p.baseSymbol || 'UNKNOWN',
+            name: p.baseName || p.baseSymbol || 'Unknown',
+            decimals: p.baseDecimals,
+            liquidityUsd: Number(p.liquidity ?? 0),
+            volume24hUsd: Number(p.volume24h ?? 0),
+            priceUsd: Number(p.price ?? 0),
+            source: 'RAYDIUM'
+          }));
 
-    if (raydiumRes.ok) {
-      const raydiumJson = await raydiumRes.json();
-      solanaTokens = Object.values(raydiumJson.official ?? {})
-        .filter((p: any) => (p.liquidity ?? 0) >= 10_000)
-        .map((p: any) => ({
-          chain: 'solana',
-          chainType: 'SOLANA',
-          chainId: 'solana',
-          networkName: 'Solana',
-          address: p.baseMint,
-          symbol: p.baseSymbol,
-          name: p.baseSymbol, // Raydium JSON doesn't provide full name
-          decimals: p.baseDecimals,
-          liquidityUsd: Number(p.liquidity),
-          volume24hUsd: Number(p.volume24h ?? 0),
-          source: 'RAYDIUM'
-        }));
-    } else {
-      console.error(`[Discovery API] Raydium failed: ${raydiumRes.status}`);
+        allTokens.push(...raydiumTokens);
+        console.log(`[Discovery] Raydium: ${raydiumTokens.length} tokens`);
+      }
+    } catch (err) {
+      console.error('[Discovery] Raydium failed:', err);
     }
 
-    // 2. Fetch EVM tokens (DexScreener)
-    const chains = ['ethereum', 'bsc', 'base', 'arbitrum'];
-    const evmResults = await Promise.all(
-      chains.map(chain =>
-        fetch(`https://api.dexscreener.com/latest/dex/pairs/${chain}`)
-          .then(r => r.json())
-          .catch(err => {
-            console.error(`[Discovery API] ${chain} DexScreener failed:`, err);
-            return null;
-          })
-      )
-    );
+    // 2. Orca (Solana)
+    try {
+      const orcaRes = await fetch('https://api.mainnet.orca.so/v1/whirlpool/list', {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(10000)
+      });
 
-    const evmTokens = evmResults.flatMap((res, i) =>
-      res?.pairs
-        ?.filter((p: any) => (p.liquidity?.usd ?? 0) >= 10_000 && (p.volume?.h24 ?? 0) >= 1_000)
-        .map((p: any) => {
-          const chain = chains[i];
-          const networkName = chain === 'ethereum' ? 'Ethereum' :
-            chain === 'bsc' ? 'BNB Chain' :
-              chain === 'base' ? 'Base' :
-                chain === 'arbitrum' ? 'Arbitrum' : chain;
+      if (orcaRes.ok) {
+        const orcaJson = await orcaRes.json();
+        const orcaTokens = (orcaJson.whirlpools || [])
+          .map((p: any) => ({
+            chain: 'solana',
+            chainType: 'SOLANA',
+            chainId: 'solana',
+            networkName: 'Solana',
+            address: p.tokenA?.mint || p.address,
+            symbol: p.tokenA?.symbol || 'UNKNOWN',
+            name: p.tokenA?.name || p.tokenA?.symbol || 'Unknown',
+            decimals: p.tokenA?.decimals || 9,
+            liquidityUsd: Number(p.tvl ?? 0),
+            volume24hUsd: Number(p.volume?.day ?? 0),
+            priceUsd: Number(p.tokenA?.price ?? 0),
+            source: 'ORCA'
+          }));
 
-          return {
-            chain,
-            chainType: 'EVM',
-            chainId: p.chainId === 'ethereum' ? '1' :
-              p.chainId === 'bsc' ? '56' :
-                p.chainId === 'base' ? '8453' :
-                  p.chainId === 'arbitrum' ? '42161' : p.chainId,
-            networkName,
-            address: p.baseToken.address,
-            symbol: p.baseToken.symbol,
-            name: p.baseToken.name,
-            logoURI: p.baseToken.logoURI || p.info?.imageUrl,
-            priceUsd: Number(p.priceUsd),
-            liquidityUsd: Number(p.liquidity.usd),
-            volume24hUsd: Number(p.volume.h24 ?? 0),
-            source: 'DEXSCREENER'
-          };
-        }) ?? []
-    );
+        allTokens.push(...orcaTokens);
+        console.log(`[Discovery] Orca: ${orcaTokens.length} tokens`);
+      }
+    } catch (err) {
+      console.error('[Discovery] Orca failed:', err);
+    }
 
-    const tokens = [...solanaTokens, ...evmTokens];
+    // 3. DexScreener (EVM chains)
+    const evmChains = ['ethereum', 'bsc', 'base', 'arbitrum', 'polygon', 'avalanche'];
+    for (const chain of evmChains) {
+      try {
+        const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/pairs/${chain}`, {
+          signal: AbortSignal.timeout(10000)
+        });
 
-    // Sort by liquidity descending
-    tokens.sort((a, b) => b.liquidityUsd - a.liquidityUsd);
+        if (dexRes.ok) {
+          const dexJson = await dexRes.json();
+          const dexTokens = (dexJson.pairs || [])
+            .map((p: any) => ({
+              chain,
+              chainType: 'EVM',
+              chainId: chain === 'ethereum' ? '1' :
+                       chain === 'bsc' ? '56' :
+                       chain === 'base' ? '8453' :
+                       chain === 'arbitrum' ? '42161' :
+                       chain === 'polygon' ? '137' :
+                       chain === 'avalanche' ? '43114' : chain,
+              networkName: chain === 'ethereum' ? 'Ethereum' :
+                          chain === 'bsc' ? 'BNB Chain' :
+                          chain === 'base' ? 'Base' :
+                          chain === 'arbitrum' ? 'Arbitrum' :
+                          chain === 'polygon' ? 'Polygon' :
+                          chain === 'avalanche' ? 'Avalanche' : chain,
+              address: p.baseToken?.address,
+              symbol: p.baseToken?.symbol || 'UNKNOWN',
+              name: p.baseToken?.name || p.baseToken?.symbol || 'Unknown',
+              logoURI: p.baseToken?.logoURI || p.info?.imageUrl,
+              priceUsd: Number(p.priceUsd ?? 0),
+              liquidityUsd: Number(p.liquidity?.usd ?? 0),
+              volume24hUsd: Number(p.volume?.h24 ?? 0),
+              source: 'DEXSCREENER'
+            }));
 
-    const start = (page - 1) * limit;
-    const paged = tokens.slice(start, start + limit);
+          allTokens.push(...dexTokens);
+          console.log(`[Discovery] DexScreener ${chain}: ${dexTokens.length} tokens`);
+        }
+      } catch (err) {
+        console.error(`[Discovery] DexScreener ${chain} failed:`, err);
+      }
+    }
 
-    console.log(`[Discovery API] Returning ${paged.length} items (Total: ${tokens.length})`);
+    // Sort by liquidity (highest first)
+    allTokens.sort((a, b) => b.liquidityUsd - a.liquidityUsd);
+
+    console.log(`[Discovery API] TOTAL: ${allTokens.length} tokens`);
 
     return NextResponse.json({
-      page,
-      limit,
-      total: tokens.length,
-      pages: Math.ceil(tokens.length / limit),
-      items: paged, // Frontend expects 'items' (check ArenaGrid.tsx) or we adapt
+      success: true,
+      tokens: allTokens,
+      count: allTokens.length,
+      timestamp: new Date().toISOString()
     });
+
   } catch (err) {
-    console.error('[DISCOVERY ERROR]', err);
-    return NextResponse.json(
-      { error: 'Discovery failed', items: [], page: 1, total: 0 },
-      { status: 500 }
-    );
+    console.error('[DISCOVERY FATAL]', err);
+    return NextResponse.json({
+      success: false,
+      tokens: [],
+      count: 0,
+      error: String(err)
+    });
   }
 }
