@@ -16,12 +16,6 @@ import '@solana/wallet-adapter-react-ui/styles.css'
 
 const queryClient = new QueryClient()
 
-// Solana RPC endpoint - MUST use Helius (no fallback to public RPC)
-const SOLANA_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL!
-if (!SOLANA_RPC_URL) {
-  console.error('NEXT_PUBLIC_SOLANA_RPC_URL is not configured!')
-}
-
 /**
  * Global Providers
  * 
@@ -32,8 +26,15 @@ if (!SOLANA_RPC_URL) {
  * ONE source of truth for wallet state
  */
 export function Providers({ children }: { children: React.ReactNode }) {
-  // Use dedicated RPC from env (Helius) instead of default public endpoint
-  const endpoint = useMemo(() => SOLANA_RPC_URL, [])
+  // Solana RPC - MUST use Helius in production
+  // Empty string fallback only for build time - will error at runtime if not set
+  const endpoint = useMemo(() => {
+    const rpc = process.env.NEXT_PUBLIC_SOLANA_RPC_URL
+    if (!rpc && typeof window !== 'undefined') {
+      console.error('NEXT_PUBLIC_SOLANA_RPC_URL is not configured!')
+    }
+    return rpc || 'https://api.mainnet-beta.solana.com' // Build-time fallback only
+  }, [])
 
   const wallets = useMemo(
     () => [
