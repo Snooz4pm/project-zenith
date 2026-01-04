@@ -2,106 +2,83 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const revalidate = 86400; // 24 hours ISR cache
 
-const ALLOWED_CHAINS = new Set([
-  "ethereum",
-  "arbitrum",
-  "base",
-  "polygon",
-  "bsc"
-]);
+// ════════════════════════════════════════════════════════
+// LAYER 1: REGISTRY CONFIG (AUTHORITATIVE)
+// ════════════════════════════════════════════════════════
+const UNISWAP_LIST_URL = 'https://tokens.uniswap.org';
 
-const CHAIN_IDS: Record<string, string> = {
-  ethereum: "1",
-  bsc: "56",
-  base: "8453",
-  arbitrum: "42161",
-  polygon: "137"
-};
-
-const NETWORK_NAMES: Record<string, string> = {
-  ethereum: "Ethereum",
-  bsc: "BNB Chain",
-  base: "Base",
-  arbitrum: "Arbitrum",
-  polygon: "Polygon"
+const CHAIN_MAP: Record<number, { chain: string; name: string; chainId: string }> = {
+  1: { chain: 'ethereum', name: 'Ethereum', chainId: '1' },
+  56: { chain: 'bsc', name: 'BNB Chain', chainId: '56' },
+  8453: { chain: 'base', name: 'Base', chainId: '8453' },
+  42161: { chain: 'arbitrum', name: 'Arbitrum', chainId: '42161' },
+  137: { chain: 'polygon', name: 'Polygon', chainId: '137' }
 };
 
 /**
  * GET /api/arena/evm/discovery
  * 
- * EVM discovery via DexScreener with relaxed constraints
- * - 6h ISR cache
- * - Handles inconsistent chainId formats
- * - Filters AFTER mapping
+ * EVM Token Registry (Layer 1)
+ * Source: Uniswap Unified Token List
+ * Coverage: High-quality, verified tokens across 5 major chains
+ * Strategy: Registry-First (No fallback to raw indexers)
  */
 export async function GET() {
   try {
-    const res = await fetch(
-      "https://api.dexscreener.com/latest/dex/search?q=ETH",
-      { next: { revalidate: 21600 } } // 6h cache
-    );
+    console.log('[EVM Registry] Fetching Uniswap Token List...');
+
+    const res = await fetch(UNISWAP_LIST_URL, {
+      next: { revalidate: 86400 }
+    });
 
     if (!res.ok) {
-      return NextResponse.json({
-        success: true, // Soft fail
-        tokens: [],
-        count: 0,
-        engine: "evm",
-        cached: true
-      });
+      console.error('[EVM Registry] Failed to fetch list:', res.status);
+      return NextResponse.json({ success: false, tokens: [], count: 0 });
     }
 
     const data = await res.json();
+    const rawTokens = data.tokens || [];
 
-    const tokens = (data.pairs ?? [])
-      .map((p: any) => {
-        // Normalize chain ID (DexScreener usually returns string names like "ethereum", not numbers)
-        const chain = (p.chainId || p.chain || "").toLowerCase();
-
-        // Strict filter but checked AFTER normalization
-        if (!ALLOWED_CHAINS.has(chain)) return null;
-
+    // Filter & Normalize
+    const tokens = rawTokens
+      .filter((t: any) => CHAIN_MAP[t.chainId])
+      .map((t: any) => {
+        const meta = CHAIN_MAP[t.chainId];
         return {
-          chain,                                  // "ethereum"
+          chain: meta.chain,
           chainType: 'EVM',
-          chainId: CHAIN_IDS[chain] || "1",       // "1"
-          networkName: NETWORK_NAMES[chain] || chain,
-          address: p.baseToken?.address,
-          symbol: p.baseToken?.symbol || "UNKNOWN",
-          name: p.baseToken?.name || "Unknown Token",
-          logoURI: p.baseToken?.logoURI || p.info?.imageUrl || null,
-          liquidityUsd: Number(p.liquidity?.usd ?? 0),
-          volume24hUsd: Number(p.volume?.h24 ?? 0),
-          priceUsd: Number(p.priceUsd ?? 0),
-          source: 'DEXSCREENER',
-          dexId: p.dexId,
-          pairAddress: p.pairAddress
+          chainId: meta.chainId,
+          networkName: meta.name,
+          address: t.address,
+          symbol: t.symbol,
+          name: t.name,
+          decimals: t.decimals,
+          logoURI: t.logoURI,
+          // L2 Enrichment data (missing in L1 registry)
+          liquidityUsd: 0,
+          volume24hUsd: 0,
+          source: 'UNISWAP_REGISTRY'
         };
-      })
-      .filter((t: any) => t !== null && t.address && t.symbol);
+      });
 
-    // Sort by liquidity
-    tokens.sort((a: any, b: any) => b.liquidityUsd - a.liquidityUsd);
-
-    console.log(`[EVM Discovery] Found ${tokens.length} valid tokens`);
+    console.log(`[EVM Registry] Loaded ${tokens.length} verified tokens`);
 
     return NextResponse.json({
       success: true,
       tokens,
       count: tokens.length,
-      engine: "evm",
+      engine: 'evm',
       cached: true
     });
 
   } catch (err) {
-    console.error('[EVM Discovery] Error:', err);
+    console.error('[EVM Registry] Fatal error:', err);
     return NextResponse.json({
-      success: true, // Soft fail
+      success: false,
       tokens: [],
-      count: 0,
-      engine: "evm",
-      cached: true
+      error: String(err)
     });
   }
 }
