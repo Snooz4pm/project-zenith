@@ -1,83 +1,107 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-export const revalidate = 21600; // 6 hours ISR cache
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const EVM_CHAINS = ['ethereum', 'bsc', 'base', 'arbitrum', 'polygon'];
+const ALLOWED_CHAINS = new Set([
+  "ethereum",
+  "arbitrum",
+  "base",
+  "polygon",
+  "bsc"
+]);
 
-const CHAIN_META: Record<string, { chainId: string; name: string }> = {
-  ethereum: { chainId: '1', name: 'Ethereum' },
-  bsc: { chainId: '56', name: 'BNB Chain' },
-  base: { chainId: '8453', name: 'Base' },
-  arbitrum: { chainId: '42161', name: 'Arbitrum' },
-  polygon: { chainId: '137', name: 'Polygon' }
+const CHAIN_IDS: Record<string, string> = {
+  ethereum: "1",
+  bsc: "56",
+  base: "8453",
+  arbitrum: "42161",
+  polygon: "137"
+};
+
+const NETWORK_NAMES: Record<string, string> = {
+  ethereum: "Ethereum",
+  bsc: "BNB Chain",
+  base: "Base",
+  arbitrum: "Arbitrum",
+  polygon: "Polygon"
 };
 
 /**
  * GET /api/arena/evm/discovery
  * 
- * EVM-ONLY token discovery
- * Source: DexScreener
- * Chains: Ethereum, BSC, Base, Arbitrum, Polygon
- * Cache: 6 hours
- * Returns: ALL tokens (no filtering)
+ * EVM discovery via DexScreener with relaxed constraints
+ * - 6h ISR cache
+ * - Handles inconsistent chainId formats
+ * - Filters AFTER mapping
  */
 export async function GET() {
-  const tokens: any[] = [];
+  try {
+    const res = await fetch(
+      "https://api.dexscreener.com/latest/dex/search?q=ETH",
+      { next: { revalidate: 21600 } } // 6h cache
+    );
 
-  for (const chain of EVM_CHAINS) {
-    try {
-      const res = await fetch(`https://api.dexscreener.com/latest/dex/pairs/${chain}`, {
-        next: { revalidate: 21600 }
+    if (!res.ok) {
+      return NextResponse.json({
+        success: true, // Soft fail
+        tokens: [],
+        count: 0,
+        engine: "evm",
+        cached: true
       });
+    }
 
-      if (res.ok) {
-        const json = await res.json();
-        const meta = CHAIN_META[chain];
+    const data = await res.json();
 
-        const chainTokens = (json.pairs ?? []).map((p: any) => ({
-          chain,
+    const tokens = (data.pairs ?? [])
+      .map((p: any) => {
+        // Normalize chain ID (DexScreener usually returns string names like "ethereum", not numbers)
+        const chain = (p.chainId || p.chain || "").toLowerCase();
+
+        // Strict filter but checked AFTER normalization
+        if (!ALLOWED_CHAINS.has(chain)) return null;
+
+        return {
+          chain,                                  // "ethereum"
           chainType: 'EVM',
-          chainId: meta.chainId,
-          networkName: meta.name,
+          chainId: CHAIN_IDS[chain] || "1",       // "1"
+          networkName: NETWORK_NAMES[chain] || chain,
           address: p.baseToken?.address,
-          symbol: p.baseToken?.symbol || 'UNKNOWN',
-          name: p.baseToken?.name || p.baseToken?.symbol || 'Unknown Token',
+          symbol: p.baseToken?.symbol || "UNKNOWN",
+          name: p.baseToken?.name || "Unknown Token",
           logoURI: p.baseToken?.logoURI || p.info?.imageUrl || null,
           liquidityUsd: Number(p.liquidity?.usd ?? 0),
           volume24hUsd: Number(p.volume?.h24 ?? 0),
           priceUsd: Number(p.priceUsd ?? 0),
-          source: 'DEXSCREENER'
-        }));
+          source: 'DEXSCREENER',
+          dexId: p.dexId,
+          pairAddress: p.pairAddress
+        };
+      })
+      .filter((t: any) => t !== null && t.address && t.symbol);
 
-        tokens.push(...chainTokens);
-        console.log(`[EVM Discovery] ${chain}: ${chainTokens.length}`);
-      }
-    } catch (err) {
-      console.error(`[EVM Discovery] ${chain} failed:`, err);
-    }
+    // Sort by liquidity
+    tokens.sort((a: any, b: any) => b.liquidityUsd - a.liquidityUsd);
+
+    console.log(`[EVM Discovery] Found ${tokens.length} valid tokens`);
+
+    return NextResponse.json({
+      success: true,
+      tokens,
+      count: tokens.length,
+      engine: "evm",
+      cached: true
+    });
+
+  } catch (err) {
+    console.error('[EVM Discovery] Error:', err);
+    return NextResponse.json({
+      success: true, // Soft fail
+      tokens: [],
+      count: 0,
+      engine: "evm",
+      cached: true
+    });
   }
-
-  // Dedupe by address+chainId
-  const seen = new Set<string>();
-  const unique = tokens.filter(t => {
-    const key = `${t.chainId}:${t.address}`;
-    if (!t.address || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  // Sort by liquidity
-  unique.sort((a, b) => b.liquidityUsd - a.liquidityUsd);
-
-  console.log(`[EVM Discovery] Total: ${unique.length} unique tokens`);
-
-  return NextResponse.json({
-    success: true,
-    tokens: unique,
-    count: unique.length,
-    engine: 'evm',
-    cached: true
-  });
 }
