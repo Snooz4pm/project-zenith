@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Users, Mail, Settings, Crown, Sparkles, Shield, Database, Loader2 } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
-import NotificationBell from '@/components/community/NotificationBell';
+
 import { useWallet } from '@/lib/wallet/WalletContext';
 import { useUnifiedWallet } from '@/lib/wallet/useUnifiedWallet';
 import { useWeb3Modal } from '@web3modal/wagmi/react';
@@ -382,9 +382,6 @@ export default function Navbar() {
                   <Mail size={18} />
                 </Link>
 
-                {/* Notification Bell */}
-                <NotificationBell />
-
                 {/* Wallet Connect Button */}
                 <WalletConnectButton />
 
@@ -411,7 +408,7 @@ export default function Navbar() {
                   <div className={`absolute top-full right-0 mt-2 w-56 p-2 rounded-xl glass-panel origin-top-right transition-all duration-200 ${activeDropdown === 'user' ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'
                     }`}>
                     <Link
-                      href={`/user/${session.user?.id}`}
+                      href="/swap"
                       className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[rgba(255,255,255,0.03)] transition-colors group/item"
                       onClick={() => setActiveDropdown(null)}
                     >

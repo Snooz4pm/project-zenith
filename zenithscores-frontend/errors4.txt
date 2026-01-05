@@ -1,0 +1,23 @@
+﻿app/api/arena/swap/record/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/auth/[...nextauth]/route.ts(1,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/community/follow/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/community/likes/route.ts(4,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/community/my-engagements/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/community/notifications/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/community/pin/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/community/posts/route.ts(4,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/community/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/dashboard/stats/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/watchlist/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/command-center/mobile/page.tsx(4,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/command-center/page.tsx(4,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/layout.tsx(20,16): error TS2307: Cannot find module '@/components/TermsAcceptanceModal' or its corresponding type declarations.
+app/profile/mobile/page.tsx(4,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/profile/page.tsx(100,28): error TS2339: Property 'id' does not exist on type '{ name?: string | null | undefined; email?: string | null | undefined; image?: string | null | undefined; }'.
+app/profile/page.tsx(252,111): error TS2339: Property 'walletAddress' does not exist on type '{ name?: string | null | undefined; email?: string | null | undefined; image?: string | null | undefined; }'.
+app/profile/page.tsx(252,143): error TS2339: Property 'walletAddress' does not exist on type '{ name?: string | null | undefined; email?: string | null | undefined; image?: string | null | undefined; }'.
+app/profile/page.tsx(252,187): error TS2339: Property 'walletAddress' does not exist on type '{ name?: string | null | undefined; email?: string | null | undefined; image?: string | null | undefined; }'.
+app/profile/page.tsx(255,68): error TS2339: Property 'id' does not exist on type '{ name?: string | null | undefined; email?: string | null | undefined; image?: string | null | undefined; }'.
+components/CommunityFeed.tsx(82,47): error TS2339: Property 'id' does not exist on type '{ name?: string | null | undefined; email?: string | null | undefined; image?: string | null | undefined; }'.
+components/navigation/Navbar.tsx(9,30): error TS2307: Cannot find module '@/components/community/NotificationBell' or its corresponding type declarations.
+components/navigation/Navbar.tsx(414,52): error TS2339: Property 'id' does not exist on type '{ name?: string | null | undefined; email?: string | null | undefined; image?: string | null | undefined; }'.

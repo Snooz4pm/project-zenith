@@ -1,0 +1,236 @@
+﻿components/crypto-finds/CryptoFindsLayout.tsx(9,31): error TS2307: Cannot find module '@/hooks/useFlowSystem' or its corresponding type declarations.
+components/crypto-finds/MarketHeader.tsx(4,35): error TS2307: Cannot find module '@/hooks/useDisciplineGate' or its corresponding type declarations.
+components/crypto-finds/MarketHeader.tsx(36,16): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ open: { label: string; color: string; bg: string; icon: string; }; warning: { label: string; color: string; bg: string; icon: string; }; locked: { label: string; color: string; bg: string; icon: string; }; }'.
+components/CryptoDashboard.tsx(12,41): error TS2307: Cannot find module '@/components/AlertsFeed' or its corresponding type declarations.
+components/terminal/TerminalView.tsx(15,34): error TS2307: Cannot find module '@/lib/intelligence/calculator' or its corresponding type declarations.
+components/terminal/TerminalView.tsx(16,54): error TS2307: Cannot find module '@/lib/intelligence/scenarios' or its corresponding type declarations.
+components/terminal/TerminalView.tsx(25,26): error TS2307: Cannot find module '@/components/journal/JournalModal' or its corresponding type declarations.
+components/terminal/TerminalView.tsx(30,33): error TS2307: Cannot find module '@/components/gate/DisciplineBadge' or its corresponding type declarations.
+components/terminal/TerminalView.tsx(31,35): error TS2307: Cannot find module '@/hooks/useDisciplineGate' or its corresponding type declarations.
+components/UserMenu.tsx(71,40): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+components/UserMenu.tsx(96,90): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+lib/actions/community.ts(23,31): error TS2339: Property 'communityPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(43,32): error TS2339: Property 'communityPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(61,25): error TS2339: Property 'communityPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(73,25): error TS2339: Property 'communityPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(96,31): error TS2339: Property 'communityPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(100,18): error TS2339: Property 'communityPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(106,31): error TS2339: Property 'communityPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(110,18): error TS2339: Property 'communityPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(132,31): error TS2339: Property 'communityPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(137,37): error TS2339: Property 'comment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(142,34): error TS2339: Property 'comment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(170,34): error TS2339: Property 'comment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(174,18): error TS2339: Property 'comment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(234,37): error TS2339: Property 'conversation' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(239,37): error TS2339: Property 'conversation' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(256,39): error TS2339: Property 'conversation' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(265,34): error TS2339: Property 'directMessage' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(277,18): error TS2339: Property 'conversation' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(301,40): error TS2339: Property 'conversation' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(323,30): error TS7006: Parameter 'conv' implicitly has an 'any' type.
+lib/actions/community.ts(334,39): error TS2339: Property 'conversation' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/community.ts(343,35): error TS2339: Property 'directMessage' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(18,38): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(49,38): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(61,22): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(84,38): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(96,22): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(118,22): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(132,29): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(147,38): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(155,22): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(177,29): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(217,38): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(251,38): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(264,37): error TS2339: Property 'missionUpdate' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(286,38): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(328,38): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/notebook.ts(365,36): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/profile.ts(43,25): error TS2353: Object literal may only specify known properties, and 'title' does not exist in type 'PostSelect<DefaultArgs>'.
+lib/actions/profile.ts(59,24): error TS2339: Property 'name' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/actions/profile.ts(60,25): error TS2339: Property 'image' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/actions/profile.ts(61,29): error TS2551: Property 'created_at' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'. Did you mean 'createdAt'?
+lib/actions/profile.ts(62,31): error TS2339: Property 'roomMemberships' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/actions/profile.ts(62,51): error TS7006: Parameter 'm' implicitly has an 'any' type.
+lib/actions/profile.ts(63,31): error TS2339: Property 'posts' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/actions/room-invitations.ts(5,10): error TS2305: Module '"@prisma/client"' has no exported member 'RoomInvitationStatus'.
+lib/actions/room-invitations.ts(27,44): error TS2339: Property 'roomMembership' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/room-invitations.ts(36,45): error TS2339: Property 'roomMembership' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/room-invitations.ts(46,41): error TS2339: Property 'roomInvitation' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/room-invitations.ts(64,17): error TS2353: Object literal may only specify known properties, and 'userId_sourceEntityId' does not exist in type 'NotificationWhereUniqueInput'.
+lib/actions/room-invitations.ts(73,17): error TS2353: Object literal may only specify known properties, and 'sourceUserId' does not exist in type 'Without<NotificationCreateInput, NotificationUncheckedCreateInput> & NotificationUncheckedCreateInput'.
+lib/actions/room-invitations.ts(94,19): error TS2339: Property 'roomInvitation' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/room-invitations.ts(114,37): error TS2339: Property 'roomInvitation' does not exist on type 'Omit<PrismaClient<PrismaClientOptions, never, DefaultArgs>, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">'.
+lib/actions/room-invitations.ts(130,35): error TS2339: Property 'roomMembership' does not exist on type 'Omit<PrismaClient<PrismaClientOptions, never, DefaultArgs>, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">'.
+lib/actions/room-invitations.ts(136,22): error TS2339: Property 'roomInvitation' does not exist on type 'Omit<PrismaClient<PrismaClientOptions, never, DefaultArgs>, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">'.
+lib/actions/room-invitations.ts(144,18): error TS2339: Property 'roomMembership' does not exist on type 'Omit<PrismaClient<PrismaClientOptions, never, DefaultArgs>, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">'.
+lib/actions/room-invitations.ts(154,21): error TS2353: Object literal may only specify known properties, and 'memberCount' does not exist in type '(Without<RoomUpdateInput, RoomUncheckedUpdateInput> & RoomUncheckedUpdateInput) | (Without<...> & RoomUpdateInput)'.
+lib/actions/room-invitations.ts(158,18): error TS2339: Property 'roomInvitation' does not exist on type 'Omit<PrismaClient<PrismaClientOptions, never, DefaultArgs>, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">'.
+lib/actions/room-invitations.ts(167,17): error TS2353: Object literal may only specify known properties, and 'sourceEntityId' does not exist in type 'NotificationWhereInput'.
+lib/actions/room-invitations.ts(170,21): error TS2353: Object literal may only specify known properties, and 'read' does not exist in type '(Without<NotificationUpdateManyMutationInput, NotificationUncheckedUpdateManyInput> & NotificationUncheckedUpdateManyInput) | (Without<...> & NotificationUpdateManyMutationInput)'.
+lib/actions/room-invitations.ts(190,37): error TS2339: Property 'roomInvitation' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/room-invitations.ts(202,18): error TS2339: Property 'roomInvitation' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/room-invitations.ts(211,13): error TS2353: Object literal may only specify known properties, and 'sourceEntityId' does not exist in type 'NotificationWhereInput'.
+lib/actions/room-invitations.ts(214,17): error TS2353: Object literal may only specify known properties, and 'read' does not exist in type '(Without<NotificationUpdateManyMutationInput, NotificationUncheckedUpdateManyInput> & NotificationUncheckedUpdateManyInput) | (Without<...> & NotificationUpdateManyMutationInput)'.
+lib/actions/room-invitations.ts(237,19): error TS2353: Object literal may only specify known properties, and 'roomMemberships' does not exist in type 'UserWhereInput'.
+lib/actions/room-invitations.ts(239,19): error TS2353: Object literal may only specify known properties, and 'receivedInvitations' does not exist in type 'UserWhereInput'.
+lib/actions/room-invitations.ts(262,19): error TS2339: Property 'roomInvitation' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/rooms.ts(12,14): error TS2353: Object literal may only specify known properties, and 'isActive' does not exist in type 'RoomWhereInput'.
+lib/actions/rooms.ts(14,9): error TS2353: Object literal may only specify known properties, and 'marketType' does not exist in type 'RoomOrderByWithRelationInput'.
+lib/actions/rooms.ts(15,9): error TS2353: Object literal may only specify known properties, and 'name' does not exist in type 'RoomOrderByWithRelationInput'.
+lib/actions/rooms.ts(20,7): error TS2353: Object literal may only specify known properties, and 'name' does not exist in type 'RoomSelect<DefaultArgs>'.
+lib/actions/rooms.ts(41,19): error TS2353: Object literal may only specify known properties, and 'members' does not exist in type 'RoomCountOutputTypeSelect<DefaultArgs>'.
+lib/actions/rooms.ts(50,36): error TS2339: Property 'roomMembership' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/rooms.ts(69,26): error TS7006: Parameter 'm' implicitly has an 'any' type.
+lib/actions/rooms.ts(75,35): error TS2339: Property 'roomMembership' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/rooms.ts(88,14): error TS2353: Object literal may only specify known properties, and 'creatorId' does not exist in type 'RoomWhereInput'.
+lib/actions/rooms.ts(92,19): error TS2353: Object literal may only specify known properties, and 'members' does not exist in type 'RoomCountOutputTypeSelect<DefaultArgs>'.
+lib/actions/rooms.ts(135,9): error TS2353: Object literal may only specify known properties, and 'name' does not exist in type '(Without<RoomCreateInput, RoomUncheckedCreateInput> & RoomUncheckedCreateInput) | (Without<...> & RoomCreateInput)'.
+lib/actions/rooms.ts(149,14): error TS2339: Property 'roomMembership' does not exist on type 'Omit<PrismaClient<PrismaClientOptions, never, DefaultArgs>, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">'.
+lib/actions/rooms.ts(172,13): error TS2339: Property 'isActive' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(175,13): error TS2339: Property 'isPublic' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(175,31): error TS2339: Property 'requiresApproval' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(180,33): error TS2339: Property 'roomMembership' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/rooms.ts(187,12): error TS2339: Property 'requiresApproval' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(190,16): error TS2353: Object literal may only specify known properties, and 'userId_roomId' does not exist in type 'RoomJoinRequestWhereUniqueInput'.
+lib/actions/rooms.ts(208,14): error TS2339: Property 'creatorId' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(209,84): error TS2353: Object literal may only specify known properties, and 'name' does not exist in type 'UserSelect<DefaultArgs>'.
+lib/actions/rooms.ts(212,24): error TS2339: Property 'creatorId' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(214,11): error TS2353: Object literal may only specify known properties, and 'sourceUserId' does not exist in type '(Without<NotificationCreateInput, NotificationUncheckedCreateInput> & NotificationUncheckedCreateInput) | (Without<...> & NotificationCreateInput)'.
+lib/actions/rooms.ts(216,29): error TS2339: Property 'name' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/actions/rooms.ts(216,69): error TS2339: Property 'name' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(225,12): error TS2339: Property 'maxMembers' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(225,31): error TS2339: Property 'memberCount' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(225,51): error TS2339: Property 'maxMembers' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(231,12): error TS2339: Property 'roomMembership' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/rooms.ts(236,15): error TS2353: Object literal may only specify known properties, and 'memberCount' does not exist in type '(Without<RoomUpdateInput, RoomUncheckedUpdateInput> & RoomUncheckedUpdateInput) | (Without<...> & RoomUpdateInput)'.
+lib/actions/rooms.ts(249,35): error TS2339: Property 'roomMembership' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/rooms.ts(259,12): error TS2339: Property 'creatorId' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(259,42): error TS2339: Property 'isSystem' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(265,12): error TS2339: Property 'roomMembership' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/rooms.ts(270,15): error TS2353: Object literal may only specify known properties, and 'memberCount' does not exist in type '(Without<RoomUpdateInput, RoomUncheckedUpdateInput> & RoomUncheckedUpdateInput) | (Without<...> & RoomUpdateInput)'.
+lib/actions/rooms.ts(289,12): error TS2339: Property 'creatorId' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(295,29): error TS2353: Object literal may only specify known properties, and 'name' does not exist in type 'UserSelect<DefaultArgs>'.
+lib/actions/rooms.ts(311,20): error TS2339: Property 'creatorId' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(315,20): error TS2339: Property 'maxMembers' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(315,47): error TS2339: Property 'memberCount' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(315,75): error TS2339: Property 'maxMembers' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(325,9): error TS2353: Object literal may only specify known properties, and 'reviewedAt' does not exist in type '(Without<RoomJoinRequestUpdateInput, RoomJoinRequestUncheckedUpdateInput> & RoomJoinRequestUncheckedUpdateInput) | (Without<...> & RoomJoinRequestUpdateInput)'.
+lib/actions/rooms.ts(330,12): error TS2339: Property 'roomMembership' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/rooms.ts(339,15): error TS2353: Object literal may only specify known properties, and 'memberCount' does not exist in type '(Without<RoomUpdateInput, RoomUncheckedUpdateInput> & RoomUncheckedUpdateInput) | (Without<...> & RoomUpdateInput)'.
+lib/actions/rooms.ts(348,7): error TS2353: Object literal may only specify known properties, and 'sourceUserId' does not exist in type 'Without<NotificationCreateInput, NotificationUncheckedCreateInput> & NotificationUncheckedCreateInput'.
+lib/actions/rooms.ts(350,53): error TS2339: Property 'name' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(367,20): error TS2339: Property 'creatorId' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(374,7): error TS2353: Object literal may only specify known properties, and 'reviewedAt' does not exist in type '(Without<RoomJoinRequestUpdateInput, RoomJoinRequestUncheckedUpdateInput> & RoomJoinRequestUncheckedUpdateInput) | (Without<...> & RoomJoinRequestUpdateInput)'.
+lib/actions/rooms.ts(387,30): error TS2339: Property 'communityPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/actions/rooms.ts(431,30): error TS2339: Property 'communityPost' does not exist on type 'Omit<PrismaClient<PrismaClientOptions, never, DefaultArgs>, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">'.
+lib/actions/rooms.ts(451,15): error TS2353: Object literal may only specify known properties, and 'postCount' does not exist in type '(Without<RoomUpdateInput, RoomUncheckedUpdateInput> & RoomUncheckedUpdateInput) | (Without<...> & RoomUpdateInput)'.
+lib/actions/rooms.ts(473,12): error TS2339: Property 'isSystem' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(474,12): error TS2339: Property 'creatorId' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(497,12): error TS2339: Property 'isSystem' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(498,12): error TS2339: Property 'creatorId' does not exist on type '{ id: string; createdAt: Date; title: string; description: string | null; slug: string; isPrivate: boolean; ownerId: string; }'.
+lib/actions/rooms.ts(510,7): error TS2353: Object literal may only specify known properties, and 'name' does not exist in type '(Without<RoomUpdateInput, RoomUncheckedUpdateInput> & RoomUncheckedUpdateInput) | (Without<...> & RoomUpdateInput)'.
+lib/algorithm/zenith-score.ts(86,37): error TS2339: Property 'assetLifetimeScore' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/algorithm/zenith-score.ts(402,22): error TS2339: Property 'assetLifetimeScore' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/auth.ts(83,33): error TS2353: Object literal may only specify known properties, and 'name' does not exist in type '(Without<UserCreateInput, UserUncheckedCreateInput> & UserUncheckedCreateInput) | (Without<...> & UserCreateInput)'.
+lib/auth.ts(97,36): error TS2339: Property 'name' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/auth.ts(98,37): error TS2339: Property 'image' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/auth.ts(139,29): error TS2353: Object literal may only specify known properties, and 'name' does not exist in type 'UserSelect<DefaultArgs>'.
+lib/auth.ts(146,36): error TS2339: Property 'name' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/auth.ts(146,62): error TS2339: Property 'name' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/auth.ts(147,36): error TS2339: Property 'image' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/auth.ts(147,66): error TS2339: Property 'image' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/content/execution-trader.ts(1,31): error TS2307: Cannot find module '../learning-types' or its corresponding type declarations.
+lib/content/macro-observer.ts(1,31): error TS2307: Cannot find module '../learning-types' or its corresponding type declarations.
+lib/content/market-analyst.ts(1,31): error TS2307: Cannot find module '../learning-types' or its corresponding type declarations.
+lib/content/risk-management.ts(1,31): error TS2307: Cannot find module '../learning-types' or its corresponding type declarations.
+lib/content/systematic-trading.ts(1,31): error TS2307: Cannot find module '../learning-types' or its corresponding type declarations.
+lib/content/technical-analysis.ts(1,31): error TS2307: Cannot find module '../learning-types' or its corresponding type declarations.
+lib/content/trading-fundamentals.ts(1,31): error TS2307: Cannot find module '../learning-types' or its corresponding type declarations.
+lib/content/zenith-mastery.ts(1,31): error TS2307: Cannot find module '../learning-types' or its corresponding type declarations.
+lib/gate/actions.ts(7,10): error TS2305: Module '"@prisma/client"' has no exported member 'DisciplineState'.
+lib/gate/actions.ts(7,27): error TS2305: Module '"@prisma/client"' has no exported member 'GateViolation'.
+lib/gate/actions.ts(11,25): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+lib/gate/actions.ts(14,18): error TS2353: Object literal may only specify known properties, and 'email' does not exist in type 'UserWhereUniqueInput'.
+lib/gate/actions.ts(14,38): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+lib/gate/actions.ts(15,20): error TS2353: Object literal may only specify known properties, and 'disciplineState' does not exist in type 'UserInclude<DefaultArgs>'.
+lib/gate/actions.ts(21,15): error TS2339: Property 'disciplineState' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/gate/actions.ts(22,29): error TS2339: Property 'disciplineState' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/gate/actions.ts(30,17): error TS2339: Property 'disciplineState' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/gate/actions.ts(40,25): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+lib/gate/actions.ts(43,18): error TS2353: Object literal may only specify known properties, and 'email' does not exist in type 'UserWhereUniqueInput'.
+lib/gate/actions.ts(43,38): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+lib/gate/actions.ts(44,20): error TS2353: Object literal may only specify known properties, and 'disciplineState' does not exist in type 'UserInclude<DefaultArgs>'.
+lib/gate/actions.ts(47,16): error TS2339: Property 'disciplineState' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/gate/actions.ts(50,18): error TS2339: Property 'gateViolation' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/gate/actions.ts(52,37): error TS2339: Property 'disciplineState' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/gate/actions.ts(65,22): error TS2339: Property 'disciplineState' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/gate/actions.ts(66,31): error TS2339: Property 'disciplineState' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/gate/actions.ts(78,40): error TS2339: Property 'tradeJournal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/gate/actions.ts(84,22): error TS2339: Property 'missionUpdate' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/gate/actions.ts(99,25): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+lib/gate/actions.ts(102,18): error TS2353: Object literal may only specify known properties, and 'email' does not exist in type 'UserWhereUniqueInput'.
+lib/gate/actions.ts(102,38): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+lib/gate/actions.ts(103,20): error TS2353: Object literal may only specify known properties, and 'disciplineState' does not exist in type 'UserInclude<DefaultArgs>'.
+lib/gate/actions.ts(106,16): error TS2339: Property 'disciplineState' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/gate/actions.ts(111,18): error TS2339: Property 'gateOverride' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/gate/actions.ts(113,37): error TS2339: Property 'disciplineState' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/gate/actions.ts(120,18): error TS2339: Property 'disciplineState' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/gate/actions.ts(121,27): error TS2339: Property 'disciplineState' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/gate/actions.ts(138,25): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+lib/gate/actions.ts(141,18): error TS2353: Object literal may only specify known properties, and 'email' does not exist in type 'UserWhereUniqueInput'.
+lib/gate/actions.ts(141,38): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+lib/gate/actions.ts(142,20): error TS2353: Object literal may only specify known properties, and 'disciplineState' does not exist in type 'UserInclude<DefaultArgs>'.
+lib/gate/actions.ts(145,16): error TS2339: Property 'disciplineState' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/gate/actions.ts(147,37): error TS2339: Property 'gateViolation' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/gate/actions.ts(148,42): error TS2339: Property 'disciplineState' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/gate/actions.ts(153,27): error TS7006: Parameter 'v' implicitly has an 'any' type.
+lib/gate/actions.ts(168,25): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+lib/gate/actions.ts(171,18): error TS2353: Object literal may only specify known properties, and 'email' does not exist in type 'UserWhereUniqueInput'.
+lib/gate/actions.ts(171,38): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+lib/gate/actions.ts(172,20): error TS2353: Object literal may only specify known properties, and 'disciplineState' does not exist in type 'UserInclude<DefaultArgs>'.
+lib/gate/actions.ts(175,16): error TS2339: Property 'disciplineState' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/gate/actions.ts(177,36): error TS2339: Property 'gateOverride' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/gate/actions.ts(178,42): error TS2339: Property 'disciplineState' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/gate/actions.ts(183,26): error TS7006: Parameter 'o' implicitly has an 'any' type.
+lib/gate/engine.ts(2,10): error TS2305: Module '"@prisma/client"' has no exported member 'DisciplineState'.
+lib/gate/engine.ts(2,27): error TS2305: Module '"@prisma/client"' has no exported member 'GateViolation'.
+lib/market/history.ts(40,39): error TS2339: Property 'marketCandle' does not exist on type 'Omit<PrismaClient<PrismaClientOptions, never, DefaultArgs>, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">'.
+lib/market/history.ts(59,22): error TS2339: Property 'marketCandle' does not exist on type 'Omit<PrismaClient<PrismaClientOptions, never, DefaultArgs>, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">'.
+lib/market/history.ts(97,34): error TS2339: Property 'marketCandle' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/market/history.ts(109,24): error TS7006: Parameter 'c' implicitly has an 'any' type.
+lib/paypal.ts(1,31): error TS7016: Could not find a declaration file for module '@paypal/checkout-server-sdk'. 'C:/Users/boume/defi-oracle-worker/zenithscores-frontend/node_modules/@paypal/checkout-server-sdk/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/paypal__checkout-server-sdk` if it exists or add a new declaration (.d.ts) file containing `declare module '@paypal/checkout-server-sdk';`
+lib/pricing/resolveBasePrice.ts(58,35): error TS2339: Property 'decisionScenario' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/pricing/resolveBasePrice.ts(76,18): error TS2339: Property 'decisionScenario' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/pricing/resolveBasePrice.ts(116,36): error TS2339: Property 'decisionScenario' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/subscription.ts(13,9): error TS2353: Object literal may only specify known properties, and 'tier' does not exist in type 'UserSelect<DefaultArgs>'.
+lib/subscription.ts(19,23): error TS2339: Property 'tier' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/subscription.ts(24,14): error TS2339: Property 'subscriptionStatus' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/subscription.ts(29,14): error TS2339: Property 'subscriptionEnd' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/subscription.ts(29,51): error TS2339: Property 'subscriptionEnd' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/subscription.ts(34,11): error TS2353: Object literal may only specify known properties, and 'tier' does not exist in type '(Without<UserUpdateInput, UserUncheckedUpdateInput> & UserUncheckedUpdateInput) | (Without<...> & UserUpdateInput)'.
+lib/subscription.ts(55,7): error TS2353: Object literal may only specify known properties, and 'tier' does not exist in type 'UserSelect<DefaultArgs>'.
+lib/subscription.ts(68,30): error TS2339: Property 'subscriptionEnd' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/subscription.ts(69,35): error TS2339: Property 'subscriptionEnd' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/subscription.ts(74,16): error TS2339: Property 'tier' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/subscription.ts(75,26): error TS2339: Property 'subscriptionId' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/subscription.ts(76,30): error TS2339: Property 'subscriptionStatus' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/subscription.ts(77,29): error TS2339: Property 'subscriptionStart' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/subscription.ts(78,27): error TS2339: Property 'subscriptionEnd' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/subscription.ts(105,7): error TS2353: Object literal may only specify known properties, and 'tier' does not exist in type '(Without<UserUpdateInput, UserUncheckedUpdateInput> & UserUncheckedUpdateInput) | (Without<...> & UserUpdateInput)'.
+lib/subscription.ts(122,7): error TS2353: Object literal may only specify known properties, and 'subscriptionStatus' does not exist in type '(Without<UserUpdateInput, UserUncheckedUpdateInput> & UserUncheckedUpdateInput) | (Without<...> & UserUpdateInput)'.
+lib/subscription.ts(135,7): error TS2353: Object literal may only specify known properties, and 'tier' does not exist in type '(Without<UserUpdateInput, UserUncheckedUpdateInput> & UserUncheckedUpdateInput) | (Without<...> & UserUpdateInput)'.
+lib/subscription.ts(150,15): error TS2353: Object literal may only specify known properties, and 'subscriptionEnd' does not exist in type 'UserSelect<DefaultArgs>'.
+lib/subscription.ts(153,28): error TS2339: Property 'subscriptionEnd' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/subscription.ts(153,52): error TS2339: Property 'subscriptionEnd' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/subscription.ts(154,21): error TS2339: Property 'subscriptionEnd' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/subscription.ts(166,7): error TS2353: Object literal may only specify known properties, and 'subscriptionStatus' does not exist in type '(Without<UserUpdateInput, UserUncheckedUpdateInput> & UserUncheckedUpdateInput) | (Without<...> & UserUpdateInput)'.
+lib/user-utils.ts(18,36): error TS2339: Property 'userPreferences' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/user-utils.ts(91,35): error TS2339: Property 'userAssetView' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/user-utils.ts(108,50): error TS2339: Property 'userSignalInteraction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/user-utils.ts(122,49): error TS7006: Parameter 'i' implicitly has an 'any' type.
+lib/user-utils.ts(132,47): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+lib/user-utils.ts(132,52): error TS7006: Parameter 'i' implicitly has an 'any' type.
+prisma/seed_paths.ts(38,37): error TS2339: Property 'pathDefinition' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.

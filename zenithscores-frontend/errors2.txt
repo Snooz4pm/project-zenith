@@ -1,0 +1,53 @@
+﻿.next/types/app/api/analytics/events/route.ts(2,24): error TS2307: Cannot find module '../../../../../../app/api/analytics/events/route.js' or its corresponding type declarations.
+.next/types/app/api/analytics/events/route.ts(5,29): error TS2307: Cannot find module '../../../../../../app/api/analytics/events/route.js' or its corresponding type declarations.
+.next/types/app/api/conversations/direct/route.ts(2,24): error TS2307: Cannot find module '../../../../../../app/api/conversations/direct/route.js' or its corresponding type declarations.
+.next/types/app/api/conversations/direct/route.ts(5,29): error TS2307: Cannot find module '../../../../../../app/api/conversations/direct/route.js' or its corresponding type declarations.
+.next/types/app/api/flow/route.ts(2,24): error TS2307: Cannot find module '../../../../../app/api/flow/route.js' or its corresponding type declarations.
+.next/types/app/api/flow/route.ts(5,29): error TS2307: Cannot find module '../../../../../app/api/flow/route.js' or its corresponding type declarations.
+.next/types/app/api/notifications/route.ts(2,24): error TS2307: Cannot find module '../../../../../app/api/notifications/route.js' or its corresponding type declarations.
+.next/types/app/api/notifications/route.ts(5,29): error TS2307: Cannot find module '../../../../../app/api/notifications/route.js' or its corresponding type declarations.
+.next/types/app/api/onboarding/check-username/route.ts(2,24): error TS2307: Cannot find module '../../../../../../app/api/onboarding/check-username/route.js' or its corresponding type declarations.
+.next/types/app/api/onboarding/check-username/route.ts(5,29): error TS2307: Cannot find module '../../../../../../app/api/onboarding/check-username/route.js' or its corresponding type declarations.
+.next/types/app/api/onboarding/complete/route.ts(2,24): error TS2307: Cannot find module '../../../../../../app/api/onboarding/complete/route.js' or its corresponding type declarations.
+.next/types/app/api/onboarding/complete/route.ts(5,29): error TS2307: Cannot find module '../../../../../../app/api/onboarding/complete/route.js' or its corresponding type declarations.
+app/api/signals/route.ts(4,31): error TS2307: Cannot find module '@/lib/subscription' or its corresponding type declarations.
+app/community/[postId]/page.tsx(20,8): error TS2307: Cannot find module '@/lib/actions/community' or its corresponding type declarations.
+app/community/page.tsx(13,75): error TS2307: Cannot find module '@/lib/actions/community' or its corresponding type declarations.
+app/messages/page.tsx(14,8): error TS2307: Cannot find module '@/lib/actions/community' or its corresponding type declarations.
+app/user/[userId]/DeletePostButton.tsx(6,28): error TS2307: Cannot find module '@/lib/actions/community' or its corresponding type declarations.
+components/community/InviteUserModal.tsx(6,57): error TS2307: Cannot find module '@/lib/actions/room-invitations' or its corresponding type declarations.
+components/community/NotificationBell.tsx(14,8): error TS2307: Cannot find module '@/lib/actions/community' or its corresponding type declarations.
+components/community/RoomFeed.tsx(8,80): error TS2307: Cannot find module '@/lib/actions/rooms' or its corresponding type declarations.
+components/community/RoomFeed.tsx(9,53): error TS2307: Cannot find module '@/lib/actions/community' or its corresponding type declarations.
+components/community/RoomInvitationNotification.tsx(5,52): error TS2307: Cannot find module '@/lib/actions/room-invitations' or its corresponding type declarations.
+components/crypto-finds/CryptoFindsLayout.tsx(9,31): error TS2307: Cannot find module '@/hooks/useFlowSystem' or its corresponding type declarations.
+components/crypto-finds/FlowRegimeBadge.tsx(3,28): error TS2307: Cannot find module '@/lib/flow/flow-types' or its corresponding type declarations.
+components/crypto-finds/FlowRegimeBadge.tsx(4,66): error TS2307: Cannot find module '@/lib/flow/flow-regime' or its corresponding type declarations.
+components/crypto-finds/LiveMarketFlow.tsx(4,56): error TS2307: Cannot find module '@/lib/flow/flow-types' or its corresponding type declarations.
+components/crypto-finds/MarketHeader.tsx(4,35): error TS2307: Cannot find module '@/hooks/useDisciplineGate' or its corresponding type declarations.
+components/crypto-finds/MarketHeader.tsx(5,28): error TS2307: Cannot find module '@/lib/flow/flow-types' or its corresponding type declarations.
+components/crypto-finds/MarketHeader.tsx(36,16): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ open: { label: string; color: string; bg: string; icon: string; }; warning: { label: string; color: string; bg: string; icon: string; }; locked: { label: string; color: string; bg: string; icon: string; }; }'.
+components/crypto-finds/MarketStatsPanel.tsx(5,30): error TS2307: Cannot find module '@/lib/flow/flow-types' or its corresponding type declarations.
+components/crypto-finds/MarketTerminal.tsx(7,39): error TS2307: Cannot find module '@/lib/flow/flow-types' or its corresponding type declarations.
+components/CryptoDashboard.tsx(12,41): error TS2307: Cannot find module '@/components/AlertsFeed' or its corresponding type declarations.
+components/terminal/TerminalView.tsx(15,34): error TS2307: Cannot find module '@/lib/intelligence/calculator' or its corresponding type declarations.
+components/terminal/TerminalView.tsx(16,54): error TS2307: Cannot find module '@/lib/intelligence/scenarios' or its corresponding type declarations.
+components/terminal/TerminalView.tsx(25,26): error TS2307: Cannot find module '@/components/journal/JournalModal' or its corresponding type declarations.
+components/terminal/TerminalView.tsx(30,33): error TS2307: Cannot find module '@/components/gate/DisciplineBadge' or its corresponding type declarations.
+components/terminal/TerminalView.tsx(31,35): error TS2307: Cannot find module '@/hooks/useDisciplineGate' or its corresponding type declarations.
+components/UserMenu.tsx(71,40): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+components/UserMenu.tsx(96,90): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+lib/algorithm/zenith-score.ts(86,37): error TS2339: Property 'assetLifetimeScore' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/algorithm/zenith-score.ts(402,22): error TS2339: Property 'assetLifetimeScore' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/auth.ts(83,33): error TS2353: Object literal may only specify known properties, and 'name' does not exist in type '(Without<UserCreateInput, UserUncheckedCreateInput> & UserUncheckedCreateInput) | (Without<...> & UserCreateInput)'.
+lib/auth.ts(97,36): error TS2339: Property 'name' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/auth.ts(98,37): error TS2339: Property 'image' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/auth.ts(139,29): error TS2353: Object literal may only specify known properties, and 'name' does not exist in type 'UserSelect<DefaultArgs>'.
+lib/auth.ts(146,36): error TS2339: Property 'name' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/auth.ts(146,62): error TS2339: Property 'name' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/auth.ts(147,36): error TS2339: Property 'image' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/auth.ts(147,66): error TS2339: Property 'image' does not exist on type '{ id: string; walletAddress: string; username: string | null; createdAt: Date; deletedAt: Date | null; }'.
+lib/market/history.ts(40,39): error TS2339: Property 'marketCandle' does not exist on type 'Omit<PrismaClient<PrismaClientOptions, never, DefaultArgs>, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">'.
+lib/market/history.ts(59,22): error TS2339: Property 'marketCandle' does not exist on type 'Omit<PrismaClient<PrismaClientOptions, never, DefaultArgs>, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">'.
+lib/market/history.ts(97,34): error TS2339: Property 'marketCandle' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+lib/market/history.ts(109,24): error TS7006: Parameter 'c' implicitly has an 'any' type.

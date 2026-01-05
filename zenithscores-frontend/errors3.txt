@@ -1,0 +1,38 @@
+﻿app/api/arena/swap/record/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/auth/[...nextauth]/route.ts(1,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/community/follow/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/community/likes/route.ts(4,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/community/my-engagements/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/community/notifications/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/community/pin/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/community/posts/route.ts(4,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/community/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/dashboard/stats/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/signals/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/signals/route.ts(4,31): error TS2307: Cannot find module '@/lib/subscription' or its corresponding type declarations.
+app/api/watchlist/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/zenith-score/[symbol]/route.ts(3,55): error TS2307: Cannot find module '@/lib/algorithm/zenith-score' or its corresponding type declarations.
+app/command-center/mobile/page.tsx(4,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/command-center/page.tsx(4,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/community/[postId]/page.tsx(20,8): error TS2307: Cannot find module '@/lib/actions/community' or its corresponding type declarations.
+app/community/page.tsx(13,75): error TS2307: Cannot find module '@/lib/actions/community' or its corresponding type declarations.
+app/notifications/page.tsx(13,8): error TS2307: Cannot find module '@/lib/notification-engine' or its corresponding type declarations.
+app/profile/mobile/page.tsx(4,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+components/BadgeDisplay.tsx(4,58): error TS2307: Cannot find module '@/lib/badge-system' or its corresponding type declarations.
+components/BadgeDisplay.tsx(93,16): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ legendary: number; epic: number; rare: number; uncommon: number; common: number; }'.
+components/BadgeDisplay.tsx(93,40): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ legendary: number; epic: number; rare: number; uncommon: number; common: number; }'.
+components/CloneTrading.tsx(9,31): error TS2307: Cannot find module '@/lib/premium' or its corresponding type declarations.
+components/community/InviteUserModal.tsx(6,57): error TS2307: Cannot find module '@/lib/actions/room-invitations' or its corresponding type declarations.
+components/community/NotificationBell.tsx(14,8): error TS2307: Cannot find module '@/lib/actions/community' or its corresponding type declarations.
+components/community/RoomFeed.tsx(8,80): error TS2307: Cannot find module '@/lib/actions/rooms' or its corresponding type declarations.
+components/community/RoomFeed.tsx(9,53): error TS2307: Cannot find module '@/lib/actions/community' or its corresponding type declarations.
+components/community/RoomInvitationNotification.tsx(5,52): error TS2307: Cannot find module '@/lib/actions/room-invitations' or its corresponding type declarations.
+components/CryptoDashboard.tsx(12,41): error TS2307: Cannot find module '@/components/AlertsFeed' or its corresponding type declarations.
+components/NotificationCenter.tsx(14,8): error TS2307: Cannot find module '@/lib/notification-engine' or its corresponding type declarations.
+components/NotificationCenter.tsx(15,31): error TS2307: Cannot find module '@/lib/premium' or its corresponding type declarations.
+components/ScoreBreakdown.tsx(5,31): error TS2307: Cannot find module '@/lib/premium' or its corresponding type declarations.
+components/TermsAcceptanceModal.tsx(7,47): error TS2307: Cannot find module '@/lib/premium' or its corresponding type declarations.
+components/ThreeHourPulse.tsx(9,31): error TS2307: Cannot find module '@/lib/premium' or its corresponding type declarations.
+components/UserMenu.tsx(71,40): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+components/UserMenu.tsx(96,90): error TS2339: Property 'email' does not exist on type '{ id: string; walletAddress?: string | null | undefined; name?: string | null | undefined; image?: string | null | undefined; username?: string | null | undefined; }'.
+components/UserProfileCard.tsx(10,38): error TS2307: Cannot find module '@/lib/badge-system' or its corresponding type declarations.

@@ -31,7 +31,10 @@
       "Bash(time curl -s 'https://token.jup.ag/all')",
       "Bash(curl:*)",
       "Bash(node test-jupiter.js:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(tee:*)",
+      "Bash(timeout 120 npm run build:*)",
+      "Bash(echo:*)"
     ]
   }
 }

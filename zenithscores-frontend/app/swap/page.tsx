@@ -78,7 +78,7 @@ export default function SwapPage() {
   // FILTER LOGIC
   // ═══════════════════════════════════════════════════════════
 
-  type Preset = 'TRENDING' | 'RISING' | 'NEW' | 'HIGH_LIQ' | 'LOW_CAP' | 'ESTABLISHED' | null;
+  type Preset = 'TRENDING' | 'RISING' | 'NEW' | 'HIGH_LIQ' | null;
 
   const [activePreset, setActivePreset] = useState<Preset>(null);
   const [minLiquidity, setMinLiquidity] = useState(0);
@@ -101,21 +101,11 @@ export default function SwapPage() {
       return ratio >= 0.8 && ratio <= 3;
     },
     NEW: (t) => {
-      if (!t.createdAt) return false;
-      const age = Date.now() - new Date(t.createdAt).getTime();
+      if (!t.pairCreatedAt) return false;
+      const age = Date.now() - t.pairCreatedAt;
       return age < 7 * 24 * 60 * 60 * 1000; // 7 days
     },
     HIGH_LIQ: (t) => (t.liquidityUsd || 0) >= 500_000,
-    LOW_CAP: (t) => {
-      const mc = t.marketCap || 0;
-      return mc > 0 && mc < 5_000_000;
-    },
-    ESTABLISHED: (t) => {
-      const liq = t.liquidityUsd || 0;
-      const vol = t.volume24hUsd || 0;
-      const mc = t.marketCap || 0;
-      return liq >= 100_000 && vol >= 100_000 && mc >= 10_000_000;
-    },
   };
 
   const filteredTokens = useMemo(() => {
@@ -219,8 +209,6 @@ export default function SwapPage() {
     { key: 'RISING', label: 'Rising', color: 'purple' },
     { key: 'NEW', label: 'New', color: 'blue' },
     { key: 'HIGH_LIQ', label: 'High Liquidity', color: 'cyan' },
-    { key: 'LOW_CAP', label: 'Low Cap', color: 'orange' },
-    { key: 'ESTABLISHED', label: 'Established', color: 'zinc' },
   ];
 
   return (
@@ -336,9 +324,9 @@ export default function SwapPage() {
             {totalPages > 1 && (
               <div className="mt-8">
                 <ZenithPagination
-                  currentPage={page}
+                  page={page}
                   totalPages={totalPages}
-                  onPageChange={setPage}
+                  onChange={setPage}
                 />
               </div>
             )}
@@ -353,7 +341,7 @@ export default function SwapPage() {
           setIsSwapDrawerOpen(false);
           setSelectedToken(null);
         }}
-        selectedToken={selectedToken}
+        token={selectedToken}
       />
     </div>
   );

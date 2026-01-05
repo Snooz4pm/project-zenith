@@ -1,0 +1,4 @@
+﻿app/layout.tsx(20,16): error TS2307: Cannot find module '@/components/TermsAcceptanceModal' or its corresponding type declarations.
+components/CommunityFeed.tsx(82,47): error TS2339: Property 'id' does not exist on type '{ name?: string | null | undefined; email?: string | null | undefined; image?: string | null | undefined; }'.
+components/navigation/Navbar.tsx(9,30): error TS2307: Cannot find module '@/components/community/NotificationBell' or its corresponding type declarations.
+components/navigation/Navbar.tsx(414,52): error TS2339: Property 'id' does not exist on type '{ name?: string | null | undefined; email?: string | null | undefined; image?: string | null | undefined; }'.
