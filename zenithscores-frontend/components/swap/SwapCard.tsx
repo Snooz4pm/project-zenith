@@ -10,6 +10,7 @@ import { ArrowDown, Settings, Wallet } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { SOL_MINT, USDC_MINT } from '@/lib/solana/addresses';
+import { buildZenithTokens, ZenithToken } from '@/lib/tokenTrustEngine';
 
 // Mock function for now
 async function getQuote(params: any) {
@@ -20,13 +21,6 @@ async function getQuote(params: any) {
 async function swap(body: any) {
     return { swapTransaction: '' };
 }
-
-const POPULAR_TOKENS = [
-    { symbol: 'SOL', address: SOL_MINT },
-    { symbol: 'USDC', address: USDC_MINT },
-    { symbol: 'JUP', address: 'JUPyiwrYJFskUPiHa7hkeR8VUtk641KP9p7v+E81' }, // Dummy address for now
-    { symbol: 'RAY', address: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R' },
-];
 
 export default function SwapCard() {
     const { connected, publicKey } = useWallet();
@@ -39,9 +33,25 @@ export default function SwapCard() {
     const [error, setError] = useState<string | null>(null);
     const [swapState, setSwapState] = useState<'idle' | 'loading' | 'success' | 'error' | 'connect'>('idle');
 
-    // Default to SOL -> USDC (Smart Default)
+    // Default to SOL -> USDC
     const [fromToken, setFromToken] = useState({ symbol: 'SOL', address: SOL_MINT, decimals: 9 });
     const [toToken, setToToken] = useState({ symbol: 'USDC', address: USDC_MINT, decimals: 6 });
+
+    const [popularTokens, setPopularTokens] = useState<ZenithToken[]>([]);
+
+    // Initialize Engine
+    useEffect(() => {
+        const init = async () => {
+            const allTokens = await buildZenithTokens();
+            // Filter for specific heavy hitters for the chips row
+            const chips = allTokens.filter(t =>
+                ['SOL', 'USDC', 'JUP', 'RAY', 'BONK', 'WIF'].includes(t.symbol)
+            );
+            // Sort to keep consistent order if needed, or trust liquidity sort
+            setPopularTokens(chips.length > 0 ? chips : []);
+        };
+        init();
+    }, []);
 
     // Fetch Quote (Runs regardless of wallet connection)
     useEffect(() => {
@@ -70,12 +80,11 @@ export default function SwapCard() {
         setTimeout(() => setSwapState('idle'), 2000);
     };
 
-    const handleChipClick = (symbol: string) => {
-        // Simple logic: if click SOL, set as input. If click others, set as output (unless input is already that)
-        if (symbol === 'SOL') {
-            setFromToken({ symbol: 'SOL', address: SOL_MINT, decimals: 9 });
+    const handleChipClick = (token: ZenithToken) => {
+        if (token.symbol === 'SOL') {
+            setFromToken({ symbol: token.symbol, address: token.mint, decimals: 9 });
         } else {
-            setToToken({ symbol: symbol, address: '...', decimals: 6 });
+            setToToken({ symbol: token.symbol, address: token.mint, decimals: 6 });
         }
     };
 
@@ -100,14 +109,20 @@ export default function SwapCard() {
 
             {/* Popular Tokens Chips */}
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none mask-fade">
-                {POPULAR_TOKENS.map((t) => (
+                {popularTokens.map((t) => (
                     <TokenChip
-                        key={t.symbol}
+                        key={t.mint}
                         symbol={t.symbol}
-                        onClick={() => handleChipClick(t.symbol)}
+                        onClick={() => handleChipClick(t)}
                         className={toToken.symbol === t.symbol ? "bg-white/10 text-white border-white/20" : ""}
                     />
                 ))}
+                {popularTokens.length === 0 && (
+                    // Fallback chips if fetch fails/loading
+                    ['SOL', 'USDC', 'JUP'].map(s => (
+                        <TokenChip key={s} symbol={s} onClick={() => { }} className="opacity-50" />
+                    ))
+                )}
             </div>
 
             <TokenInput
