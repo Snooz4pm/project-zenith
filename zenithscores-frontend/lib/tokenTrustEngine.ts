@@ -114,7 +114,9 @@ export async function buildZenithTokens(): Promise<ZenithToken[]> {
                 isJupiterListed,
                 isZenithVerified: computeTrust({ mint, liquidityUsd: liq, isJupiterListed })
             };
-        }).filter((t): t is ZenithToken => t !== null && t.liquidityUsd > 1000); // Filter dust
+        })
+            .filter((t): t is ZenithToken => t !== null)
+            .filter(t => t.liquidityUsd > 1000); // Filter dust
 
         // Dedup by mint
         const uniqueTokens = Array.from(
