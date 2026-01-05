@@ -10,33 +10,23 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { useWalletIdentity } from '@/lib/wallet-identity';
+
 import { Wallet, ChevronDown, LogOut } from 'lucide-react';
 import { useState } from 'react';
 
 const NAV_LINKS = [
-    { href: '/swap', label: 'Swap', alsoActive: ['/'] },
-    { href: '/learn', label: 'Learn' },
-    { href: '/community', label: 'Community' },
+    { href: '/', label: 'Swap' },
+    { href: '/signals', label: 'Signals' },
 ];
 
 export default function Navbar() {
     const pathname = usePathname();
     const { connected, publicKey, disconnect: walletDisconnect } = useWallet();
     const { setVisible } = useWalletModal();
-    const { user, isAuthenticated, authenticate, disconnect } = useWalletIdentity();
     const [showDropdown, setShowDropdown] = useState(false);
 
-    const handleConnect = () => {
-        if (!connected) {
-            setVisible(true);
-        } else if (!isAuthenticated) {
-            authenticate();
-        }
-    };
-
     const handleDisconnect = () => {
-        disconnect();
+        walletDisconnect();
         setShowDropdown(false);
     };
 
@@ -59,19 +49,18 @@ export default function Navbar() {
                     {/* Center Navigation */}
                     <div className="flex items-center gap-1">
                         {NAV_LINKS.map((link) => {
-                            const isActive = pathname === link.href || 
+                            const isActive = pathname === link.href ||
                                 link.alsoActive?.includes(pathname) ||
                                 (link.href !== '/' && pathname.startsWith(link.href));
-                            
+
                             return (
                                 <Link
                                     key={link.href}
                                     href={link.href}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                        isActive 
-                                            ? 'bg-white/10 text-white' 
-                                            : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                                    }`}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isActive
+                                        ? 'bg-white/10 text-white'
+                                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                                        }`}
                                 >
                                     {link.label}
                                 </Link>
@@ -81,20 +70,6 @@ export default function Navbar() {
 
                     {/* Right Side */}
                     <div className="flex items-center gap-3">
-                        {/* Dashboard (Command Center) - Only show when authenticated */}
-                        {isAuthenticated && (
-                            <Link
-                                href="/command-center"
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                    pathname === '/command-center'
-                                        ? 'bg-white/10 text-white'
-                                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                                }`}
-                            >
-                                Dashboard
-                            </Link>
-                        )}
-
                         {/* Connect Wallet / User Menu */}
                         {!connected ? (
                             <button
@@ -112,11 +87,11 @@ export default function Navbar() {
                                 >
                                     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center">
                                         <span className="text-[10px] font-bold text-black">
-                                            {user?.username?.[0]?.toUpperCase() || publicKey?.toBase58().slice(0, 2).toUpperCase()}
+                                            {publicKey?.toBase58().slice(0, 2).toUpperCase()}
                                         </span>
                                     </div>
                                     <span className="text-sm text-white font-mono">
-                                        {user?.username || formatWallet(publicKey?.toBase58() || '')}
+                                        {formatWallet(publicKey?.toBase58() || '')}
                                     </span>
                                     <ChevronDown size={14} className="text-zinc-400" />
                                 </button>
@@ -124,28 +99,6 @@ export default function Navbar() {
                                 {/* Dropdown */}
                                 {showDropdown && (
                                     <div className="absolute right-0 mt-2 w-48 bg-zinc-900 border border-white/10 rounded-lg shadow-xl py-1 z-50">
-                                        <Link
-                                            href="/dashboard"
-                                            onClick={() => setShowDropdown(false)}
-                                            className="block px-4 py-2 text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"
-                                        >
-                                            Dashboard
-                                        </Link>
-                                        <Link
-                                            href={`/profile/${publicKey?.toBase58()}`}
-                                            onClick={() => setShowDropdown(false)}
-                                            className="block px-4 py-2 text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"
-                                        >
-                                            My Profile
-                                        </Link>
-                                        <Link
-                                            href="/settings"
-                                            onClick={() => setShowDropdown(false)}
-                                            className="block px-4 py-2 text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"
-                                        >
-                                            Settings
-                                        </Link>
-                                        <hr className="border-white/5 my-1" />
                                         <button
                                             onClick={handleDisconnect}
                                             className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"

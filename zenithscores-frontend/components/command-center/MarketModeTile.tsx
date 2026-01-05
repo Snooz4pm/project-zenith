@@ -31,20 +31,12 @@ export default function MarketModeTile({ onClick }: MarketModeTileProps) {
     } | null>(null);
 
     useEffect(() => {
-        async function loadData() {
-            try {
-                const { getCommandCenterData } = await import('@/lib/api/zenith-adapter');
-                const data = await getCommandCenterData('crypto');
-                setMarketData({
-                    regime: data.marketRegimeSummary.regime,
-                    explanation: data.marketRegimeSummary.explanation,
-                    stats: data.stats,
-                });
-            } catch (error) {
-                console.error('Failed to load market data:', error);
-            }
-        }
-        loadData();
+        // Static fallback to remove backend dependency
+        setMarketData({
+            regime: 'range',
+            explanation: 'Market intelligence disabled in frontend-only mode.',
+            stats: { enteredPicks: 0, improved: 0, invalidated: 0 },
+        });
     }, []);
 
     const config = marketData ? regimeConfig[marketData.regime] : regimeConfig.chaos;
