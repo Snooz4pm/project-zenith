@@ -1,11 +1,3 @@
-/**
- * TOKEN TRUST ENGINE (Free Stack)
- * 
- * Layers:
- * 1. Jupiter Strict List (Metadata Authority) - https://token.jup.ag/strict
- * 2. GeckoTerminal (Trending Data) - https://api.geckoterminal.com
- * 3. Jupiter Price API (Real-time Prices) - https://price.jup.ag/v6/price
- */
 
 export interface ZenithToken {
     mint: string;
@@ -85,7 +77,7 @@ export async function buildZenithTokens(): Promise<ZenithToken[]> {
         const pools: GeckoPool[] = data.data;
 
         // 3. Normalize to ZenithToken
-        const tokens: ZenithToken[] = pools.map((pool) => {
+        const rawTokens = pools.map((pool) => {
             // Gecko returns id like "solana_MINTADDRESS" for relations usually, but sometimes pool address.
             // For trending pools, relationships.base_token.data.id is "solana_<mint>"
             const baseTokenId = pool.relationships?.base_token?.data?.id;
@@ -114,7 +106,9 @@ export async function buildZenithTokens(): Promise<ZenithToken[]> {
                 isJupiterListed,
                 isZenithVerified: computeTrust({ mint, liquidityUsd: liq, isJupiterListed })
             };
-        })
+        });
+
+        const tokens: ZenithToken[] = rawTokens
             .filter((t): t is ZenithToken => t !== null)
             .filter(t => t.liquidityUsd > 1000); // Filter dust
 
