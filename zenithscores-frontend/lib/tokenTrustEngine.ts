@@ -77,7 +77,7 @@ export async function buildZenithTokens(): Promise<ZenithToken[]> {
         const pools: GeckoPool[] = data.data;
 
         // 3. Normalize to ZenithToken
-        const rawTokens = pools.map((pool) => {
+        const rawTokens = pools.map((pool): ZenithToken | null => {
             // Gecko returns id like "solana_MINTADDRESS" for relations usually, but sometimes pool address.
             // For trending pools, relationships.base_token.data.id is "solana_<mint>"
             const baseTokenId = pool.relationships?.base_token?.data?.id;
