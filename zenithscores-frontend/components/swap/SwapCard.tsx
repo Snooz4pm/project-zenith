@@ -8,9 +8,18 @@ import { SwapButton } from './SwapButton';
 import { ArrowDown, Settings } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { getQuote, swap } from '@/lib/api/backend';
 import { SOL_MINT, USDC_MINT } from '@/lib/solana/addresses';
 import { VersionedTransaction } from '@solana/web3.js';
+
+// Mock function for now
+async function getQuote(params: any) {
+    return null;
+}
+
+// Mock function for now
+async function swap(body: any) {
+    return { swapTransaction: '' };
+}
 
 export default function SwapCard() {
     const { connected, publicKey, signTransaction, sendTransaction } = useWallet();
@@ -34,34 +43,10 @@ export default function SwapCard() {
                 setQuote(null);
                 return;
             }
-
-            setIsLoading(true);
-            setError(null);
-
-            try {
-                const amountInSmallestUnit = Math.floor(parseFloat(fromAmount) * Math.pow(10, fromToken.decimals));
-
-                const params = new URLSearchParams({
-                    inputMint: fromToken.address,
-                    outputMint: toToken.address,
-                    amount: amountInSmallestUnit.toString(),
-                    slippageBps: '50' // 0.5%
-                });
-
-                const data = await getQuote(params);
-                setQuote(data);
-
-                if (data.outAmount) {
-                    const out = parseInt(data.outAmount) / Math.pow(10, toToken.decimals);
-                    setToAmount(out.toFixed(6));
-                }
-
-            } catch (err) {
-                setError('Failed to fetch quote');
-                console.error(err);
-            } finally {
-                setIsLoading(false);
-            }
+            // Placeholder logic
+            const out = parseFloat(fromAmount) * 140; // Mock price
+            setToAmount(out.toFixed(6));
+            setQuote({ price: 140, inputMint: 'SOL', outputMint: 'USDC' });
         };
 
         const debounce = setTimeout(fetchQuote, 500);
@@ -73,36 +58,9 @@ export default function SwapCard() {
             setVisible(true);
             return;
         }
-
-        if (!quote || !publicKey || !signTransaction) return;
-
-        setSwapState('loading');
-
-        try {
-            // 1. Get Transaction from Backend
-            const { swapTransaction } = await swap({
-                quoteResponse: quote,
-                userPublicKey: publicKey.toBase58(),
-                wrapAndUnwrapSol: true
-            });
-
-            // 2. Sign and Send
-            const transaction = VersionedTransaction.deserialize(Buffer.from(swapTransaction, 'base64'));
-
-            const signature = await sendTransaction(transaction, {
-                skipPreflight: false,
-                maxRetries: 2
-            } as any);
-
-            console.log('Swap confirmed:', signature);
-            setSwapState('success');
-
-        } catch (err) {
-            console.error('Swap execution failed:', err);
-            setSwapState('error');
-        } finally {
-            setTimeout(() => setSwapState('idle'), 3000);
-        }
+        console.log('Swap skeleton clicked');
+        setSwapState('success');
+        setTimeout(() => setSwapState('idle'), 2000);
     };
 
     return (
