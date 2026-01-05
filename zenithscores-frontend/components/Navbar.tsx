@@ -14,7 +14,13 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { Wallet, ChevronDown, LogOut } from 'lucide-react';
 import { useState } from 'react';
 
-const NAV_LINKS = [
+interface NavLink {
+    href: string;
+    label: string;
+    alsoActive?: string[];
+}
+
+const NAV_LINKS: NavLink[] = [
     { href: '/', label: 'Swap' },
     { href: '/signals', label: 'Signals' },
 ];
