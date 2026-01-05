@@ -14,18 +14,19 @@
 
   /* Typography */
   --text-primary: #ffffff;
-  --text-secondary: #a1a1aa;
+  --text-secondary: #C0C0C0; /* Silver for lines/subtle text */
   --text-muted: #52525b;
 
   /* Accents */
-  --accent-mint: #14f195;
+  --accent-mint: #00FFC4; /* Primary Teal */
+  --accent-emerald: #008B8B; /* Faded Emerald */
   --accent-cyan: #00d4ff;
   --accent-gold: #fbbf24;
   --accent-danger: #ef4444;
 
   /* Glows */
-  --glow-mint: rgba(20, 241, 149, 0.4);
-  --glow-cyan: rgba(0, 212, 255, 0.3);
+  --glow-mint: rgba(0, 255, 196, 0.4);
+  --glow-emerald: rgba(0, 139, 139, 0.3);
 
   /* Fonts */
   --font-display: var(--font-jetbrains);
@@ -40,9 +41,9 @@
   --color-surface-3: var(--surface-3);
 
   --color-accent-mint: var(--accent-mint);
+  --color-accent-emerald: var(--accent-emerald);
   --color-accent-cyan: var(--accent-cyan);
-  --color-accent-gold: var(--accent-gold);
-  --color-accent-danger: var(--accent-danger);
+  --color-text-secondary: var(--text-secondary);
   
   --font-display: var(--font-display);
   --font-body: var(--font-body);
@@ -50,6 +51,7 @@
 
   --animate-stagger-reveal: stagger-reveal 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
   --animate-glow-pulse: glow-pulse 3s ease-in-out infinite;
+  --animate-spin-slow: spin 4s linear infinite;
 
   @keyframes stagger-reveal {
     from {

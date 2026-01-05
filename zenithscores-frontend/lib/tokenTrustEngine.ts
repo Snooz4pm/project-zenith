@@ -23,6 +23,17 @@ export interface ZenithToken {
     isZenithVerified: boolean;
 }
 
+// JUPITER STRICT LIST TYPE
+interface JupiterToken {
+    address: string;
+    chainId: number;
+    decimals: number;
+    name: string;
+    symbol: string;
+    logoURI: string;
+    tags?: string[];
+}
+
 // TRUST RULES
 export function computeTrust(token: {
     mint: string;
@@ -39,10 +50,10 @@ export function computeTrust(token: {
 export async function buildZenithTokens(): Promise<ZenithToken[]> {
     try {
         // 1. Load Jupiter registry (Strict List)
-        const jupiterTokens = await fetch('https://token.jup.ag/strict').then(r => r.json());
+        const jupiterTokens: JupiterToken[] = await fetch('https://token.jup.ag/strict').then(r => r.json());
 
-        const jupiterMap = new Map(
-            jupiterTokens.map((t: any) => [t.address, t])
+        const jupiterMap = new Map<string, JupiterToken>(
+            jupiterTokens.map((t) => [t.address, t])
         );
 
         // 2. Load DexScreener data (Trending/Top Solana pairs)
