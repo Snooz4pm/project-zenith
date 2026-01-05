@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, ShieldCheck } from "lucide-react";
@@ -63,7 +65,7 @@ export function TrendingSection() {
                     <Card
                         key={token.mint}
                         onClick={() => handleTokenClick(token)}
-                         className={cn(
+                        className={cn(
                             "group relative overflow-hidden transition-all duration-300",
                             "bg-surface-2/50 backdrop-blur-xl border-white/5",
                             "hover:scale-[1.05] hover:border-accent-mint/30 hover:shadow-[0_0_20px_rgba(0,255,196,0.1)]", // Teal glow + scale
