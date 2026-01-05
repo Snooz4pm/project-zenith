@@ -1,7 +1,7 @@
 /**
  * Public Profile API
  * 
- * GET /api/profile/[wallet] - Get public profile by wallet address
+ * GET /api/profile/by-wallet/[wallet] - Get public profile by wallet address
  */
 
 import { NextRequest, NextResponse } from 'next/server';
