@@ -10,7 +10,7 @@ import { ArrowDown, Settings, Wallet } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { SOL_MINT, USDC_MINT } from '@/lib/solana/addresses';
-import { buildZenithTokens, ZenithToken } from '@/lib/tokenTrustEngine';
+import { buildZenithTokens, ZenithToken, getLivePrice } from '@/lib/tokenTrustEngine';
 
 // Mock function for now
 async function getQuote(params: any) {
@@ -54,16 +54,34 @@ export default function SwapCard() {
     }, []);
 
     // Fetch Quote (Runs regardless of wallet connection)
+    // Fetch Quote (Real-time prices via Jupiter API Free)
     useEffect(() => {
         const fetchQuote = async () => {
             if (!fromAmount || parseFloat(fromAmount) <= 0) {
                 setQuote(null);
                 return;
             }
-            // Placeholder logic for visual feedback
-            const out = parseFloat(fromAmount) * 142.50; // Mock price
-            setToAmount(out.toFixed(6));
-            setQuote({ price: 142.50, inputMint: fromToken.symbol, outputMint: toToken.symbol });
+
+            try {
+                // Fetch live prices for input/output tokens
+                const prices = await getLivePrice([fromToken.address, toToken.address]);
+                const inputPrice = prices[fromToken.address];
+                const outputPrice = prices[toToken.address];
+
+                if (inputPrice && outputPrice) {
+                    const totalValue = parseFloat(fromAmount) * inputPrice;
+                    const estimatedOutput = totalValue / outputPrice;
+
+                    setToAmount(estimatedOutput.toFixed(6));
+                    setQuote({
+                        price: inputPrice / outputPrice,
+                        inputMint: fromToken.symbol,
+                        outputMint: toToken.symbol
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to fetch price quote", err);
+            }
         };
 
         const debounce = setTimeout(fetchQuote, 500);
