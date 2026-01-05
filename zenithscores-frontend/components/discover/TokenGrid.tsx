@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import Link from 'next/link';
 
