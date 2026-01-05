@@ -108,17 +108,10 @@ export default function SwapCard() {
 
     return (
         <Card className="w-full max-w-md mx-auto space-y-4 p-6 bg-[#0B0E15] border-white/5 shadow-2xl backdrop-blur-xl">
+            {/* Header */}
             <div className="flex items-center justify-between mb-2">
-                <h2 className="text-xl font-bold text-white">Swap</h2>
+                <h2 className="text-xl font-bold text-white tracking-tight">Swap</h2>
                 <div className="flex items-center gap-2">
-                    {!connected && (
-                        <button
-                            onClick={() => setVisible(true)}
-                            className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
-                        >
-                            Connect
-                        </button>
-                    )}
                     <button className="text-zinc-500 hover:text-white transition-colors">
                         <Settings className="w-5 h-5" />
                     </button>

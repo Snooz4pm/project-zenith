@@ -21,7 +21,6 @@ interface NavLink {
 }
 
 const NAV_LINKS: NavLink[] = [
-    { href: '/', label: 'Swap' },
     { href: '/signals', label: 'Signals' },
 ];
 

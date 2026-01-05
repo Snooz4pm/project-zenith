@@ -138,7 +138,8 @@ export async function buildZenithTokens(): Promise<ZenithToken[]> {
                 isZenithVerified: computeTrust({ isJupiterListed, liquidityUsd: liq, volume24hUsd: vol })
             };
         })
-            .filter((t): t is ZenithToken => t !== null);
+            .filter((t): t is ZenithToken => t !== null)
+            .filter(t => t.liquidityUsd > 50_000); // Strict Manifesto Rule: >$50k Liquidity
 
         // Dedup
         return Array.from(new Map(tokens.map(t => [t.mint, t])).values());

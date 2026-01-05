@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { buildZenithTokens, ZenithToken } from "@/lib/tokenTrustEngine";
+import { buildZenithTokenList, ZenithToken } from "@/lib/zenith"; // New Engine
 import { useSwap } from "./SwapContext";
 
 export function TrendingSection() {
@@ -14,22 +14,20 @@ export function TrendingSection() {
 
     useEffect(() => {
         const loadTokens = async () => {
-            const trusted = await buildZenithTokens();
-            setTokens(trusted.slice(0, 12)); // Top 12 trending
+            const trusted = await buildZenithTokenList();
+            setTokens(trusted); // Already sliced to 40 in engine, UI can show all or slice again
             setLoading(false);
         };
         loadTokens();
     }, []);
 
     const handleTokenClick = (token: ZenithToken) => {
-        // "Auto-Fill" Logic: Click -> Becomes the output token (Buying)
-        // If user wanted to sell, they can swap input/output in the card
+        // "Psychological" Auto-Fill: Click -> Buy
         if (token.symbol === 'SOL') {
             setFromZenith(token);
         } else {
             setToZenith(token);
         }
-        // Ideally scroll to swap card on mobile if needed, but sticky layout handles desktop
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -49,13 +47,11 @@ export function TrendingSection() {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-accent-mint" />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-text-secondary">
-                        Trending on Solana
-                    </span>
+                <h2 className="text-xl font-medium text-[#EDEDED] flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-emerald-500" />
+                    Trending on Solana
                 </h2>
-                <button className="text-sm text-accent-mint hover:text-white transition-colors font-medium">
+                <button className="text-sm text-zinc-400 hover:text-white transition-colors font-medium">
                     View All Assets
                 </button>
             </div>
@@ -66,14 +62,14 @@ export function TrendingSection() {
                         key={token.mint}
                         onClick={() => handleTokenClick(token)}
                         className={cn(
-                            "group relative overflow-hidden transition-all duration-300",
-                            "bg-surface-2/50 backdrop-blur-xl border-white/5",
-                            "hover:scale-[1.05] hover:border-accent-mint/30 hover:shadow-[0_0_20px_rgba(0,255,196,0.1)]", // Teal glow + scale
+                            "group relative overflow-hidden transition-all duration-200",
+                            "bg-black border border-white/10",
+                            "hover:border-emerald-500/50 hover:bg-zinc-900/50",
                             "cursor-pointer"
                         )}
                     >
                         {/* Hover Gradient Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-accent-mint/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                         <div className="p-4 space-y-4 relative z-10">
                             {/* Header */}
@@ -87,21 +83,22 @@ export function TrendingSection() {
                                         </div>
                                     )}
                                     <div>
-                                        <div className="text-sm font-bold text-white group-hover:text-accent-mint transition-colors flex items-center gap-1">
+                                        <div className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors flex items-center gap-1">
                                             {token.symbol}
-                                            {token.isZenithVerified && (
-                                                <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                                            )}
                                         </div>
-                                        <div className="text-[10px] text-text-secondary truncate max-w-[80px]">
+                                        <div className="text-[10px] text-zinc-500 truncate max-w-[80px]">
                                             {token.name}
                                         </div>
                                     </div>
                                 </div>
+                                {/* Score Badge (Optional, but proves engine work) */}
+                                <div className="text-[10px] font-mono text-zinc-600 bg-white/5 px-1.5 py-0.5 rounded">
+                                    {token.zenithScore.toFixed(0)}
+                                </div>
                             </div>
 
                             {/* Divider Line (Silver) */}
-                            <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:via-accent-mint/20 transition-colors" />
+                            <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:via-emerald-500/20 transition-colors" />
 
                             {/* Price Area */}
                             <div>
@@ -110,14 +107,14 @@ export function TrendingSection() {
                                 </div>
                                 <div className={cn(
                                     "flex items-center gap-1 text-xs font-medium mt-1",
-                                    token.change24h >= 0 ? "text-emerald-400" : "text-red-400"
+                                    token.priceChange24h >= 0 ? "text-emerald-400" : "text-red-400"
                                 )}>
-                                    {token.change24h >= 0 ? (
+                                    {token.priceChange24h >= 0 ? (
                                         <ArrowUpRight className="w-3 h-3" />
                                     ) : (
                                         <ArrowDownRight className="w-3 h-3" />
                                     )}
-                                    {Math.abs(token.change24h).toFixed(2)}%
+                                    {Math.abs(token.priceChange24h).toFixed(2)}%
                                 </div>
                             </div>
                         </div>
@@ -133,9 +130,9 @@ export function TrendingSection() {
                     { title: "Pro Analytics", desc: "Real-time Metrics" }
                 ].map((feature, i) => (
                     <div key={i} className="text-center group cursor-default">
-                        <h3 className="text-white font-medium text-sm mb-1 group-hover:text-accent-mint transition-colors">{feature.title}</h3>
-                        <div className="h-[1px] w-8 bg-text-secondary/30 mx-auto mb-2 group-hover:w-16 group-hover:bg-accent-mint transition-all" />
-                        <p className="text-xs text-text-secondary">{feature.desc}</p>
+                        <h3 className="text-white font-medium text-sm mb-1 group-hover:text-emerald-400 transition-colors">{feature.title}</h3>
+                        <div className="h-[1px] w-8 bg-zinc-800 mx-auto mb-2 group-hover:w-16 group-hover:bg-emerald-500 transition-all" />
+                        <p className="text-xs text-zinc-500">{feature.desc}</p>
                     </div>
                 ))}
             </div>
