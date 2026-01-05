@@ -40,6 +40,9 @@ export default function Navbar() {
         return `${address.slice(0, 4)}...${address.slice(-4)}`;
     };
 
+    // Hide Navbar on Homepage
+    if (pathname === '/') return null;
+
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/5">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
