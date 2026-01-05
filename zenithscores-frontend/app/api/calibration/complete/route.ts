@@ -143,9 +143,14 @@ export async function GET(request: NextRequest) {
         } else if (walletAddress) {
             user = await prisma.user.findUnique({
                 where: { walletAddress },
-                calibrationCompleted: user?.calibrationCompleted || false,
-                tradingStyle: user?.tradingStyle || null,
-            }
+                select: { id: true, calibrationCompleted: true, tradingStyle: true }
+            })
+        }
+
+        return NextResponse.json({
+            status: "success",
+            calibrationCompleted: user?.calibrationCompleted || false,
+            tradingStyle: user?.tradingStyle || null,
         })
     } catch (error: any) {
         console.error("Calibration check error:", error)
