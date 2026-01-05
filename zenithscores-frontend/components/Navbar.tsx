@@ -13,6 +13,7 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 
 import { Wallet, ChevronDown, LogOut } from 'lucide-react';
 import { useState } from 'react';
+import { DirectConnectButton } from './wallet/DirectConnectButton';
 
 interface NavLink {
     href: string;
@@ -80,13 +81,7 @@ export default function Navbar() {
                     <div className="flex items-center gap-3">
                         {/* Connect Wallet / User Menu */}
                         {!connected ? (
-                            <button
-                                onClick={() => setVisible(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-colors text-sm font-medium"
-                            >
-                                <Wallet size={16} />
-                                Connect Wallet
-                            </button>
+                            <DirectConnectButton />
                         ) : (
                             <div className="relative">
                                 <button
