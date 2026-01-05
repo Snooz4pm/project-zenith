@@ -8,15 +8,14 @@ export default function Documentation() {
             <div className="max-w-4xl mx-auto">
                 <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-12 border-b border-white/10 pb-8">
                     <h1 className="text-4xl font-medium tracking-tight">Documentation</h1>
-                    <Link href="/" className="mt-4 sm:mt-0 text-emerald-400 hover:text-emerald-300 transition-colors text-sm font-medium flex items-center gap-1">
-                        Back to Terminal
+                    <Link href="/" className="mt-4 sm:mt-0 text-zinc-400 hover:text-white transition-colors text-sm font-medium flex items-center gap-1">
+                        ← Back to Terminal
                     </Link>
                 </header>
 
                 <div className="space-y-12">
                     <section>
-                        <h2 className="text-2xl font-medium text-white mb-4 flex items-center gap-2">
-                            <span className="w-1.5 h-6 bg-emerald-500 rounded-full" />
+                        <h2 className="text-2xl font-medium text-white mb-4">
                             Getting Started
                         </h2>
                         <div className="space-y-4 text-zinc-400 leading-relaxed">
@@ -24,17 +23,16 @@ export default function Documentation() {
                                 ZenithScores is a non-custodial trading terminal built on Solana.
                                 It aggregates liquidity from Jupiter and validates token quality via our strict Trust Engine.
                             </p>
-                            <ul className="list-disc pl-5 space-y-2 marker:text-emerald-500">
-                                <li><strong>Connect Wallet:</strong> Use Phantom, Solflare, or Backpack. No email signup required.</li>
-                                <li><strong>Trust Engine:</strong> We automatically filter out low-liquidity (&lt;$50k) garbage.</li>
-                                <li><strong>Direct Execution:</strong> Swaps are routed through Jupiter for the best price.</li>
+                            <ul className="list-disc pl-5 space-y-2">
+                                <li><strong className="text-white">Connect Wallet:</strong> Use Phantom, Solflare, or Backpack. No email signup required.</li>
+                                <li><strong className="text-white">Trust Engine:</strong> We automatically filter out low-liquidity (&lt;$50k) garbage.</li>
+                                <li><strong className="text-white">Direct Execution:</strong> Swaps are routed through Jupiter for the best price.</li>
                             </ul>
                         </div>
                     </section>
 
                     <section>
-                        <h2 className="text-2xl font-medium text-white mb-4 flex items-center gap-2">
-                            <span className="w-1.5 h-6 bg-cyan-500 rounded-full" />
+                        <h2 className="text-2xl font-medium text-white mb-4">
                             Signals Engine
                         </h2>
                         <div className="space-y-4 text-zinc-400 leading-relaxed">
@@ -42,19 +40,18 @@ export default function Documentation() {
                                 The Signals functionality detects assets with significant 24-hour momentum that pass our safety checks.
                             </p>
                             <div className="bg-zinc-900/50 border border-white/10 p-4 rounded-lg text-sm font-mono">
-                                <div className="mb-2 text-zinc-300 font-bold">Launch Criteria:</div>
+                                <div className="mb-2 text-white font-bold">Launch Criteria:</div>
                                 <ul className="space-y-1">
-                                    <li className="flex justify-between"><span>Min Liquidity:</span> <span className="text-emerald-400">$100,000</span></li>
-                                    <li className="flex justify-between"><span>Min Volume (24h):</span> <span className="text-emerald-400">$500,000</span></li>
-                                    <li className="flex justify-between"><span>Price Change (24h):</span> <span className="text-emerald-400">&ge; 30%</span></li>
+                                    <li className="flex justify-between"><span>Min Liquidity:</span> <span className="text-white">$100,000</span></li>
+                                    <li className="flex justify-between"><span>Min Volume (24h):</span> <span className="text-white">$500,000</span></li>
+                                    <li className="flex justify-between"><span>Price Change (24h):</span> <span className="text-white">&ge; 30%</span></li>
                                 </ul>
                             </div>
                         </div>
                     </section>
 
                     <section>
-                        <h2 className="text-2xl font-medium text-white mb-4 flex items-center gap-2">
-                            <span className="w-1.5 h-6 bg-purple-500 rounded-full" />
+                        <h2 className="text-2xl font-medium text-white mb-4">
                             API & Developer Access
                         </h2>
                         <p className="text-zinc-400 leading-relaxed mb-4">

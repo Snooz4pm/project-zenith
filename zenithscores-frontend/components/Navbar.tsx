@@ -49,8 +49,8 @@ export default function Navbar() {
                 <div className="flex items-center justify-between h-16">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center">
-                            <span className="text-black font-bold text-sm">Z</span>
+                        <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+                            <span className="text-white font-medium text-sm">Z</span>
                         </div>
                         <span className="font-bold text-white hidden sm:block">ZenithScores</span>
                     </Link>
