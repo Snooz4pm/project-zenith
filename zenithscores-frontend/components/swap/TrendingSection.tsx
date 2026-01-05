@@ -3,10 +3,12 @@ import { Card } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buildZenithTokens, ZenithToken } from "@/lib/tokenTrustEngine";
+import { useSwap } from "./SwapContext";
 
 export function TrendingSection() {
     const [tokens, setTokens] = useState<ZenithToken[]>([]);
     const [loading, setLoading] = useState(true);
+    const { setToZenith, setFromZenith } = useSwap();
 
     useEffect(() => {
         const loadTokens = async () => {
@@ -16,6 +18,18 @@ export function TrendingSection() {
         };
         loadTokens();
     }, []);
+
+    const handleTokenClick = (token: ZenithToken) => {
+        // "Auto-Fill" Logic: Click -> Becomes the output token (Buying)
+        // If user wanted to sell, they can swap input/output in the card
+        if (token.symbol === 'SOL') {
+            setFromZenith(token);
+        } else {
+            setToZenith(token);
+        }
+        // Ideally scroll to swap card on mobile if needed, but sticky layout handles desktop
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     if (loading) {
         return (
@@ -48,7 +62,8 @@ export function TrendingSection() {
                 {tokens.map((token) => (
                     <Card
                         key={token.mint}
-                        className={cn(
+                        onClick={() => handleTokenClick(token)}
+                         className={cn(
                             "group relative overflow-hidden transition-all duration-300",
                             "bg-surface-2/50 backdrop-blur-xl border-white/5",
                             "hover:scale-[1.05] hover:border-accent-mint/30 hover:shadow-[0_0_20px_rgba(0,255,196,0.1)]", // Teal glow + scale
