@@ -14,18 +14,19 @@ export async function POST(request: NextRequest) {
         // Step 1: Get session
         console.log("Step 1: Getting server session...")
         const session = await getServerSession(authOptions)
+        const walletAddress = (session?.user as any)?.walletAddress
         console.log("Session result:", {
             hasSession: !!session,
             userId: session?.user?.id || "MISSING",
-            userEmail: session?.user?.email || "MISSING",
+            walletAddress: walletAddress || "MISSING",
         })
 
-        // Check for user by id OR email (fallback for OAuth)
-        if (!session?.user?.id && !session?.user?.email) {
-            console.log("ERROR: No session user id or email")
+        // Check for user by id OR wallet address
+        if (!session?.user?.id && !walletAddress) {
+            console.log("ERROR: No session user id or wallet address")
             return NextResponse.json({
                 error: "Unauthorized",
-                debug: "No session.user.id or session.user.email"
+                debug: "No session.user.id or walletAddress"
             }, { status: 401 })
         }
 
@@ -35,15 +36,14 @@ export async function POST(request: NextRequest) {
         const { tradingStyle } = body
         console.log("Body parsed:", { hasTradingStyle: !!tradingStyle })
 
-        // Step 3: Find user by ID or email
+        // Step 3: Find user by ID or wallet address
         console.log("Step 3: Finding user...")
-        let userId = session.user.id
-        let userEmail = session.user.email
+        let userId = session?.user?.id
 
-        if (!userId && userEmail) {
-            console.log("No userId in session, looking up by email:", userEmail)
+        if (!userId && walletAddress) {
+            console.log("No userId in session, looking up by wallet:", walletAddress)
             const dbUser = await prisma.user.findUnique({
-                where: { email: userEmail },
+                where: { walletAddress },
                 select: { id: true }
             })
             console.log("DB lookup result:", dbUser)
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
             console.log("ERROR: Could not find user ID")
             return NextResponse.json({
                 error: "User not found",
-                debug: `Email: ${userEmail}, but no DB record found`
+                debug: `Wallet: ${walletAddress}, but no DB record found`
             }, { status: 404 })
         }
 
@@ -122,35 +122,27 @@ export async function GET(request: NextRequest) {
 
     try {
         const session = await getServerSession(authOptions)
+        const walletAddress = (session?.user as any)?.walletAddress
         console.log("Session:", {
             hasSession: !!session,
             userId: session?.user?.id || "MISSING",
-            userEmail: session?.user?.email || "MISSING",
+            walletAddress: walletAddress || "MISSING",
         })
 
-        if (!session?.user?.id && !session?.user?.email) {
+        if (!session?.user?.id && !walletAddress) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
-        // Find user by ID or email
+        // Find user by ID or wallet address
         let user = null
-        if (session.user.id) {
+        if (session?.user?.id) {
             user = await prisma.user.findUnique({
                 where: { id: session.user.id },
                 select: { id: true, calibrationCompleted: true, tradingStyle: true }
             })
-        } else if (session.user.email) {
+        } else if (walletAddress) {
             user = await prisma.user.findUnique({
-                where: { email: session.user.email },
-                select: { id: true, calibrationCompleted: true, tradingStyle: true }
-            })
-        }
-
-        console.log("DB User:", user)
-
-        return NextResponse.json({
-            status: "success",
-            data: {
+                where: { walletAddress },
                 calibrationCompleted: user?.calibrationCompleted || false,
                 tradingStyle: user?.tradingStyle || null,
             }

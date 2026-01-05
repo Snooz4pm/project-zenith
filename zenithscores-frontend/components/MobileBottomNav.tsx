@@ -3,13 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Home, LineChart, TrendingUp, Wallet } from 'lucide-react';
+import { Home, Zap, Search, Users } from 'lucide-react';
 
 const navItems = [
-    { href: '/', label: 'Scores', icon: Home },
-    { href: '/crypto', label: 'Crypto', icon: TrendingUp },
-    { href: '/stocks', label: 'Stocks', icon: LineChart },
-    { href: '/trading', label: 'Trading', icon: Wallet },
+    { href: '/', label: 'Home', icon: Home },
+    { href: '/swap', label: 'Swap', icon: Zap },
+    { href: '/markets/crypto-finds', label: 'Discover', icon: Search },
+    { href: '/community', label: 'Community', icon: Users },
 ];
 
 export default function MobileBottomNav() {

@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
     ArrowLeft, User, Camera, Save, Trash2, AlertTriangle,
-    Shield, Mail, Calendar, X, Check
+    Shield, Wallet, Calendar, X, Check
 } from 'lucide-react';
 
 export default function AccountSettingsPage() {
@@ -162,15 +162,19 @@ export default function AccountSettingsPage() {
                             </div>
                         </div>
 
-                        {/* Email (Read-only) */}
+                        {/* Wallet Address (Read-only) */}
                         <div>
-                            <label className="block text-sm text-zinc-400 mb-2">Email Address</label>
+                            <label className="block text-sm text-zinc-400 mb-2">Wallet Address</label>
                             <div className="flex items-center gap-3 px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-zinc-400">
-                                <Mail size={16} />
-                                <span>{session.user?.email}</span>
+                                <Wallet size={16} />
+                                <span className="font-mono text-sm">
+                                    {(session.user as any)?.walletAddress 
+                                        ? `${(session.user as any).walletAddress.slice(0, 4)}...${(session.user as any).walletAddress.slice(-4)}`
+                                        : 'Not connected'}
+                                </span>
                                 <span className="ml-auto text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">VERIFIED</span>
                             </div>
-                            <p className="text-xs text-zinc-600 mt-1">Email is managed by Google</p>
+                            <p className="text-xs text-zinc-600 mt-1">Your identity is verified via wallet signature</p>
                         </div>
                     </motion.div>
 
@@ -200,10 +204,8 @@ export default function AccountSettingsPage() {
                                     <span className="text-zinc-400">Auth Provider</span>
                                 </div>
                                 <span className="text-white flex items-center gap-2">
-                                    <span className="w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                                        <span className="text-[10px]">G</span>
-                                    </span>
-                                    Google
+                                    <Wallet size={14} className="text-[var(--accent-mint)]" />
+                                    Solana Wallet
                                 </span>
                             </div>
                             <div className="flex items-center justify-between py-3">

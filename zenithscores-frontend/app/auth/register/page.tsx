@@ -1,427 +1,295 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Loader2, Mail, Lock, User, ArrowRight, Check } from "lucide-react"
-import Link from "next/link"
 import { signIn } from "next-auth/react"
+import { Loader2, Wallet, Zap, Shield, Users, MessageSquare, Trophy, ArrowRight, Check } from "lucide-react"
+import Link from "next/link"
+import { useWallet } from "@solana/wallet-adapter-react"
+import { useWalletModal } from "@solana/wallet-adapter-react-ui"
+import bs58 from "bs58"
 
 export default function RegisterPage() {
-    const router = useRouter()
-    const [name, setName] = useState("")
-    const [email, setEmail] = useState("")
-    const [password, setPassword] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState("")
-    const [termsAccepted, setTermsAccepted] = useState(false)
-    const [isIdle, setIsIdle] = useState(false)
+    const [step, setStep] = useState<'connect' | 'sign' | 'success'>('connect')
 
+    // Solana Wallet
+    const { publicKey, signMessage, connected, disconnect } = useWallet()
+    const { setVisible } = useWalletModal()
+
+    // When wallet connects, move to sign step
     useEffect(() => {
-        let idleTimer: NodeJS.Timeout
-        const resetIdle = () => {
-            setIsIdle(false)
-            clearTimeout(idleTimer)
-            idleTimer = setTimeout(() => setIsIdle(true), 15000)
+        if (connected && publicKey && step === 'connect') {
+            setStep('sign')
         }
-        resetIdle()
-        window.addEventListener('mousemove', resetIdle)
-        window.addEventListener('keypress', resetIdle)
-        return () => {
-            clearTimeout(idleTimer)
-            window.removeEventListener('mousemove', resetIdle)
-            window.removeEventListener('keypress', resetIdle)
-        }
-    }, [])
+    }, [connected, publicKey, step])
 
-    const handleRegister = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!termsAccepted) {
-            setError("You must accept the terms of service.")
+    const handleCreateAccount = async () => {
+        if (!publicKey || !signMessage) {
+            setVisible(true)
             return
         }
+
         setIsLoading(true)
         setError("")
 
         try {
-            const res = await fetch("/api/register", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, email, password }),
+            // Create message to sign - no gas, no transaction
+            const message = `Sign to create your ZenithScores account.\n\nNo gas fees. No transactions.\nThis only verifies wallet ownership.\n\nWallet: ${publicKey.toBase58()}\nTimestamp: ${Date.now()}`
+            const messageBytes = new TextEncoder().encode(message)
+            
+            // Request signature
+            const signature = await signMessage(messageBytes)
+            const signatureBase58 = bs58.encode(signature)
+
+            // Create account via NextAuth
+            const res = await signIn("wallet", {
+                walletAddress: publicKey.toBase58(),
+                signature: signatureBase58,
+                message,
+                redirect: false,
             })
 
-            const data = await res.json()
-
-            if (!res.ok) {
-                throw new Error(data.error || "Failed to register")
+            if (res?.error) {
+                setError("Failed to create account. Please try again.")
+            } else {
+                setStep('success')
+                // Redirect after short delay
+                setTimeout(() => {
+                    window.location.href = "/command-center"
+                }, 2000)
             }
-
-            router.push("/auth/login?registered=true")
         } catch (err: any) {
-            setError(err.message)
+            console.error("Account creation error:", err)
+            if (err.message?.includes("rejected")) {
+                setError("Signature rejected. Please try again.")
+                setStep('connect')
+            } else {
+                setError("Failed to create account. Please try again.")
+            }
         } finally {
             setIsLoading(false)
         }
     }
 
-    const handleGoogleSignup = () => {
-        signIn("google", { callbackUrl: "/command-center" })
-    }
-
-    const getPasswordStrength = (pass: string) => {
-        let score = 0
-        if (pass.length > 5) score++
-        if (pass.length > 8) score++
-        if (/[A-Z]/.test(pass)) score++
-        if (/[0-9]/.test(pass)) score++
-        if (/[^A-Za-z0-9]/.test(pass)) score++
-        return score
-    }
-    const strength = getPasswordStrength(password)
-
     return (
-        <div style={{
-            minHeight: '100vh',
-            display: 'flex',
-            backgroundColor: '#0a0a0f',
-            position: 'relative',
-            overflow: 'hidden'
-        }}>
+        <div className="min-h-screen bg-black text-white flex">
+            {/* Left Panel - Value Proposition (Desktop) */}
+            <div className="hidden lg:flex w-[55%] flex-col justify-center px-16 relative overflow-hidden">
+                {/* Background effects */}
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/20 to-transparent" />
+                <div className="absolute top-1/4 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl" />
+                <div className="absolute bottom-1/4 left-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl" />
+                
+                <div className="relative z-10 max-w-lg">
+                    {/* Logo */}
+                    <div className="flex items-center gap-3 mb-12">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
+                            <Zap className="w-6 h-6 text-black" />
+                        </div>
+                        <span className="text-2xl font-bold tracking-tight">ZenithScores</span>
+                    </div>
 
-            {/* Ambient Activity Bar */}
-            <div style={{
-                position: 'fixed',
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: '4px',
-                zIndex: 50,
-                display: 'flex',
-                alignItems: 'flex-end'
-            }}>
-                <div
-                    style={{
-                        width: '100%',
-                        background: 'linear-gradient(to top, #10b981, #34d399)',
-                        borderTopLeftRadius: '4px',
-                        borderTopRightRadius: '4px',
-                        height: isIdle ? '30%' : '40%',
-                        animation: isIdle
-                            ? 'ambientPulseIdle 6s ease-in-out infinite'
-                            : 'ambientPulse 4s ease-in-out infinite',
-                        boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
-                        transition: 'height 0.3s ease'
-                    }}
-                />
-            </div>
-
-            <style jsx global>{`
-                @keyframes ambientPulse {
-                    0%, 100% { height: 40%; }
-                    50% { height: 70%; }
-                }
-                @keyframes ambientPulseIdle {
-                    0%, 100% { height: 30%; }
-                    50% { height: 50%; }
-                }
-            `}</style>
-
-            {/* Left Panel - Brand (65%) - DESKTOP ONLY */}
-            <div style={{
-                width: '65%',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                padding: '3rem 4rem',
-                position: 'relative'
-            }} className="hidden lg:flex">
-
-                <div style={{ maxWidth: '480px' }}>
-                    <h1 style={{
-                        fontSize: '3rem',
-                        fontWeight: 'bold',
-                        color: 'white',
-                        marginBottom: '1.5rem',
-                        lineHeight: 1.1
-                    }}>
-                        Start Your<br />
-                        <span style={{ color: '#10b981' }}>Trading Journey.</span>
+                    <h1 className="text-5xl font-bold mb-6 leading-tight">
+                        Join the<br />
+                        <span className="text-emerald-400">Community.</span>
                     </h1>
 
-                    <p style={{
-                        fontSize: '1.125rem',
-                        color: '#a1a1aa',
-                        marginBottom: '2.5rem',
-                        lineHeight: 1.6
-                    }}>
-                        Join thousands of traders using institutional-grade analytics
-                        to make smarter decisions. No credit card required.
+                    <p className="text-xl text-zinc-400 mb-12 leading-relaxed">
+                        Connect your wallet to unlock full platform access.
+                        No passwords. No emails. Just your wallet.
                     </p>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {/* What you unlock */}
+                    <div className="space-y-4">
+                        <p className="text-sm uppercase tracking-widest text-zinc-600 mb-4">What you unlock</p>
                         {[
-                            'Free access to real-time market data',
-                            'Paper trading with zero risk',
-                            'AI-powered decision support'
+                            { icon: Users, text: "Public profile & reputation", color: "emerald" },
+                            { icon: MessageSquare, text: "Community rooms & messaging", color: "purple" },
+                            { icon: Trophy, text: "XP, badges & leaderboards", color: "yellow" },
+                            { icon: Shield, text: "Saved watchlists & alerts", color: "blue" },
                         ].map((item, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <div style={{
-                                    width: '6px',
-                                    height: '6px',
-                                    borderRadius: '50%',
-                                    backgroundColor: '#10b981',
-                                    flexShrink: 0
-                                }} />
-                                <span style={{ color: '#71717a', fontSize: '0.875rem' }}>{item}</span>
+                            <div key={i} className="flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-lg bg-${item.color}-500/10 flex items-center justify-center`}>
+                                    <item.icon className={`w-5 h-5 text-${item.color}-400`} />
+                                </div>
+                                <span className="text-zinc-300">{item.text}</span>
                             </div>
                         ))}
+                    </div>
+
+                    {/* Trust note */}
+                    <div className="mt-12 p-4 rounded-xl bg-zinc-900/50 border border-zinc-800">
+                        <p className="text-sm text-zinc-500">
+                            <span className="text-emerald-400 font-medium">💡 Note:</span> Signing a message 
+                            is free and doesn't create any blockchain transaction. It only proves you own this wallet.
+                        </p>
                     </div>
                 </div>
             </div>
 
-            {/* Right Panel - Register Card (35%) */}
-            <div style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '2rem',
-                backgroundColor: '#0d0d12',
-                borderLeft: '1px solid rgba(255,255,255,0.05)'
-            }} className="lg:w-[35%]">
-                <div style={{ width: '100%', maxWidth: '420px' }}>
+            {/* Right Panel - Registration Flow */}
+            <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-zinc-950 lg:border-l border-zinc-800">
+                <div className="w-full max-w-md">
+                    {/* Mobile Logo */}
+                    <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
+                            <Zap className="w-6 h-6 text-black" />
+                        </div>
+                        <span className="text-2xl font-bold tracking-tight">ZenithScores</span>
+                    </div>
 
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white', marginBottom: '0.5rem' }}>
-                        Create account
+                    <h2 className="text-2xl font-bold mb-2 text-center lg:text-left">
+                        Create Account
                     </h2>
-                    <p style={{ color: '#71717a', marginBottom: '2rem' }}>
-                        Begin your trading journey
+                    <p className="text-zinc-500 mb-8 text-center lg:text-left">
+                        Two steps. Zero passwords.
                     </p>
 
-                    {/* Register Card */}
-                    <div style={{
-                        backgroundColor: '#111116',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '12px',
-                        padding: '1.5rem'
-                    }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    {/* Progress Steps */}
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+                            step === 'connect' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-500/10 text-emerald-500'
+                        }`}>
+                            {step !== 'connect' ? <Check className="w-4 h-4" /> : <span className="w-4 h-4 flex items-center justify-center">1</span>}
+                            Connect
+                        </div>
+                        <div className="w-8 h-px bg-zinc-800" />
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+                            step === 'sign' ? 'bg-emerald-500/20 text-emerald-400' : 
+                            step === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-zinc-800 text-zinc-500'
+                        }`}>
+                            {step === 'success' ? <Check className="w-4 h-4" /> : <span className="w-4 h-4 flex items-center justify-center">2</span>}
+                            Sign
+                        </div>
+                    </div>
 
-                            {/* Google Sign-up */}
-                            <button
-                                type="button"
-                                onClick={handleGoogleSignup}
-                                style={{
-                                    width: '100%',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '0.75rem',
-                                    backgroundColor: 'white',
-                                    color: '#27272a',
-                                    fontWeight: 500,
-                                    padding: '0.75rem',
-                                    borderRadius: '8px',
-                                    border: 'none',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                <svg style={{ width: '20px', height: '20px' }} viewBox="0 0 24 24">
-                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                                </svg>
-                                Sign up with Google
-                            </button>
+                    {/* Registration Card */}
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                        
+                        {/* Step 1: Connect Wallet */}
+                        {step === 'connect' && (
+                            <div className="space-y-4">
+                                <div className="text-center py-6">
+                                    <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
+                                        <Wallet className="w-8 h-8 text-zinc-400" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
+                                    <p className="text-zinc-500 text-sm">
+                                        Use Phantom, Solflare, or any Solana wallet
+                                    </p>
+                                </div>
 
-                            {/* Divider */}
-                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
-                                <span style={{ padding: '0 0.75rem', color: '#52525b', fontSize: '0.75rem', textTransform: 'uppercase' }}>or</span>
-                                <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
+                                <button
+                                    onClick={() => setVisible(true)}
+                                    className="w-full group relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 p-[1px]"
+                                >
+                                    <div className="relative flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-6 py-4 transition-all group-hover:from-emerald-400 group-hover:to-emerald-500">
+                                        <Wallet className="w-5 h-5 text-black" />
+                                        <span className="font-semibold text-black">Connect Wallet</span>
+                                    </div>
+                                </button>
                             </div>
+                        )}
 
-                            {/* Email/Password Form */}
-                            <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.875rem', color: '#a1a1aa', marginBottom: '0.5rem' }}>Name</label>
-                                    <div style={{ position: 'relative' }}>
-                                        <User style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: '#52525b' }} />
-                                        <input
-                                            type="text"
-                                            value={name}
-                                            onChange={(e) => setName(e.target.value)}
-                                            placeholder="Your name"
-                                            style={{
-                                                width: '100%',
-                                                paddingLeft: '40px',
-                                                paddingRight: '16px',
-                                                paddingTop: '12px',
-                                                paddingBottom: '12px',
-                                                backgroundColor: '#0a0a0f',
-                                                border: '1px solid rgba(255,255,255,0.1)',
-                                                borderRadius: '8px',
-                                                color: 'white',
-                                                fontSize: '0.875rem',
-                                                outline: 'none'
-                                            }}
-                                        />
+                        {/* Step 2: Sign Message */}
+                        {step === 'sign' && (
+                            <div className="space-y-4">
+                                <div className="text-center py-4">
+                                    <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+                                        <Check className="w-8 h-8 text-emerald-400" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold mb-2">Wallet Connected!</h3>
+                                    <p className="text-zinc-500 text-sm mb-2">
+                                        Now sign a message to verify ownership
+                                    </p>
+                                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-800 rounded-full text-sm">
+                                        <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                        <span className="text-zinc-400">
+                                            {publicKey?.toBase58().slice(0, 4)}...{publicKey?.toBase58().slice(-4)}
+                                        </span>
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.875rem', color: '#a1a1aa', marginBottom: '0.5rem' }}>Email</label>
-                                    <div style={{ position: 'relative' }}>
-                                        <Mail style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: '#52525b' }} />
-                                        <input
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            placeholder="you@example.com"
-                                            required
-                                            style={{
-                                                width: '100%',
-                                                paddingLeft: '40px',
-                                                paddingRight: '16px',
-                                                paddingTop: '12px',
-                                                paddingBottom: '12px',
-                                                backgroundColor: '#0a0a0f',
-                                                border: '1px solid rgba(255,255,255,0.1)',
-                                                borderRadius: '8px',
-                                                color: 'white',
-                                                fontSize: '0.875rem',
-                                                outline: 'none'
-                                            }}
-                                        />
+                                {/* What signing does */}
+                                <div className="p-4 rounded-xl bg-zinc-800/50 space-y-2 text-sm">
+                                    <div className="flex items-center gap-2 text-zinc-400">
+                                        <Check className="w-4 h-4 text-emerald-500" />
+                                        <span>No gas fees</span>
                                     </div>
-                                </div>
-
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.875rem', color: '#a1a1aa', marginBottom: '0.5rem' }}>Password</label>
-                                    <div style={{ position: 'relative' }}>
-                                        <Lock style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: '#52525b' }} />
-                                        <input
-                                            type="password"
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            placeholder="••••••••"
-                                            required
-                                            minLength={6}
-                                            style={{
-                                                width: '100%',
-                                                paddingLeft: '40px',
-                                                paddingRight: '16px',
-                                                paddingTop: '12px',
-                                                paddingBottom: '12px',
-                                                backgroundColor: '#0a0a0f',
-                                                border: '1px solid rgba(255,255,255,0.1)',
-                                                borderRadius: '8px',
-                                                color: 'white',
-                                                fontSize: '0.875rem',
-                                                outline: 'none'
-                                            }}
-                                        />
+                                    <div className="flex items-center gap-2 text-zinc-400">
+                                        <Check className="w-4 h-4 text-emerald-500" />
+                                        <span>No blockchain transaction</span>
                                     </div>
-                                    {/* Password Strength */}
-                                    <div style={{ marginTop: '0.5rem' }}>
-                                        <div style={{
-                                            height: '4px',
-                                            backgroundColor: 'rgba(255,255,255,0.1)',
-                                            borderRadius: '2px',
-                                            overflow: 'hidden'
-                                        }}>
-                                            <div style={{
-                                                height: '100%',
-                                                width: strength < 2 ? '20%' : strength < 4 ? '60%' : '100%',
-                                                backgroundColor: strength < 2 ? '#ef4444' : strength < 4 ? '#eab308' : '#10b981',
-                                                transition: 'all 0.3s ease'
-                                            }} />
-                                        </div>
-                                        <div style={{ fontSize: '0.625rem', textAlign: 'right', color: '#71717a', marginTop: '0.25rem' }}>
-                                            {strength < 2 ? 'Weak' : strength < 4 ? 'Moderate' : 'Strong'}
-                                        </div>
+                                    <div className="flex items-center gap-2 text-zinc-400">
+                                        <Check className="w-4 h-4 text-emerald-500" />
+                                        <span>Just proves wallet ownership</span>
                                     </div>
-                                </div>
-
-                                {/* Terms */}
-                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', paddingTop: '0.5rem' }}>
-                                    <button
-                                        type="button"
-                                        onClick={() => setTermsAccepted(!termsAccepted)}
-                                        style={{
-                                            marginTop: '2px',
-                                            width: '18px',
-                                            height: '18px',
-                                            borderRadius: '4px',
-                                            border: termsAccepted ? 'none' : '1px solid #52525b',
-                                            backgroundColor: termsAccepted ? '#10b981' : 'transparent',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            cursor: 'pointer',
-                                            flexShrink: 0
-                                        }}
-                                    >
-                                        {termsAccepted && <Check size={12} color="black" />}
-                                    </button>
-                                    <span style={{ fontSize: '0.75rem', color: '#a1a1aa', lineHeight: 1.4 }}>
-                                        I agree to the <Link href="/terms" style={{ color: 'white', textDecoration: 'none' }}>Terms of Service</Link> and <Link href="/privacy" style={{ color: 'white', textDecoration: 'none' }}>Privacy Policy</Link>.
-                                    </span>
                                 </div>
 
                                 {error && (
-                                    <div style={{
-                                        padding: '0.75rem',
-                                        borderRadius: '8px',
-                                        backgroundColor: 'rgba(239,68,68,0.1)',
-                                        border: '1px solid rgba(239,68,68,0.2)',
-                                        color: '#f87171',
-                                        fontSize: '0.875rem'
-                                    }}>
+                                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
                                         {error}
                                     </div>
                                 )}
 
                                 <button
-                                    type="submit"
+                                    onClick={handleCreateAccount}
                                     disabled={isLoading}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.75rem',
-                                        backgroundColor: '#10b981',
-                                        color: 'black',
-                                        fontWeight: 600,
-                                        borderRadius: '8px',
-                                        border: 'none',
-                                        cursor: isLoading ? 'not-allowed' : 'pointer',
-                                        opacity: isLoading ? 0.5 : 1,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '0.5rem'
-                                    }}
+                                    className="w-full group relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 p-[1px]"
                                 >
-                                    {isLoading ? (
-                                        <>
-                                            <Loader2 style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
-                                            Creating account...
-                                        </>
-                                    ) : (
-                                        <>
-                                            Create account
-                                            <ArrowRight size={16} />
-                                        </>
-                                    )}
+                                    <div className="relative flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-6 py-4 transition-all group-hover:from-emerald-400 group-hover:to-emerald-500">
+                                        {isLoading ? (
+                                            <Loader2 className="w-5 h-5 animate-spin text-black" />
+                                        ) : (
+                                            <Shield className="w-5 h-5 text-black" />
+                                        )}
+                                        <span className="font-semibold text-black">
+                                            {isLoading ? "Creating Account..." : "Sign & Create Account"}
+                                        </span>
+                                    </div>
                                 </button>
-                            </form>
-                        </div>
+
+                                <button
+                                    onClick={() => { disconnect(); setStep('connect'); }}
+                                    className="w-full py-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+                                >
+                                    Use different wallet
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Step 3: Success */}
+                        {step === 'success' && (
+                            <div className="text-center py-8">
+                                <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
+                                    <Check className="w-10 h-10 text-emerald-400" />
+                                </div>
+                                <h3 className="text-xl font-bold mb-2 text-emerald-400">Welcome to ZenithScores!</h3>
+                                <p className="text-zinc-500 mb-6">
+                                    Your account is ready. Redirecting...
+                                </p>
+                                <Loader2 className="w-6 h-6 animate-spin text-emerald-500 mx-auto" />
+                            </div>
+                        )}
                     </div>
 
-                    <p style={{ textAlign: 'center', fontSize: '0.875rem', color: '#71717a', marginTop: '1.5rem' }}>
-                        Already have an account?{" "}
-                        <Link href="/auth/login" style={{ color: '#10b981', fontWeight: 500, textDecoration: 'none' }}>
-                            Sign in
-                        </Link>
+                    {/* Footer Links */}
+                    <div className="mt-6 text-center">
+                        <p className="text-zinc-600 text-sm">
+                            Already have an account?{" "}
+                            <Link href="/auth/login" className="text-emerald-400 hover:text-emerald-300 font-medium">
+                                Sign in
+                            </Link>
+                        </p>
+                    </div>
+
+                    {/* Terms */}
+                    <p className="mt-6 text-xs text-zinc-600 text-center">
+                        By creating an account, you agree to our{" "}
+                        <Link href="/terms" className="text-zinc-400 hover:text-zinc-300">Terms of Service</Link>
+                        {" "}and{" "}
+                        <Link href="/privacy" className="text-zinc-400 hover:text-zinc-300">Privacy Policy</Link>
                     </p>
                 </div>
             </div>

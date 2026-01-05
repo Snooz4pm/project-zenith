@@ -6,15 +6,16 @@ import prisma from '@/lib/prisma';
 export async function GET(req: Request) {
     try {
         const session = await getServerSession(authOptions);
+        const walletAddress = (session?.user as any)?.walletAddress;
 
         // Return empty array for anonymous users
-        if (!session?.user?.email) {
+        if (!walletAddress) {
             return NextResponse.json({ items: [] });
         }
 
-        // Get user ID from email
+        // Get user ID from wallet address
         const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
+            where: { walletAddress },
             select: { id: true }
         });
 

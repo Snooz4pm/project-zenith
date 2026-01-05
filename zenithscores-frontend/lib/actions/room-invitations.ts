@@ -237,11 +237,11 @@ export async function searchUsersToInvite(
                 { roomMemberships: { none: { roomId } } },
                 // No pending invitation
                 { receivedInvitations: { none: { roomId, status: RoomInvitationStatus.pending } } },
-                // Match name or email
+                // Match name or wallet address
                 {
                     OR: [
                         { name: { contains: query, mode: 'insensitive' } },
-                        { email: { contains: query, mode: 'insensitive' } }
+                        { walletAddress: { contains: query, mode: 'insensitive' } }
                     ]
                 }
             ]
@@ -250,7 +250,7 @@ export async function searchUsersToInvite(
             id: true,
             name: true,
             image: true,
-            email: true
+            walletAddress: true
         },
         take: limit
     });

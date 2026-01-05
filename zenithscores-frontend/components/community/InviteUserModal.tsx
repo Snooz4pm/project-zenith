@@ -16,7 +16,7 @@ interface InviteUserModalProps {
 interface SearchUser {
     id: string;
     name: string | null;
-    email: string;
+    walletAddress: string | null;
     image: string | null;
 }
 
@@ -160,7 +160,7 @@ export default function InviteUserModal({ isOpen, onClose, roomId, roomName, cur
                                                 ) : (
                                                     <div className="w-8 h-8 rounded-full bg-[var(--accent-mint)]/20 flex items-center justify-center">
                                                         <span className="text-xs font-medium text-[var(--accent-mint)]">
-                                                            {(user.name || user.email).charAt(0).toUpperCase()}
+                                                            {(user.name || user.walletAddress || 'U').charAt(0).toUpperCase()}
                                                         </span>
                                                     </div>
                                                 )}
@@ -170,8 +170,8 @@ export default function InviteUserModal({ isOpen, onClose, roomId, roomName, cur
                                                     <p className="text-sm text-white font-medium truncate">
                                                         {user.name || 'Anonymous'}
                                                     </p>
-                                                    <p className="text-xs text-zinc-500 truncate">
-                                                        {user.email}
+                                                    <p className="text-xs text-zinc-500 truncate font-mono">
+                                                        {user.walletAddress ? `${user.walletAddress.slice(0, 4)}...${user.walletAddress.slice(-4)}` : 'No wallet'}
                                                     </p>
                                                 </div>
                                             </div>

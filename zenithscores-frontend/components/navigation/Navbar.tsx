@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, TrendingUp, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Users, Mail, Settings, Activity, Crown, Sparkles, Shield, Database, Loader2 } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Wallet, Menu, X, ChevronDown, User, LogOut, Users, Mail, Settings, Crown, Sparkles, Shield, Database, Loader2 } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import NotificationBell from '@/components/community/NotificationBell';
 import { useWallet } from '@/lib/wallet/WalletContext';
@@ -115,43 +115,45 @@ interface NavLink {
   children?: { label: string; href: string; description: string }[];
 }
 
+/**
+ * SIMPLIFIED NAVIGATION (Solana-native focus)
+ * 
+ * REMOVED: Paper Trading, Decision Lab, Markets (Stocks/Forex), Crypto overview
+ * KEPT: Solana Swap, Crypto Finds, Intelligence, Community, Learn
+ */
+
 // Core navigation structure
 const CORE_LINKS: NavLink[] = [
   { label: 'Dashboard', href: '/command-center', icon: <LayoutDashboard size={16} /> },
-  { label: 'Decision', href: '/decision-lab', icon: <Activity size={16} /> },
   {
     label: 'Trade',
-    href: '/trading',
+    href: '/swap',
     icon: <Wallet size={16} />,
     children: [
-      { label: 'Paper Trading', href: '/trading', description: 'Practice with simulated funds' },
-      { label: 'Arena', href: '/arena', description: 'Real money execution' }
-    ]
-  },
-  {
-    label: 'Markets',
-    href: '/crypto',
-    icon: <TrendingUp size={16} />,
-    children: [
-      { label: 'Crypto Finds', href: '/markets/crypto-finds', description: 'Discovery terminal' },
-      { label: 'Crypto', href: '/crypto', description: 'Cryptocurrency markets' },
-      { label: 'Stocks', href: '/stocks', description: 'Stock market data' },
-      { label: 'Forex', href: '/forex', description: 'Currency pairs' }
+      { label: 'Solana Swap', href: '/swap', description: 'Trade via Jupiter' },
+      { label: 'Crypto Finds', href: '/markets/crypto-finds', description: 'Token discovery terminal' },
+      { label: 'Opportunities', href: '/terminal', description: 'Market opportunities' }
     ]
   }
 ];
 
-// Intelligence group - market data inputs
+// Intelligence group - market data inputs (Solana-focused)
 const INTELLIGENCE_LINKS: NavLink = {
   label: 'Intelligence',
   href: '/signals',
   icon: <Sparkles size={16} />,
   children: [
-    { label: 'Signal', href: '/signals', description: 'Live market signals' },
+    { label: 'Signals', href: '/signals', description: 'Live Solana signals' },
     { label: 'Flow', href: '/flow', description: 'Capital flow analysis' },
-    { label: 'Opportunities', href: '/terminal', description: 'Market opportunities' },
     { label: 'News', href: '/news', description: 'Market news & updates' }
   ]
+};
+
+// Community - standalone
+const COMMUNITY_LINK: NavLink = {
+  label: 'Community',
+  href: '/community',
+  icon: <Users size={16} />
 };
 
 // Learn group - education tools
@@ -165,14 +167,7 @@ const LEARN_LINKS: NavLink = {
   ]
 };
 
-// Community - standalone
-const COMMUNITY_LINK: NavLink = {
-  label: 'Community',
-  href: '/community',
-  icon: <Users size={16} />
-};
-
-// Public links - shown to everyone (replaced Markets with Product pages)
+// Public links - shown to everyone
 const PUBLIC_LINKS: NavLink[] = [
   { label: 'Platform', href: '/zenith', icon: <LayoutDashboard size={16} /> },
   { label: 'Security', href: '/security', icon: <Shield size={16} /> },
@@ -183,8 +178,8 @@ const PUBLIC_LINKS: NavLink[] = [
 const PRIVATE_LINKS: NavLink[] = [
   ...CORE_LINKS,
   INTELLIGENCE_LINKS,
-  LEARN_LINKS,
-  COMMUNITY_LINK
+  COMMUNITY_LINK,
+  LEARN_LINKS
 ];
 
 export default function Navbar() {
@@ -415,18 +410,6 @@ export default function Navbar() {
                   {/* Dropdown Menu */}
                   <div className={`absolute top-full right-0 mt-2 w-56 p-2 rounded-xl glass-panel origin-top-right transition-all duration-200 ${activeDropdown === 'user' ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'
                     }`}>
-                    {/* Premium Badge */}
-                    {session.user.isPremium && (
-                      <div className="px-4 py-2 mb-2 rounded-lg bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30">
-                        <div className="flex items-center gap-2">
-                          <Crown size={16} className="text-yellow-400" />
-                          <span className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
-                            Premium Member
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
                     <Link
                       href={`/user/${session.user?.id}`}
                       className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[rgba(255,255,255,0.03)] transition-colors group/item"
@@ -446,15 +429,6 @@ export default function Navbar() {
                     >
                       <Settings size={16} className="text-zinc-400 group-hover/item:text-white transition-colors" />
                       <div className="text-sm text-white">Settings</div>
-                    </Link>
-
-                    <Link
-                      href="/profile/subscription"
-                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[rgba(255,255,255,0.03)] transition-colors group/item"
-                      onClick={() => setActiveDropdown(null)}
-                    >
-                      <Crown size={16} className={session.user.isPremium ? "text-yellow-400" : "text-zinc-400 group-hover/item:text-white transition-colors"} />
-                      <div className="text-sm text-white">{session.user.isPremium ? 'Manage Subscription' : 'Upgrade to Premium'}</div>
                     </Link>
 
                     <div className="my-2 h-px bg-white/5" />

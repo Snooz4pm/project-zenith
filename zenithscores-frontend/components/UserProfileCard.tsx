@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
     User, Settings, Award, TrendingUp, Users, Calendar,
-    Twitter, MessageSquare, Edit2, Save, X, Crown
+    Twitter, MessageSquare, Edit2, Save, X, Wallet
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Badge, CAREER_BADGES } from '@/lib/badge-system';
@@ -31,7 +31,7 @@ interface UserProfile {
     };
     badges: Badge[];
     joinedAt: Date;
-    isPremium: boolean;
+    walletAddress?: string;
 }
 
 interface UserProfileCardProps {
@@ -78,11 +78,13 @@ export default function UserProfileCard({
         <div className="bg-gray-900/80 backdrop-blur-sm border border-gray-800 rounded-2xl overflow-hidden">
             {/* Header Banner */}
             <div className="h-32 bg-gradient-to-r from-purple-900/50 via-pink-900/50 to-blue-900/50 relative">
-                {profile.isPremium && (
+                {profile.walletAddress && (
                     <div className="absolute top-4 right-4 flex items-center gap-1 px-3 py-1 
-                                  bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full">
-                        <Crown className="w-4 h-4 text-black" />
-                        <span className="text-xs font-bold text-black">PREMIUM</span>
+                                  bg-zinc-800/80 backdrop-blur rounded-full border border-zinc-700">
+                        <Wallet className="w-3 h-3 text-emerald-400" />
+                        <span className="text-xs font-mono text-zinc-400">
+                            {profile.walletAddress.slice(0, 4)}...{profile.walletAddress.slice(-4)}
+                        </span>
                     </div>
                 )}
             </div>

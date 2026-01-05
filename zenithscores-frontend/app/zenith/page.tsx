@@ -21,8 +21,8 @@ export default function ZenithPlatformPage() {
                 >
                     <h1 className="text-5xl md:text-6xl font-bold mb-6">The Zenith Platform</h1>
                     <p className="text-xl text-zinc-400 font-light max-w-2xl mx-auto">
-                        Intelligence & Execution. A unified workspace for market analysis,
-                        paper trading, and secure execution.
+                        Solana-native discovery and execution. Find tokens, evaluate them, 
+                        and swap for real via Jupiter.
                     </p>
                 </motion.div>
 
@@ -44,7 +44,7 @@ export default function ZenithPlatformPage() {
                 {/* Core Capabilities */}
                 <div className="grid gap-20">
 
-                    {/* Market Intelligence */}
+                    {/* Token Discovery */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
                         className="flex flex-col md:flex-row gap-10 items-start"
@@ -53,15 +53,15 @@ export default function ZenithPlatformPage() {
                             <BarChart2 className="text-emerald-500" size={32} />
                         </div>
                         <div>
-                            <h3 className="text-2xl font-bold mb-4">Unfiltered Reality.</h3>
+                            <h3 className="text-2xl font-bold mb-4">Token Discovery.</h3>
                             <p className="text-zinc-400 leading-relaxed text-lg">
-                                We stream raw, provider-native data. No smoothing, no lag, no bias.
-                                See the market structure exactly as it exists across equities and digital assets.
+                                Crypto Finds surfaces trending Solana tokens with flow intelligence.
+                                See what's moving before the crowd catches on.
                             </p>
                         </div>
                     </motion.div>
 
-                    {/* Paper Trading */}
+                    {/* Real Swaps */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
                         className="flex flex-col md:flex-row gap-10 items-start"
@@ -70,11 +70,10 @@ export default function ZenithPlatformPage() {
                             <TrendingUp className="text-cyan-500" size={32} />
                         </div>
                         <div>
-                            <h3 className="text-2xl font-bold mb-4">Risk-Free Validation.</h3>
+                            <h3 className="text-2xl font-bold mb-4">Real Execution.</h3>
                             <p className="text-zinc-400 leading-relaxed text-lg">
-                                Test your thesis in real-time market conditions without capital exposure.
-                                Our internal paper trading engine simulates execution latency and slippage
-                                for realistic performance tracking.
+                                No simulators. No paper trading. Connect your Phantom wallet and 
+                                execute real swaps through Jupiter with best-route aggregation.
                             </p>
                         </div>
                     </motion.div>
@@ -90,7 +89,7 @@ export default function ZenithPlatformPage() {
                         <div>
                             <h3 className="text-2xl font-bold mb-4">Direct On-Chain Action.</h3>
                             <p className="text-zinc-400 leading-relaxed text-lg">
-                                When you are ready to execute, connect your Phantom or MetaMask wallet.
+                                Connect your Phantom wallet and trade directly on Solana.
                                 Zenith acts as a sophisticated interface for decentralized exchanges.
                                 We route your intent; the blockchain handles the settlement.
                             </p>

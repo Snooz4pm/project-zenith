@@ -2,339 +2,208 @@
 
 import { useState, useEffect } from "react"
 import { signIn } from "next-auth/react"
-import { Loader2, Mail, Lock, ArrowRight } from "lucide-react"
+import { Loader2, Wallet, Zap, Shield, Globe } from "lucide-react"
 import Link from "next/link"
+import { useWallet } from "@solana/wallet-adapter-react"
+import { useWalletModal } from "@solana/wallet-adapter-react-ui"
+import bs58 from "bs58"
 
 export default function LoginPage() {
-    const [email, setEmail] = useState("")
-    const [password, setPassword] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState("")
-    const [isIdle, setIsIdle] = useState(false)
 
+    // Solana Wallet
+    const { publicKey, signMessage, connected, disconnect } = useWallet()
+    const { setVisible } = useWalletModal()
+
+    // Auto sign-in when wallet connects
     useEffect(() => {
-        let idleTimer: NodeJS.Timeout
-        const resetIdle = () => {
-            setIsIdle(false)
-            clearTimeout(idleTimer)
-            idleTimer = setTimeout(() => setIsIdle(true), 15000)
+        if (connected && publicKey && !isLoading) {
+            handleWalletSignIn()
         }
-        resetIdle()
-        window.addEventListener('mousemove', resetIdle)
-        window.addEventListener('keypress', resetIdle)
-        return () => {
-            clearTimeout(idleTimer)
-            window.removeEventListener('mousemove', resetIdle)
-            window.removeEventListener('keypress', resetIdle)
-        }
-    }, [])
+    }, [connected, publicKey])
 
-    const handleCredentialsLogin = async (e: React.FormEvent) => {
-        e.preventDefault()
+    const handleWalletSignIn = async () => {
+        if (!publicKey || !signMessage) {
+            setVisible(true)
+            return
+        }
+
         setIsLoading(true)
         setError("")
 
         try {
-            const res = await signIn("credentials", {
-                email,
-                password,
+            // Create message to sign
+            const message = `Sign in to ZenithScores\n\nWallet: ${publicKey.toBase58()}\nTimestamp: ${Date.now()}`
+            const messageBytes = new TextEncoder().encode(message)
+            
+            // Request signature
+            const signature = await signMessage(messageBytes)
+            const signatureBase58 = bs58.encode(signature)
+
+            // Sign in via NextAuth
+            const res = await signIn("wallet", {
+                walletAddress: publicKey.toBase58(),
+                signature: signatureBase58,
+                message,
                 redirect: false,
             })
 
             if (res?.error) {
-                setError("Invalid email or password")
+                setError("Wallet authentication failed")
+                disconnect()
             } else {
                 window.location.href = "/command-center"
             }
-        } catch (err) {
-            setError("An error occurred. Please try again.")
+        } catch (err: any) {
+            console.error("Wallet sign-in error:", err)
+            if (err.message?.includes("rejected")) {
+                setError("Signature rejected. Please try again.")
+            } else {
+                setError("Failed to authenticate. Please try again.")
+            }
+            disconnect()
         } finally {
             setIsLoading(false)
         }
     }
 
-    const handleGoogleLogin = () => {
-        signIn("google", { callbackUrl: "/command-center" })
-    }
-
     return (
-        <div style={{
-            minHeight: '100vh',
-            display: 'flex',
-            backgroundColor: '#0a0a0f',
-            position: 'relative',
-            overflow: 'hidden'
-        }}>
+        <div className="min-h-screen bg-black text-white flex">
+            {/* Left Panel - Branding (Desktop) */}
+            <div className="hidden lg:flex w-[55%] flex-col justify-center px-16 relative overflow-hidden">
+                {/* Background gradient */}
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/20 to-transparent" />
+                <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl" />
+                
+                <div className="relative z-10 max-w-lg">
+                    {/* Logo */}
+                    <div className="flex items-center gap-3 mb-12">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
+                            <Zap className="w-6 h-6 text-black" />
+                        </div>
+                        <span className="text-2xl font-bold tracking-tight">ZenithScores</span>
+                    </div>
 
-            {/* Ambient Activity Bar */}
-            <div style={{
-                position: 'fixed',
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: '4px',
-                zIndex: 50,
-                display: 'flex',
-                alignItems: 'flex-end'
-            }}>
-                <div
-                    style={{
-                        width: '100%',
-                        background: 'linear-gradient(to top, #10b981, #34d399)',
-                        borderTopLeftRadius: '4px',
-                        borderTopRightRadius: '4px',
-                        height: isIdle ? '30%' : '40%',
-                        animation: isIdle
-                            ? 'ambientPulseIdle 6s ease-in-out infinite'
-                            : 'ambientPulse 4s ease-in-out infinite',
-                        boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
-                        transition: 'height 0.3s ease'
-                    }}
-                />
-            </div>
-
-            <style jsx global>{`
-                @keyframes ambientPulse {
-                    0%, 100% { height: 40%; }
-                    50% { height: 70%; }
-                }
-                @keyframes ambientPulseIdle {
-                    0%, 100% { height: 30%; }
-                    50% { height: 50%; }
-                }
-            `}</style>
-
-            {/* Left Panel - Brand (65%) - DESKTOP ONLY */}
-            <div style={{
-                width: '65%',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                padding: '3rem 4rem',
-                position: 'relative'
-            }} className="hidden lg:flex">
-
-                <div style={{ maxWidth: '480px' }}>
-                    <h1 style={{
-                        fontSize: '3rem',
-                        fontWeight: 'bold',
-                        color: 'white',
-                        marginBottom: '1.5rem',
-                        lineHeight: 1.1
-                    }}>
+                    <h1 className="text-5xl font-bold mb-6 leading-tight">
                         Market Intelligence,<br />
-                        <span style={{ color: '#10b981' }}>Engineered.</span>
+                        <span className="text-emerald-400">Web3 Native.</span>
                     </h1>
 
-                    <p style={{
-                        fontSize: '1.125rem',
-                        color: '#a1a1aa',
-                        marginBottom: '2.5rem',
-                        lineHeight: 1.6
-                    }}>
-                        Real-time analytics and AI-powered insights for professional traders.
-                        Non-custodial. Transparent. Built for precision.
+                    <p className="text-xl text-zinc-400 mb-12 leading-relaxed">
+                        Connect your Solana wallet. No passwords, no emails required.
+                        Pure DeFi, trustless authentication.
                     </p>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {/* Features */}
+                    <div className="space-y-4">
                         {[
-                            'Institutional-grade data from Finnhub & DexScreener',
-                            'Zero custody — your keys, your assets',
-                            'Decision Lab for behavioral optimization'
+                            { icon: Shield, text: "Non-custodial — your keys, your identity" },
+                            { icon: Zap, text: "One-click sign in with Phantom or Solflare" },
+                            { icon: Globe, text: "Community profiles, rooms, and messaging" }
                         ].map((item, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <div style={{
-                                    width: '6px',
-                                    height: '6px',
-                                    borderRadius: '50%',
-                                    backgroundColor: '#10b981',
-                                    flexShrink: 0
-                                }} />
-                                <span style={{ color: '#71717a', fontSize: '0.875rem' }}>{item}</span>
+                            <div key={i} className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                                    <item.icon className="w-4 h-4 text-emerald-400" />
+                                </div>
+                                <span className="text-zinc-400">{item.text}</span>
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
 
-            {/* Right Panel - Login Card (35%) */}
-            <div style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '2rem',
-                backgroundColor: '#0d0d12',
-                borderLeft: '1px solid rgba(255,255,255,0.05)'
-            }} className="lg:w-[35%]">
-                <div style={{ width: '100%', maxWidth: '420px' }}>
+            {/* Right Panel - Auth */}
+            <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-zinc-950 lg:border-l border-zinc-800">
+                <div className="w-full max-w-md">
+                    {/* Mobile Logo */}
+                    <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
+                            <Zap className="w-6 h-6 text-black" />
+                        </div>
+                        <span className="text-2xl font-bold tracking-tight">ZenithScores</span>
+                    </div>
 
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white', marginBottom: '0.5rem' }}>
+                    <h2 className="text-2xl font-bold mb-2 text-center lg:text-left">
                         Welcome back
                     </h2>
-                    <p style={{ color: '#71717a', marginBottom: '2rem' }}>
-                        Sign in to access your dashboard
+                    <p className="text-zinc-500 mb-8 text-center lg:text-left">
+                        Connect your wallet to continue
                     </p>
 
-                    {/* Login Card */}
-                    <div style={{
-                        backgroundColor: '#111116',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '12px',
-                        padding: '1.5rem'
-                    }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-                            {/* Google Sign-in */}
+                    {/* Auth Card */}
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                        <div className="space-y-4">
+                            {/* Primary: Wallet Connect */}
                             <button
-                                type="button"
-                                onClick={handleGoogleLogin}
-                                style={{
-                                    width: '100%',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '0.75rem',
-                                    backgroundColor: 'white',
-                                    color: '#27272a',
-                                    fontWeight: 500,
-                                    padding: '0.75rem',
-                                    borderRadius: '8px',
-                                    border: 'none',
-                                    cursor: 'pointer'
-                                }}
+                                onClick={() => connected ? handleWalletSignIn() : setVisible(true)}
+                                disabled={isLoading}
+                                className="w-full group relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 p-[1px]"
                             >
-                                <svg style={{ width: '20px', height: '20px' }} viewBox="0 0 24 24">
-                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                                </svg>
-                                Continue with Google
+                                <div className="relative flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-6 py-4 transition-all group-hover:from-emerald-400 group-hover:to-emerald-500">
+                                    {isLoading ? (
+                                        <Loader2 className="w-5 h-5 animate-spin text-black" />
+                                    ) : (
+                                        <Wallet className="w-5 h-5 text-black" />
+                                    )}
+                                    <span className="font-semibold text-black">
+                                        {isLoading ? "Authenticating..." : connected ? "Sign Message to Continue" : "Connect Wallet"}
+                                    </span>
+                                </div>
                             </button>
 
-                            {/* Divider */}
-                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
-                                <span style={{ padding: '0 0.75rem', color: '#52525b', fontSize: '0.75rem', textTransform: 'uppercase' }}>or</span>
-                                <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
+                            {/* Wallet Status */}
+                            {connected && publicKey && (
+                                <div className="flex items-center justify-center gap-2 text-sm text-zinc-500">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                    <span>{publicKey.toBase58().slice(0, 4)}...{publicKey.toBase58().slice(-4)}</span>
+                                    <button 
+                                        onClick={() => disconnect()}
+                                        className="text-emerald-400 hover:text-emerald-300 ml-2"
+                                    >
+                                        Disconnect
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Error Display */}
+                            {error && (
+                                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+                                    {error}
+                                </div>
+                            )}
+
+                            {/* Info */}
+                            <div className="pt-4 border-t border-zinc-800">
+                                <p className="text-xs text-zinc-600 text-center">
+                                    Signing a message proves wallet ownership.
+                                    No transaction, no gas fees.
+                                </p>
                             </div>
-
-                            {/* Email/Password Form */}
-                            <form onSubmit={handleCredentialsLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.875rem', color: '#a1a1aa', marginBottom: '0.5rem' }}>Email</label>
-                                    <div style={{ position: 'relative' }}>
-                                        <Mail style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: '#52525b' }} />
-                                        <input
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            placeholder="you@example.com"
-                                            required
-                                            style={{
-                                                width: '100%',
-                                                paddingLeft: '40px',
-                                                paddingRight: '16px',
-                                                paddingTop: '12px',
-                                                paddingBottom: '12px',
-                                                backgroundColor: '#0a0a0f',
-                                                border: '1px solid rgba(255,255,255,0.1)',
-                                                borderRadius: '8px',
-                                                color: 'white',
-                                                fontSize: '0.875rem',
-                                                outline: 'none'
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                        <label style={{ fontSize: '0.875rem', color: '#a1a1aa' }}>Password</label>
-                                        <Link href="/auth/forgot-password" style={{ fontSize: '0.75rem', color: '#10b981', textDecoration: 'none' }}>
-                                            Forgot password?
-                                        </Link>
-                                    </div>
-                                    <div style={{ position: 'relative' }}>
-                                        <Lock style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: '#52525b' }} />
-                                        <input
-                                            type="password"
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            placeholder="••••••••"
-                                            required
-                                            style={{
-                                                width: '100%',
-                                                paddingLeft: '40px',
-                                                paddingRight: '16px',
-                                                paddingTop: '12px',
-                                                paddingBottom: '12px',
-                                                backgroundColor: '#0a0a0f',
-                                                border: '1px solid rgba(255,255,255,0.1)',
-                                                borderRadius: '8px',
-                                                color: 'white',
-                                                fontSize: '0.875rem',
-                                                outline: 'none'
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-
-                                {error && (
-                                    <div style={{
-                                        padding: '0.75rem',
-                                        borderRadius: '8px',
-                                        backgroundColor: 'rgba(239,68,68,0.1)',
-                                        border: '1px solid rgba(239,68,68,0.2)',
-                                        color: '#f87171',
-                                        fontSize: '0.875rem'
-                                    }}>
-                                        {error}
-                                    </div>
-                                )}
-
-                                <button
-                                    type="submit"
-                                    disabled={isLoading}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.75rem',
-                                        backgroundColor: '#10b981',
-                                        color: 'black',
-                                        fontWeight: 600,
-                                        borderRadius: '8px',
-                                        border: 'none',
-                                        cursor: isLoading ? 'not-allowed' : 'pointer',
-                                        opacity: isLoading ? 0.5 : 1,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '0.5rem'
-                                    }}
-                                >
-                                    {isLoading ? (
-                                        <>
-                                            <Loader2 style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
-                                            Signing in...
-                                        </>
-                                    ) : (
-                                        <>
-                                            Sign in
-                                            <ArrowRight size={16} />
-                                        </>
-                                    )}
-                                </button>
-                            </form>
                         </div>
                     </div>
 
-                    <p style={{ textAlign: 'center', fontSize: '0.875rem', color: '#71717a', marginTop: '1.5rem' }}>
-                        Don't have an account?{" "}
-                        <Link href="/auth/register" style={{ color: '#10b981', fontWeight: 500, textDecoration: 'none' }}>
-                            Create one
-                        </Link>
-                    </p>
+                    {/* Footer Links */}
+                    <div className="mt-6 text-center">
+                        <p className="text-zinc-600 text-sm">
+                            New to ZenithScores?{" "}
+                            <Link href="/auth/register" className="text-emerald-400 hover:text-emerald-300 font-medium">
+                                Create account
+                            </Link>
+                        </p>
+                    </div>
+
+                    {/* Trust Indicators */}
+                    <div className="mt-8 flex items-center justify-center gap-6 text-xs text-zinc-600">
+                        <span className="flex items-center gap-1.5">
+                            <Shield className="w-3 h-3" />
+                            Non-custodial
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                            <Zap className="w-3 h-3" />
+                            Instant access
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>

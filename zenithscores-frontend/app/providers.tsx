@@ -12,6 +12,7 @@ import {
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
 import { useMemo } from 'react'
 import { WalletProvider } from '@/lib/wallet/WalletContext'
+import { WalletIdentityProvider } from '@/lib/wallet-identity'
 import '@solana/wallet-adapter-react-ui/styles.css'
 
 const queryClient = new QueryClient()
@@ -23,6 +24,7 @@ const queryClient = new QueryClient()
  * - Wagmi for EVM wallets (MetaMask, WalletConnect)
  * - Solana Wallet Adapter for Solana wallets (Phantom, Solflare)
  * - Unified WalletContext wraps both
+ * - WalletIdentityProvider for auth state (replaces NextAuth session)
  * ONE source of truth for wallet state
  */
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -51,7 +53,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <SolanaWalletProvider wallets={wallets} autoConnect={false}>
             <WalletModalProvider>
               <WalletProvider>
-                {children}
+                <WalletIdentityProvider>
+                  {children}
+                </WalletIdentityProvider>
               </WalletProvider>
             </WalletModalProvider>
           </SolanaWalletProvider>

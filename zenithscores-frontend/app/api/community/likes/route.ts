@@ -6,12 +6,13 @@ import { authOptions } from '@/lib/auth';
 export async function POST(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !session.user) {
+        const walletAddress = (session?.user as any)?.walletAddress;
+        if (!walletAddress) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const { postId } = await req.json();
-        const userId = session.user.email!;
+        const userId = walletAddress;
         const id = parseInt(postId);
 
         // Check if liked

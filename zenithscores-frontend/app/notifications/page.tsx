@@ -42,7 +42,7 @@ export default function NotificationsPage() {
     const getIcon = (type: PushNotification['type']) => {
         switch (type) {
             case 'pulse': return <Zap size={18} className="text-cyan-400" />;
-            case 'arena': return <Trophy size={18} className="text-yellow-400" />;
+            case 'swap': return <Trophy size={18} className="text-yellow-400" />;
             case 'prediction': return <Target size={18} className="text-purple-400" />;
             case 'streak': return <Flame size={18} className="text-orange-400" />;
             case 'achievement': return <Award size={18} className="text-pink-400" />;

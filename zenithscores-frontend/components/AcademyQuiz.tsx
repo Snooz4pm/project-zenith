@@ -120,8 +120,9 @@ export default function AcademyQuiz({ moduleId, difficulty, courseTitle, onClose
         // Count repeated mistakes? We'd need history. For now send 0 or implement later.
         // Difficulty mapping: Easy=1, Medium=3, Hard=5
         const difficultyScore = difficulty === 'hard' ? 5 : difficulty === 'medium' ? 3 : 1;
+        const walletAddress = (session?.user as any)?.walletAddress;
 
-        if (session?.user?.email) {
+        if (walletAddress) {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -131,7 +132,7 @@ export default function AcademyQuiz({ moduleId, difficulty, courseTitle, onClose
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        user_id: session.user.email, // Using email as ID per convention found
+                        user_id: walletAddress,
                         module_id: moduleId,
                         difficulty: difficulty,
                         score: score,

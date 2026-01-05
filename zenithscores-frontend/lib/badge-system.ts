@@ -139,8 +139,8 @@ export const CAREER_BADGES: Badge[] = [
 export const ACHIEVEMENT_BADGES: Badge[] = [
     {
         id: 'first-trade',
-        name: 'First Trade',
-        description: 'Executed your first paper trade',
+        name: 'First Swap',
+        description: 'Executed your first real swap',
         icon: '🚀',
         category: 'achievement',
         rarity: 'common'
@@ -148,7 +148,7 @@ export const ACHIEVEMENT_BADGES: Badge[] = [
     {
         id: 'winning-streak-5',
         name: 'Hot Hand',
-        description: '5 winning trades in a row',
+        description: '5 profitable swaps in a row',
         icon: '🔥',
         category: 'achievement',
         rarity: 'uncommon'
@@ -156,7 +156,7 @@ export const ACHIEVEMENT_BADGES: Badge[] = [
     {
         id: 'winning-streak-10',
         name: 'Unstoppable',
-        description: '10 winning trades in a row',
+        description: '10 profitable swaps in a row',
         icon: '⚡',
         category: 'achievement',
         rarity: 'rare'
@@ -164,7 +164,7 @@ export const ACHIEVEMENT_BADGES: Badge[] = [
     {
         id: 'portfolio-10k',
         name: 'Ten Grand',
-        description: 'Grew portfolio to $10,000',
+        description: 'Total swap volume of $10,000',
         icon: '💵',
         category: 'achievement',
         rarity: 'common'
@@ -172,7 +172,7 @@ export const ACHIEVEMENT_BADGES: Badge[] = [
     {
         id: 'portfolio-50k',
         name: 'Fifty Stack',
-        description: 'Grew portfolio to $50,000',
+        description: 'Total swap volume of $50,000',
         icon: '💰',
         category: 'achievement',
         rarity: 'uncommon'
@@ -180,15 +180,15 @@ export const ACHIEVEMENT_BADGES: Badge[] = [
     {
         id: 'portfolio-100k',
         name: 'Six Figures',
-        description: 'Grew portfolio to $100,000',
+        description: 'Total swap volume of $100,000',
         icon: '🏆',
         category: 'achievement',
         rarity: 'rare'
     },
     {
         id: 'portfolio-1m',
-        name: 'Millionaire',
-        description: 'Paper trading millionaire',
+        name: 'Whale',
+        description: 'Total swap volume of $1,000,000',
         icon: '👑',
         category: 'achievement',
         rarity: 'legendary'
@@ -196,7 +196,7 @@ export const ACHIEVEMENT_BADGES: Badge[] = [
     {
         id: 'risk-manager',
         name: 'Risk Manager',
-        description: 'Never lost more than 2% on a single trade',
+        description: 'Used slippage protection on 10+ swaps',
         icon: '🛡️',
         category: 'achievement',
         rarity: 'rare'
@@ -204,7 +204,7 @@ export const ACHIEVEMENT_BADGES: Badge[] = [
     {
         id: 'diversified',
         name: 'Diversified',
-        description: 'Held 5+ different assets simultaneously',
+        description: 'Swapped 5+ different tokens',
         icon: '🎯',
         category: 'achievement',
         rarity: 'uncommon'

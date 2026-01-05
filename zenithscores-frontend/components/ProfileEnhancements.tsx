@@ -231,9 +231,9 @@ export default function ProfileEnhancements({ userId, sessionId, onAccountDelete
                                     All your data will be permanently deleted:
                                 </p>
                                 <ul className="text-xs text-gray-500 mt-2 space-y-1">
-                                    <li>• Paper Trading history & portfolio</li>
                                     <li>• Watchlists & saved assets</li>
                                     <li>• Learning progress & achievements</li>
+                                    <li>• Notebook entries & journal</li>
                                 </ul>
                             </div>
 

@@ -34,7 +34,8 @@ async function getPathProgress(userId: string, pathId: string) {
 
 export default async function PathDetailPage({ params }: PageProps) {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const walletAddress = (session?.user as any)?.walletAddress;
+    if (!walletAddress) {
         redirect('/auth/login');
     }
 
@@ -49,7 +50,7 @@ export default async function PathDetailPage({ params }: PageProps) {
         );
     }
 
-    const progress = await getPathProgress(session.user.email, pathId);
+    const progress = await getPathProgress(walletAddress, pathId);
 
     // Filter deepDive skills if present
     const skills = pathContent.deepDive?.skills || [];

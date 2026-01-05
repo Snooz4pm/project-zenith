@@ -4,9 +4,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
     Trophy, Crown, Medal, Flame, TrendingUp, Users,
-    Lock, Swords, Star, ChevronRight
+    Swords, Star, ChevronRight
 } from 'lucide-react';
-import { isPremiumUser } from '@/lib/premium';
 import Link from 'next/link';
 
 interface ArenaEntry {
@@ -34,13 +33,10 @@ const CHALLENGES = [
 ];
 
 export default function ArenaLeaderboard() {
-    const [premium, setPremium] = useState(false);
     const [leaderboard, setLeaderboard] = useState<ArenaEntry[]>(DEMO_LEADERBOARD);
     const [activeTab, setActiveTab] = useState<'weekly' | 'alltime' | 'challenges'>('weekly');
 
     useEffect(() => {
-        setPremium(isPremiumUser());
-
         // Fetch real leaderboard if available
         fetchLeaderboard();
     }, []);
@@ -73,24 +69,6 @@ export default function ArenaLeaderboard() {
         return <span className="text-xs text-gray-500">#{rank}</span>;
     };
 
-    if (!premium) {
-        return (
-            <div className="relative rounded-2xl border border-white/10 bg-[#1a1a2e]/80 p-5 backdrop-blur-xl overflow-hidden">
-                <div className="absolute inset-0 backdrop-blur-sm bg-black/40 z-10 flex flex-col items-center justify-center">
-                    <Lock className="w-6 h-6 text-purple-400 mb-2" />
-                    <p className="text-sm text-white font-bold">The Arena</p>
-                    <p className="text-[10px] text-gray-400">Compete on the leaderboard</p>
-                </div>
-                <div className="blur-sm opacity-40">
-                    <div className="h-12 bg-white/5 rounded-xl mb-3" />
-                    <div className="space-y-2">
-                        {[1, 2, 3].map(i => <div key={i} className="h-10 bg-white/5 rounded-lg" />)}
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -104,13 +82,13 @@ export default function ArenaLeaderboard() {
                         <Swords size={18} className="text-white" />
                     </div>
                     <div>
-                        <h3 className="font-bold text-white">The Arena</h3>
+                        <h3 className="font-bold text-white">Leaderboard</h3>
                         <p className="text-[10px] text-gray-500">Weekly trading competition</p>
                     </div>
                 </div>
 
                 <Link
-                    href="/trading"
+                    href="/swap"
                     className="text-xs text-cyan-400 flex items-center gap-1 hover:text-cyan-300"
                 >
                     Full Board <ChevronRight size={12} />

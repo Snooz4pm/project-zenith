@@ -20,10 +20,10 @@ export default function NotAvailablePage() {
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <Link
-                        href="/crypto"
+                        href="/markets/crypto-finds"
                         className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-xl transition-colors"
                     >
-                        View Crypto
+                        Discover Tokens
                     </Link>
                     <Link
                         href="/"

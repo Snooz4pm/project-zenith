@@ -6,20 +6,13 @@ import { calculateQuizTraits, updateUserPaths, QuizSignal } from '@/lib/paths_en
 export async function POST(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
+        const walletAddress = (session?.user as any)?.walletAddress;
 
-        if (!session || !session.user?.email) {
+        if (!walletAddress) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Identify user by email (since that's what we have in session usually, 
-        // but DB might expect ID. schema user_id is "String @unique" and mapped to email in some places? 
-        // Wait, schema says: model UserTrait { user_id String @unique ... }
-        // User table: id String @id, email String @unique.
-        // Usually user_id refers to User.id.
-        // I need to resolve email to ID if simple string isn't the ID.
-        // Let's assume session.user.id is available if properly configured, otherwise look up by email.
-
-        // For now, I'll rely on session.user.id if it exists, or look up user.
+        // Identify user by wallet address
         // Prisma `UserTrait` links to `user_id`. `User` table has `id`.
 
         // Let's parse the body
@@ -30,8 +23,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
         }
 
-        // Use email as user identifier (consistent with frontend and UserTrait schema)
-        const userId = session.user.email;
+        // Use wallet address as user identifier
+        const userId = walletAddress;
 
         // Calculate partial traits from this quiz
         const partialTraits = calculateQuizTraits(body);

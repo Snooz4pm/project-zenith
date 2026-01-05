@@ -1,23 +1,20 @@
-import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import prisma from "@/lib/prisma"
-import bcrypt from "bcryptjs"
 import { NextAuthOptions } from "next-auth"
+import { PublicKey } from "@solana/web3.js"
+import nacl from "tweetnacl"
+import bs58 from "bs58"
 
-// Extend NextAuth types for onboarding and tier
+// Extend NextAuth types for wallet-based auth
 declare module "next-auth" {
     interface Session {
         user: {
             id: string
-            email: string
+            walletAddress?: string | null
             name?: string | null
             image?: string | null
             username?: string | null
-            hasCompletedOnboarding: boolean
-            calibrationCompleted: boolean
-            tier: string
-            isPremium: boolean
         }
     }
 }
@@ -25,11 +22,8 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
     interface JWT {
         id?: string
+        walletAddress?: string | null
         username?: string | null
-        hasCompletedOnboarding?: boolean
-        calibrationCompleted?: boolean
-        tier?: string
-        isPremium?: boolean
     }
 }
 
@@ -44,61 +38,78 @@ export const authOptions: NextAuthOptions = {
         error: '/auth/error',
     },
     providers: [
-        GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID || "",
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-            allowDangerousEmailAccountLinking: true, // Allow linking accounts with same email
-        }),
+        // Wallet Authentication (Solana)
         CredentialsProvider({
-            name: "Credentials",
+            id: "wallet",
+            name: "Wallet",
             credentials: {
-                email: { label: "Email", type: "email" },
-                password: { label: "Password", type: "password" }
+                walletAddress: { label: "Wallet Address", type: "text" },
+                signature: { label: "Signature", type: "text" },
+                message: { label: "Message", type: "text" }
             },
             async authorize(credentials) {
-                if (!credentials?.email || !credentials?.password) {
+                if (!credentials?.walletAddress || !credentials?.signature || !credentials?.message) {
+                    console.error("[Wallet Auth] Missing credentials")
                     return null
                 }
 
                 try {
-                    const user = await prisma.user.findUnique({
-                        where: { email: credentials.email }
-                    })
+                    // Verify the signature
+                    const publicKey = new PublicKey(credentials.walletAddress)
+                    const messageBytes = new TextEncoder().encode(credentials.message)
+                    const signatureBytes = bs58.decode(credentials.signature)
+                    
+                    const isValid = nacl.sign.detached.verify(
+                        messageBytes,
+                        signatureBytes,
+                        publicKey.toBytes()
+                    )
 
-                    if (!user || !user.password_hash) {
+                    if (!isValid) {
+                        console.error("[Wallet Auth] Invalid signature")
                         return null
                     }
 
-                    const isPasswordValid = await bcrypt.compare(
-                        credentials.password,
-                        user.password_hash
-                    )
+                    // Upsert user by wallet address
+                    let user = await prisma.user.findFirst({
+                        where: { walletAddress: credentials.walletAddress }
+                    })
 
-                    if (!isPasswordValid) {
-                        return null
+                    if (!user) {
+                        // Create new user with wallet
+                        user = await prisma.user.create({
+                            data: {
+                                walletAddress: credentials.walletAddress,
+                                name: `${credentials.walletAddress.slice(0, 4)}...${credentials.walletAddress.slice(-4)}`,
+                                hasCompletedOnboarding: false,
+                                calibrationCompleted: false,
+                                tier: 'free'
+                            }
+                        })
+                        console.log("[Wallet Auth] Created new user:", user.id)
+                    } else {
+                        console.log("[Wallet Auth] Found existing user:", user.id)
                     }
 
                     return {
                         id: user.id,
-                        email: user.email,
+                        walletAddress: user.walletAddress,
                         name: user.name,
                         image: user.image,
                     }
                 } catch (error) {
-                    console.error("Credentials auth error:", error)
+                    console.error("[Wallet Auth] Error:", error)
                     return null
                 }
             }
-        })
+        }),
     ],
     callbacks: {
-        async signIn({ user, account, profile }) {
-            // Always allow sign in - let the adapter handle user creation
+        async signIn({ user, account }) {
             console.log("[Auth] signIn callback:", { userId: user?.id, provider: account?.provider })
             return true
         },
         async redirect({ url, baseUrl }) {
-            console.log("[Auth] redirect callback:", { url, baseUrl })
             // Relative URLs - prepend base
             if (url.startsWith("/")) return `${baseUrl}${url}`
             // Same origin - allow
@@ -107,125 +118,50 @@ export const authOptions: NextAuthOptions = {
             } catch {
                 // Invalid URL, use default
             }
-            // Default to command-center
+            // Default to dashboard
             return `${baseUrl}/command-center`
         },
-        async jwt({ token, user, account, trigger }) {
-            console.log("[Auth] jwt callback:", { hasUser: !!user, trigger, email: token.email })
-
-            // Initial sign in
+        async jwt({ token, user }) {
+            // Initial sign in - populate token from user
             if (user) {
                 token.id = user.id
-                token.calibrationCompleted = false // Default to false, will be checked by middleware
+                token.walletAddress = (user as any).walletAddress || null
             }
 
-            // If we have an ID, try to get calibration status and tier from DB
-            // But wrap in try-catch to not break auth if DB fails
+            // Fetch latest user data from DB
             if (token.id) {
                 try {
                     const dbUser = await prisma.user.findUnique({
                         where: { id: token.id as string },
                         select: {
                             username: true,
-                            hasCompletedOnboarding: true,
-                            calibrationCompleted: true,
-                            tier: true,
-                            subscriptionStatus: true,
-                            subscriptionEnd: true,
+                            walletAddress: true,
                             name: true,
-                            email: true,
                             image: true
                         }
                     })
                     if (dbUser) {
                         token.username = dbUser.username
-                        token.hasCompletedOnboarding = dbUser.hasCompletedOnboarding ?? false
-                        token.calibrationCompleted = dbUser.calibrationCompleted ?? false
-                        token.tier = dbUser.tier || 'free'
-
-                        // Calculate isPremium based on tier and subscription status
-                        const isSubscriptionActive =
-                            dbUser.tier === 'premium' &&
-                            dbUser.subscriptionStatus === 'active' &&
-                            (!dbUser.subscriptionEnd || new Date(dbUser.subscriptionEnd) > new Date())
-                        token.isPremium = isSubscriptionActive
-
+                        token.walletAddress = dbUser.walletAddress
                         if (dbUser.name) token.name = dbUser.name
-                        if (dbUser.email) token.email = dbUser.email
                         if (dbUser.image) token.picture = dbUser.image
                     }
                 } catch (e) {
                     console.error("[Auth] Failed to fetch user data:", e)
-                    // Don't fail auth, just use defaults
-                    token.hasCompletedOnboarding = false
-                    token.calibrationCompleted = false
-                    token.tier = 'free'
-                    token.isPremium = false
-                }
-            }
-
-            // If no ID but have email (OAuth first time), try to get by email
-            if (!token.id && token.email) {
-                try {
-                    const dbUser = await prisma.user.findUnique({
-                        where: { email: token.email as string },
-                        select: {
-                            id: true,
-                            calibrationCompleted: true,
-                            tier: true,
-                            subscriptionStatus: true,
-                            subscriptionEnd: true
-                        }
-                    })
-                    if (dbUser) {
-                        token.id = dbUser.id
-                        token.calibrationCompleted = dbUser.calibrationCompleted ?? false
-                        token.tier = dbUser.tier || 'free'
-
-                        const isSubscriptionActive =
-                            dbUser.tier === 'premium' &&
-                            dbUser.subscriptionStatus === 'active' &&
-                            (!dbUser.subscriptionEnd || new Date(dbUser.subscriptionEnd) > new Date())
-                        token.isPremium = isSubscriptionActive
-                    }
-                } catch (e) {
-                    console.error("[Auth] Failed to fetch user by email:", e)
-                    // Don't fail auth
                 }
             }
 
             return token
         },
         async session({ session, token }) {
-            console.log("[Auth] session callback:", { tokenId: token.id, hasCompletedOnboarding: token.hasCompletedOnboarding, tier: token.tier })
             if (session.user) {
                 session.user.id = token.id as string
-                session.user.username = token.username || null
-                session.user.hasCompletedOnboarding = token.hasCompletedOnboarding ?? false
-                session.user.calibrationCompleted = token.calibrationCompleted ?? false
-                session.user.tier = token.tier || 'free'
-                session.user.isPremium = token.isPremium ?? false
+                session.user.walletAddress = token.walletAddress as string || null
+                session.user.username = token.username as string || null
             }
             return session
         }
     },
-    events: {
-        async createUser({ user }) {
-            console.log("[Auth] createUser event:", { userId: user.id })
-            // New user created via OAuth - ensure hasCompletedOnboarding is false
-            try {
-                await prisma.user.update({
-                    where: { id: user.id },
-                    data: {
-                        hasCompletedOnboarding: false,
-                        calibrationCompleted: false
-                    }
-                })
-            } catch (e) {
-                console.error("[Auth] Failed to set hasCompletedOnboarding for new user:", e)
-            }
-        }
-    },
-    debug: true, // Enable debug logging to see what's happening
+    debug: process.env.NODE_ENV === 'development',
     secret: process.env.NEXTAUTH_SECRET,
 }

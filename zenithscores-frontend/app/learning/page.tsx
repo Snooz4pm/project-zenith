@@ -489,22 +489,22 @@ export default function LearningHubPage() {
                         <div className="glass-panel border border-[rgba(255,255,255,0.05)] rounded-xl p-5">
                             <h3 className="text-sm font-bold text-white mb-4">Quick Access</h3>
                             <div className="space-y-2">
-                                <Link href="/trading" className="flex items-center gap-3 p-3 rounded-lg bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.05)] transition-colors border border-[rgba(255,255,255,0.05)]">
-                                    <div className="p-2 rounded-lg bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]">
+                                <Link href="/swap" className="flex items-center gap-3 p-3 rounded-lg bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.05)] transition-colors border border-[rgba(255,255,255,0.05)]">
+                                    <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500">
                                         <TrendingUp size={16} />
                                     </div>
                                     <div>
-                                        <div className="text-sm font-medium text-white">Paper Trading</div>
-                                        <div className="text-xs text-[var(--text-muted)]">Practice risk-free</div>
+                                        <div className="text-sm font-medium text-white">Solana Swap</div>
+                                        <div className="text-xs text-[var(--text-muted)]">Trade via Jupiter</div>
                                     </div>
                                 </Link>
-                                <Link href="/decision-lab" className="flex items-center gap-3 p-3 rounded-lg bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.05)] transition-colors border border-[rgba(255,255,255,0.05)]">
-                                    <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
+                                <Link href="/markets/crypto-finds" className="flex items-center gap-3 p-3 rounded-lg bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.05)] transition-colors border border-[rgba(255,255,255,0.05)]">
+                                    <div className="p-2 rounded-lg bg-[var(--accent-mint)]/10 text-[var(--accent-mint)]">
                                         <Activity size={16} />
                                     </div>
                                     <div>
-                                        <div className="text-sm font-medium text-white">Decision Lab</div>
-                                        <div className="text-xs text-[var(--text-muted)]">Test your skills</div>
+                                        <div className="text-sm font-medium text-white">Crypto Finds</div>
+                                        <div className="text-xs text-[var(--text-muted)]">Discover new tokens</div>
                                     </div>
                                 </Link>
                             </div>

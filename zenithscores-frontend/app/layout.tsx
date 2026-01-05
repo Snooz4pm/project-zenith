@@ -5,9 +5,9 @@ import React, { Suspense } from "react";
 import dynamic from "next/dynamic";
 import { Analytics } from "@vercel/analytics/next";
 
-// Modern navigation component
+// Modern navigation component - NEW simplified Navbar
 const Navbar = dynamic(
-  () => import("@/components/navigation/Navbar"),
+  () => import("@/components/Navbar"),
   { ssr: false }
 );
 
@@ -26,9 +26,10 @@ const MobileBottomNav = dynamic(
   { ssr: false }
 );
 
-// AuthProvider must wrap everything but can stay server-side
+// AuthProvider is now a pass-through (legacy, kept for compatibility)
 import AuthProvider from "@/components/AuthProvider";
 import { Providers } from "./providers";
+// DisciplineGatePanel context - legacy, may be removed in future
 import { DisciplineGatePanelProvider } from "@/contexts/DisciplineGatePanelContext";
 
 // DisciplinePanel - mounted at ROOT for proper z-index stacking

@@ -8,16 +8,17 @@ export async function POST(req: Request) {
         const session = await getServerSession(authOptions);
 
         // If not logged in, return success (tracking happens client-side in localStorage)
-        if (!session?.user?.email) {
+        const walletAddress = (session?.user as any)?.walletAddress;
+        if (!walletAddress) {
             return NextResponse.json({
                 success: true,
                 message: 'Anonymous tracking handled client-side'
             });
         }
 
-        // Get user ID from email
+        // Get user ID from wallet address
         const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
+            where: { walletAddress },
             select: { id: true }
         });
 

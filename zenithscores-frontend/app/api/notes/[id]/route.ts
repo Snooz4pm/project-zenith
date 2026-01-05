@@ -13,12 +13,13 @@ export async function DELETE(
 ) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session?.user?.email) {
+        const walletAddress = (session?.user as any)?.walletAddress;
+        if (!walletAddress) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
+            where: { walletAddress },
             select: { id: true }
         });
 

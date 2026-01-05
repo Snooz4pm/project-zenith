@@ -8,7 +8,8 @@ const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    const walletAddress = (session?.user as any)?.walletAddress;
+    if (!walletAddress) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -16,9 +17,9 @@ export async function POST(req: Request) {
         const body = await req.json();
         const { content, asset, sentiment, phase, metadata } = body;
 
-        // Find user by email to get ID (since session usually has email)
+        // Find user by wallet address to get ID
         const user = await prisma.user.findUnique({
-            where: { email: session.user.email! }
+            where: { walletAddress }
         });
 
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });

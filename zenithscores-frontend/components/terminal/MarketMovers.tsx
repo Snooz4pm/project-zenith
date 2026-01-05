@@ -126,10 +126,10 @@ export default function MarketMovers({
             {/* View All Link */}
             <div className="pt-2 px-2">
                 <Link
-                    href="/stocks"
+                    href="/markets/crypto-finds"
                     className="text-[10px] text-gray-500 hover:text-cyan-400 transition-colors uppercase tracking-wide"
                 >
-                    View All →
+                    Discover Tokens →
                 </Link>
             </div>
         </div>

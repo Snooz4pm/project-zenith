@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     MessageSquare, Image, TrendingUp, TrendingDown, Heart,
-    MessageCircle, Share2, Lock, Plus, X, Send, User
+    MessageCircle, Share2, Wallet, Plus, X, Send, User
 } from 'lucide-react';
-import { useSession, signIn } from 'next-auth/react';
-import { isPremiumUser } from '@/lib/premium';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 interface Comment {
     id: string;
@@ -58,7 +58,7 @@ const DEMO_POSTS: CommunityPost[] = [
 
 export default function CommunityFeed() {
     const { data: session } = useSession();
-    const [premium, setPremium] = useState(false);
+    const router = useRouter();
     const [posts, setPosts] = useState<CommunityPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [showComposer, setShowComposer] = useState(false);
@@ -69,6 +69,11 @@ export default function CommunityFeed() {
     const [commentText, setCommentText] = useState('');
 
     const [error, setError] = useState<string | null>(null);
+
+    // Helper to redirect to login
+    const requireAuth = () => {
+        router.push('/auth/login');
+    };
 
     const fetchPosts = async () => {
         setError(null);
@@ -105,19 +110,19 @@ export default function CommunityFeed() {
     };
 
     useEffect(() => {
-        setPremium(isPremiumUser());
         fetchPosts();
     }, [session]);
 
     const handleLike = async (postId: string) => {
         if (!session) {
-            signIn('google', { callbackUrl: '/trading' });
+            requireAuth();
             return;
         }
 
         try {
             const baseUrl = 'https://project-zenith-zexd.vercel.app';
-            const url = `${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/community/posts/${postId}/like?user_id=${session.user?.email}`;
+            const walletAddress = (session.user as any)?.walletAddress;
+            const url = `${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/community/posts/${postId}/like?user_id=${walletAddress}`;
             const res = await fetch(url, { method: 'POST' });
             const data = await res.json();
 
@@ -131,19 +136,20 @@ export default function CommunityFeed() {
 
     const handleComment = async (postId: string) => {
         if (!session) {
-            signIn('google', { callbackUrl: '/trading' });
+            requireAuth();
             return;
         }
         if (!commentText.trim()) return;
 
         try {
             const baseUrl = 'https://project-zenith-zexd.vercel.app';
+            const walletAddress = (session.user as any)?.walletAddress;
             const url = `${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/community/posts/${postId}/comment`;
             const res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    user_id: session.user?.email,
+                    user_id: walletAddress,
                     username: session.user?.name || 'Anonymous',
                     content: commentText
                 })
@@ -165,19 +171,20 @@ export default function CommunityFeed() {
 
     const handlePost = async () => {
         if (!session) {
-            signIn('google', { callbackUrl: '/trading' });
+            requireAuth();
             return;
         }
         if (!newPost.trim()) return;
 
         try {
             const baseUrl = 'https://project-zenith-zexd.vercel.app';
+            const walletAddress = (session.user as any)?.walletAddress;
             const url = `${process.env.NEXT_PUBLIC_API_URL || baseUrl}/api/v1/community/posts`;
             const res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    user_id: session.user?.email,
+                    user_id: walletAddress,
                     username: session.user?.name || 'Anonymous',
                     avatar: session.user?.image,
                     type: postType,
@@ -216,28 +223,6 @@ export default function CommunityFeed() {
         );
     }
 
-    if (!premium) {
-        return (
-            <div className="relative rounded-2xl border border-white/10 bg-[#1a1a2e]/80 p-5 backdrop-blur-xl overflow-hidden">
-                <div className="absolute inset-0 backdrop-blur-sm bg-black/40 z-10 flex flex-col items-center justify-center">
-                    <Lock className="w-6 h-6 text-purple-400 mb-2" />
-                    <p className="text-sm text-white font-bold">Community Feed</p>
-                    <p className="text-[10px] text-gray-400 text-center px-4">Share trades & insights with Zenith Pro</p>
-                    <button
-                        onClick={() => window.location.href = '#premium'}
-                        className="mt-3 px-4 py-1.5 bg-purple-500 rounded-lg text-xs font-bold text-white hover:bg-purple-600 transition-colors"
-                    >
-                        Upgrade to Unlock
-                    </button>
-                </div>
-                <div className="blur-sm opacity-40">
-                    <div className="h-24 bg-white/5 rounded-xl mb-3" />
-                    <div className="h-24 bg-white/5 rounded-xl" />
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1a1a2e] to-[#16213e]">
             {/* Header */}
@@ -256,10 +241,11 @@ export default function CommunityFeed() {
                     </button>
                 ) : (
                     <button
-                        onClick={() => signIn('google', { callbackUrl: '/trading' })}
-                        className="text-[10px] text-cyan-400 hover:underline"
+                        onClick={requireAuth}
+                        className="flex items-center gap-1.5 text-[10px] text-cyan-400 hover:underline"
                     >
-                        Sign in to post
+                        <Wallet size={12} />
+                        Connect to post
                     </button>
                 )}
             </div>

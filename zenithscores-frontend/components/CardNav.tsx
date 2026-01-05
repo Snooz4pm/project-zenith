@@ -399,9 +399,9 @@ export default function CardNav({ className = '', ease = 'power3.out' }: CardNav
 
               {/* Right side: Trade + Collapse */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Link href="/trading" className="card-nav-cta-button">
+                <Link href="/swap" className="card-nav-cta-button">
                   <Zap size={14} />
-                  Trade
+                  Swap
                 </Link>
 
                 {/* Collapse Button */}

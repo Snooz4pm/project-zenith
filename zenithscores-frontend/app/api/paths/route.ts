@@ -10,13 +10,14 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
+        const walletAddress = (session?.user as any)?.walletAddress;
 
-        if (!session || !session.user?.email) {
+        if (!walletAddress) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Using email as ID per convention established in this feature
-        const userId = session.user.email;
+        // Using wallet address as ID
+        const userId = walletAddress;
 
         // Fetch user traits from DB
         const traits = await prisma.userTrait.findUnique({ where: { user_id: userId } });

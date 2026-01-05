@@ -10,14 +10,15 @@ import { prisma } from '@/lib/prisma';
 export async function GET(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
+        const walletAddress = (session?.user as any)?.walletAddress;
 
-        if (!session?.user?.email) {
+        if (!walletAddress) {
             return NextResponse.json({ engagements: [] });
         }
 
         // Get the current user
         const currentUser = await prisma.user.findUnique({
-            where: { email: session.user.email }
+            where: { walletAddress }
         });
 
         if (!currentUser) {

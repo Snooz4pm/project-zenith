@@ -4,9 +4,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Plus, HelpCircle, Lightbulb, TrendingUp } from 'lucide-react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import PostCard from '@/components/community/PostCard';
 import CreatePostModal from '@/components/community/CreatePostModal';
 import RoomBrowser from '@/components/community/RoomBrowser';
+import WalletGate from '@/components/WalletGate';
 import { getPosts, createPost, deletePost, getOrCreateConversation } from '@/lib/actions/community';
 import PageLoader from '@/components/ui/PageLoader';
 
@@ -33,6 +36,8 @@ const filterOptions = [
 export default function CommunityPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
+    const { connected } = useWallet();
+    const { setVisible } = useWalletModal();
     const [posts, setPosts] = useState<PostData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -67,12 +72,14 @@ export default function CommunityPage() {
         loadPosts();
     }, [loadPosts]);
 
-    // Redirect if not authenticated
-    useEffect(() => {
-        if (status === 'unauthenticated') {
-            router.push('/auth/login');
+    // Handle "New Post" button - require wallet for posting
+    const handleNewPostClick = () => {
+        if (!connected) {
+            setVisible(true);
+            return;
         }
-    }, [status, router]);
+        setIsModalOpen(true);
+    };
 
     const handleCreatePost = async (data: {
         title: string;
@@ -110,7 +117,7 @@ export default function CommunityPage() {
         ? posts
         : posts.filter(p => p.postType === filter);
 
-    if (status === 'loading' || isLoading) {
+    if (isLoading) {
         return <PageLoader pageName="Community" />;
     }
 
@@ -132,7 +139,7 @@ export default function CommunityPage() {
                                 <p className="text-sm text-zinc-500 mt-1">Exchange market insights with traders</p>
                             </div>
                             <button
-                                onClick={() => setIsModalOpen(true)}
+                                onClick={handleNewPostClick}
                                 className="flex items-center gap-2 px-4 py-2.5 bg-[var(--accent-mint)] text-[var(--void)] font-medium rounded-lg hover:opacity-90 transition-opacity"
                             >
                                 <Plus size={18} />
@@ -165,7 +172,7 @@ export default function CommunityPage() {
                                 <div className="text-center py-12 text-zinc-500">
                                     <p className="mb-4">No posts yet.</p>
                                     <button
-                                        onClick={() => setIsModalOpen(true)}
+                                        onClick={handleNewPostClick}
                                         className="text-[var(--accent-mint)] hover:underline"
                                     >
                                         Be the first to post

@@ -253,3 +253,119 @@ export async function getTokenPrice(
     return null;
   }
 }
+
+// ============================================================
+// ROUTE VALIDATION (for discovery system)
+// ============================================================
+
+// SOL mint address
+const SOL_MINT = 'So11111111111111111111111111111111111111112';
+
+// Cache for Jupiter route checks (6 hours)
+const routeCache = new Map<string, { valid: boolean; ts: number }>();
+const ROUTE_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+/**
+ * Check if Jupiter can route SOL → token
+ * Used by discovery to filter non-swappable tokens
+ */
+export async function hasJupiterRoute(outputMint: string): Promise<boolean> {
+  // Check cache first
+  const cached = routeCache.get(outputMint);
+  if (cached && Date.now() - cached.ts < ROUTE_CACHE_TTL) {
+    return cached.valid;
+  }
+
+  try {
+    const url = new URL(`${JUPITER_API_URL}/quote`);
+    url.searchParams.set('inputMint', SOL_MINT);
+    url.searchParams.set('outputMint', outputMint);
+    url.searchParams.set('amount', '10000000'); // 0.01 SOL (in lamports)
+    url.searchParams.set('slippageBps', '100'); // 1% slippage
+
+    const res = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(5000),
+      headers: {
+        'Accept': 'application/json',
+        'X-API-Key': JUPITER_API_KEY,
+      },
+    });
+
+    if (!res.ok) {
+      routeCache.set(outputMint, { valid: false, ts: Date.now() });
+      return false;
+    }
+
+    const data = await res.json();
+    
+    // Jupiter returns routePlan array if route exists
+    const hasRoute = Array.isArray(data.routePlan) && data.routePlan.length > 0;
+    
+    routeCache.set(outputMint, { valid: hasRoute, ts: Date.now() });
+    return hasRoute;
+  } catch (err) {
+    // On error, don't cache - might be transient
+    console.error(`[Jupiter] Route check failed for ${outputMint}:`, err);
+    return false;
+  }
+}
+
+/**
+ * Batch validate tokens (with rate limiting)
+ * Only validates top tokens by liquidity to avoid hammering Jupiter
+ */
+export async function validateTokenRoutes(
+  tokens: { mint: string; liquidityUsd: number }[],
+  options?: {
+    maxTokens?: number;
+    minLiquidity?: number;
+    concurrency?: number;
+  }
+): Promise<Set<string>> {
+  const {
+    maxTokens = 500,
+    minLiquidity = 5000, // Only validate tokens with $5k+ liquidity
+    concurrency = 5,
+  } = options ?? {};
+
+  // Filter and sort by liquidity
+  const toValidate = tokens
+    .filter(t => t.liquidityUsd >= minLiquidity)
+    .sort((a, b) => b.liquidityUsd - a.liquidityUsd)
+    .slice(0, maxTokens);
+
+  console.log(`[Jupiter] Validating ${toValidate.length} tokens...`);
+
+  const validMints = new Set<string>();
+  
+  // Process in batches to avoid rate limits
+  for (let i = 0; i < toValidate.length; i += concurrency) {
+    const batch = toValidate.slice(i, i + concurrency);
+    
+    const results = await Promise.all(
+      batch.map(async (t) => {
+        const valid = await hasJupiterRoute(t.mint);
+        return { mint: t.mint, valid };
+      })
+    );
+
+    for (const r of results) {
+      if (r.valid) validMints.add(r.mint);
+    }
+
+    // Small delay between batches
+    if (i + concurrency < toValidate.length) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+  }
+
+  console.log(`[Jupiter] Validated: ${validMints.size}/${toValidate.length} have routes`);
+  return validMints;
+}
+
+/**
+ * Clear route cache (for testing/refresh)
+ */
+export function clearRouteCache(): void {
+  routeCache.clear();
+}

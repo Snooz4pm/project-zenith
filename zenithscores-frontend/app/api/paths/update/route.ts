@@ -12,12 +12,13 @@ const prisma = new PrismaClient();
 export async function POST(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
+        const walletAddress = (session?.user as any)?.walletAddress;
 
-        if (!session?.user?.email) {
+        if (!walletAddress) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const userId = session.user.email;
+        const userId = walletAddress;
         const body = await request.json();
         const { quizId, quizPerformance } = body;
 

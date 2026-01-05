@@ -9,7 +9,6 @@ import {
     ChevronDown, Filter
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { isPremiumUser } from '@/lib/premium';
 
 interface Comment {
     id: string;
@@ -72,16 +71,10 @@ export default function CommunityFeedEnhanced() {
     const [showFilters, setShowFilters] = useState(false);
     const [menuOpen, setMenuOpen] = useState<string | null>(null);
     const [mounted, setMounted] = useState(false);
-    const [isPremium, setIsPremium] = useState(false);
 
     // Handle hydration - only run on client
     useEffect(() => {
         setMounted(true);
-        try {
-            setIsPremium(isPremiumUser());
-        } catch {
-            setIsPremium(false);
-        }
     }, []);
 
     // Filter posts

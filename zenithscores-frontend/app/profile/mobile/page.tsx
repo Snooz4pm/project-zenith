@@ -30,7 +30,7 @@ export default async function MobileProfilePage() {
         <MobileProfile
             userId={user.id}
             name={user.name || 'Trader'}
-            username={user.email?.split('@')[0] || 'trader'}
+            username={(user as any).walletAddress ? `${(user as any).walletAddress.slice(0, 4)}...${(user as any).walletAddress.slice(-4)}` : 'trader'}
             image={user.image || undefined}
             level={5} // Mock level
             isOwnProfile={true}

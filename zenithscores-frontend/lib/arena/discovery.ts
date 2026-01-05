@@ -194,6 +194,11 @@ function calculateBuyDominance(pair: DexPair): number {
  * Returns null if pair doesn't meet criteria
  */
 function applyFilters(pair: DexPair): DiscoveredToken | null {
+  // BSC ONLY - reject all other chains
+  if (pair.chainId.toLowerCase() !== 'bsc') {
+    return null;
+  }
+
   const now = Date.now();
   const pairAgeMs = now - pair.pairCreatedAt;
   const pairAgeMinutes = pairAgeMs / 1000 / 60;
@@ -358,19 +363,11 @@ function generateReason(
  * Convert DexScreener chain ID to numeric chain ID
  */
 function getNumericChainId(chainId: string): number {
-  const mapping: Record<string, number> = {
-    ethereum: 1,
-    base: 8453,
-    arbitrum: 42161,
-    optimism: 10,
-    polygon: 137,
-    bsc: 56,
-    avalanche: 43114,
-    blast: 81457,
-    scroll: 534352,
-  };
-
-  return mapping[chainId.toLowerCase()] || 0;
+  // BSC ONLY
+  if (chainId.toLowerCase() === 'bsc') {
+    return 56;
+  }
+  return 0; // All other chains unsupported
 }
 
 /**
@@ -472,6 +469,7 @@ export async function discoverTokens(
  */
 export async function searchToken(query: string): Promise<DiscoveredToken[]> {
   try {
+    // Search BSC tokens specifically
     const response = await fetch(`${DEXSCREENER_API_URL}/search?q=${encodeURIComponent(query)}`, {
       headers: {
         'Accept': 'application/json',
@@ -483,14 +481,16 @@ export async function searchToken(query: string): Promise<DiscoveredToken[]> {
     const data = await response.json();
     const pairs: DexPair[] = data.pairs || [];
 
-    // Apply same filtering logic
+    // Apply filtering logic (includes BSC-only filter)
     const results: DiscoveredToken[] = [];
     for (const pair of pairs) {
+      // Double-check BSC only
+      if (pair.chainId.toLowerCase() !== 'bsc') continue;
       const token = applyFilters(pair);
       if (token) results.push(token);
     }
 
-    return results.slice(0, 5); // Max 5 results for search
+    return results.slice(0, 10); // Max 10 BSC results for search
   } catch (error) {
     console.error('Token search failed:', error);
     return [];

@@ -20,18 +20,18 @@ export function OnboardingTour() {
 
     const steps = [
         {
-            title: "Welcome to Zenith Trading",
-            body: "Master the markets with our professional-grade paper trading terminal. Test strategies risk-free using real-time market data.",
+            title: "Welcome to Zenith",
+            body: "Your Solana-native DEX and discovery terminal. Find tokens, evaluate them, and swap for real via Jupiter.",
             icon: <Rocket className="w-12 h-12 text-cyan-400" />
         },
         {
-            title: "Real-Time Execution",
-            body: "Execute Market and Limit orders with precision. Use Leverage, Stop-Loss, and Take-Profit tools to manage your risk like a pro.",
+            title: "Real Swaps on Solana",
+            body: "Connect your wallet and execute real swaps through Jupiter. No paper trading — this is the real deal.",
             icon: <BarChart3 className="w-12 h-12 text-emerald-400" />
         },
         {
-            title: "Analytics & Leaderboard",
-            body: "Track your Win Rate, Max Drawdown, and Streaks in the Analytics tab. Compete with other traders for the top spot on the Leaderboard.",
+            title: "Discover & Trade",
+            body: "Use Crypto Finds to discover trending tokens, check signals, and stay ahead with our intelligence tools.",
             icon: <Trophy className="w-12 h-12 text-yellow-400" />
         }
     ];

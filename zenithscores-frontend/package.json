@@ -25,6 +25,7 @@
     "@vercel/kv": "^3.0.0",
     "@web3modal/wagmi": "^5.1.11",
     "bcryptjs": "^2.4.3",
+    "bs58": "^6.0.0",
     "canvas-confetti": "^1.9.4",
     "chart.js": "^4.5.1",
     "clsx": "^2.1.1",
@@ -47,6 +48,7 @@
     "recharts": "^3.5.1",
     "tailwind-merge": "^3.4.0",
     "three": "^0.182.0",
+    "tweetnacl": "^1.0.3",
     "viem": "^2.43.4",
     "wagmi": "^2.14.11"
   },

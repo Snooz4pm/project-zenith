@@ -54,7 +54,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !session.user) {
+        const walletAddress = (session?.user as any)?.walletAddress;
+        if (!walletAddress) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -62,9 +63,9 @@ export async function POST(req: NextRequest) {
 
         const post = await prisma.community_posts.create({
             data: {
-                user_id: session.user.email!,
-                username: session.user.name || 'Anonymous',
-                avatar: session.user.image,
+                user_id: walletAddress,
+                username: session?.user?.name || 'Anonymous',
+                avatar: session?.user?.image,
                 type,
                 content,
                 asset: asset ? JSON.stringify(asset) : undefined,

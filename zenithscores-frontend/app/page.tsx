@@ -1,162 +1,358 @@
 'use client';
 
-import { useRef } from 'react';
-import Link from 'next/link';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import ExploreButton from '@/components/ui/ExploreButton';
-import { Shield, Database, Layout, ArrowRight } from 'lucide-react';
+/**
+ * Root page "/" → Swap
+ * Entry point is the Swap terminal
+ */
 
-const fadeInUp = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.5 }
-};
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Zap, AlertCircle, RefreshCw, Search, X } from 'lucide-react';
+import { useDebounce } from '@/hooks/use-debounce';
+import { SwapTokenCard } from '@/components/SwapTokenCard';
+import { SolanaSwapDrawer } from '@/components/SolanaSwapDrawer';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { DiscoveredToken } from '@/lib/discovery/types';
+import { ZenithPagination } from '@/components/ZenithPagination';
 
-const staggerContainer = {
-  animate: {
-    transition: {
-      staggerChildren: 0.1
+const PAGE_SIZE = 50;
+const STALE_TIME = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_TIME = 24 * 60 * 60 * 1000; // 24 hours
+
+async function fetchSolanaTokens(): Promise<DiscoveredToken[]> {
+  const res = await fetch('/api/arena/solana/discovery');
+  if (!res.ok) throw new Error('Discovery failed');
+  const data = await res.json();
+  return data.tokens || [];
+}
+
+export default function SwapPage() {
+  const { connected, publicKey } = useWallet();
+  const { setVisible } = useWalletModal();
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // Filters
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+
+  // Swap Drawer State
+  const [selectedToken, setSelectedToken] = useState<DiscoveredToken | null>(null);
+  const [isSwapDrawerOpen, setIsSwapDrawerOpen] = useState(false);
+
+  // Debounce
+  const debouncedSearch = useDebounce(search, 300);
+
+  // Two-phase rendering
+  const [isFilterReady, setIsFilterReady] = useState(false);
+
+  // React Query - Solana tokens only
+  const { data: tokens = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ['swap', 'solana'],
+    queryFn: fetchSolanaTokens,
+    staleTime: STALE_TIME,
+    gcTime: CACHE_TIME,
+    retry: 2,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  // Reset deferred state when tokens update
+  useEffect(() => {
+    setIsFilterReady(false);
+    if (tokens.length > 0) {
+      const timer = setTimeout(() => {
+        if (typeof window.requestIdleCallback !== 'undefined') {
+          window.requestIdleCallback(() => setIsFilterReady(true));
+        } else {
+          setIsFilterReady(true);
+        }
+      }, 50);
+      return () => clearTimeout(timer);
     }
-  }
-};
+  }, [tokens]);
 
-export default function LandingPage() {
-  const containerRef = useRef<HTMLDivElement>(null);
+  // ═══════════════════════════════════════════════════════════
+  // FILTER LOGIC
+  // ═══════════════════════════════════════════════════════════
+
+  type Preset = 'TRENDING' | 'RISING' | 'NEW' | 'HIGH_LIQ' | 'LOW_CAP' | 'ESTABLISHED' | null;
+
+  const [activePreset, setActivePreset] = useState<Preset>(null);
+  const [minLiquidity, setMinLiquidity] = useState(0);
+
+  const PRESET_LOGIC: Record<string, (t: DiscoveredToken) => boolean> = {
+    TRENDING: (t) => {
+      const liq = t.liquidityUsd || 0;
+      const vol = t.volume24hUsd || 0;
+      if (liq < 100_000) return false;
+      if (vol < 300_000) return false;
+      if (vol / liq < 0.6) return false;
+      return true;
+    },
+    RISING: (t) => {
+      const liq = t.liquidityUsd || 0;
+      const vol = t.volume24hUsd || 0;
+      if (liq < 25_000) return false;
+      if (vol < 75_000) return false;
+      const ratio = vol / liq;
+      return ratio >= 0.8 && ratio <= 3;
+    },
+    NEW: (t) => {
+      if (!t.createdAt) return false;
+      const age = Date.now() - new Date(t.createdAt).getTime();
+      return age < 7 * 24 * 60 * 60 * 1000; // 7 days
+    },
+    HIGH_LIQ: (t) => (t.liquidityUsd || 0) >= 500_000,
+    LOW_CAP: (t) => {
+      const mc = t.marketCap || 0;
+      return mc > 0 && mc < 5_000_000;
+    },
+    ESTABLISHED: (t) => {
+      const liq = t.liquidityUsd || 0;
+      const vol = t.volume24hUsd || 0;
+      const mc = t.marketCap || 0;
+      return liq >= 100_000 && vol >= 100_000 && mc >= 10_000_000;
+    },
+  };
+
+  const filteredTokens = useMemo(() => {
+    if (!isFilterReady) return [];
+    
+    let result = [...tokens];
+
+    // Search filter
+    if (debouncedSearch) {
+      const searchLower = debouncedSearch.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.symbol?.toLowerCase().includes(searchLower) ||
+          t.name?.toLowerCase().includes(searchLower) ||
+          t.address?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Preset filter
+    if (activePreset && PRESET_LOGIC[activePreset]) {
+      result = result.filter(PRESET_LOGIC[activePreset]);
+    }
+
+    // Liquidity filter
+    if (minLiquidity > 0) {
+      result = result.filter((t) => (t.liquidityUsd || 0) >= minLiquidity);
+    }
+
+    return result;
+  }, [tokens, debouncedSearch, activePreset, minLiquidity, isFilterReady]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredTokens.length / PAGE_SIZE);
+  const paginatedTokens = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredTokens.slice(start, start + PAGE_SIZE);
+  }, [filteredTokens, page]);
+
+  // Reset page on filter change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, activePreset, minLiquidity]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (gridRef.current && page > 1) {
+      gridRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [page]);
+
+  // Handle token click
+  const handleTokenClick = (token: DiscoveredToken) => {
+    if (!connected) {
+      setVisible(true);
+      return;
+    }
+    setSelectedToken(token);
+    setIsSwapDrawerOpen(true);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Zap className="w-8 h-8 text-black" />
+          </div>
+          <h1 className="text-2xl font-bold mb-2">Loading Solana Tokens...</h1>
+          <p className="text-zinc-500">Fetching latest market data</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Connection Error</h1>
+          <p className="text-zinc-500 mb-6">Failed to load token data</p>
+          <button
+            onClick={() => refetch()}
+            className="px-6 py-3 bg-emerald-500 text-black rounded-xl font-semibold hover:bg-emerald-400 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const presets: { key: Preset; label: string; color: string }[] = [
+    { key: 'TRENDING', label: 'Trending', color: 'emerald' },
+    { key: 'RISING', label: 'Rising', color: 'purple' },
+    { key: 'NEW', label: 'New', color: 'blue' },
+    { key: 'HIGH_LIQ', label: 'High Liquidity', color: 'cyan' },
+    { key: 'LOW_CAP', label: 'Low Cap', color: 'orange' },
+    { key: 'ESTABLISHED', label: 'Established', color: 'zinc' },
+  ];
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-emerald-500/30 selection:text-emerald-50">
-
-      {/* HERO SECTION */}
-      <section className="relative h-screen min-h-[800px] flex items-center justify-center overflow-hidden">
-
-        {/* Background Effects */}
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(16,185,129,0.03),_transparent_50%)]" />
-          <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_rgba(16,185,129,0.05),_transparent_60%)] animate-pulse" style={{ animationDuration: '8s' }} />
-
-          {/* Subtle Grid */}
-          <div className="absolute inset-0 opacity-[0.02]"
-            style={{
-              backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
-              backgroundSize: '50px 50px'
-            }}
-          />
-        </div>
-
-        <div className="container mx-auto px-6 relative z-10 text-center">
-          <motion.div
-            initial="initial"
-            animate="animate"
-            variants={staggerContainer}
-            className="max-w-5xl mx-auto flex flex-col items-center"
-          >
-            {/* System Tag */}
-            <motion.div variants={fadeInUp} className="mb-8">
-              <div className="px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md flex items-center gap-2.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-mono">
-                  System v2.0 Online
-                </span>
-              </div>
-            </motion.div>
-
-            {/* Main Heading */}
-            <motion.h1
-              variants={fadeInUp}
-              className="text-6xl md:text-8xl font-bold mb-8 leading-tight tracking-tight mix-blend-color-dodge"
+    <div className="min-h-screen bg-black text-white">
+      {/* Header */}
+      <div className="border-b border-zinc-800">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-3">
+                <span className="text-emerald-400">Solana</span> Swap
+              </h1>
+              <p className="text-zinc-500 mt-1">
+                {tokens.length.toLocaleString()} tokens • Jupiter powered
+              </p>
+            </div>
+            <button
+              onClick={() => refetch()}
+              className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-emerald-500/30 transition-colors"
+              title="Refresh"
             >
-              Market Intelligence, <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-600">
-                Engineered.
-              </span>
-            </motion.h1>
-
-            {/* Subtitle */}
-            <motion.p
-              variants={fadeInUp}
-              className="text-xl text-zinc-400 mb-12 max-w-2xl mx-auto leading-relaxed font-light"
-            >
-              Sophisticated analysis powered by the V2 regime detection system.
-              Detect accumulation, momentum shifts, and volatility anomalies in real-time.
-            </motion.p>
-
-            {/* CTA Buttons */}
-            <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row items-center gap-6">
-              <ExploreButton />
-
-              <Link href="/zenith" className="group text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-2">
-                About Zenith
-                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </motion.div>
-
-          </motion.div>
-        </div>
-      </section>
-
-      {/* VALUE PROPOSITION SECTION */}
-      <section className="py-32 bg-zinc-950 border-t border-white/5 relative z-10">
-        <div className="container mx-auto px-6">
-
-          <div className="text-center mb-24">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">Precision. Privacy. Performance.</h2>
-            <p className="text-zinc-400 max-w-2xl mx-auto text-lg">
-              Zenith is a non-custodial interface for the modern trader. We provide institutional-grade data visualization
-              and direct execution capabilities without ever holding your funds.
-            </p>
+              <RefreshCw className="w-5 h-5 text-zinc-400" />
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Search & Filters */}
+          <div className="space-y-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, symbol, or address..."
+                className="w-full pl-12 pr-12 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2"
+                >
+                  <X className="w-5 h-5 text-zinc-500 hover:text-white" />
+                </button>
+              )}
+            </div>
 
-            {/* Card 1 */}
-            <motion.div
-              whileHover={{ y: -5 }}
-              className="p-8 rounded-2xl bg-black border border-white/10 hover:border-emerald-500/30 transition-colors group"
-            >
-              <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center mb-6 group-hover:border-emerald-500/30 transition-colors">
-                <Layout className="text-emerald-500" size={24} />
-              </div>
-              <h3 className="text-xl font-bold mb-3">Global Markets</h3>
-              <p className="text-zinc-500 leading-relaxed">
-                Real-time data aggregation from Finnhub and Alpha Vantage.
-                Stocks, Forex, and Crypto in a single terminal.
-              </p>
-            </motion.div>
-
-            {/* Card 2 */}
-            <motion.div
-              whileHover={{ y: -5 }}
-              className="p-8 rounded-2xl bg-black border border-white/10 hover:border-emerald-500/30 transition-colors group"
-            >
-              <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center mb-6 group-hover:border-emerald-500/30 transition-colors">
-                <Shield className="text-emerald-500" size={24} />
-              </div>
-              <h3 className="text-xl font-bold mb-3">Non-Custodial</h3>
-              <p className="text-zinc-500 leading-relaxed">
-                Connect your wallet to execute. Your keys, your assets.
-                We never access your private data.
-              </p>
-            </motion.div>
-
-            {/* Card 3 */}
-            <motion.div
-              whileHover={{ y: -5 }}
-              className="p-8 rounded-2xl bg-black border border-white/10 hover:border-emerald-500/30 transition-colors group"
-            >
-              <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center mb-6 group-hover:border-emerald-500/30 transition-colors">
-                <Database className="text-emerald-500" size={24} />
-              </div>
-              <h3 className="text-xl font-bold mb-3">Decision Lab</h3>
-              <p className="text-zinc-500 leading-relaxed">
-                Refine your psychology. Track behavior patterns and
-                optimize your decision-making process.
-              </p>
-            </motion.div>
-
+            {/* Presets */}
+            <div className="flex flex-wrap gap-2">
+              {presets.map(({ key, label, color }) => (
+                <button
+                  key={key}
+                  onClick={() => setActivePreset(activePreset === key ? null : key)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    activePreset === key
+                      ? `bg-${color}-500/20 text-${color}-400 border border-${color}-500/30`
+                      : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:border-zinc-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+              {activePreset && (
+                <button
+                  onClick={() => setActivePreset(null)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-zinc-500 hover:text-white"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </section>
+      </div>
 
+      {/* Results */}
+      <div className="max-w-7xl mx-auto px-4 py-8" ref={gridRef}>
+        {!isFilterReady ? (
+          <div className="text-center py-20">
+            <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-zinc-500">Preparing tokens...</p>
+          </div>
+        ) : filteredTokens.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="text-zinc-500 text-lg">No tokens match your filters</p>
+            <button
+              onClick={() => {
+                setSearch('');
+                setActivePreset(null);
+                setMinLiquidity(0);
+              }}
+              className="mt-4 text-emerald-400 hover:text-emerald-300"
+            >
+              Clear all filters
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="mb-4 text-sm text-zinc-500">
+              Showing {paginatedTokens.length} of {filteredTokens.length} tokens
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {paginatedTokens.map((token) => (
+                <SwapTokenCard
+                  key={token.address}
+                  token={token}
+                  onClick={() => handleTokenClick(token)}
+                />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="mt-8">
+                <ZenithPagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Swap Drawer */}
+      <SolanaSwapDrawer
+        isOpen={isSwapDrawerOpen}
+        onClose={() => {
+          setIsSwapDrawerOpen(false);
+          setSelectedToken(null);
+        }}
+        selectedToken={selectedToken}
+      />
     </div>
   );
 }

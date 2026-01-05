@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Bell, Settings, Crown, LogOut, HelpCircle } from 'lucide-react';
+import { Bell, Settings, LogOut, HelpCircle, Wallet } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -100,17 +100,12 @@ export default function MobileTopNav() {
                   )}
                   <div>
                     <div className="text-sm font-bold text-white">{session.user?.name}</div>
-                    <div className="text-xs text-[var(--text-muted)]">{session.user?.email}</div>
+                    <div className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+                      <Wallet size={10} />
+                      {(session.user as any)?.walletAddress?.slice(0, 4)}...{(session.user as any)?.walletAddress?.slice(-4)}
+                    </div>
                   </div>
                 </div>
-                {session.user?.isPremium && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30 rounded-lg">
-                    <Crown size={14} className="text-yellow-400" />
-                    <span className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
-                      Premium Member
-                    </span>
-                  </div>
-                )}
               </div>
 
               {/* Menu Items */}
@@ -122,17 +117,6 @@ export default function MobileTopNav() {
                 >
                   <Settings size={18} className="text-[var(--text-muted)]" />
                   <span className="text-sm font-medium text-white">Settings</span>
-                </Link>
-
-                <Link
-                  href="/profile/subscription"
-                  onClick={() => setShowAccountMenu(false)}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 rounded-xl transition-colors touch-target"
-                >
-                  <Crown size={18} className={session.user?.isPremium ? "text-yellow-400" : "text-[var(--text-muted)]"} />
-                  <span className="text-sm font-medium text-white">
-                    {session.user?.isPremium ? 'Manage Subscription' : 'Upgrade to Premium'}
-                  </span>
                 </Link>
 
                 <Link
