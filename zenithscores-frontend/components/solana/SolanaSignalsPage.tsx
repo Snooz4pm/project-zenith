@@ -5,14 +5,14 @@ import { Card } from "@/components/ui/card";
 import { ArrowUpRight, TrendingUp, Info, ArrowRight, ShieldCheck, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchSignals, SignalToken } from "@/lib/zenith/signals";
-import { useSwap } from "@/components/swap/SwapContext";
+// import { useSwap } from "@/components/swap/SwapContext"; // Removed
 import { useRouter } from 'next/navigation';
 
 export default function SignalsPage() {
   const [signals, setSignals] = useState<SignalToken[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const { setToZenith } = useSwap(); // If we wrap this page in SwapProvider, or we just nav.
+  // const { setToZenith } = useSwap(); // Removed
 
   // Note: To use useSwap, we need SwapProvider. 
   // app/layout.tsx might not have it global. app/swap/page.tsx has it.
