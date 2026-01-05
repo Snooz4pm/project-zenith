@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { buildZenithTokenList, ZenithToken } from "@/lib/zenith"; // New Engine
+import { buildZenithTokenList, ZenithToken } from "@/lib/zenith/index"; // Explicit index import
 import { useSwap } from "./SwapContext";
 
 export function TrendingSection() {

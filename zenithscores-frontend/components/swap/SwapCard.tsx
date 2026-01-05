@@ -54,6 +54,32 @@ export default function SwapCard() {
     }, []);
 
     // Fetch Quote (Runs regardless of wallet connection)
+    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+
+    useEffect(() => {
+        if (!searchParams) return;
+        const toMint = searchParams.get('to');
+        if (toMint) {
+            // We need to fetch metadata if we only have mint. 
+            // For now, if we clicked from Signals, we likely want to resolve it.
+            // Ideally SwapContext handles this "resolve by mint".
+            // Quick fix: If context has "setByMint", use it. 
+            // Or just leave it blank and let user search? No, "Auto-fill".
+            // I will assume the Context/Input component can verify it, 
+            // or I fetch it here quickly from the Engine cache?
+            // Easier: Client side fetch single jup token?
+            // Actually, let's just let the user standard selector handle it?
+            // NO, the requirement is "Auto fill".
+            // I will implement a quick fetch in useEffect 
+            buildZenithTokens().then(list => {
+                const found = list.find(t => t.mint === toMint);
+                if (found) {
+                    setToToken({ symbol: found.symbol, address: found.mint, decimals: 6 }); // decimals guess
+                }
+            });
+        }
+    }, []);
+
     // Fetch Quote (Real-time prices via Jupiter API Free)
     useEffect(() => {
         const fetchQuote = async () => {

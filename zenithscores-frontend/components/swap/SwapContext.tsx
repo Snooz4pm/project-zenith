@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { SOL_MINT, USDC_MINT } from '@/lib/solana/addresses';
-import { ZenithToken } from '@/lib/tokenTrustEngine';
+import { ZenithToken } from '@/lib/zenith/index';
 
 // Default Tokens
 const DEFAULT_FROM = { symbol: 'SOL', address: SOL_MINT, decimals: 9 };

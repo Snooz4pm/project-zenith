@@ -1,261 +1,164 @@
 'use client';
 
-/**
- * Solana Signals Page
- * 
- * Shows token signals with edge scoring from Raydium/Orca.
- * NO DexScreener, NO wagmi - Solana only.
- */
-
 import { useState, useEffect } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { SolanaSignal } from '@/lib/solana/display-types';
-import { SolanaSwapDrawer } from '@/components/SolanaSwapDrawer';
+import { Card } from "@/components/ui/card";
+import { ArrowUpRight, TrendingUp, Info, ArrowRight, ShieldCheck, Activity } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { fetchSignals, SignalToken } from "@/lib/zenith/signals";
+import { useSwap } from "@/components/swap/SwapContext";
+import { useRouter } from 'next/navigation';
 
-interface SignalResponse {
-  signals: SolanaSignal[];
-  market: {
-    regime: 'TRENDING' | 'MEAN-REVERTING' | 'CHOPPY' | 'CRISIS';
-    avgMomentum: number;
-    avgVolume: number;
-  };
-  lastUpdated: string;
-}
-
-function EdgeScoreBar({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-zinc-500 w-16">{label}</span>
-      <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-        <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${value}%` }} />
-      </div>
-      <span className="text-xs text-zinc-400 w-8 text-right">{value}</span>
-    </div>
-  );
-}
-
-function SignalCard({ signal, onSwap }: { signal: SolanaSignal; onSwap: () => void }) {
-  const riskColor = {
-    SAFE: 'text-green-400 bg-green-500/10',
-    LOW: 'text-green-300 bg-green-500/10',
-    MEDIUM: 'text-yellow-400 bg-yellow-500/10',
-    HIGH: 'text-orange-400 bg-orange-500/10',
-    EXTREME: 'text-red-500 bg-red-500/10',
-  }[signal.riskLevel ?? 'MEDIUM'];
-
-  const flowColor = {
-    accumulation: 'text-green-400',
-    distribution: 'text-red-400',
-    neutral: 'text-zinc-400',
-  }[signal.smartMoneyFlow];
-
-  return (
-    <div className="bg-zinc-900/70 border border-zinc-700 rounded-lg p-4 hover:border-purple-500/50 transition-all">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-sm font-bold">
-            {signal.symbol.slice(0, 2)}
-          </div>
-          <div>
-            <div className="font-semibold text-white">{signal.symbol}</div>
-            <div className="text-xs text-zinc-400">{signal.name.slice(0, 25)}</div>
-          </div>
-        </div>
-        <div className={`px-2 py-1 rounded text-xs font-medium ${riskColor}`}>
-          {signal.riskLevel}
-        </div>
-      </div>
-
-      {/* Edge Score Breakdown */}
-      <div className="space-y-1.5 mb-3">
-        <div className="flex items-center justify-between text-xs mb-1">
-          <span className="text-zinc-400">Edge Score</span>
-          <span className="text-purple-400 font-bold">{signal.edgeScore.overall}</span>
-        </div>
-        <EdgeScoreBar label="Volume" value={signal.edgeScore.volume} color="bg-blue-500" />
-        <EdgeScoreBar label="Liquidity" value={signal.edgeScore.liquidity} color="bg-green-500" />
-        <EdgeScoreBar label="Momentum" value={signal.edgeScore.momentum} color="bg-yellow-500" />
-        <EdgeScoreBar label="Smart $" value={signal.edgeScore.smartMoney} color="bg-purple-500" />
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-2 text-xs mb-3 border-t border-zinc-800 pt-3">
-        <div>
-          <div className="text-zinc-500">Liquidity</div>
-          <div className="text-white">${signal.liquidityUsd.toLocaleString()}</div>
-        </div>
-        <div>
-          <div className="text-zinc-500">Max Trade</div>
-          <div className="text-white">${signal.maxTradeSize.toLocaleString()}</div>
-        </div>
-        <div>
-          <div className="text-zinc-500">Smart Flow</div>
-          <div className={flowColor}>{signal.smartMoneyFlow}</div>
-        </div>
-        <div>
-          <div className="text-zinc-500">Safety</div>
-          <div className="text-zinc-300">{signal.safetyScore ?? '?'}/100</div>
-        </div>
-      </div>
-
-      <button
-        onClick={onSwap}
-        className="w-full bg-purple-600 hover:bg-purple-500 text-white text-sm py-2.5 rounded font-medium transition"
-      >
-        Swap on Jupiter
-      </button>
-    </div>
-  );
-}
-
-function MarketRegimeBanner({ market }: { market: SignalResponse['market'] }) {
-  const regimeStyles = {
-    'TRENDING': 'bg-green-500/10 border-green-500/30 text-green-400',
-    'MEAN-REVERTING': 'bg-blue-500/10 border-blue-500/30 text-blue-400',
-    'CHOPPY': 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400',
-    'CRISIS': 'bg-red-500/10 border-red-500/30 text-red-400',
-  };
-
-  const regimeDesc = {
-    'TRENDING': 'Strong momentum, follow the trend',
-    'MEAN-REVERTING': 'Fading extremes works well',
-    'CHOPPY': 'No clear direction, trade with caution',
-    'CRISIS': 'Low volume, high risk conditions',
-  };
-
-  return (
-    <div className={`rounded-lg border p-4 mb-6 ${regimeStyles[market.regime]}`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-sm font-medium">Market Regime: {market.regime}</div>
-          <div className="text-xs opacity-80 mt-1">{regimeDesc[market.regime]}</div>
-        </div>
-        <div className="text-right text-xs">
-          <div>Avg Momentum: {Math.round(market.avgMomentum)}</div>
-          <div>Avg Volume: {Math.round(market.avgVolume)}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function SolanaSignalsPage() {
-  const { connected } = useWallet();
-  const [data, setData] = useState<SignalResponse | null>(null);
+export default function SignalsPage() {
+  const [signals, setSignals] = useState<SignalToken[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedSignal, setSelectedSignal] = useState<SolanaSignal | null>(null);
-  const [showSwap, setShowSwap] = useState(false);
+  const router = useRouter();
+  const { setToZenith } = useSwap(); // If we wrap this page in SwapProvider, or we just nav.
 
-  const fetchSignals = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch('/api/solana/signals');
-      if (!res.ok) throw new Error('Failed to fetch signals');
-      const json = await res.json();
-      setData(json);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Note: To use useSwap, we need SwapProvider. 
+  // app/layout.tsx might not have it global. app/swap/page.tsx has it.
+  // If not global, we rely on URL params to the swap page: /swap?to=MINT
 
   useEffect(() => {
-    fetchSignals();
-    const interval = setInterval(fetchSignals, 30000); // Refresh every 30s
+    const load = async () => {
+      const data = await fetchSignals();
+      setSignals(data);
+      setLoading(false);
+    };
+    load();
+    const interval = setInterval(load, 60000); // 1 min refresh
     return () => clearInterval(interval);
   }, []);
 
-  const handleSignalSelect = (signal: SolanaSignal) => {
-    setSelectedSignal(signal);
-    setShowSwap(true);
+  const handleBuy = (token: SignalToken) => {
+    // "Buy" button -> auto-fills swap panel.
+    // Navigate to /swap with param
+    router.push(`/swap?to=${token.mint}`);
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-black text-[#EDEDED] p-4 lg:p-8 font-sans selection:bg-emerald-500/30">
+      <div className="max-w-6xl mx-auto space-y-8">
+
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-6">
           <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-              Solana Signals
+            <h1 className="text-3xl font-medium tracking-tight text-white mb-2 flex items-center gap-2">
+              <Activity className="w-8 h-8 text-emerald-500" />
+              Market Signals
             </h1>
-            <p className="text-zinc-500 mt-1">Edge Score Analysis • Raydium + Orca</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={fetchSignals}
-              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded text-sm"
-            >
-              ↻ Refresh
-            </button>
-            <WalletMultiButton className="!bg-purple-600 hover:!bg-purple-500" />
+            <p className="text-zinc-400 max-w-xl text-sm leading-relaxed">
+              A curated feed of assets demonstrating significant 24h momentum, verified liquidity, and organic volume.
+              Strictly filtered engine.
+            </p>
           </div>
         </div>
 
-        {/* Content */}
-        {loading && !data ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full" />
-          </div>
-        ) : error ? (
-          <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 text-red-400">
-            {error}
-          </div>
-        ) : data ? (
-          <>
-            <MarketRegimeBanner market={data.market} />
-
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white">
-                Active Signals ({data.signals.length})
-              </h2>
-              <span className="text-xs text-zinc-500">
-                Updated: {new Date(data.lastUpdated).toLocaleTimeString()}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {data.signals.map(signal => (
-                <SignalCard
-                  key={signal.mint}
-                  signal={signal}
-                  onSwap={() => handleSignalSelect(signal)}
-                />
-              ))}
-            </div>
-
-            {data.signals.length === 0 && (
-              <div className="text-center text-zinc-500 py-12">
-                No signals found. Waiting for market data...
+        {/* Transparency Section (Collapsible or just visible as user requested a section) */}
+        <Card className="bg-zinc-900/30 border-white/10 p-6">
+          <div className="flex items-start gap-4">
+            <Info className="w-5 h-5 text-zinc-500 mt-0.5 shrink-0" />
+            <div className="space-y-4">
+              <h3 className="font-medium text-white text-sm">How Signals Work</h3>
+              <div className="grid md:grid-cols-2 gap-6 text-xs text-zinc-400">
+                <div>
+                  <strong className="text-zinc-300 block mb-1">Strict Mathematical Filters</strong>
+                  <ul className="space-y-1 list-disc list-inside marker:text-emerald-500/50">
+                    <li>Price Momentum: &ge; +30% (24h)</li>
+                    <li>Liquidity Depth: &ge; $100,000</li>
+                    <li>Volume Verification: &ge; $500,000</li>
+                    <li>Activity Proxy: &ge; 500 Active Tx</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong className="text-zinc-300 block mb-1">Transparent Scoring (0-100)</strong>
+                  <p className="leading-relaxed">
+                    Score = (Momentum &times; 40%) + (Volume &times; 30%) + (Liquidity &times; 20%) + (Activity &times; 10%).
+                    <br />
+                    Data sourced directly from Jupiter, DexScreener, and Raydium/Orca.
+                  </p>
+                </div>
               </div>
-            )}
-          </>
-        ) : null}
-      </div>
+            </div>
+          </div>
+        </Card>
 
-      {/* Swap Drawer */}
-      {showSwap && selectedSignal && (
-        <SolanaSwapDrawer
-          isOpen={showSwap}
-          onClose={() => setShowSwap(false)}
-          token={{
-            chainType: 'SOLANA',
-            chainId: 'solana',
-            chain: 'solana',
-            address: selectedSignal.mint,
-            symbol: selectedSignal.symbol,
-            name: selectedSignal.name,
-            decimals: selectedSignal.decimals,
-            liquidityUsd: selectedSignal.liquidityUsd,
-            volume24hUsd: selectedSignal.volume24hUsd ?? 0,
-            source: 'RAYDIUM' as const,
-          }}
-        />
-      )}
+        {/* Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="h-64 bg-white/5 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {signals.map((token, idx) => (
+              <Card
+                key={token.mint}
+                className="group relative bg-black border border-white/10 hover:border-emerald-500/50 transition-colors overflow-hidden flex flex-col"
+              >
+                <div className="p-5 flex-1 space-y-4">
+                  {/* Top Row */}
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      {token.logoURI ? (
+                        <img src={token.logoURI} alt={token.symbol} className="w-10 h-10 rounded-full bg-zinc-900" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-500">
+                          {token.symbol[0]}
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-bold text-white group-hover:text-emerald-400 transition-colors flex items-center gap-1.5">
+                          {token.symbol}
+                          <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                        </div>
+                        <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">Rank #{idx + 1}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs font-mono text-emerald-400 flex items-center justify-end gap-1 font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                        <ArrowUpRight className="w-3 h-3" />
+                        {token.metrics.momentum.toFixed(0)}%
+                      </div>
+                      <div className="text-[10px] text-zinc-600 mt-1 font-mono">Score: {token.signalScore.toFixed(0)}</div>
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-2 gap-y-2 gap-x-4 pt-2 border-t border-white/5">
+                    <div>
+                      <div className="text-[10px] text-zinc-500">Price</div>
+                      <div className="text-sm font-mono text-white">${token.priceUsd < 0.01 ? token.priceUsd.toPrecision(4) : token.priceUsd.toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-zinc-500">Liquidity</div>
+                      <div className="text-sm font-mono text-zinc-300">${(token.metrics.liquidity / 1000).toFixed(0)}k</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-zinc-500">Volume (24h)</div>
+                      <div className="text-sm font-mono text-zinc-300">${(token.metrics.volume / 1000).toFixed(0)}k</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-zinc-500">Activity</div>
+                      <div className="text-sm font-mono text-zinc-300">{token.metrics.holders.toFixed(0)}+ Tx</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action (Bottom) */}
+                <button
+                  onClick={() => handleBuy(token)}
+                  className="w-full py-3 bg-zinc-900 border-t border-white/5 text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 group-hover/btn"
+                >
+                  Trade {token.symbol}
+                  <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-0.5 transition-transform" />
+                </button>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
