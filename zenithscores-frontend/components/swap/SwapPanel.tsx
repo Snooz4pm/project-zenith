@@ -811,10 +811,15 @@ export default function SwapPanel() {
                 />
 
                 <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="0.00"
                     value={amount}
-                    onChange={(e) => handleAmountChange(e.target.value)}
+                    onChange={(e) => {
+                        // Only allow numbers and decimal point
+                        const val = e.target.value.replace(/[^0-9.]/g, '');
+                        handleAmountChange(val);
+                    }}
                     className="w-full px-4 py-3 rounded-xl bg-zinc-900/50 border border-white/5 text-right text-white font-mono text-lg outline-none placeholder-zinc-700 focus:border-emerald-500/30"
                 />
 
