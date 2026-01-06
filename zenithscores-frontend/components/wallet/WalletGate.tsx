@@ -1,10 +1,10 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useDirectWallet } from './DirectConnectButton';
 import ConnectWallet from './ConnectWallet';
 
 export default function WalletGate({ children }: { children: React.ReactNode }) {
-    const { publicKey } = useWallet();
+    const { publicKey } = useDirectWallet();
 
     if (!publicKey) {
         return (

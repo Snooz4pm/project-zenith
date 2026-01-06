@@ -9,6 +9,7 @@ import { usePathname } from 'next/navigation';
 import { ChevronDown, LogOut, Wallet, Copy, ExternalLink, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { DirectConnectButton, useDirectWallet } from './wallet/DirectConnectButton';
+import ReclaimSOL from './Navbar/ReclaimSOL';
 import { disconnectWallet } from '@/lib/connectWallet';
 import { Connection, PublicKey } from '@solana/web3.js';
 
@@ -210,6 +211,17 @@ export default function Navbar() {
                                             {/* Divider */}
                                             <div className="my-2 border-t border-white/5" />
 
+                                            {/* Reclaim Hidden SOL */}
+                                            <div className="my-2 border-t border-white/5" />
+                                            <div className="px-4 py-2.5">
+                                                <div className="mb-2 text-xs text-emerald-400 font-bold">Free SOL</div>
+                                                <div className="rounded-lg bg-black/80 border border-emerald-400/30 p-2">
+                                                    <div className="mb-2 text-sm text-white font-semibold">Reclaim Hidden SOL</div>
+                                                    <div className="mb-2">
+                                                        <ReclaimSOL />
+                                                    </div>
+                                                </div>
+                                            </div>
                                             {/* Disconnect */}
                                             <button
                                                 onClick={handleDisconnect}
