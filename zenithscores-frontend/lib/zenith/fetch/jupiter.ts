@@ -3,7 +3,11 @@
 export async function fetchJupiterTokens() {
     try {
         // Use Railway backend proxy to avoid DNS/CORS blocking
-        const PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'http://localhost:3001';
+        const PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL;
+
+        if (!PROXY_URL) {
+            throw new Error("NEXT_PUBLIC_JUPITER_PROXY_URL is undefined. Check Vercel env vars.");
+        }
         const res = await fetch(`${PROXY_URL}/tokens`, {
             headers: {
                 'Accept': 'application/json'

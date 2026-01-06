@@ -11,7 +11,11 @@ import type {
     CategorySlug,
 } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://project-zenith-zexd.vercel.app';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_BASE_URL) {
+    console.warn('NEXT_PUBLIC_API_URL is not set. API calls may fail.');
+}
 
 class NewsAPI {
     private baseUrl: string;
