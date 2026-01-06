@@ -34,9 +34,8 @@ export default function SwapCard() {
     const [error, setError] = useState<string | null>(null);
     const [swapState, setSwapState] = useState<'idle' | 'loading' | 'success' | 'error' | 'connect'>('idle');
 
-    // Default to SOL -> USDC
-    const [fromToken, setFromToken] = useState({ symbol: 'SOL', address: SOL_MINT, decimals: 9 });
-    const [toToken, setToToken] = useState({ symbol: 'USDC', address: USDC_MINT, decimals: 6 });
+    // Default tokens are managed by useSwapStore
+
 
     const [popularTokens, setPopularTokens] = useState<ZenithToken[]>([]);
 

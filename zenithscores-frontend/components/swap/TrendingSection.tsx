@@ -256,81 +256,92 @@ const handleTokenClick = (token: ZenithToken) => {
 };
 
 // Client-side Pagination
+// Client-side Pagination
 const totalPages = Math.ceil(sortedTokens.length / PAGE_SIZE);
 const paginatedTokens = sortedTokens.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
+let content: JSX.Element | null = null;
+
 if (loading) {
-    return (
+    content = (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-pulse">
             {[...Array(12)].map((_, i) => (
                 <div key={i} className="h-[60px] bg-white/5 rounded-xl"></div>
             ))}
         </div>
     );
-}
-
-if (error && tokens.length === 0) {
-    return (
+} else if (error && tokens.length === 0) {
+    content = (
         <div className="p-6 border border-white/5 bg-zinc-900/50 rounded-xl flex items-center gap-3 text-zinc-400">
             <AlertCircle className="w-5 h-5" />
             <span>{error}</span>
         </div>
     );
-}
+} else if (sortedTokens.length === 0) {
+    content = null;
+} else {
+    content = (
+        <>
+            {/* Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2 tracking-tight">
+                    <TrendingUp className="w-5 h-5 text-emerald-400" />
+                    Market
+                    <span className="text-zinc-600 text-sm font-normal ml-2">
+                        Top {sortedTokens.length} Assets
+                    </span>
+                </h2>
 
-if (sortedTokens.length === 0) return null;
+                {/* Pagination Controls */}
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setPage(p => Math.max(0, p - 1))}
+                        disabled={page === 0}
+                        className="p-1.5 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                    >
+                        <ChevronLeft className="w-4 h-4 text-zinc-400" />
+                    </button>
+                    <span className="text-xs font-mono text-zinc-500 min-w-[30px] text-center">
+                        {page + 1}/{totalPages}
+                    </span>
+                    <button
+                        onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                        disabled={page >= totalPages - 1}
+                        className="p-1.5 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                    >
+                        <ChevronRight className="w-4 h-4 text-zinc-400" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Compact Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {paginatedTokens.map((token) => (
+                    <TokenCardCompact
+                        key={token.mint}
+                        token={token}
+                        onClick={() => handleTokenClick(token)}
+                        isPinned={pinned.includes(token.mint)}
+                        onPin={(e) => togglePin(e, token.mint)}
+                        userBalance={balances[token.mint]}
+                        onSwap={() => handleOneClickSwap(token)}
+                    />
+                ))}
+            </div>
+
+            <div className="flex items-center justify-center pt-4">
+                <div className="flex gap-2 text-[10px] text-zinc-600 uppercase tracking-widest font-medium">
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#2ee6a6]" /> LIVE</span>
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#5882ff]" /> STREAMING</span>
+                </div>
+            </div>
+        </>
+    );
+}
 
 return (
     <div className="space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-2 border-b border-white/5">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2 tracking-tight">
-                <TrendingUp className="w-5 h-5 text-emerald-400" />
-                Market
-                <span className="text-zinc-600 text-sm font-normal ml-2">
-                    Top {sortedTokens.length} Assets
-                </span>
-            </h2>
-
-            {/* Pagination Controls */}
-            <div className="flex items-center gap-2">
-                <button
-                    onClick={() => setPage(p => Math.max(0, p - 1))}
-                    disabled={page === 0}
-                    className="p-1.5 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                >
-                    <ChevronLeft className="w-4 h-4 text-zinc-400" />
-                </button>
-                <span className="text-xs font-mono text-zinc-500 min-w-[30px] text-center">
-                    {page + 1}/{totalPages}
-                </span>
-                <button
-                    onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                    disabled={page >= totalPages - 1}
-                    className="p-1.5 rounded-lg hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                >
-                    <ChevronRight className="w-4 h-4 text-zinc-400" />
-                </button>
-            </div>
-        </div>
-
-        {/* Compact Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            {paginatedTokens.map((token) => (
-                <TokenCardCompact
-                    key={token.mint}
-                    token={token}
-                    onClick={() => handleTokenClick(token)}
-                />
-            ))}
-        </div>
-
-        <div className="flex items-center justify-center pt-4">
-            <div className="flex gap-2 text-[10px] text-zinc-600 uppercase tracking-widest font-medium">
-                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#2ee6a6]" /> LIVE</span>
-                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#5882ff]" /> STREAMING</span>
-            </div>
-        </div>
+        {content}
     </div>
 );
 }
