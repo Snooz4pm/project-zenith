@@ -98,7 +98,6 @@ export default function SwapPanel() {
     const loadWalletBalances = useCallback(async () => {
         if (!connected || !walletPubkey || tokenUniverse.length === 0) {
             setWalletTokens([]);
-            setFromToken(null);
             return;
         }
 
@@ -110,17 +109,18 @@ export default function SwapPanel() {
             console.log('[SwapPanel] Enriched tokens:', enriched.length);
             setWalletTokens(enriched);
 
-            // Auto-select FROM: highest balance token (with actual balance > 0)
-            if (enriched.length > 0 && !fromToken) {
-                const withBalance = enriched.filter(t => t.uiBalance > 0);
-                if (withBalance.length > 0) {
-                    setFromToken(withBalance[0]);
-                }
+            // Auto-select FROM: highest balance token (only if not already set)
+            if (enriched.length > 0) {
+                setFromToken(prev => {
+                    if (prev) return prev; // Don't overwrite existing selection
+                    const withBalance = enriched.filter(t => t.uiBalance > 0);
+                    return withBalance.length > 0 ? withBalance[0] : null;
+                });
             }
         } catch (err) {
             console.error("[SwapPanel] Failed to load wallet balances:", err);
         }
-    }, [connected, walletPubkey, tokenUniverse, fromToken, connection]);
+    }, [connected, walletPubkey, tokenUniverse, connection]); // REMOVED fromToken from deps
 
     useEffect(() => {
         loadWalletBalances();
@@ -212,12 +212,14 @@ export default function SwapPanel() {
             return;
         }
 
-        // Deduplication: Same params as last quote → skip
+        // Deduplication: Same params as last quote → skip (use ref to avoid stale closure)
         const quoteKey = `${fromToken?.address}-${toToken?.mint}-${amount}`;
-        if (quoteKey === lastQuoteRef.current && quote) {
+        if (quoteKey === lastQuoteRef.current) {
             return;
         }
 
+        // Reset noRoute when params change
+        setNoRoute(false);
         setError(null);
         setSwapState('fetching-quote');
 
@@ -265,7 +267,7 @@ export default function SwapPanel() {
                 clearTimeout(quoteTimeoutRef.current);
             }
         };
-    }, [amount, fromToken, toToken, quote]);
+    }, [amount, fromToken, toToken]); // REMOVED quote from deps - prevents loop
 
     // ========================================================================
     // 6. EXECUTE SWAP (FULL FLOW WITH SIMULATION)
