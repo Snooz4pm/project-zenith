@@ -20,14 +20,13 @@ interface Props {
   children: ReactNode;
 }
 
+import { SOLANA_RPC_URL } from '@/lib/solana/connection';
+
 export function SolanaWalletProvider({ children }: Props) {
   // Helius RPC for production
+
   const endpoint = useMemo(() => {
-    const rpc = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
-    if (!rpc && typeof window !== 'undefined') {
-      console.error('[SolanaWalletProvider] NEXT_PUBLIC_SOLANA_RPC_URL not set!');
-    }
-    return rpc || 'https://api.mainnet-beta.solana.com';
+    return SOLANA_RPC_URL;
   }, []);
 
   // Phantom + Solflare only
