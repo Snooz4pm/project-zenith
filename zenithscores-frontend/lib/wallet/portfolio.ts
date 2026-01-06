@@ -112,8 +112,7 @@ export async function fetchPortfolio(
         const priceChange24h = priceInfo?.change24h || 0;
         const valueUsd = token.uiBalance * priceUsd;
 
-        // Skip dust (<$0.01)
-        if (valueUsd < 0.01 && token.symbol !== 'SOL') continue;
+        // Always show all tokens, including SOL and dust
 
         const projection7d = calculateProjection(valueUsd, priceChange24h);
         const projectionChange = valueUsd > 0 ? ((projection7d - valueUsd) / valueUsd) * 100 : 0;
