@@ -1,7 +1,8 @@
 
 export interface ZenithToken {
     mint: string;
-    symbol: string;
+    address?: string;
+    symbol: string; // Alias for mint (normalized)
     name: string;
     decimals?: number;
     logoURI?: string;

@@ -118,31 +118,55 @@ export default function TokenExplorer() {
         });
     }, [publicKey, connection]);
 
-    // 3. Prepare Enriched List (NO HIDING, JUST LABELING + SORTING)
-    const displayTokens = useMemo(() => {
-        // Map to enriched
-        const enriched = tokens.map(t => ({
-            ...t,
-            balance: balances.get(t.mint) || 0,
-            isVerified: ['SOL', 'USDC', 'JUP', 'RAY', 'BONK', 'WIF'].includes(t.symbol),
-            isLowLiq: t.liquidityUsd < 10000,
-            hasLogo: !!t.logoURI && t.logoURI.startsWith('http') && !t.logoURI.includes('unknown')
-        }));
+    // 3. Prepare Enriched List (SAFE RENDER PATTERN)
+    const safeTokens = useMemo(() => {
+        // 1️⃣ Normalize ONCE (User's Safe Pattern)
+        if (!Array.isArray(tokens)) return [];
 
-        // SORT: Owned First, then Default Rank
-        return enriched.sort((a, b) => {
-            if (b.balance > 0 && a.balance === 0) return -1; // b has balance, a doesn't, b comes first
-            if (a.balance > 0 && b.balance === 0) return 1;  // a has balance, b doesn't, a comes first
-            // Secondary sort: Keep original order (Volume) if both owned or both not owned
-            return 0;
-        });
+        return tokens
+            .filter(t =>
+                t &&
+                typeof t === 'object' &&
+                (typeof t.mint === 'string' || typeof t.address === 'string') &&
+                typeof t.symbol === 'string'
+            )
+            .map(t => {
+                // Handle Mint/Address ambiguity safely
+                const address = (t.mint || t.address) as string;
+
+                return {
+                    ...t,
+                    address: address, // Ensure address exists for keying
+                    mint: address,    // Ensure mint exists for logic
+                    balance: balances.get(address) || 0,
+
+                    // Safe Defaults
+                    logoURI: t.logoURI && t.logoURI.length > 0 && t.logoURI.startsWith('http')
+                        ? t.logoURI
+                        : 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
+
+                    priceUsd: Number(t.priceUsd) || 0,
+                    liquidityUsd: Number(t.liquidityUsd) || 0,
+                    volume24hUsd: Number(t.volume24hUsd) || 0,
+
+                    isVerified: ['SOL', 'USDC', 'JUP', 'RAY', 'BONK', 'WIF'].includes(t.symbol),
+                    isLowLiq: (Number(t.liquidityUsd) || 0) < 10000,
+                    hasLogo: !!t.logoURI && !t.logoURI.includes('unknown')
+                };
+            })
+            // Sort safely inside the memo
+            .sort((a, b) => {
+                if (b.balance > 0 && a.balance === 0) return 1;
+                if (a.balance > 0 && b.balance === 0) return -1;
+                return 0; // Keep original sort
+            });
     }, [tokens, balances]);
 
-    // 4. Virtualizer Setup
+    // 4. Virtualizer Setup uses safeTokens
     const rowVirtualizer = useVirtualizer({
-        count: displayTokens.length,
+        count: safeTokens.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => 64, // Matches row height approx
+        estimateSize: () => 64,
         overscan: 10
     });
 
@@ -154,7 +178,7 @@ export default function TokenExplorer() {
                         Market
                     </h2>
                     <p className="text-xs text-zinc-500">
-                        {displayTokens.length} Verified Assets
+                        {safeTokens.length} Verified Assets
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -191,7 +215,7 @@ export default function TokenExplorer() {
                             }}
                         >
                             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                                const token = displayTokens[virtualRow.index];
+                                const token = safeTokens[virtualRow.index];
                                 return (
                                     <div
                                         key={token.mint}
@@ -206,14 +230,8 @@ export default function TokenExplorer() {
                                     >
                                         <TokenRow
                                             token={token}
-                                            onClick={() => setSelectedToken({
-                                                address: token.mint,
-                                                symbol: token.symbol,
-                                                name: token.name,
-                                                logoURI: token.logoURI,
-                                                decimals: token.decimals
-                                            })}
-                                            isSelected={selectedToken?.address === token.mint}
+                                            onClick={() => setSelectedToken(token)}
+                                            isSelected={selectedToken?.address === token.address}
                                         />
                                     </div>
                                 );
