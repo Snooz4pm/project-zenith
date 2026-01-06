@@ -4,13 +4,14 @@ import { fetchDexScreenerPools } from './fetch/dexScreener';
 import { normalizeToken } from './normalize/mapper';
 import { ZenithToken } from './types';
 
+// Export types and functions
 export { getLivePrice };
 export type { ZenithToken };
 
-// ... imports
-
-// ...
-
+/**
+ * ZENITH TOKEN ENGINE
+ * Entry Point: Builds a curated list of trusted, high-quality tokens for the Trending section.
+ */
 export async function buildZenithTokenList(): Promise<ZenithToken[]> {
     try {
         console.log("Zenith: Initializing Token Intelligence Engine...");
