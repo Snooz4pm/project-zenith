@@ -1,11 +1,11 @@
 'use client';
 import React, { useEffect, useRef } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useUnlockValueStore } from './UnlockValueStore';
 import { runUnlockValueScan } from './UnlockValueScanner';
-import { connection } from '@/lib/solana/connection';
 
 export default function UnlockValueClient() {
+  const { connection } = useConnection();
   const { publicKey, connected } = useWallet();
   const store = useUnlockValueStore();
   const lastWallet = useRef<string | null>(null);
@@ -15,7 +15,7 @@ export default function UnlockValueClient() {
       lastWallet.current = publicKey.toString();
       runUnlockValueScan(connection, publicKey);
     }
-  }, [connected, publicKey]);
+  }, [connected, publicKey, connection]);
 
   return (
     <div className="max-w-4xl mx-auto py-10 px-4">
