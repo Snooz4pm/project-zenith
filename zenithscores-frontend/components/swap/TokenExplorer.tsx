@@ -15,23 +15,34 @@ function formatMetric(value: number): string {
 }
 
 // Dumb & Clean Row Component
-function TokenRow({ token, onClick, isSelected }: { token: ZenithToken; onClick: () => void; isSelected: boolean }) {
+function TokenRow({ token, onClick, isSelected }: { token: ZenithToken & { isVerified?: boolean; isLowLiq?: boolean; hasLogo?: boolean }; onClick: () => void; isSelected: boolean }) {
     return (
         <button
             onClick={onClick}
             className={`w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 ${isSelected ? 'bg-white/5' : ''}`}
         >
             <div className="flex items-center gap-4">
-                {/* Fixed width for rank or just logo (removing rank for now to match user spec) */}
-                <img
-                    src={token.logoURI}
-                    alt={token.symbol}
-                    className="w-8 h-8 rounded-full bg-zinc-800 object-cover"
-                    loading="lazy"
-                />
+                {token.hasLogo ? (
+                    <img
+                        src={token.logoURI}
+                        alt={token.symbol}
+                        className="w-8 h-8 rounded-full bg-zinc-800 object-cover"
+                        loading="lazy"
+                    />
+                ) : (
+                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-[8px] text-zinc-500 border border-white/5">
+                        ?
+                    </div>
+                )}
+
                 <div className="text-left">
                     <div className="text-sm font-bold text-white flex items-center gap-2">
                         {token.symbol}
+                        {token.isVerified && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[9px] font-bold border border-blue-500/20">
+                                VERIFIED
+                            </span>
+                        )}
                         {/* Price Tag */}
                         {token.priceUsd > 0 && (
                             <span className="text-xs font-mono text-zinc-500 font-normal">
@@ -39,8 +50,9 @@ function TokenRow({ token, onClick, isSelected }: { token: ZenithToken; onClick:
                             </span>
                         )}
                     </div>
-                    <div className="text-[10px] text-zinc-500 truncate max-w-[120px]">
-                        {token.name}
+                    <div className="text-[10px] text-zinc-500 truncate max-w-[120px] flex gap-2">
+                        <span>{token.name}</span>
+                        {!token.hasLogo && <span className="text-red-400">No Logo</span>}
                     </div>
                 </div>
             </div>
@@ -53,7 +65,10 @@ function TokenRow({ token, onClick, isSelected }: { token: ZenithToken; onClick:
                 </div>
                 <div>
                     <div className="text-[10px] text-zinc-500 uppercase">Liq</div>
-                    <div className="text-xs font-mono text-emerald-400">{formatMetric(token.liquidityUsd)}</div>
+                    <div className="text-xs font-mono text-emerald-400 flex flex-col items-end">
+                        {formatMetric(token.liquidityUsd)}
+                        {token.isLowLiq && <span className="text-[9px] text-orange-400/80">LOW LIQ</span>}
+                    </div>
                 </div>
             </div>
         </button>
@@ -81,15 +96,16 @@ export default function TokenExplorer() {
             });
     }, []);
 
-    // 1. Memoize Filtered List (Strict Logo Filter)
+    // 1. Prepare Enriched List (NO HIDING, JUST LABELING)
     const displayTokens = useMemo(() => {
-        return tokens.filter(t =>
-            t.logoURI &&
-            typeof t.logoURI === 'string' &&
-            t.logoURI.startsWith('http') &&
-            !t.logoURI.includes('unknown') &&
-            !t.logoURI.includes('placeholder')
-        );
+        // We show everything the backend gives us (which is already verified/safe-ish)
+        // We just add badges for clarity.
+        return tokens.map(t => ({
+            ...t,
+            isVerified: ['SOL', 'USDC', 'JUP', 'RAY', 'BONK', 'WIF'].includes(t.symbol),
+            isLowLiq: t.liquidityUsd < 10000,
+            hasLogo: !!t.logoURI && t.logoURI.startsWith('http') && !t.logoURI.includes('unknown')
+        }));
     }, [tokens]);
 
     // 2. Virtualizer Setup
