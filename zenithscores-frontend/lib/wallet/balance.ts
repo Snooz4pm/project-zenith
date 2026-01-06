@@ -63,7 +63,18 @@ export async function fetchWalletBalances(connection: Connection, publicKey: Pub
 
     try {
         // 1. Fetch SOL Balance
-        const solBalance = await connection.getBalance(publicKey);
+        let solBalance;
+        try {
+            solBalance = await connection.getBalance(publicKey);
+        } catch (err: any) {
+            if (err?.message?.includes('403') || err?.message?.includes('Access forbidden')) {
+                console.warn('[Balance] Forbidden by RPC, falling back to public RPC');
+                const publicConn = new Connection(PUBLIC_RPC, 'confirmed');
+                solBalance = await publicConn.getBalance(publicKey);
+            } else {
+                throw err;
+            }
+        }
         const balances: WalletBalance[] = [{
             mint: 'So11111111111111111111111111111111111111112', // SOL Mint
             amount: solBalance / 1e9,
@@ -71,10 +82,24 @@ export async function fetchWalletBalances(connection: Connection, publicKey: Pub
         }];
 
         // 2. Fetch SPL Token Balances (Parsed is faster/cleaner)
-        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
-            publicKey,
-            { programId: TOKEN_PROGRAM_ID }
-        );
+        let tokenAccounts;
+        try {
+            tokenAccounts = await connection.getParsedTokenAccountsByOwner(
+                publicKey,
+                { programId: TOKEN_PROGRAM_ID }
+            );
+        } catch (err: any) {
+            if (err?.message?.includes('403') || err?.message?.includes('Access forbidden')) {
+                console.warn('[Balance] Forbidden by RPC, falling back to public RPC');
+                const publicConn = new Connection(PUBLIC_RPC, 'confirmed');
+                tokenAccounts = await publicConn.getParsedTokenAccountsByOwner(
+                    publicKey,
+                    { programId: TOKEN_PROGRAM_ID }
+                );
+            } else {
+                throw err;
+            }
+        }
 
         tokenAccounts.value.forEach(acc => {
             const info = acc.account.data.parsed.info;
