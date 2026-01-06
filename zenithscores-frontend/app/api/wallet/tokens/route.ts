@@ -1,9 +1,16 @@
-import { NextResponse } from 'next/server';
-import { PublicKey } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { serverConnection } from '@/lib/server/solana';
-
 export const dynamic = 'force-dynamic';
+
+import { NextResponse } from 'next/server';
+import { Connection, PublicKey } from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+
+// Self-contained connection logic
+const API_KEY = process.env.HELIUS_API_KEY || process.env.NEXT_PUBLIC_HELIUS_API_KEY;
+const RPC_URL = API_KEY
+    ? `https://mainnet.helius-rpc.com/?api-key=${API_KEY}`
+    : 'https://api.mainnet-beta.solana.com';
+
+const connection = new Connection(RPC_URL, 'confirmed');
 
 export async function GET(req: Request) {
     try {
@@ -22,7 +29,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: 'Invalid address' }, { status: 400 });
         }
 
-        const accounts = await serverConnection.getParsedTokenAccountsByOwner(
+        const accounts = await connection.getParsedTokenAccountsByOwner(
             pubkey,
             { programId: TOKEN_PROGRAM_ID }
         );
@@ -44,10 +51,10 @@ export async function GET(req: Request) {
             address,
             tokens: nonZeroTokens,
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('[API /wallet/tokens] Error:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch tokens' },
+            { error: 'Failed to fetch tokens', details: error.message },
             { status: 500 }
         );
     }

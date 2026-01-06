@@ -11,11 +11,8 @@ import { Connection } from '@solana/web3.js';
 
 // Server-side only RPC URL (not exposed to browser)
 const HELIUS_RPC_URL = process.env.HELIUS_RPC_URL
-    || `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`;
+    || (process.env.HELIUS_API_KEY ? `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}` : undefined);
 
-if (!process.env.HELIUS_RPC_URL && !process.env.HELIUS_API_KEY) {
-    console.error('[Server Solana] No HELIUS_RPC_URL or HELIUS_API_KEY found!');
-}
 
 // Singleton connection for server-side use
 let _serverConnection: Connection | null = null;
