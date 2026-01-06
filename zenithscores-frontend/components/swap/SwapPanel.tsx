@@ -13,6 +13,7 @@ import { TokenSelector } from './TokenSelector';
 import { connectWallet } from '@/lib/connectWallet';
 import { useDirectWallet } from '@/components/wallet/DirectConnectButton';
 import { simulateSwapTransaction } from '@/lib/swap/execution';
+import { getPhantom } from '@/lib/phantom';
 // Receipt saving - uncomment after running prisma migrate
 // import { saveSwapReceipt, updateSwapStatus } from '@/lib/hooks/useSwapHistory';
 import { ExternalLink, RefreshCw, AlertTriangle, Check, Loader2 } from 'lucide-react';
@@ -361,9 +362,28 @@ export default function SwapPanel() {
             const swapTransactionBuf = Buffer.from(swapData.swapTransaction, 'base64');
             const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
 
-            // 4. Sign and send
+            // 4. Sign and send (use direct Phantom if available, else wallet adapter)
             setSwapState('awaiting-signature');
-            const signature = await sendTransaction(transaction, connection);
+            
+            let signature: string;
+            const phantom = getPhantom();
+            
+            if (directConnected && phantom?.isConnected) {
+                // Direct Phantom connection - use signAndSendTransaction
+                console.log('[SwapPanel] Using direct Phantom signAndSendTransaction');
+                const result = await phantom.signAndSendTransaction(transaction, {
+                    skipPreflight: false,
+                    preflightCommitment: 'confirmed'
+                });
+                signature = result.signature;
+            } else if (walletAdapterConnected && sendTransaction) {
+                // Wallet adapter connection
+                console.log('[SwapPanel] Using wallet adapter sendTransaction');
+                signature = await sendTransaction(transaction, connection);
+            } else {
+                throw new Error('No wallet connected');
+            }
+            
             setTxSignature(signature);
 
             // 5. Confirm transaction
