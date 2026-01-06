@@ -1,28 +1,33 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTradeSelection, Token } from '@/lib/store/useTradeSelection';
+import { useTradeSelection } from '@/lib/store/useTradeSelection';
+import { buildZenithTokenList, ZenithToken } from '@/lib/zenith';
+
+// Helper for formatting large numbers (e.g. 1.2M, 400K)
+function formatMetric(value: number): string {
+    if (!value) return '0';
+    if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
+    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+    if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
+    return `$${value.toFixed(0)}`;
+}
 
 export default function TokenExplorer() {
-    const [tokens, setTokens] = useState<Token[]>([]);
+    const [tokens, setTokens] = useState<ZenithToken[]>([]);
     const [loading, setLoading] = useState(true);
 
     const setSelectedToken = useTradeSelection(s => s.setSelectedToken);
 
     useEffect(() => {
-        const API_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'http://localhost:3001';
-
-        fetch(`${API_URL}/tokens`)
-            .then(res => res.json())
+        // Use the enriched Zenith Engine (Jupiter + DexScreener)
+        buildZenithTokenList()
             .then(data => {
-                // Map backend response to our simplified Token type
-                const backendTokens = data.tokens || [];
-                // Safety slice top 24
-                setTokens(backendTokens.slice(0, 24));
+                setTokens(data);
                 setLoading(false);
             })
             .catch(err => {
-                console.error('Failed to load tokens', err);
+                console.error('Failed to load Zenith tokens', err);
                 setLoading(false);
             });
     }, []);
@@ -35,7 +40,7 @@ export default function TokenExplorer() {
                         Trending on Solana
                     </h2>
                     <p className="text-sm text-zinc-500 mt-1">
-                        Top Volume Assets
+                        Top Volume Assets · Verified
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -50,36 +55,59 @@ export default function TokenExplorer() {
             {loading ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-pulse">
                     {[...Array(12)].map((_, i) => (
-                        <div key={i} className="h-24 bg-white/5 rounded-xl border border-white/5" />
+                        <div key={i} className="h-[120px] bg-white/5 rounded-xl border border-white/5" />
                     ))}
                 </div>
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {tokens.map(token => (
                         <button
-                            key={token.address}
-                            onClick={() => setSelectedToken(token)}
-                            className="group flex flex-col items-start gap-4 rounded-xl border border-white/5 bg-[#0B0E15] p-4 hover:border-emerald-500/40 hover:bg-white/5 transition-all active:scale-[0.98] text-left relative overflow-hidden"
+                            key={token.mint}
+                            onClick={() => setSelectedToken({
+                                address: token.mint,
+                                symbol: token.symbol,
+                                name: token.name,
+                                logoURI: token.logoURI,
+                                decimals: token.decimals
+                            })}
+                            className="group flex flex-col items-start gap-3 rounded-xl border border-white/5 bg-[#0B0E15] p-4 hover:border-emerald-500/40 hover:bg-white/5 transition-all active:scale-[0.98] text-left relative overflow-hidden h-full"
                         >
-                            <div className="flex items-start justify-between w-full">
-                                <div className="flex items-center gap-3">
-                                    {token.logoURI ? (
-                                        <img
-                                            src={token.logoURI}
-                                            className="w-10 h-10 rounded-full bg-zinc-800 object-cover shadow-lg group-hover:ring-2 ring-emerald-500/20 transition-all"
-                                            alt=""
-                                        />
-                                    ) : (
-                                        <div className="w-10 h-10 rounded-full bg-zinc-800" />
-                                    )}
-                                    <div>
-                                        <div className="text-base font-bold text-white group-hover:text-emerald-400 transition-colors">
+                            {/* Header: Logo + Symbol */}
+                            <div className="flex items-center gap-3 w-full">
+                                {token.logoURI ? (
+                                    <img
+                                        src={token.logoURI}
+                                        className="w-8 h-8 rounded-full bg-zinc-800 object-cover shadow-lg group-hover:ring-2 ring-emerald-500/20 transition-all"
+                                        alt=""
+                                    />
+                                ) : (
+                                    <div className="w-8 h-8 rounded-full bg-zinc-800" />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors truncate">
                                             {token.symbol}
-                                        </div>
-                                        <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">
-                                            Solana
-                                        </div>
+                                        </span>
+                                        {/* Price (if meaningful) */}
+                                        {token.priceUsd > 0 && (
+                                            <span className="text-[10px] font-mono text-zinc-400">
+                                                ${token.priceUsd < 0.01 ? token.priceUsd.toExponential(2) : token.priceUsd.toFixed(2)}
+                                            </span>
+                                        )}
                                     </div>
+                                    <div className="text-[10px] text-zinc-600 truncate">
+                                        {token.name}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Metrics Badges */}
+                            <div className="flex flex-wrap gap-2 w-full pt-1">
+                                <div className="px-1.5 py-0.5 rounded border border-white/5 bg-white/5 text-[10px] text-zinc-400 font-mono">
+                                    Vol: <span className="text-zinc-300">{formatMetric(token.volume24hUsd)}</span>
+                                </div>
+                                <div className="px-1.5 py-0.5 rounded border border-white/5 bg-white/5 text-[10px] text-zinc-400 font-mono">
+                                    Liq: <span className="text-zinc-300">{formatMetric(token.liquidityUsd)}</span>
                                 </div>
                             </div>
 
