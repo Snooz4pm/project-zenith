@@ -1,10 +1,21 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { ZenithToken } from '@/lib/zenith';
 
 export type WalletBalance = {
     mint: string;
     amount: number;
     decimals: number;
+};
+
+export type WalletToken = {
+    address: string;
+    symbol: string;
+    name?: string;
+    decimals: number;
+    logoURI?: string;
+    uiBalance: number;
+    balance: number; // Raw balance in smallest units
 };
 
 // PREFERRED MAJORS (for auto-select priority)
@@ -49,6 +60,37 @@ export async function fetchWalletBalances(connection: Connection, publicKey: Pub
         console.error("Failed to fetch wallet balances", err);
         return [];
     }
+}
+
+/**
+ * Enriches raw wallet balances with token metadata from the universe
+ * Returns only tokens that exist in both wallet AND token list
+ */
+export function enrichWalletBalances(
+    balances: WalletBalance[],
+    tokenUniverse: ZenithToken[]
+): WalletToken[] {
+    const enriched: WalletToken[] = [];
+
+    for (const balance of balances) {
+        // Find matching token metadata
+        const metadata = tokenUniverse.find(t => t.mint === balance.mint);
+
+        if (metadata) {
+            enriched.push({
+                address: balance.mint,
+                symbol: metadata.symbol,
+                name: metadata.name || metadata.symbol,
+                decimals: balance.decimals,
+                logoURI: metadata.logoURI,
+                uiBalance: balance.amount,
+                balance: Math.floor(balance.amount * Math.pow(10, balance.decimals))
+            });
+        }
+    }
+
+    // Sort by balance (highest first)
+    return enriched.sort((a, b) => b.uiBalance - a.uiBalance);
 }
 
 // SMART SELECT LOGIC
