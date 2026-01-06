@@ -12,6 +12,7 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { SOL_MINT, USDC_MINT } from '@/lib/solana/addresses';
 import { buildZenithTokenList, ZenithToken } from '@/lib/zenith';
 import { getLivePrice } from '@/lib/zenith/fetch/jupiter';
+import { useSwapStore } from '@/lib/store/useSwapStore';
 
 // Mock function for now
 async function getQuote(params: any) {
@@ -26,6 +27,7 @@ async function swap(body: any) {
 export default function SwapCard() {
     const { connected, publicKey } = useWallet();
     const { setVisible } = useWalletModal();
+    const { fromToken, toToken, setFromToken, setToToken, intent, setIntent } = useSwapStore();
 
     const [fromAmount, setFromAmount] = useState("");
     const [toAmount, setToAmount] = useState("");
@@ -110,8 +112,6 @@ export default function SwapCard() {
         const debounce = setTimeout(fetchQuote, 500);
         return () => clearTimeout(debounce);
     }, [fromAmount, fromToken, toToken]);
-
-    const { fromToken, toToken, setFromToken, setToToken, intent, setIntent } = useSwapStore();
 
     // Auto-fill from Card Click (Intent)
     useEffect(() => {

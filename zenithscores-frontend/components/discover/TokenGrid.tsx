@@ -26,19 +26,19 @@ export function TokenGrid({ search }: TokenGridProps) {
 
     // No fetch useEffect for now
 
-    if (loading) {
-        return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[...Array(6)].map((_, i) => (
-                    <Skeleton key={i} className="h-24 w-full" />
-                ))}
-            </div>
-        );
-    }
-
     return (
-        <div className="text-center py-20">
-            <p className="text-zinc-500">Token discovery coming soon.</p>
-        </div>
+        <>
+            {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[...Array(6)].map((_, i) => (
+                        <Skeleton key={i} className="h-24 w-full" />
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-20">
+                    <p className="text-zinc-500">Token discovery coming soon.</p>
+                </div>
+            )}
+        </>
     );
 }
