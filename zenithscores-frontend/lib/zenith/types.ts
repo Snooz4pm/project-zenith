@@ -3,6 +3,7 @@ export interface ZenithToken {
     mint: string;
     symbol: string;
     name: string;
+    decimals?: number;
     logoURI?: string;
 
     priceUsd: number;
