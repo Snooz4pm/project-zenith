@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ExternalLink, Volume2, VolumeX, Sun, Moon } from 'lucide-react';
+import { ExternalLink, Volume2, VolumeX, Activity } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'http://localhost:3001';
 
@@ -47,26 +47,10 @@ function timeAgo(timestamp: number): string {
   return `${Math.floor(seconds / 3600)}h ago`;
 }
 
-// Particle component for large trades
-function Particle({ delay, left }: { delay: number; left: number }) {
-  return (
-    <div
-      className="absolute w-1 h-1 rounded-full opacity-0"
-      style={{
-        left: `${left}%`,
-        bottom: 0,
-        background: 'var(--neon-green)',
-        animation: `particle-float 8s ease-out ${delay}s infinite`,
-      }}
-    />
-  );
-}
-
 export default function SignalsPage() {
   const [signals, setSignals] = useState<WhaleSignal[]>([]);
   const [loading, setLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(false);
-  const [darkMode, setDarkMode] = useState(true);
   const [minAmount, setMinAmount] = useState(10000);
   const [filterType, setFilterType] = useState<'ALL' | 'BUY' | 'SELL'>('ALL');
   const [hourlyStats, setHourlyStats] = useState<HourlyStats>({
@@ -74,12 +58,9 @@ export default function SignalsPage() {
     buyPercentage: 0,
     whaleCount: 0,
   });
-  const [particles, setParticles] = useState<{ id: number; delay: number; left: number }[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const prevSignalsRef = useRef<string[]>([]);
-  const particleIdRef = useRef(0);
 
-  // Calculate hourly stats from signals
   const calculateHourlyStats = useCallback((sigs: WhaleSignal[]) => {
     const hourAgo = Date.now() - 3600000;
     const hourlySignals = sigs.filter(s => s.timestamp > hourAgo);
@@ -95,20 +76,6 @@ export default function SignalsPage() {
     });
   }, []);
 
-  // Spawn particles for large trades
-  const spawnParticles = useCallback(() => {
-    const newParticles = Array.from({ length: 5 }, () => ({
-      id: particleIdRef.current++,
-      delay: Math.random() * 2,
-      left: Math.random() * 100,
-    }));
-    setParticles(prev => [...prev, ...newParticles]);
-    // Clean up old particles
-    setTimeout(() => {
-      setParticles(prev => prev.filter(p => !newParticles.find(np => np.id === p.id)));
-    }, 10000);
-  }, []);
-
   const fetchSignals = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/signals`);
@@ -116,20 +83,11 @@ export default function SignalsPage() {
       if (data.signals) {
         const newSignals: WhaleSignal[] = data.signals;
 
-        // Check for new signals and play sound
         const newTxs = newSignals.map(s => s.txSignature);
         const hasNew = newTxs.some(tx => !prevSignalsRef.current.includes(tx));
 
         if (hasNew && soundEnabled && audioRef.current && prevSignalsRef.current.length > 0) {
           audioRef.current.play().catch(() => { });
-        }
-
-        // Check for large trades to spawn particles
-        const largeTrade = newSignals.find(
-          s => s.amountUsd >= 500000 && !prevSignalsRef.current.includes(s.txSignature)
-        );
-        if (largeTrade) {
-          spawnParticles();
         }
 
         prevSignalsRef.current = newTxs;
@@ -141,7 +99,7 @@ export default function SignalsPage() {
     } finally {
       setLoading(false);
     }
-  }, [soundEnabled, calculateHourlyStats, spawnParticles]);
+  }, [soundEnabled, calculateHourlyStats]);
 
   useEffect(() => {
     fetchSignals();
@@ -149,199 +107,136 @@ export default function SignalsPage() {
     return () => clearInterval(interval);
   }, [fetchSignals]);
 
-  // Filter signals
   const filteredSignals = signals.filter(s => {
     if (s.amountUsd < minAmount) return false;
     if (filterType !== 'ALL' && s.type !== filterType) return false;
     return true;
   });
 
-  const bgColor = darkMode ? '#0f0f0f' : '#fafafa';
-  const textColor = darkMode ? '#ededed' : '#0f0f0f';
-  const mutedColor = darkMode ? '#525252' : '#a1a1aa';
-  const cardBg = darkMode ? 'rgba(20, 20, 20, 0.6)' : 'rgba(240, 240, 240, 0.9)';
-
   return (
-    <div
-      className="min-h-screen flex flex-col relative overflow-hidden"
-      style={{
-        backgroundColor: bgColor,
-        color: textColor,
-        fontFamily: "var(--font-signals, 'JetBrains Mono', monospace)",
-      }}
-    >
+    <div className="min-h-screen bg-black text-[#EDEDED] relative overflow-hidden font-sans selection:bg-emerald-500/30">
+      {/* Subtle background gradient - matching home page */}
+      <div className="fixed inset-0 bg-gradient-to-b from-black via-black to-zinc-900 pointer-events-none opacity-50" />
+
       {/* Audio element for ping sound */}
       <audio ref={audioRef} preload="auto">
         <source src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA" type="audio/wav" />
       </audio>
 
-      {/* Particles container */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        {particles.map(p => (
-          <Particle key={p.id} delay={p.delay} left={p.left} />
-        ))}
-      </div>
+      {/* Main Content */}
+      <div className="relative z-10 max-w-4xl mx-auto px-4 py-12">
 
-      {/* ===== SLIM FIXED HEADER (50px) ===== */}
-      <header
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 md:px-6"
-        style={{
-          height: 50,
-          backgroundColor: darkMode ? 'rgba(15, 15, 15, 0.9)' : 'rgba(250, 250, 250, 0.9)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: `1px solid ${darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
-        }}
-      >
-        {/* Left: Logo */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold tracking-tight" style={{ color: 'var(--neon-green)' }}>
-            ZenithScores
-          </span>
-        </div>
+        {/* Header */}
+        <header className="mb-8 animate-fade-in">
+          <div className="flex items-center gap-3 mb-3">
+            <Activity className="w-8 h-8 text-emerald-500" />
+            <h1 className="text-3xl font-medium tracking-tight text-white">Whale Signals</h1>
+            <span className="flex items-center gap-1.5 ml-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs text-zinc-500">Live</span>
+            </span>
+          </div>
+          <p className="text-zinc-500 text-sm max-w-lg">
+            Live feed of major buy and sell activity from top Solana wallets.
+            Minimum $10K transactions only.
+          </p>
+        </header>
 
-        {/* Center: Live indicator */}
-        <div className="flex items-center gap-2 text-xs">
-          <span
-            className="w-2 h-2 rounded-full animate-pulse"
-            style={{ backgroundColor: 'var(--neon-green)' }}
-          />
-          <span style={{ color: mutedColor }}>Solana Whale Signals</span>
-          <span style={{ color: 'var(--neon-green)' }}>• Live</span>
-        </div>
+        {/* Filter Bar */}
+        <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-white/5 rounded-xl border border-white/5">
+          {/* Amount Slider */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-zinc-500">Min:</span>
+            <input
+              type="range"
+              min="10000"
+              max="1000000"
+              step="10000"
+              value={minAmount}
+              onChange={(e) => setMinAmount(Number(e.target.value))}
+              className="w-24 md:w-32 accent-emerald-500"
+            />
+            <span className="text-white font-mono">{formatUsd(minAmount)}</span>
+          </div>
 
-        {/* Right: Controls */}
-        <div className="flex items-center gap-3">
+          {/* Buy/Sell Toggle */}
+          <div className="flex items-center gap-1 text-xs">
+            {(['ALL', 'BUY', 'SELL'] as const).map((type) => (
+              <button
+                key={type}
+                onClick={() => setFilterType(type)}
+                className={`px-3 py-1.5 rounded-md transition-all ${filterType === type
+                    ? type === 'BUY'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                      : type === 'SELL'
+                        ? 'bg-red-500/20 text-red-400 border border-red-500/50'
+                        : 'bg-white/10 text-white border border-white/20'
+                    : 'text-zinc-500 hover:text-white border border-transparent'
+                  }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+
+          {/* Sound Toggle */}
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
-            className="p-1.5 rounded transition-colors hover:bg-white/10"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs hover:bg-white/5 transition-colors ml-auto"
             title={soundEnabled ? 'Mute' : 'Enable sound'}
           >
             {soundEnabled ? (
-              <Volume2 size={16} style={{ color: 'var(--neon-green)' }} />
+              <>
+                <Volume2 size={14} className="text-emerald-400" />
+                <span className="text-zinc-400">Sound On</span>
+              </>
             ) : (
-              <VolumeX size={16} style={{ color: mutedColor }} />
-            )}
-          </button>
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="p-1.5 rounded transition-colors hover:bg-white/10"
-            title="Toggle theme"
-          >
-            {darkMode ? (
-              <Sun size={16} style={{ color: mutedColor }} />
-            ) : (
-              <Moon size={16} style={{ color: mutedColor }} />
+              <>
+                <VolumeX size={14} className="text-zinc-500" />
+                <span className="text-zinc-500">Sound Off</span>
+              </>
             )}
           </button>
         </div>
-      </header>
 
-      {/* ===== FILTER BAR ===== */}
-      <div
-        className="fixed top-[50px] left-0 right-0 z-40 flex items-center justify-between px-4 md:px-6 py-2 gap-4"
-        style={{
-          backgroundColor: darkMode ? 'rgba(15, 15, 15, 0.8)' : 'rgba(250, 250, 250, 0.8)',
-          backdropFilter: 'blur(8px)',
-          borderBottom: `1px solid ${darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'}`,
-        }}
-      >
-        {/* Amount Slider */}
-        <div className="flex items-center gap-2 text-xs">
-          <span style={{ color: mutedColor }}>Min:</span>
-          <input
-            type="range"
-            min="10000"
-            max="1000000"
-            step="10000"
-            value={minAmount}
-            onChange={(e) => setMinAmount(Number(e.target.value))}
-            className="w-24 md:w-32 accent-[var(--neon-green)]"
-          />
-          <span style={{ color: textColor }}>{formatUsd(minAmount)}</span>
-        </div>
-
-        {/* Buy/Sell Toggle */}
-        <div className="flex items-center gap-1 text-xs">
-          {(['ALL', 'BUY', 'SELL'] as const).map((type) => (
-            <button
-              key={type}
-              onClick={() => setFilterType(type)}
-              className="px-2 py-1 rounded transition-all"
-              style={{
-                backgroundColor: filterType === type
-                  ? type === 'BUY' ? 'rgba(0, 255, 157, 0.2)'
-                    : type === 'SELL' ? 'rgba(255, 0, 110, 0.2)'
-                      : 'rgba(255, 255, 255, 0.1)'
-                  : 'transparent',
-                color: filterType === type
-                  ? type === 'BUY' ? 'var(--neon-green)'
-                    : type === 'SELL' ? 'var(--neon-red)'
-                      : textColor
-                  : mutedColor,
-                border: `1px solid ${filterType === type
-                  ? type === 'BUY' ? 'var(--neon-green)'
-                    : type === 'SELL' ? 'var(--neon-red)'
-                      : 'rgba(255,255,255,0.2)'
-                  : 'transparent'}`,
-              }}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ===== LIVE FEED ===== */}
-      <main className="flex-1 pt-[100px] pb-[60px] overflow-y-auto px-4 md:px-6">
-        <div className="max-w-2xl mx-auto space-y-2">
+        {/* Signals List */}
+        <div className="space-y-3">
           {loading ? (
-            // Skeleton loading
-            [...Array(8)].map((_, i) => (
-              <div
-                key={i}
-                className="h-24 rounded-lg animate-pulse"
-                style={{ background: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }}
-              />
+            [...Array(6)].map((_, i) => (
+              <div key={i} className="h-24 bg-white/5 rounded-xl animate-pulse" />
             ))
           ) : filteredSignals.length === 0 ? (
             <div className="text-center py-20">
-              <p style={{ color: mutedColor }}>No whale activity matching filters</p>
+              <p className="text-zinc-500">No whale activity matching filters</p>
             </div>
           ) : (
             filteredSignals.map((signal, idx) => {
               const isBuy = signal.type === 'BUY';
-              const accentColor = isBuy ? 'var(--neon-green)' : 'var(--neon-red)';
-              const glowColor = isBuy ? 'var(--glow-neon-green)' : 'var(--glow-neon-red)';
 
               return (
                 <div
                   key={`${signal.txSignature}-${idx}`}
-                  className="group rounded-lg p-4 transition-all duration-300 cursor-default"
+                  className={`
+                    group relative p-4 rounded-xl border transition-all duration-300
+                    ${isBuy
+                      ? 'bg-emerald-500/5 border-emerald-500/20 hover:border-emerald-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.1)]'
+                      : 'bg-red-500/5 border-red-500/20 hover:border-red-500/40 hover:shadow-[0_0_30px_rgba(239,68,68,0.1)]'
+                    }
+                  `}
                   style={{
-                    background: cardBg,
-                    border: `1px solid ${darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
-                    animation: `slide-in-left 0.4s ease-out ${Math.min(idx * 0.05, 0.3)}s both`,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = `0 0 20px ${glowColor}, 0 0 40px ${glowColor}`;
-                    e.currentTarget.style.borderColor = accentColor;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.borderColor = darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+                    animation: `stagger-reveal 0.5s ease-out ${Math.min(idx * 0.05, 0.3)}s both`,
                   }}
                 >
                   {/* Top Row: Time + Type */}
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px]" style={{ color: mutedColor }}>
+                    <span className="text-[10px] text-zinc-500 font-mono">
                       {timeAgo(signal.timestamp)}
                     </span>
                     <span
-                      className="text-xs font-bold px-2 py-0.5 rounded"
-                      style={{
-                        color: accentColor,
-                        backgroundColor: isBuy ? 'rgba(0, 255, 157, 0.15)' : 'rgba(255, 0, 110, 0.15)',
-                      }}
+                      className={`text-xs font-bold px-2.5 py-1 rounded-full ${isBuy
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-red-500/20 text-red-400'
+                        }`}
                     >
                       {signal.type}
                     </span>
@@ -349,28 +244,27 @@ export default function SignalsPage() {
 
                   {/* Amount (Big) */}
                   <div
-                    className="text-2xl font-bold mb-1"
-                    style={{ color: accentColor }}
+                    className={`text-2xl font-bold mb-1 font-mono ${isBuy ? 'text-emerald-400' : 'text-red-400'
+                      }`}
                   >
                     {formatUsd(signal.amountUsd)}
                   </div>
 
                   {/* Token Info */}
-                  <div className="text-sm mb-2" style={{ color: textColor }}>
+                  <div className="text-sm mb-3 text-white">
                     {signal.token.symbol}
                     {signal.token.platform && (
-                      <span style={{ color: mutedColor }}> / {signal.token.platform}</span>
+                      <span className="text-zinc-500"> / {signal.token.platform}</span>
                     )}
                   </div>
 
                   {/* Wallet + Tx Links */}
-                  <div className="flex items-center gap-4 text-[10px]" style={{ color: mutedColor }}>
+                  <div className="flex items-center gap-4 text-[10px] text-zinc-500 font-mono">
                     <a
                       href={`https://solscan.io/account/${signal.wallet}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 hover:opacity-80 transition-opacity"
-                      style={{ color: mutedColor }}
+                      className="flex items-center gap-1 hover:text-white transition-colors"
                     >
                       Wallet: {formatWallet(signal.wallet)}
                       <ExternalLink size={10} />
@@ -379,8 +273,7 @@ export default function SignalsPage() {
                       href={`https://solscan.io/tx/${signal.txSignature}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 hover:opacity-80 transition-opacity"
-                      style={{ color: mutedColor }}
+                      className="flex items-center gap-1 hover:text-white transition-colors"
                     >
                       Tx: {formatTx(signal.txSignature)}
                       <ExternalLink size={10} />
@@ -391,28 +284,37 @@ export default function SignalsPage() {
             })
           )}
         </div>
-      </main>
 
-      {/* ===== FIXED BOTTOM STATS BAR ===== */}
-      <footer
-        className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center px-4 text-xs"
-        style={{
-          height: 48,
-          backgroundColor: darkMode ? 'rgba(15, 15, 15, 0.9)' : 'rgba(250, 250, 250, 0.9)',
-          backdropFilter: 'blur(12px)',
-          borderTop: `1px solid ${darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
-          color: mutedColor,
-        }}
-      >
-        <span>
+        {/* Bottom Stats */}
+        <div className="mt-8 p-4 bg-white/5 rounded-xl border border-white/5 text-center text-sm text-zinc-500">
           Last hour:{' '}
-          <span style={{ color: 'var(--neon-green)' }}>{formatUsd(hourlyStats.totalVolume)}</span> vol
+          <span className="text-emerald-400 font-mono">{formatUsd(hourlyStats.totalVolume)}</span> vol
           <span className="mx-2">•</span>
-          <span style={{ color: 'var(--neon-green)' }}>{hourlyStats.buyPercentage}%</span> buys
+          <span className="text-emerald-400 font-mono">{hourlyStats.buyPercentage}%</span> buys
           <span className="mx-2">•</span>
-          <span style={{ color: 'var(--neon-green)' }}>{hourlyStats.whaleCount}</span> whales
-        </span>
-      </footer>
+          <span className="text-emerald-400 font-mono">{hourlyStats.whaleCount}</span> whales
+        </div>
+
+        {/* Footer Note */}
+        <footer className="mt-12 pt-8 border-t border-white/5">
+          <p className="text-xs text-zinc-600 text-center">
+            Data sourced from on-chain activity. Minimum $10,000 USD transactions displayed.
+            <br />
+            Not financial advice. Do your own research.
+          </p>
+        </footer>
+      </div>
+
+      <style jsx>{`
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        .animate-fade-in {
+          animation: fade-in 0.8s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
