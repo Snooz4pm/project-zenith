@@ -45,6 +45,30 @@ export {
   type RouteInfo
 } from './routes';
 
+// Token filtering
+export {
+  isTradeableToken,
+  filterTradeableTokens,
+  isSwappableToken,
+  type FilterableToken
+} from './tokenFilter';
+
+// Auto-select logic
+export {
+  autoSelectFrom,
+  autoSelectTo,
+  selectBestFromToken
+} from './autoSelect';
+
+// Swap modes (SAFE vs TURBO)
+export {
+  getModeConfig,
+  getSlippage,
+  getPriorityFee,
+  type SwapMode,
+  type SwapModeConfig
+} from './swapMode';
+
 // Guards (if exists)
 export * from './swapGuards';
 

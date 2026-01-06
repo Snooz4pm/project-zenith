@@ -60,6 +60,7 @@ export default function SwapPanel() {
     const [quote, setQuote] = useState<any>(null);
     const [swapState, setSwapState] = useState<SwapState>('idle');
     const [error, setError] = useState<string | null>(null);
+    const [noRoute, setNoRoute] = useState(false); // No liquidity route available
     const [txSignature, setTxSignature] = useState<string | null>(null);
     const [showSuccess, setShowSuccess] = useState(false);
     
@@ -67,6 +68,18 @@ export default function SwapPanel() {
     const quoteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastQuoteRef = useRef<string>('');
     const balanceRefreshRef = useRef<NodeJS.Timeout | null>(null);
+
+    // ========================================================================
+    // MINIMUM AMOUNTS (prevents "no route" for dust)
+    // ========================================================================
+    const getMinAmount = (symbol?: string): number => {
+        if (!symbol) return 0;
+        const s = symbol.toUpperCase();
+        if (s === 'SOL') return 0.002;
+        if (s === 'USDC' || s === 'USDT') return 0.5;
+        if (s === 'BONK' || s === 'WIF' || s === 'POPCAT') return 100;
+        return 0.001; // Default minimum
+    };
 
     // ========================================================================
     // 1. LOAD TOKEN UNIVERSE (FROM JUPITER STRICT LIST)
@@ -158,6 +171,8 @@ export default function SwapPanel() {
     // ========================================================================
     // 5. FETCH QUOTE (DEBOUNCED 500ms, GUARDED)
     // ========================================================================
+    // 5. FETCH QUOTE (DEBOUNCED 500ms, GUARDED)
+    // ========================================================================
     useEffect(() => {
         // Clear pending quote
         if (quoteTimeoutRef.current) {
@@ -168,6 +183,7 @@ export default function SwapPanel() {
         if (!canQuote(fromToken?.address, toToken?.mint)) {
             setQuote(null);
             setSwapState('idle');
+            setError(null);
             return;
         }
 
@@ -175,6 +191,7 @@ export default function SwapPanel() {
         if (!amount || Number(amount) <= 0) {
             setQuote(null);
             setSwapState('idle');
+            setError(null);
             return;
         }
 
@@ -182,6 +199,16 @@ export default function SwapPanel() {
         if (fromToken && Number(amount) > fromToken.uiBalance) {
             setQuote(null);
             setError('Insufficient balance');
+            setSwapState('idle');
+            return;
+        }
+
+        // GUARD 4: Minimum amount check (prevents "no route" for dust)
+        const minAmount = getMinAmount(fromToken?.symbol);
+        if (Number(amount) < minAmount) {
+            setQuote(null);
+            setError(`Minimum ${minAmount} ${fromToken?.symbol || ''}`);
+            setSwapState('idle');
             return;
         }
 
@@ -212,23 +239,24 @@ export default function SwapPanel() {
                 });
 
                 const res = await fetch(`${API_URL}/quote?${params}`);
-                
-                if (!res.ok) {
-                    throw new Error(`Quote failed: ${res.status}`);
-                }
-
                 const data = await res.json();
 
-                if (data.error) throw new Error(data.error);
-                if (!data.outAmount) throw new Error("No route found");
+                // Handle NO_ROUTE gracefully (not an error, just no liquidity)
+                if (data.error === 'NO_ROUTE' || !data.outAmount || !data.routePlan?.length) {
+                    setQuote(null);
+                    setNoRoute(true);
+                    setSwapState('idle');
+                    return;
+                }
 
+                setNoRoute(false);
                 setQuote(data);
                 setSwapState('quote-ready');
             } catch (err: any) {
                 console.error("[SwapPanel] Quote failed:", err);
-                setError("No route found");
                 setQuote(null);
-                setSwapState('error');
+                setNoRoute(true);
+                setSwapState('idle');
             }
         }, 500);
 
@@ -366,6 +394,7 @@ export default function SwapPanel() {
             setToToken(fromAsZenith);
             setAmount('');
             setQuote(null);
+            setNoRoute(false);
         }
     };
 
@@ -389,6 +418,7 @@ export default function SwapPanel() {
         if (!amount || Number(amount) <= 0) return 'ENTER AMOUNT';
         if (fromToken.address === toToken.mint) return 'INVALID: SAME TOKEN';
         if (Number(amount) > fromToken.uiBalance) return 'INSUFFICIENT BALANCE';
+        if (noRoute) return 'NO ROUTE AVAILABLE';
         return 'SWAP NOW';
     };
 
@@ -398,7 +428,9 @@ export default function SwapPanel() {
                        fromToken.address !== toToken.mint &&
                        Number(amount) > 0 && 
                        Number(amount) <= fromToken.uiBalance &&
+                       Number(amount) >= getMinAmount(fromToken?.symbol) &&
                        quote &&
+                       !noRoute &&
                        !isExecuting;
 
     // ========================================================================
@@ -482,6 +514,7 @@ export default function SwapPanel() {
                         }
                         setFromToken(token as WalletToken);
                         setQuote(null);
+                        setNoRoute(false);
                     }}
                     label="Select Token"
                     showBalance={true}
@@ -568,6 +601,13 @@ export default function SwapPanel() {
             {error && (
                 <div className="mb-4 p-3 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono text-center">
                     {error}
+                </div>
+            )}
+
+            {/* NO ROUTE INFO (subtle, not an error) */}
+            {noRoute && !error && fromToken && toToken && Number(amount) > 0 && (
+                <div className="mb-4 p-3 rounded bg-zinc-800/50 border border-zinc-700/30 text-zinc-400 text-xs text-center">
+                    No liquidity route available for {fromToken.symbol} → {toToken.symbol}
                 </div>
             )}
 
