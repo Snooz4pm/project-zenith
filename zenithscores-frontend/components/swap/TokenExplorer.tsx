@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useTradeSelection } from '@/lib/store/useTradeSelection';
 import { buildZenithTokenList, ZenithToken } from '@/lib/zenith';
+import { fetchWalletBalances, WalletBalance } from '@/lib/wallet/balance';
 
 // Helper for formatting large numbers
 function formatMetric(value: number): string {
@@ -15,7 +17,7 @@ function formatMetric(value: number): string {
 }
 
 // Dumb & Clean Row Component
-function TokenRow({ token, onClick, isSelected }: { token: ZenithToken & { isVerified?: boolean; isLowLiq?: boolean; hasLogo?: boolean }; onClick: () => void; isSelected: boolean }) {
+function TokenRow({ token, onClick, isSelected }: { token: ZenithToken & { isVerified?: boolean; isLowLiq?: boolean; hasLogo?: boolean; balance?: number }; onClick: () => void; isSelected: boolean }) {
     return (
         <button
             onClick={onClick}
@@ -38,7 +40,11 @@ function TokenRow({ token, onClick, isSelected }: { token: ZenithToken & { isVer
                 <div className="text-left">
                     <div className="text-sm font-bold text-white flex items-center gap-2">
                         {token.symbol}
-                        {token.isVerified && (
+                        {token.balance && token.balance > 0 ? (
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-mono border border-emerald-500/20">
+                                {token.balance < 0.001 ? '<0.001' : token.balance.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                            </span>
+                        ) : token.isVerified && (
                             <span className="px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[9px] font-bold border border-blue-500/20">
                                 VERIFIED
                             </span>
@@ -77,13 +83,15 @@ function TokenRow({ token, onClick, isSelected }: { token: ZenithToken & { isVer
 
 export default function TokenExplorer() {
     const [tokens, setTokens] = useState<ZenithToken[]>([]);
+    const [balances, setBalances] = useState<Map<string, number>>(new Map());
     const [loading, setLoading] = useState(true);
     const parentRef = useRef<HTMLDivElement>(null);
 
-    const { selectedToken, setSelectedToken } = useTradeSelection(); // Assumes store exports selectedToken too?
-    // Checking store definition: export const useTradeSelection = create<TradeState>((set) => ({ selectedToken: null ... 
-    // Yes it has selectedToken.
+    const { selectedToken, setSelectedToken } = useTradeSelection();
+    const { connection } = useConnection();
+    const { publicKey } = useWallet();
 
+    // 1. Fetch Token List
     useEffect(() => {
         buildZenithTokenList()
             .then(data => {
@@ -96,19 +104,41 @@ export default function TokenExplorer() {
             });
     }, []);
 
-    // 1. Prepare Enriched List (NO HIDING, JUST LABELING)
+    // 2. Fetch Wallet Balances
+    useEffect(() => {
+        if (!publicKey) {
+            setBalances(new Map());
+            return;
+        }
+
+        fetchWalletBalances(connection, publicKey).then(walletBalances => {
+            const map = new Map<string, number>();
+            walletBalances.forEach(b => map.set(b.mint, b.amount));
+            setBalances(map);
+        });
+    }, [publicKey, connection]);
+
+    // 3. Prepare Enriched List (NO HIDING, JUST LABELING + SORTING)
     const displayTokens = useMemo(() => {
-        // We show everything the backend gives us (which is already verified/safe-ish)
-        // We just add badges for clarity.
-        return tokens.map(t => ({
+        // Map to enriched
+        const enriched = tokens.map(t => ({
             ...t,
+            balance: balances.get(t.mint) || 0,
             isVerified: ['SOL', 'USDC', 'JUP', 'RAY', 'BONK', 'WIF'].includes(t.symbol),
             isLowLiq: t.liquidityUsd < 10000,
             hasLogo: !!t.logoURI && t.logoURI.startsWith('http') && !t.logoURI.includes('unknown')
         }));
-    }, [tokens]);
 
-    // 2. Virtualizer Setup
+        // SORT: Owned First, then Default Rank
+        return enriched.sort((a, b) => {
+            if (b.balance > 0 && a.balance === 0) return -1; // b has balance, a doesn't, b comes first
+            if (a.balance > 0 && b.balance === 0) return 1;  // a has balance, b doesn't, a comes first
+            // Secondary sort: Keep original order (Volume) if both owned or both not owned
+            return 0;
+        });
+    }, [tokens, balances]);
+
+    // 4. Virtualizer Setup
     const rowVirtualizer = useVirtualizer({
         count: displayTokens.length,
         getScrollElement: () => parentRef.current,
