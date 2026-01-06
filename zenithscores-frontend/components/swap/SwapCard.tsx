@@ -115,6 +115,26 @@ export default function SwapCard() {
         return () => clearTimeout(debounce);
     }, [fromAmount, fromToken, toToken]);
 
+    const { fromToken, toToken, setFromToken, setToToken, intent, setIntent } = useSwapStore();
+
+    // Auto-fill from Card Click (Intent)
+    useEffect(() => {
+        if (!intent?.toToken) return;
+
+        // Reset inputs
+        setFromAmount("");
+        setToAmount("");
+
+        // Force defaults
+        setFromToken({ symbol: 'SOL', address: SOL_MINT, decimals: 9 });
+        setToToken(intent.toToken);
+
+        // Clear intent so we don't loop
+        setIntent(null);
+
+        // Ensure manual flow
+    }, [intent, setFromToken, setToToken, setIntent]);
+
     const handleSwap = async () => {
         if (!connected) {
             setVisible(true);
@@ -122,6 +142,45 @@ export default function SwapCard() {
         }
         console.log('Swap skeleton clicked');
         setSwapState('success');
+
+        // LOG TRADE FOR P&L (Mock Success)
+        try {
+            const trade = {
+                mint: toToken.address,
+                side: 'buy', // We are hardcoded SOL -> Token for now in this flow
+                amount: parseFloat(toAmount),
+                priceUsd: quote?.price ? parseFloat(fromAmount) * quote.price : 0, // Approx
+                timestamp: Date.now()
+            };
+
+            // Allow logging both sides if we support selling later
+            // For now, assume we are buying 'toToken' using 'fromToken' (SOL)
+            // If fromToken is not SOL, we might be selling.
+            // P&L Logic:
+            // If buying X: Record Buy X.
+            // If selling X: Record Sell X.
+
+            const isBuying = fromToken.symbol === 'SOL';
+            const subjectToken = isBuying ? toToken : fromToken;
+
+            const pnlEntry = {
+                mint: subjectToken.address,
+                side: isBuying ? 'buy' : 'sell',
+                amount: isBuying ? parseFloat(toAmount) : parseFloat(fromAmount),
+                priceUsd: isBuying ? (parseFloat(fromAmount) * (quote?.price || 0)) / parseFloat(toAmount) : 0, // Price of 1 unit
+                timestamp: Date.now()
+            };
+
+            // Local Storage Save
+            const existing = localStorage.getItem('zenith_trades');
+            const trades = existing ? JSON.parse(existing) : [];
+            trades.push(pnlEntry);
+            localStorage.setItem('zenith_trades', JSON.stringify(trades));
+
+        } catch (e) {
+            console.error("Failed to log trade", e);
+        }
+
         setTimeout(() => setSwapState('idle'), 2000);
     };
 

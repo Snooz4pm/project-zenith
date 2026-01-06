@@ -209,3 +209,23 @@ html {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ====================================
+   SKELETON SHIMMER
+   ==================================== */
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.token-skeleton {
+  border-radius: 12px;
+  background: linear-gradient(90deg, #0e0e0e 25%, #1a1a1a 37%, #0e0e0e 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s infinite;
+}
