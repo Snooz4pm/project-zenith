@@ -121,6 +121,3 @@ export async function buildZenithTokenList(): Promise<ZenithToken[]> {
         return [];
     }
 }
-
-// Explicit named exports
-export { buildZenithTokenList };
