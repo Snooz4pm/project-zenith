@@ -32,26 +32,35 @@ let cachedWallet: string | null = null;
 
 export async function fetchWalletBalances(publicKey: PublicKey): Promise<WalletBalance[]> {
     const pubkeyStr = publicKey.toBase58();
+    const balances: WalletBalance[] = [];
+
     try {
-        const res = await fetch(`/api/wallet/${pubkeyStr}`);
-        if (!res.ok) throw new Error('Failed to fetch wallet snapshot');
-        const data = await res.json();
-        const balances: WalletBalance[] = [
-            {
+        // Fetch SOL balance from server-side API
+        const balanceRes = await fetch(`/api/wallet/balance?address=${pubkeyStr}`);
+        if (balanceRes.ok) {
+            const balanceData = await balanceRes.json();
+            balances.push({
                 mint: 'So11111111111111111111111111111111111111112',
-                amount: data.balanceLamports / 1e9,
+                amount: balanceData.sol || 0,
                 decimals: 9
-            }
-        ];
-        data.tokens.forEach((token: any) => {
-            if (token.amount && token.amount > 0) {
-                balances.push({
-                    mint: token.mint,
-                    amount: token.amount,
-                    decimals: token.decimals
-                });
-            }
-        });
+            });
+        }
+
+        // Fetch SPL token balances from server-side API
+        const tokensRes = await fetch(`/api/wallet/tokens?address=${pubkeyStr}`);
+        if (tokensRes.ok) {
+            const tokensData = await tokensRes.json();
+            tokensData.tokens?.forEach((token: any) => {
+                if (token.amount && token.amount > 0) {
+                    balances.push({
+                        mint: token.mint,
+                        amount: token.amount,
+                        decimals: token.decimals
+                    });
+                }
+            });
+        }
+
         return balances;
     } catch (err: any) {
         console.error('[Balance] Fetch error:', err);
