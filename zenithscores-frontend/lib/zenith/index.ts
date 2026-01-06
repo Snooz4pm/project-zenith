@@ -1,122 +1,70 @@
-import { fetchJupiterTokens, getLivePrice } from './fetch/jupiter';
-import { fetchDexScreenerPools } from './fetch/dexScreener';
-import { normalizeToken } from './normalize/mapper';
-import { computeZenithScore } from './normalize/scoring';
+import { fetchJupiterTokens } from './fetch/jupiter';
 import { ZenithToken } from './types';
 
 export type { ZenithToken } from './types';
 export { getLivePrice } from './fetch/jupiter';
 
-// ============================================
-// 3-LAYER ARCHITECTURE
-// ============================================
-// LAYER 1: Jupiter Token Universe (~14k)
-// LAYER 2: Filter by liquidity (implicit in DexScreener)
-// LAYER 3: Enrich with market data (DexScreener prices/volume)
-// ============================================
-
+/**
+ * Build Zenith Token List
+ * 
+ * Jupiter v6/tokens returns ONLY swappable tokens with routes.
+ * No additional filtering needed - trust Jupiter's curation.
+ */
 export async function buildZenithTokenList(): Promise<ZenithToken[]> {
     try {
         console.log("Zenith: Initializing Token Intelligence Engine...");
 
-        // LAYER 1: Fetch Jupiter token universe (14k+ tokens)
+        // Fetch Jupiter's swappable token universe (~12-14k)
         const jupiterTokens = await fetchJupiterTokens();
-        console.log(`[Layer 1] Jupiter universe: ${jupiterTokens.size} tokens`);
+        console.log(`[Zenith] Jupiter returned ${jupiterTokens.size} swappable tokens`);
 
-        // LAYER 3: Fetch market data (prices, volume, liquidity)
-        const PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'http://localhost:3001';
-        const marketRes = await fetch(`${PROXY_URL}/market-data`).catch(() => null);
+        // Convert Map to Array and create ZenithToken objects
+        const tokens: ZenithToken[] = Array.from(jupiterTokens.values()).map(jup => ({
+            mint: jup.address,
+            symbol: jup.symbol,
+            name: jup.name,
+            logoURI: jup.logoURI,
+            // Placeholder values - will be enriched on-demand or via separate price feed
+            priceUsd: 0,
+            liquidityUsd: 0,
+            volume24hUsd: 0,
+            txCount24h: 0,
+            priceChange24h: 0,
+            zenithScore: 50 // Neutral score
+        }));
 
-        let marketPairs: any[] = [];
-        if (marketRes && marketRes.ok) {
-            const marketData = await marketRes.json();
-            marketPairs = marketData.pairs || [];
-            console.log(`[Layer 3] Market data: ${marketPairs.length} Solana pairs`);
-        } else {
-            console.warn("[Layer 3] Market data unavailable - using fallback");
-        }
-
-        // Merge Layers: Match market data with Jupiter metadata
-        let tokens: ZenithToken[] = [];
-
-        if (marketPairs.length > 0) {
-            // Primary: DexScreener pairs enriched with Jupiter metadata
-            tokens = marketPairs
-                .map(pair => {
-                    const jupMetadata = jupiterTokens.get(pair.baseToken.address);
-                    const normalized = normalizeToken(pair, jupMetadata);
-
-                    // Apply Zenith Trust Engine filters
-                    if (!normalized) return null;
-                    if (normalized.liquidityUsd < 50000) return null;
-                    if (normalized.volume24hUsd < 10000) return null;
-
-                    return normalized;
-                })
-                .filter((t): t is ZenithToken => t !== null);
-        }
-
-        // Fallback: If market data failed, use top Jupiter tokens
-        if (tokens.length < 12) {
-            console.warn("Zenith: Low signal count. Engaging Jupiter Trusted Fallback.");
-
-            const fallbackMints = [
-                'So11111111111111111111111111111111111111112', // SOL
-                'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-                'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
-                'JUPyiwrYJFskUPiHa7hkeR8VUtkTrVMk1L2RCueP84', // JUP
-                '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R', // RAY
-                'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', // BONK
-                'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', // WIF
-            ];
-
-            const existingMints = new Set(tokens.map(t => t.mint));
-
-            fallbackMints.forEach(mint => {
-                if (!existingMints.has(mint)) {
-                    const jup = jupiterTokens.get(mint);
-                    if (jup) {
-                        tokens.push({
-                            mint: jup.address,
-                            symbol: jup.symbol,
-                            name: jup.name,
-                            logoURI: jup.logoURI,
-                            priceUsd: 0,
-                            liquidityUsd: 10000000,
-                            volume24hUsd: 10000000,
-                            txCount24h: 5000,
-                            priceChange24h: 0,
-                            zenithScore: 90
-                        });
-                    }
-                }
-            });
-        }
-
-        // Compute scores
-        tokens.forEach(token => {
-            token.zenithScore = computeZenithScore(token);
+        // Return top tokens by symbol popularity (for now)
+        // In future: sort by actual trading volume/liquidity
+        const prioritySymbols = ['SOL', 'USDC', 'USDT', 'JUP', 'RAY', 'BONK', 'WIF', 'PYTH', 'JTO'];
+        const prioritized = tokens.sort((a, b) => {
+            const aIdx = prioritySymbols.indexOf(a.symbol);
+            const bIdx = prioritySymbols.indexOf(b.symbol);
+            if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+            if (aIdx !== -1) return -1;
+            if (bIdx !== -1) return 1;
+            return a.symbol.localeCompare(b.symbol);
         });
 
-        // Sort by score
-        tokens.sort((a, b) => b.zenithScore - a.zenithScore);
+        console.log(`Zenith: Engine ready. ${tokens.length} swappable assets available.`);
 
-        // Dedup
-        const seen = new Set<string>();
-        const uniqueTokens: ZenithToken[] = [];
-        for (const t of tokens) {
-            if (!seen.has(t.mint)) {
-                seen.add(t.mint);
-                uniqueTokens.push(t);
-            }
-        }
-
-        console.log(`Zenith: Engine ready. ${uniqueTokens.length} assets tracking.`);
-
-        return uniqueTokens.slice(0, 50);
+        // Return top 100 for UI performance
+        return prioritized.slice(0, 100);
 
     } catch (err) {
         console.error("Zenith: Engine Failure", err);
-        return [];
+
+        // Minimal fallback
+        return [{
+            mint: 'So11111111111111111111111111111111111111112',
+            symbol: 'SOL',
+            name: 'Solana',
+            logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
+            priceUsd: 0,
+            liquidityUsd: 0,
+            volume24hUsd: 0,
+            txCount24h: 0,
+            priceChange24h: 0,
+            zenithScore: 100
+        }];
     }
 }
