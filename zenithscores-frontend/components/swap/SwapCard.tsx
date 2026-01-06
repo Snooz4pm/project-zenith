@@ -10,7 +10,8 @@ import { ArrowDown, Settings, Wallet } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { SOL_MINT, USDC_MINT } from '@/lib/solana/addresses';
-import { buildZenithTokens, ZenithToken, getLivePrice } from '@/lib/tokenTrustEngine';
+import { buildZenithTokenList, ZenithToken } from '@/lib/zenith';
+import { getLivePrice } from '@/lib/zenith/fetch/jupiter';
 
 // Mock function for now
 async function getQuote(params: any) {
@@ -42,7 +43,7 @@ export default function SwapCard() {
     // Initialize Engine
     useEffect(() => {
         const init = async () => {
-            const allTokens = await buildZenithTokens();
+            const allTokens = await buildZenithTokenList();
             // Filter for specific heavy hitters for the chips row
             const chips = allTokens.filter(t =>
                 ['SOL', 'USDC', 'JUP', 'RAY', 'BONK', 'WIF'].includes(t.symbol)
@@ -71,7 +72,7 @@ export default function SwapCard() {
             // Actually, let's just let the user standard selector handle it?
             // NO, the requirement is "Auto fill".
             // I will implement a quick fetch in useEffect 
-            buildZenithTokens().then(list => {
+            buildZenithTokenList().then(list => {
                 const found = list.find(t => t.mint === toMint);
                 if (found) {
                     setToToken({ symbol: found.symbol, address: found.mint, decimals: 6 }); // decimals guess
