@@ -136,48 +136,51 @@ export default function SwapPanel() {
     }, [loadWalletBalances]);
 
     // ========================================================================
-    // 3. SYNC TO TOKEN FROM GRID/STORE
+    // 3. SYNC TO TOKEN FROM GRID/STORE (SIMPLE - no deps that cause loops)
     // ========================================================================
-    // 3. SYNC TO TOKEN FROM GRID/STORE (only when selectedToken changes)
-    // ========================================================================
+    const fromTokenRef = useRef(fromToken);
+    fromTokenRef.current = fromToken;
+
     useEffect(() => {
         if (!selectedToken) return;
+        if (tokenUniverse.length === 0) return;
         
         const zenithToken = tokenUniverse.find(t => t.mint === selectedToken.address);
-        if (zenithToken) {
-            // Only set if different from current fromToken (avoid same-token swap)
-            setToToken(prev => {
-                if (zenithToken.mint === fromToken?.address) return prev;
-                return zenithToken;
-            });
-        }
-    }, [selectedToken, tokenUniverse]); // Removed fromToken - use ref inside
+        if (!zenithToken) return;
+        
+        // Check against ref to avoid stale closure
+        if (zenithToken.mint === fromTokenRef.current?.address) return;
+        
+        setToToken(zenithToken);
+    }, [selectedToken, tokenUniverse]);
 
     useEffect(() => {
         if (!intent?.toToken) return;
+        if (tokenUniverse.length === 0) return;
         
         const zenithToken = tokenUniverse.find(t => t.mint === intent.toToken.address);
-        if (zenithToken) {
-            setToToken(prev => {
-                if (zenithToken.mint === fromToken?.address) return prev;
-                return zenithToken;
-            });
-        }
-    }, [intent, tokenUniverse]); // Removed fromToken - check inside
+        if (!zenithToken) return;
+        
+        if (zenithToken.mint === fromTokenRef.current?.address) return;
+        
+        setToToken(zenithToken);
+    }, [intent, tokenUniverse]);
 
     // ========================================================================
-    // 4. AUTO-SELECT TO TOKEN (only once when fromToken first set)
+    // 4. AUTO-SELECT TO TOKEN (only if none selected)
     // ========================================================================
+    const toTokenRef = useRef(toToken);
+    toTokenRef.current = toToken;
+
     useEffect(() => {
         if (!fromToken || tokenUniverse.length === 0) return;
-
-        // Only auto-select if toToken is not set
-        setToToken(prev => {
-            if (prev) return prev; // Already has a toToken
-            const candidate = tokenUniverse.find(t => t.mint !== fromToken.address);
-            return candidate || null;
-        });
-    }, [fromToken, tokenUniverse]); // Removed toToken - use functional update
+        if (toTokenRef.current) return; // Already have a toToken
+        
+        const candidate = tokenUniverse.find(t => t.mint !== fromToken.address);
+        if (candidate) {
+            setToToken(candidate);
+        }
+    }, [fromToken, tokenUniverse]);
 
     // ========================================================================
     // 5. FETCH QUOTE (DEBOUNCED 500ms, GUARDED)
