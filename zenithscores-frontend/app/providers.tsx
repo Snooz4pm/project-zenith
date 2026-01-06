@@ -2,10 +2,9 @@
 
 import { FC, ReactNode, useMemo } from 'react';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
-import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 
-require('@solana/wallet-adapter-react-ui/styles.css');
+// Note: WalletModalProvider removed — we use direct Phantom connection (Jupiter-style)
 
 export const Providers: FC<{ children: ReactNode }> = ({ children }) => {
   const endpoint = useMemo(() => {
@@ -24,9 +23,7 @@ export const Providers: FC<{ children: ReactNode }> = ({ children }) => {
   return (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect={false}>
-        <WalletModalProvider>
-          {children}
-        </WalletModalProvider>
+        {children}
       </WalletProvider>
     </ConnectionProvider>
   );

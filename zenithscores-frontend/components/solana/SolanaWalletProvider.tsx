@@ -5,18 +5,16 @@
  * 
  * For pages that ONLY need Solana (no EVM).
  * Uses Phantom + Solflare only.
+ * 
+ * Note: WalletModalProvider removed — we use direct Phantom connection (Jupiter-style)
  */
 
 import { useMemo, ReactNode } from 'react';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
-import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
-
-// Required styles
-import '@solana/wallet-adapter-react-ui/styles.css';
 
 interface Props {
   children: ReactNode;
@@ -44,9 +42,7 @@ export function SolanaWalletProvider({ children }: Props) {
   return (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect={false}>
-        <WalletModalProvider>
-          {children}
-        </WalletModalProvider>
+        {children}
       </WalletProvider>
     </ConnectionProvider>
   );

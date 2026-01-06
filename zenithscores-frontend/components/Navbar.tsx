@@ -8,12 +8,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-
-import { Wallet, ChevronDown, LogOut } from 'lucide-react';
-import { useState } from 'react';
-import { DirectConnectButton } from './wallet/DirectConnectButton';
+import { ChevronDown, LogOut } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { DirectConnectButton, useDirectWallet } from './wallet/DirectConnectButton';
+import { getPhantom } from '@/lib/phantom';
+import { disconnectWallet } from '@/lib/connectWallet';
 
 interface NavLink {
     href: string;
@@ -27,12 +26,11 @@ const NAV_LINKS: NavLink[] = [
 
 export default function Navbar() {
     const pathname = usePathname();
-    const { connected, publicKey, disconnect: walletDisconnect } = useWallet();
-    const { setVisible } = useWalletModal();
+    const { publicKey, isConnected } = useDirectWallet();
     const [showDropdown, setShowDropdown] = useState(false);
 
-    const handleDisconnect = () => {
-        walletDisconnect();
+    const handleDisconnect = async () => {
+        await disconnectWallet();
         setShowDropdown(false);
     };
 
@@ -80,7 +78,7 @@ export default function Navbar() {
                     {/* Right Side */}
                     <div className="flex items-center gap-3">
                         {/* Connect Wallet / User Menu */}
-                        {!connected ? (
+                        {!isConnected || !publicKey ? (
                             <DirectConnectButton />
                         ) : (
                             <div className="relative">
@@ -90,11 +88,11 @@ export default function Navbar() {
                                 >
                                     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center">
                                         <span className="text-[10px] font-bold text-black">
-                                            {publicKey?.toBase58().slice(0, 2).toUpperCase()}
+                                            {publicKey.slice(0, 2).toUpperCase()}
                                         </span>
                                     </div>
                                     <span className="text-sm text-white font-mono">
-                                        {formatWallet(publicKey?.toBase58() || '')}
+                                        {formatWallet(publicKey)}
                                     </span>
                                     <ChevronDown size={14} className="text-zinc-400" />
                                 </button>

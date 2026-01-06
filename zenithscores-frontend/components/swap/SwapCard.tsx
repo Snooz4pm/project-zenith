@@ -7,8 +7,8 @@ import { RoutePreview } from './RoutePreview';
 import { SwapButton } from './SwapButton';
 import { TokenChip } from './TokenChip';
 import { ArrowDown, Settings, Wallet } from 'lucide-react';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useDirectWallet } from '@/components/wallet/DirectConnectButton';
+import { connectWallet } from '@/lib/connectWallet';
 import { SOL_MINT, USDC_MINT } from '@/lib/solana/addresses';
 import { buildZenithTokenList, ZenithToken } from '@/lib/zenith';
 import { getLivePrice } from '@/lib/zenith/fetch/jupiter';
@@ -25,8 +25,7 @@ async function swap(body: any) {
 }
 
 export default function SwapCard() {
-    const { connected, publicKey } = useWallet();
-    const { setVisible } = useWalletModal();
+    const { publicKey, isConnected: connected } = useDirectWallet();
     const { fromToken, toToken, setFromToken, setToToken, intent, setIntent } = useSwapStore();
 
     const [fromAmount, setFromAmount] = useState("");
@@ -133,7 +132,7 @@ export default function SwapCard() {
 
     const handleSwap = async () => {
         if (!connected) {
-            setVisible(true);
+            await connectWallet();
             return;
         }
         console.log('Swap skeleton clicked');

@@ -2,12 +2,11 @@
 
 import Link from 'next/link';
 import { Wallet } from 'lucide-react';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useDirectWallet } from '@/components/wallet/DirectConnectButton';
+import { connectWallet, disconnectWallet } from '@/lib/connectWallet';
 
 export default function MobileTopNav() {
-  const { connected, publicKey, disconnect } = useWallet();
-  const { setVisible } = useWalletModal();
+  const { isConnected: connected, publicKey } = useDirectWallet();
 
   return (
     <>
@@ -33,18 +32,18 @@ export default function MobileTopNav() {
           <div className="flex items-center gap-2">
             {!connected ? (
               <button
-                onClick={() => setVisible(true)}
+                onClick={() => connectWallet()}
                 className="p-2 bg-[var(--accent-mint)]/10 text-[var(--accent-mint)] rounded-lg active:scale-95 transition-transform"
               >
                 <Wallet size={20} />
               </button>
             ) : (
               <button
-                onClick={disconnect}
+                onClick={() => disconnectWallet()}
                 className="p-1 rounded-full border border-white/10"
               >
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--accent-mint)] to-[var(--accent-cyan)] flex items-center justify-center text-xs font-bold text-white">
-                  {publicKey?.toBase58().slice(0, 2).toUpperCase()}
+                  {publicKey?.slice(0, 2).toUpperCase()}
                 </div>
               </button>
             )}

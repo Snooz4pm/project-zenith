@@ -201,6 +201,42 @@ model Notification {
 }
 
 // =============================================================================
+// SWAP RECEIPTS (Non-custodial swap history)
+// =============================================================================
+
+model SwapReceipt {
+  id               String    @id @default(cuid())
+  wallet           String
+  inputMint        String
+  outputMint       String
+  inputSymbol      String?
+  outputSymbol     String?
+  inAmount         String    // Base units
+  outAmount        String    // Base units
+  inAmountUi       Float?    // UI amount
+  outAmountUi      Float?    // UI amount
+  inAmountUsd      Float?
+  outAmountUsd     Float?
+  txid             String    @unique
+  routeType        String?   // 'best' | 'fastest' | 'low_impact'
+  routeHops        Int?
+  slippageBps      Int?
+  priceImpactPct   Float?
+  feeAmount        Float?    // SOL fee
+  status           String    @default("pending") // pending | confirmed | failed
+  jitoBundle       Boolean   @default(false)
+  jitoBundleId     String?
+  errorMessage     String?
+  createdAt        DateTime  @default(now())
+  confirmedAt      DateTime?
+
+  @@index([wallet])
+  @@index([txid])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+}
+
+// =============================================================================
 // TRADING ARENA (Non-custodial swap analytics - kept for revenue tracking)
 // =============================================================================
 

@@ -1,9 +1,10 @@
 'use client';
 
 import { Wallet } from 'lucide-react';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useWalletIdentity } from '@/lib/wallet-identity';
+import { connectWallet } from '@/lib/connectWallet';
+import { useDirectWallet } from '@/components/wallet/DirectConnectButton';
+import { useState } from 'react';
 
 interface WalletGateProps {
   /** Message to display above the connect button */
@@ -28,23 +29,30 @@ export default function WalletGate({
   action = "interact",
   requireAuth = true
 }: WalletGateProps) {
-  const { connected } = useWallet();
-  const { setVisible } = useWalletModal();
-  const { isAuthenticated, authenticate, isLoading } = useWalletIdentity();
+  const { isConnected } = useDirectWallet();
+  const { isAuthenticated, authenticate, isLoading: authLoading } = useWalletIdentity();
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // If only connection needed and wallet is connected, don't show
-  if (!requireAuth && connected) return null;
+  if (!requireAuth && isConnected) return null;
 
   // If auth needed and user is authenticated, don't show
   if (requireAuth && isAuthenticated) return null;
 
   const handleClick = async () => {
-    if (!connected) {
-      setVisible(true);
+    if (!isConnected) {
+      setIsConnecting(true);
+      try {
+        await connectWallet();
+      } finally {
+        setIsConnecting(false);
+      }
     } else if (!isAuthenticated) {
       await authenticate();
     }
   };
+
+  const isLoading = isConnecting || authLoading;
 
   return (
     <div className={`flex flex-col items-center justify-center p-6 rounded-xl bg-white/[0.02] border border-white/10 text-center ${className}`}>
@@ -61,7 +69,7 @@ export default function WalletGate({
         disabled={isLoading}
         className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-emerald-500 text-black hover:bg-emerald-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {isLoading ? 'Connecting...' : connected ? 'Sign to Continue' : 'Connect Wallet'}
+        {isLoading ? 'Connecting...' : isConnected ? 'Sign to Continue' : 'Connect Wallet'}
       </button>
     </div>
   );
