@@ -9,12 +9,10 @@ export interface UnlockValueState {
   structure: any[];
   optimization: any[];
   lastScan: number | null;
-  scan: () => Promise<void>;
-  refresh: () => Promise<void>;
   setError: (err: string | null) => void;
 }
 
-export const useUnlockValueStore = create<UnlockValueState>((set, get) => ({
+export const useUnlockValueStore = create<UnlockValueState>((set) => ({
   loading: false,
   error: null,
   recoverable: [],
@@ -23,7 +21,5 @@ export const useUnlockValueStore = create<UnlockValueState>((set, get) => ({
   structure: [],
   optimization: [],
   lastScan: null,
-  scan: async () => {}, // to be implemented
-  refresh: async () => {}, // to be implemented
   setError: (err) => set({ error: err })
 }));

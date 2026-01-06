@@ -1,28 +1,56 @@
 'use client';
 import React, { useEffect, useRef } from 'react';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { useUnlockValueStore } from './UnlockValueStore';
-import { runUnlockValueScan } from './UnlockValueScanner';
+// import { runUnlockValueScan } from './UnlockValueScanner';
 
 export default function UnlockValueClient() {
-  const { connection } = useConnection();
   const { publicKey, connected } = useWallet();
   const store = useUnlockValueStore();
   const lastWallet = useRef<string | null>(null);
 
   useEffect(() => {
-    if (connected && publicKey && lastWallet.current !== publicKey.toString()) {
-      lastWallet.current = publicKey.toString();
-      runUnlockValueScan(connection, publicKey);
+    async function fetchWalletSnapshot() {
+      if (connected && publicKey && lastWallet.current !== publicKey.toString()) {
+        lastWallet.current = publicKey.toString();
+        store.loading = true;
+        store.setError(null);
+        try {
+          const res = await fetch(`/api/wallet/${publicKey.toBase58()}`);
+          if (!res.ok) throw new Error('Failed to fetch wallet snapshot');
+          const data = await res.json();
+          // You may want to map data to store fields
+          store.recoverable = data.tokens || [];
+          store.lastScan = Date.now();
+        } catch (err: any) {
+          store.setError(err.message || 'Scan failed');
+        } finally {
+          store.loading = false;
+        }
+      }
     }
-  }, [connected, publicKey, connection]);
+    fetchWalletSnapshot();
+  }, [connected, publicKey]);
 
   return (
     <div className="max-w-4xl mx-auto py-10 px-4">
       <h1 className="text-3xl font-bold mb-2 text-white">UNLOCK VALUE</h1>
       <p className="text-zinc-400 mb-6">Deep scan your wallet for hidden, recoverable value.<br />No deposits. No promises. You keep full control.</p>
       {store.error && <div className="bg-red-500/10 text-red-400 p-2 rounded mb-4">{store.error}</div>}
-      <button onClick={() => runUnlockValueScan(connection, publicKey!)} disabled={store.loading || !connected} className="mb-6 px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded">{store.loading ? 'Scanning...' : 'Refresh Scan'}</button>
+      <button onClick={() => {
+        if (connected && publicKey) {
+          store.loading = true;
+          store.setError(null);
+          fetch(`/api/wallet/${publicKey.toBase58()}`)
+            .then(r => r.json())
+            .then(data => {
+              store.recoverable = data.tokens || [];
+              store.lastScan = Date.now();
+            })
+            .catch(err => store.setError(err.message || 'Scan failed'))
+            .finally(() => { store.loading = false; });
+        }
+      }} disabled={store.loading || !connected} className="mb-6 px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded">{store.loading ? 'Scanning...' : 'Refresh Scan'}</button>
       <div className="space-y-8">
         <Section title="Recoverable" items={store.recoverable} />
         <Section title="Dust" items={store.dust} />
