@@ -1,16 +1,14 @@
 'use client';
 
-import { Wallet, Loader2, ExternalLink, LogOut } from 'lucide-react';
+import { Wallet, Loader2, ExternalLink } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 
 /**
  * DirectConnectButton
  * 
- * Wallet adapter based connection - Phantom trusted flow.
- * Uses @solana/wallet-adapter-react (the standard).
- * 
- * Click → Wallet adapter triggers Phantom → Clean UX
+ * Hybrid approach: Uses wallet adapter state but triggers Phantom directly.
+ * This ensures Phantom opens immediately on click (user intent = clear).
  */
 
 interface DirectConnectButtonProps {
@@ -19,82 +17,132 @@ interface DirectConnectButtonProps {
   className?: string;
 }
 
+// Get Phantom provider directly
+function getPhantom() {
+  if (typeof window === 'undefined') return null;
+  const anyWindow = window as any;
+  if (anyWindow.solana?.isPhantom) return anyWindow.solana;
+  if (anyWindow.phantom?.solana?.isPhantom) return anyWindow.phantom.solana;
+  return null;
+}
+
 export function DirectConnectButton({ 
   onConnect, 
   onDisconnect,
   className 
 }: DirectConnectButtonProps) {
-  const { 
-    publicKey, 
-    connected, 
-    connecting, 
-    disconnect,
-    select,
-    wallets,
-    connect
-  } = useWallet();
-
+  const { publicKey, connected, select, wallets } = useWallet();
   const [isConnecting, setIsConnecting] = useState(false);
+  const [phantomInstalled, setPhantomInstalled] = useState<boolean | null>(null);
+  const [connectedKey, setConnectedKey] = useState<string | null>(null);
 
-  // Notify parent when connection changes
+  // Check Phantom on mount
+  useEffect(() => {
+    setPhantomInstalled(!!getPhantom());
+  }, []);
+
+  // Sync with wallet adapter state
   useEffect(() => {
     if (connected && publicKey) {
-      onConnect?.(publicKey.toString());
+      const key = publicKey.toString();
+      setConnectedKey(key);
+      onConnect?.(key);
     }
   }, [connected, publicKey, onConnect]);
 
+  // Listen to direct Phantom events
+  useEffect(() => {
+    const phantom = getPhantom();
+    if (!phantom) return;
+
+    const handleConnect = () => {
+      const key = phantom.publicKey?.toString();
+      if (key) {
+        setConnectedKey(key);
+        onConnect?.(key);
+        
+        // Also select in wallet adapter for sendTransaction to work
+        const phantomAdapter = wallets.find(w => 
+          w.adapter.name.toLowerCase().includes('phantom')
+        );
+        if (phantomAdapter) {
+          select(phantomAdapter.adapter.name);
+        }
+      }
+    };
+
+    const handleDisconnect = () => {
+      setConnectedKey(null);
+      onDisconnect?.();
+    };
+
+    // Check if already connected
+    if (phantom.isConnected && phantom.publicKey) {
+      handleConnect();
+    }
+
+    phantom.on('connect', handleConnect);
+    phantom.on('disconnect', handleDisconnect);
+
+    return () => {
+      phantom.off('connect', handleConnect);
+      phantom.off('disconnect', handleDisconnect);
+    };
+  }, [onConnect, onDisconnect, wallets, select]);
+
+  // Auto-reconnect (silent, trusted users only)
+  useEffect(() => {
+    const phantom = getPhantom();
+    if (!phantom || phantom.isConnected) return;
+
+    // Try silent reconnect for returning users
+    phantom.connect({ onlyIfTrusted: true }).catch(() => {
+      // Silent fail - user hasn't trusted yet
+    });
+  }, []);
+
   const handleConnect = useCallback(async () => {
+    const phantom = getPhantom();
+
+    if (!phantom) {
+      // Phantom not installed - open install page
+      window.open('https://phantom.app/', '_blank', 'noopener,noreferrer');
+      return;
+    }
+
     setIsConnecting(true);
 
     try {
-      // Find Phantom wallet adapter
-      const phantomWallet = wallets.find(w => 
+      // Direct Phantom connect - opens popup immediately
+      const response = await phantom.connect({ onlyIfTrusted: false });
+      const key = response.publicKey.toString();
+      
+      setConnectedKey(key);
+      onConnect?.(key);
+
+      // Select in wallet adapter so sendTransaction works
+      const phantomAdapter = wallets.find(w => 
         w.adapter.name.toLowerCase().includes('phantom')
       );
-
-      if (phantomWallet) {
-        // Select Phantom adapter
-        select(phantomWallet.adapter.name);
-        
-        // Small delay for adapter to register
-        await new Promise(r => setTimeout(r, 100));
-        
-        // Connect via adapter (triggers Phantom popup)
-        await connect();
-      } else {
-        // No Phantom found - redirect to install
-        window.open('https://phantom.app/', '_blank', 'noopener,noreferrer');
+      if (phantomAdapter) {
+        select(phantomAdapter.adapter.name);
       }
     } catch (error: any) {
-      // User rejected or error
-      if (!error.message?.includes('rejected')) {
+      if (!error.message?.includes('User rejected')) {
         console.error('[DirectConnectButton] Connection error:', error);
       }
     } finally {
       setIsConnecting(false);
     }
-  }, [wallets, select, connect]);
+  }, [onConnect, wallets, select]);
 
-  const handleDisconnect = useCallback(async () => {
-    await disconnect();
-    onDisconnect?.();
-  }, [disconnect, onDisconnect]);
-
-  // Check if Phantom is available
-  const phantomAvailable = wallets.some(w => 
-    w.adapter.name.toLowerCase().includes('phantom') && w.readyState === 'Installed'
-  );
-
-  // Connected state - show disconnect option or hide
-  if (connected && publicKey) {
-    return null; // Parent handles profile display
+  // Already connected - hide button
+  if (connectedKey || (connected && publicKey)) {
+    return null;
   }
 
-  const isLoading = isConnecting || connecting;
-
-  // Button content based on state
   const getButtonContent = () => {
-    if (isLoading) {
+    if (isConnecting) {
       return (
         <>
           <Loader2 size={16} className="animate-spin" />
@@ -103,7 +151,7 @@ export function DirectConnectButton({
       );
     }
 
-    if (!phantomAvailable) {
+    if (phantomInstalled === false) {
       return (
         <>
           <ExternalLink size={16} />
@@ -123,7 +171,7 @@ export function DirectConnectButton({
   return (
     <button
       onClick={handleConnect}
-      disabled={isLoading}
+      disabled={isConnecting}
       className={className || "flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"}
     >
       {getButtonContent()}
@@ -132,16 +180,52 @@ export function DirectConnectButton({
 }
 
 /**
- * Hook for wallet connection state
- * Uses wallet adapter (Phantom-trusted)
+ * Hook for wallet state - works with both direct and adapter connections
  */
 export function useDirectWallet() {
-  const { publicKey, connected, connect, disconnect } = useWallet();
+  const { publicKey: adapterKey, connected: adapterConnected } = useWallet();
+  const [directKey, setDirectKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    const phantom = getPhantom();
+    if (!phantom) return;
+
+    const updateKey = () => {
+      if (phantom.isConnected && phantom.publicKey) {
+        setDirectKey(phantom.publicKey.toString());
+      } else {
+        setDirectKey(null);
+      }
+    };
+
+    updateKey();
+    phantom.on('connect', updateKey);
+    phantom.on('disconnect', () => setDirectKey(null));
+
+    return () => {
+      phantom.off('connect', updateKey);
+      phantom.off('disconnect', () => setDirectKey(null));
+    };
+  }, []);
+
+  // Use adapter key if available, else direct key
+  const publicKey = adapterKey?.toString() || directKey;
+  const isConnected = adapterConnected || !!directKey;
 
   return {
-    publicKey: publicKey?.toString() || null,
-    isConnected: connected,
-    connect,
-    disconnect
+    publicKey,
+    isConnected,
+    connect: async () => {
+      const phantom = getPhantom();
+      if (phantom) {
+        await phantom.connect({ onlyIfTrusted: false });
+      }
+    },
+    disconnect: async () => {
+      const phantom = getPhantom();
+      if (phantom) {
+        await phantom.disconnect();
+      }
+    }
   };
 }
