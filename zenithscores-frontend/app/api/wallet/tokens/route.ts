@@ -3,6 +3,8 @@ import { PublicKey } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { serverConnection } from '@/lib/server/solana';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
