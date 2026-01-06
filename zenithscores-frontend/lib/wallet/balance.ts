@@ -1,7 +1,5 @@
-import { Connection, PublicKey } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { PublicKey } from '@solana/web3.js';
 import { ZenithToken } from '@/lib/zenith';
-import { getSolanaConnection } from '@/lib/solana/connection';
 
 export type WalletBalance = {
     mint: string;
@@ -32,61 +30,32 @@ let cacheTimestamp = 0;
 const CACHE_TTL = 30000; // 30 seconds minimum between fetches
 let cachedWallet: string | null = null;
 
-export async function fetchWalletBalances(connection: Connection, publicKey: PublicKey): Promise<WalletBalance[]> {
+export async function fetchWalletBalances(publicKey: PublicKey): Promise<WalletBalance[]> {
     const pubkeyStr = publicKey.toBase58();
-
-    // Return cached data if fresh and same wallet
-    if (
-        cachedBalances.length > 0 &&
-        Date.now() - cacheTimestamp < CACHE_TTL &&
-        cachedWallet === pubkeyStr
-    ) {
-        console.log('[Balance] Using cached balances');
-        return cachedBalances;
-    }
-
-    // Use centralized Helius connection
-    const heliusConnection = getSolanaConnection();
-
     try {
-        // 1. Fetch SOL Balance
-        const solBalance = await heliusConnection.getBalance(publicKey);
-        const balances: WalletBalance[] = [{
-            mint: 'So11111111111111111111111111111111111111112', // SOL Mint
-            amount: solBalance / 1e9,
-            decimals: 9
-        }];
-
-        // 2. Fetch SPL Token Balances (Parsed is faster/cleaner)
-        const tokenAccounts = await heliusConnection.getParsedTokenAccountsByOwner(
-            publicKey,
-            { programId: TOKEN_PROGRAM_ID }
-        );
-
-        tokenAccounts.value.forEach(acc => {
-            const info = acc.account.data.parsed.info;
-            const amount = Number(info.tokenAmount.uiAmount || 0);
-
-            if (amount > 0) { // Filter zero balance accounts here to save memory
+        const res = await fetch(`/api/wallet/${pubkeyStr}`);
+        if (!res.ok) throw new Error('Failed to fetch wallet snapshot');
+        const data = await res.json();
+        const balances: WalletBalance[] = [
+            {
+                mint: 'So11111111111111111111111111111111111111112',
+                amount: data.balanceLamports / 1e9,
+                decimals: 9
+            }
+        ];
+        data.tokens.forEach((token: any) => {
+            if (token.amount && token.amount > 0) {
                 balances.push({
-                    mint: info.mint,
-                    amount: amount,
-                    decimals: info.tokenAmount.decimals
+                    mint: token.mint,
+                    amount: token.amount,
+                    decimals: token.decimals
                 });
             }
         });
-
-        // Update cache
-        cachedBalances = balances;
-        cacheTimestamp = Date.now();
-        cachedWallet = pubkeyStr;
-
         return balances;
-
     } catch (err: any) {
         console.error('[Balance] Fetch error:', err);
-        // Return cached balances on error
-        return cachedBalances;
+        return [];
     }
 }
 

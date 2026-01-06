@@ -146,7 +146,7 @@ export default function SwapPanel() {
         }
 
         try {
-            const balances = await fetchWalletBalances(conn, pubkey);
+            const balances = await fetchWalletBalances(pubkey);
             const enriched = enrichWalletBalances(balances, universe);
             setWalletTokens(enriched);
 
@@ -227,7 +227,7 @@ export default function SwapPanel() {
 
                 if (!pubkey || universe.length === 0) return;
 
-                const balances = await fetchWalletBalances(conn, pubkey);
+                const balances = await fetchWalletBalances(pubkey);
                 const enriched = enrichWalletBalances(balances, universe);
                 
                 // Check if the arriving token's balance increased
