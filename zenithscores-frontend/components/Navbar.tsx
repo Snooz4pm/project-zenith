@@ -1,18 +1,16 @@
 'use client';
 
 /**
- * Main Navbar - Exact specification
- * 
- * [ Logo ]  Swap  Learn  Community        Dashboard  Connect Wallet
+ * Main Navbar - Enhanced with wallet chip
  */
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, LogOut } from 'lucide-react';
+import { ChevronDown, LogOut, Wallet, Copy, ExternalLink, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { DirectConnectButton, useDirectWallet } from './wallet/DirectConnectButton';
-import { getPhantom } from '@/lib/phantom';
 import { disconnectWallet } from '@/lib/connectWallet';
+import { Connection, PublicKey } from '@solana/web3.js';
 
 interface NavLink {
     href: string;
@@ -24,18 +22,64 @@ const NAV_LINKS: NavLink[] = [
     { href: '/signals', label: 'Signals' },
 ];
 
+const RPC_ENDPOINT = process.env.NEXT_PUBLIC_HELIUS_RPC_URL || 'https://api.mainnet-beta.solana.com';
+
 export default function Navbar() {
     const pathname = usePathname();
     const { publicKey, isConnected } = useDirectWallet();
     const [showDropdown, setShowDropdown] = useState(false);
+    const [solBalance, setSolBalance] = useState<number | null>(null);
+    const [copied, setCopied] = useState(false);
+    const [loading, setLoading] = useState(false);
+
+    // Fetch SOL balance when wallet connects
+    useEffect(() => {
+        if (!isConnected || !publicKey) {
+            setSolBalance(null);
+            return;
+        }
+
+        const fetchBalance = async () => {
+            setLoading(true);
+            try {
+                const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+                const balance = await connection.getBalance(new PublicKey(publicKey));
+                setSolBalance(balance / 1e9);
+            } catch (err) {
+                console.error('[Navbar] Balance fetch error:', err);
+                setSolBalance(null);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchBalance();
+        // Refresh every 30s
+        const interval = setInterval(fetchBalance, 30000);
+        return () => clearInterval(interval);
+    }, [isConnected, publicKey]);
 
     const handleDisconnect = async () => {
         await disconnectWallet();
         setShowDropdown(false);
+        setSolBalance(null);
+    };
+
+    const handleCopy = () => {
+        if (publicKey) {
+            navigator.clipboard.writeText(publicKey);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
     };
 
     const formatWallet = (address: string) => {
         return `${address.slice(0, 4)}...${address.slice(-4)}`;
+    };
+
+    const formatBalance = (balance: number) => {
+        if (balance >= 1000) return `${(balance / 1000).toFixed(1)}K`;
+        return balance.toFixed(2);
     };
 
     // Hide Navbar on Homepage
@@ -86,28 +130,96 @@ export default function Navbar() {
                                     onClick={() => setShowDropdown(!showDropdown)}
                                     className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
                                 >
+                                    {/* Avatar */}
                                     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center">
                                         <span className="text-[10px] font-bold text-black">
                                             {publicKey.slice(0, 2).toUpperCase()}
                                         </span>
                                     </div>
-                                    <span className="text-sm text-white font-mono">
-                                        {formatWallet(publicKey)}
-                                    </span>
-                                    <ChevronDown size={14} className="text-zinc-400" />
+
+                                    {/* Address + Balance */}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-white font-mono">
+                                            {formatWallet(publicKey)}
+                                        </span>
+                                        {solBalance !== null && (
+                                            <span className="text-xs text-emerald-400 font-mono hidden sm:block">
+                                                {loading ? '...' : `${formatBalance(solBalance)} SOL`}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <ChevronDown size={14} className={`text-zinc-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
                                 </button>
 
                                 {/* Dropdown */}
                                 {showDropdown && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-zinc-900 border border-white/10 rounded-lg shadow-xl py-1 z-50">
-                                        <button
-                                            onClick={handleDisconnect}
-                                            className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
-                                        >
-                                            <LogOut size={14} />
-                                            Disconnect
-                                        </button>
-                                    </div>
+                                    <>
+                                        {/* Backdrop */}
+                                        <div
+                                            className="fixed inset-0 z-40"
+                                            onClick={() => setShowDropdown(false)}
+                                        />
+
+                                        {/* Menu */}
+                                        <div className="absolute right-0 mt-2 w-56 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl py-2 z-50">
+                                            {/* Balance Display */}
+                                            {solBalance !== null && (
+                                                <div className="px-4 py-3 border-b border-white/5">
+                                                    <p className="text-xs text-zinc-500">Balance</p>
+                                                    <p className="text-lg font-mono text-white">
+                                                        {formatBalance(solBalance)} <span className="text-zinc-400">SOL</span>
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* View Portfolio */}
+                                            <Link
+                                                href="/wallet"
+                                                onClick={() => setShowDropdown(false)}
+                                                className="w-full text-left px-4 py-2.5 text-sm text-white hover:bg-white/5 transition-colors flex items-center gap-3"
+                                            >
+                                                <Wallet size={14} className="text-zinc-400" />
+                                                View Portfolio
+                                            </Link>
+
+                                            {/* Copy Address */}
+                                            <button
+                                                onClick={handleCopy}
+                                                className="w-full text-left px-4 py-2.5 text-sm text-white hover:bg-white/5 transition-colors flex items-center gap-3"
+                                            >
+                                                {copied ? (
+                                                    <Check size={14} className="text-emerald-400" />
+                                                ) : (
+                                                    <Copy size={14} className="text-zinc-400" />
+                                                )}
+                                                {copied ? 'Copied!' : 'Copy Address'}
+                                            </button>
+
+                                            {/* View on Solscan */}
+                                            <a
+                                                href={`https://solscan.io/account/${publicKey}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="w-full text-left px-4 py-2.5 text-sm text-white hover:bg-white/5 transition-colors flex items-center gap-3"
+                                            >
+                                                <ExternalLink size={14} className="text-zinc-400" />
+                                                View on Solscan
+                                            </a>
+
+                                            {/* Divider */}
+                                            <div className="my-2 border-t border-white/5" />
+
+                                            {/* Disconnect */}
+                                            <button
+                                                onClick={handleDisconnect}
+                                                className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-3"
+                                            >
+                                                <LogOut size={14} />
+                                                Disconnect
+                                            </button>
+                                        </div>
+                                    </>
                                 )}
                             </div>
                         )}
@@ -117,4 +229,3 @@ export default function Navbar() {
         </nav>
     );
 }
-

@@ -1,7 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
-
 interface UniversalLoaderProps {
     /** Full screen overlay mode (for navigation) */
     fullScreen?: boolean;
@@ -12,8 +10,8 @@ interface UniversalLoaderProps {
 }
 
 /**
- * Universal loading component for the entire ZenithScores platform.
- * Use this EVERYWHERE for consistent loading experience.
+ * Vercel-inspired universal loading component.
+ * Minimal, geometric, dark aesthetic.
  */
 export default function UniversalLoader({
     fullScreen = false,
@@ -21,50 +19,57 @@ export default function UniversalLoader({
     size = 'md'
 }: UniversalLoaderProps) {
     const sizeConfig = {
-        sm: { ring: 'w-8 h-8', text: 'text-xs' },
-        md: { ring: 'w-12 h-12', text: 'text-sm' },
-        lg: { ring: 'w-16 h-16', text: 'text-base' },
+        sm: { triangle: 'w-6 h-6', text: 'text-xs' },
+        md: { triangle: 'w-10 h-10', text: 'text-sm' },
+        lg: { triangle: 'w-14 h-14', text: 'text-base' },
     };
 
     const config = sizeConfig[size];
 
     const LoaderContent = () => (
-        <div className="text-center">
-            {/* Animated Zenith Loader */}
-            <div className={`relative ${config.ring} mx-auto mb-4`}>
-                {/* Outer ring - pulsing */}
-                <motion.div
-                    className="absolute inset-0 border-2 border-cyan-500/30 rounded-full"
-                    animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.1, 0.3] }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                />
-                {/* Inner dot - pulsing */}
-                <motion.div
-                    className="absolute inset-3 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-full"
-                    animate={{ scale: [0.8, 1, 0.8], opacity: [0.5, 1, 0.5] }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                />
+        <div className="flex flex-col items-center gap-4">
+            {/* Triangle loader */}
+            <div className={`relative ${config.triangle}`}>
+                {/* Outer triangle - dotted, slow rotation */}
+                <svg
+                    viewBox="0 0 48 48"
+                    className="absolute inset-0 w-full h-full animate-spin"
+                    style={{ animationDuration: '6s' }}
+                >
+                    <polygon
+                        points="24,4 44,40 4,40"
+                        fill="none"
+                        stroke="rgba(255,255,255,0.15)"
+                        strokeWidth="1"
+                        strokeDasharray="3 3"
+                    />
+                </svg>
+                {/* Inner solid triangle */}
+                <svg viewBox="0 0 48 48" className="absolute inset-0 w-full h-full">
+                    <polygon
+                        points="24,14 34,34 14,34"
+                        fill="white"
+                        className="animate-pulse"
+                    />
+                </svg>
             </div>
             {/* Message */}
-            <motion.p
-                className={`text-gray-400 ${config.text} font-medium`}
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-            >
+            <p className={`text-white/40 ${config.text} font-mono tracking-wide`}>
                 {message}
-            </motion.p>
+            </p>
         </div>
     );
 
     if (fullScreen) {
         return (
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="fixed inset-0 bg-[#0a0a12] z-[9999] flex items-center justify-center"
-            >
+            <div className="fixed inset-0 bg-black z-[9999] flex items-center justify-center">
+                {/* Corner markers */}
+                <div className="absolute top-6 left-6 w-3 h-3 border-l border-t border-white/10" />
+                <div className="absolute top-6 right-6 w-3 h-3 border-r border-t border-white/10" />
+                <div className="absolute bottom-6 left-6 w-3 h-3 border-l border-b border-white/10" />
+                <div className="absolute bottom-6 right-6 w-3 h-3 border-r border-b border-white/10" />
                 <LoaderContent />
-            </motion.div>
+            </div>
         );
     }
 
@@ -80,10 +85,8 @@ export default function UniversalLoader({
  */
 export function PageLoadingSkeleton({ pageName = 'Loading' }: { pageName?: string }) {
     return (
-        <div className="min-h-screen bg-[#0a0a12] text-white pt-20 md:pt-24">
-            <div className="container mx-auto px-6 py-8">
-                <UniversalLoader size="lg" message={`${pageName}...`} />
-            </div>
+        <div className="min-h-screen bg-black text-white flex items-center justify-center">
+            <UniversalLoader size="lg" message={`${pageName}...`} />
         </div>
     );
 }

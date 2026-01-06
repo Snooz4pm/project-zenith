@@ -12,7 +12,8 @@ interface SkeletonLoaderProps {
 }
 
 /**
- * Skeleton loader with shimmer animation
+ * Vercel-inspired skeleton loader with subtle shimmer animation.
+ * Uses dark theme consistent with the site.
  */
 export function SkeletonLoader({
     variant = 'rectangle',
@@ -22,17 +23,17 @@ export function SkeletonLoader({
     lines = 1,
     animated = true,
 }: SkeletonLoaderProps) {
+    // Vercel-style: very subtle, dark backgrounds with minimal shimmer
     const baseStyles = `
-    bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800
-    bg-[length:200%_100%]
-    ${animated ? 'animate-shimmer' : ''}
+    bg-white/5
+    ${animated ? 'animate-pulse' : ''}
   `;
 
     const variantStyles = {
         text: 'h-4 rounded',
         circle: 'rounded-full aspect-square',
         rectangle: 'rounded-lg',
-        card: 'rounded-2xl',
+        card: 'rounded-xl border border-white/5',
     };
 
     const getWidth = () => {
@@ -60,7 +61,6 @@ export function SkeletonLoader({
                         style={{
                             width: i === lines - 1 ? '75%' : '100%',
                             height: getHeight(),
-                            animationDelay: `${i * 0.1}s`,
                         }}
                     />
                 ))}
@@ -76,16 +76,16 @@ export function SkeletonLoader({
             >
                 <div className="space-y-4">
                     <div className="flex items-center gap-3">
-                        <div className={`${baseStyles} rounded-full w-10 h-10`} />
+                        <div className="bg-white/5 rounded-full w-10 h-10 animate-pulse" />
                         <div className="flex-1 space-y-2">
-                            <div className={`${baseStyles} rounded h-4 w-3/4`} />
-                            <div className={`${baseStyles} rounded h-3 w-1/2`} />
+                            <div className="bg-white/5 rounded h-4 w-3/4 animate-pulse" />
+                            <div className="bg-white/5 rounded h-3 w-1/2 animate-pulse" />
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <div className={`${baseStyles} rounded h-4 w-full`} />
-                        <div className={`${baseStyles} rounded h-4 w-full`} />
-                        <div className={`${baseStyles} rounded h-4 w-3/4`} />
+                        <div className="bg-white/5 rounded h-4 w-full animate-pulse" />
+                        <div className="bg-white/5 rounded h-4 w-full animate-pulse" />
+                        <div className="bg-white/5 rounded h-4 w-3/4 animate-pulse" />
                     </div>
                 </div>
             </div>
