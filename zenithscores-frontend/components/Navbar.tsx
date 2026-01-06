@@ -21,6 +21,7 @@ interface NavLink {
 
 const NAV_LINKS: NavLink[] = [
     { href: '/signals', label: 'Signals' },
+    { href: '/unlock-value', label: 'Unlock Value' },
 ];
 
 const RPC_ENDPOINT = process.env.NEXT_PUBLIC_HELIUS_RPC_URL || 'https://api.mainnet-beta.solana.com';
