@@ -32,6 +32,15 @@ export default function TokenExplorer() {
             });
     }, []);
 
+    // STRICT FILTER: Only show real branded tokens
+    const displayTokens = tokens.filter(t =>
+        t.logoURI &&
+        typeof t.logoURI === 'string' &&
+        t.logoURI.startsWith('http') &&
+        !t.logoURI.includes('unknown') &&
+        !t.logoURI.includes('placeholder')
+    );
+
     return (
         <section>
             <header className="mb-6 flex items-center justify-between">
@@ -60,7 +69,7 @@ export default function TokenExplorer() {
                 </div>
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {tokens.map(token => (
+                    {displayTokens.map(token => (
                         <button
                             key={token.mint}
                             onClick={() => setSelectedToken({
@@ -74,15 +83,11 @@ export default function TokenExplorer() {
                         >
                             {/* Header: Logo + Symbol */}
                             <div className="flex items-center gap-3 w-full">
-                                {token.logoURI ? (
-                                    <img
-                                        src={token.logoURI}
-                                        className="w-8 h-8 rounded-full bg-zinc-800 object-cover shadow-lg group-hover:ring-2 ring-emerald-500/20 transition-all"
-                                        alt=""
-                                    />
-                                ) : (
-                                    <div className="w-8 h-8 rounded-full bg-zinc-800" />
-                                )}
+                                <img
+                                    src={token.logoURI}
+                                    className="w-8 h-8 rounded-full bg-zinc-800 object-cover shadow-lg group-hover:ring-2 ring-emerald-500/20 transition-all"
+                                    alt=""
+                                />
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors truncate">
