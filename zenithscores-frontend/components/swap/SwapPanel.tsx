@@ -147,7 +147,24 @@ export default function SwapPanel() {
 
         try {
             const balances = await fetchWalletBalances(pubkey);
-            const enriched = enrichWalletBalances(balances, universe);
+            let enriched = enrichWalletBalances(balances, universe);
+
+            // Always include SOL, even if no SPL tokens
+            const solToken = universe.find(t => t.mint === 'So11111111111111111111111111111111111111112');
+            if (solToken && !enriched.some(t => t.address === solToken.mint)) {
+                enriched = [
+                    {
+                        address: solToken.mint,
+                        symbol: solToken.symbol,
+                        name: solToken.name,
+                        decimals: solToken.decimals || 9,
+                        logoURI: solToken.logoURI,
+                        uiBalance: balances[0]?.amount || 0,
+                        balanceBase: BigInt(Math.floor((balances[0]?.amount || 0) * Math.pow(10, solToken.decimals || 9)))
+                    },
+                    ...enriched
+                ];
+            }
             setWalletTokens(enriched);
 
             // Auto-select FROM token only if none selected
