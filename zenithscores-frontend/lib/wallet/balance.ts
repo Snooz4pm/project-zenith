@@ -1,6 +1,7 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { ZenithToken } from '@/lib/zenith';
+import { getSolanaConnection } from '@/lib/solana/connection';
 
 export type WalletBalance = {
     mint: string;
@@ -25,56 +26,31 @@ const PREFERRED_MINTS = [
     'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB'  // USDT
 ];
 
-// Cache wallet balances to avoid spam (aggressive for free tier)
+// Cache wallet balances to avoid spam (aggressive for Helius free tier)
 let cachedBalances: WalletBalance[] = [];
 let cacheTimestamp = 0;
-const CACHE_TTL = 30000; // 30 seconds minimum between fetches (free tier friendly)
-let isRateLimited = false;
-let rateLimitResetTime = 0;
-
-// Public RPC fallback when rate limited
-const PUBLIC_RPC = 'https://api.mainnet-beta.solana.com';
+const CACHE_TTL = 30000; // 30 seconds minimum between fetches
+let cachedWallet: string | null = null;
 
 export async function fetchWalletBalances(connection: Connection, publicKey: PublicKey): Promise<WalletBalance[]> {
-    // Return cached data if fresh
     const pubkeyStr = publicKey.toBase58();
-    if (cachedBalances.length > 0 && Date.now() - cacheTimestamp < CACHE_TTL) {
+
+    // Return cached data if fresh and same wallet
+    if (
+        cachedBalances.length > 0 &&
+        Date.now() - cacheTimestamp < CACHE_TTL &&
+        cachedWallet === pubkeyStr
+    ) {
         console.log('[Balance] Using cached balances');
         return cachedBalances;
     }
 
-    // If rate limited on primary RPC, try public fallback
-    if (isRateLimited && Date.now() < rateLimitResetTime) {
-        console.log('[Balance] Rate limited, trying public RPC fallback');
-        try {
-            const { Connection } = await import('@solana/web3.js');
-            const publicConn = new Connection(PUBLIC_RPC, 'confirmed');
-            const solBalance = await publicConn.getBalance(publicKey);
-            // Just return SOL balance from public RPC (faster, less load)
-            return [{
-                mint: 'So11111111111111111111111111111111111111112',
-                amount: solBalance / 1e9,
-                decimals: 9
-            }, ...cachedBalances.filter(b => b.mint !== 'So11111111111111111111111111111111111111112')];
-        } catch {
-            return cachedBalances;
-        }
-    }
+    // Use centralized Helius connection
+    const heliusConnection = getSolanaConnection();
 
     try {
         // 1. Fetch SOL Balance
-        let solBalance;
-        try {
-            solBalance = await connection.getBalance(publicKey);
-        } catch (err: any) {
-            if (err?.message?.includes('403') || err?.message?.includes('Access forbidden')) {
-                console.warn('[Balance] Forbidden by RPC, falling back to public RPC');
-                const publicConn = new Connection(PUBLIC_RPC, 'confirmed');
-                solBalance = await publicConn.getBalance(publicKey);
-            } else {
-                throw err;
-            }
-        }
+        const solBalance = await heliusConnection.getBalance(publicKey);
         const balances: WalletBalance[] = [{
             mint: 'So11111111111111111111111111111111111111112', // SOL Mint
             amount: solBalance / 1e9,
@@ -82,24 +58,10 @@ export async function fetchWalletBalances(connection: Connection, publicKey: Pub
         }];
 
         // 2. Fetch SPL Token Balances (Parsed is faster/cleaner)
-        let tokenAccounts;
-        try {
-            tokenAccounts = await connection.getParsedTokenAccountsByOwner(
-                publicKey,
-                { programId: TOKEN_PROGRAM_ID }
-            );
-        } catch (err: any) {
-            if (err?.message?.includes('403') || err?.message?.includes('Access forbidden')) {
-                console.warn('[Balance] Forbidden by RPC, falling back to public RPC');
-                const publicConn = new Connection(PUBLIC_RPC, 'confirmed');
-                tokenAccounts = await publicConn.getParsedTokenAccountsByOwner(
-                    publicKey,
-                    { programId: TOKEN_PROGRAM_ID }
-                );
-            } else {
-                throw err;
-            }
-        }
+        const tokenAccounts = await heliusConnection.getParsedTokenAccountsByOwner(
+            publicKey,
+            { programId: TOKEN_PROGRAM_ID }
+        );
 
         tokenAccounts.value.forEach(acc => {
             const info = acc.account.data.parsed.info;
@@ -117,18 +79,12 @@ export async function fetchWalletBalances(connection: Connection, publicKey: Pub
         // Update cache
         cachedBalances = balances;
         cacheTimestamp = Date.now();
+        cachedWallet = pubkeyStr;
 
         return balances;
 
     } catch (err: any) {
-        // Handle rate limit errors
-        if (err?.message?.includes('429') || err?.message?.includes('Too many')) {
-            console.warn('[Balance] Rate limited by RPC, backing off 30s');
-            isRateLimited = true;
-            rateLimitResetTime = Date.now() + 30000;
-        } else {
-            console.error("Failed to fetch wallet balances", err);
-        }
+        console.error('[Balance] Fetch error:', err);
         // Return cached balances on error
         return cachedBalances;
     }

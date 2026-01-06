@@ -2,6 +2,7 @@
 
 /**
  * Main Navbar - Enhanced with wallet chip
+ * Uses centralized wallet balance store (NO direct RPC calls)
  */
 
 import Link from 'next/link';
@@ -11,7 +12,7 @@ import { useState, useEffect } from 'react';
 import { DirectConnectButton, useDirectWallet } from './wallet/DirectConnectButton';
 import ReclaimSOL from './Navbar/ReclaimSOL';
 import { disconnectWallet } from '@/lib/connectWallet';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { useWalletBalanceStore } from '@/lib/store/useWalletBalanceStore';
 
 interface NavLink {
     href: string;
@@ -24,47 +25,33 @@ const NAV_LINKS: NavLink[] = [
     { href: '/unlock-value', label: 'Unlock Value' },
 ];
 
-const RPC_ENDPOINT = process.env.NEXT_PUBLIC_HELIUS_RPC_URL || 'https://api.mainnet-beta.solana.com';
-
 export default function Navbar() {
     const pathname = usePathname();
     const { publicKey, isConnected } = useDirectWallet();
     const [showDropdown, setShowDropdown] = useState(false);
-    const [solBalance, setSolBalance] = useState<number | null>(null);
     const [copied, setCopied] = useState(false);
-    const [loading, setLoading] = useState(false);
 
-    // Fetch SOL balance when wallet connects
+    // Use centralized balance store (NO RPC CALLS HERE)
+    const { sol: solBalance, loading, fetchBalance, clearBalance } = useWalletBalanceStore();
+
+    // Trigger balance fetch when wallet connects (store handles deduplication)
     useEffect(() => {
-        if (!isConnected || !publicKey) {
-            setSolBalance(null);
-            return;
+        if (isConnected && publicKey) {
+            fetchBalance(publicKey);
+            // Refresh every 30s
+            const interval = setInterval(() => {
+                fetchBalance(publicKey);
+            }, 30000);
+            return () => clearInterval(interval);
+        } else {
+            clearBalance();
         }
-
-        const fetchBalance = async () => {
-            setLoading(true);
-            try {
-                const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-                const balance = await connection.getBalance(new PublicKey(publicKey));
-                setSolBalance(balance / 1e9);
-            } catch (err) {
-                console.error('[Navbar] Balance fetch error:', err);
-                setSolBalance(null);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchBalance();
-        // Refresh every 30s
-        const interval = setInterval(fetchBalance, 30000);
-        return () => clearInterval(interval);
-    }, [isConnected, publicKey]);
+    }, [isConnected, publicKey, fetchBalance, clearBalance]);
 
     const handleDisconnect = async () => {
         await disconnectWallet();
         setShowDropdown(false);
-        setSolBalance(null);
+        clearBalance();
     };
 
     const handleCopy = () => {
