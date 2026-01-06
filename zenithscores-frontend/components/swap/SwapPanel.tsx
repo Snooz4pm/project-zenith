@@ -9,7 +9,7 @@ import { fetchWalletBalances, detectBestFromToken } from '@/lib/wallet/balance';
 const API_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'http://localhost:3001';
 
 export default function SwapPanel() {
-    const { selectedToken } = useTradeSelection(s => ({ selectedToken: s.selectedToken }));
+    const selectedToken = useTradeSelection(s => s.selectedToken);
     const { connection } = useConnection();
     const { publicKey, signTransaction, sendTransaction, connected } = useWallet();
 
