@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { VersionedTransaction, PublicKey } from '@solana/web3.js';
 import { useTradeSelection } from '@/lib/store/useTradeSelection';
@@ -44,11 +44,16 @@ export default function SwapPanel() {
     
     // Use either connection method
     const connected = walletAdapterConnected || directConnected;
-    const walletPubkey = publicKey || (directPublicKey ? new PublicKey(directPublicKey) : null);
+    
+    // MEMOIZE walletPubkey to prevent new object on every render
+    const walletPubkey = useMemo(() => {
+        if (publicKey) return publicKey;
+        if (directPublicKey) return new PublicKey(directPublicKey);
+        return null;
+    }, [publicKey, directPublicKey]);
 
-    // Store (for TO token from grid)
+    // Store (for TO token from grid) - use individual selectors
     const selectedToken = useTradeSelection(s => s.selectedToken);
-    const setSelectedToken = useTradeSelection(s => s.setSelectedToken);
     const intent = useSwapStore(s => s.intent);
 
     // State
@@ -60,14 +65,14 @@ export default function SwapPanel() {
     const [quote, setQuote] = useState<any>(null);
     const [swapState, setSwapState] = useState<SwapState>('idle');
     const [error, setError] = useState<string | null>(null);
-    const [noRoute, setNoRoute] = useState(false); // No liquidity route available
+    const [noRoute, setNoRoute] = useState(false);
     const [txSignature, setTxSignature] = useState<string | null>(null);
     const [showSuccess, setShowSuccess] = useState(false);
     
     // Refs for cleanup & deduplication
     const quoteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastQuoteRef = useRef<string>('');
-    const balanceRefreshRef = useRef<NodeJS.Timeout | null>(null);
+    const balanceLoadedRef = useRef(false); // Prevent duplicate loads
     
     // ========================================================================
     // REFS AS SOURCE OF TRUTH (prevents infinite loops)
@@ -75,11 +80,17 @@ export default function SwapPanel() {
     const fromTokenRef = useRef<WalletToken | null>(null);
     const toTokenRef = useRef<ZenithToken | null>(null);
     const amountRef = useRef<string>('');
+    const tokenUniverseRef = useRef<ZenithToken[]>([]);
+    const connectionRef = useRef(connection);
+    const walletPubkeyRef = useRef(walletPubkey);
 
-    // Sync refs when state changes (NO LOGIC HERE - just keep refs fresh)
+    // Sync refs (NO LOGIC)
     useEffect(() => { fromTokenRef.current = fromToken; }, [fromToken]);
     useEffect(() => { toTokenRef.current = toToken; }, [toToken]);
     useEffect(() => { amountRef.current = amount; }, [amount]);
+    useEffect(() => { tokenUniverseRef.current = tokenUniverse; }, [tokenUniverse]);
+    useEffect(() => { connectionRef.current = connection; }, [connection]);
+    useEffect(() => { walletPubkeyRef.current = walletPubkey; }, [walletPubkey]);
 
     // ========================================================================
     // MINIMUM AMOUNTS (prevents "no route" for dust)
@@ -94,7 +105,7 @@ export default function SwapPanel() {
     };
 
     // ========================================================================
-    // 1. LOAD TOKEN UNIVERSE (FROM JUPITER STRICT LIST)
+    // 1. LOAD TOKEN UNIVERSE (FROM JUPITER STRICT LIST) - ONCE
     // ========================================================================
     useEffect(() => {
         buildZenithTokenList()
@@ -105,47 +116,51 @@ export default function SwapPanel() {
     }, []);
 
     // ========================================================================
-    // 2. LOAD WALLET BALANCES (CACHED, 30s REFRESH)
+    // 2. LOAD WALLET BALANCES - NO DEPS, reads from refs
     // ========================================================================
     const loadWalletBalances = useCallback(async () => {
-        if (!connected || !walletPubkey || tokenUniverse.length === 0) {
-            setWalletTokens([]);
+        const conn = connectionRef.current;
+        const pubkey = walletPubkeyRef.current;
+        const universe = tokenUniverseRef.current;
+
+        if (!pubkey || universe.length === 0) {
             return;
         }
 
         try {
-            console.log('[SwapPanel] Loading balances for:', walletPubkey.toString());
-            const balances = await fetchWalletBalances(connection, walletPubkey);
-            console.log('[SwapPanel] Raw balances:', balances.length);
-            const enriched = enrichWalletBalances(balances, tokenUniverse);
-            console.log('[SwapPanel] Enriched tokens:', enriched.length);
+            const balances = await fetchWalletBalances(conn, pubkey);
+            const enriched = enrichWalletBalances(balances, universe);
             setWalletTokens(enriched);
 
-            // Auto-select FROM: highest balance token (only if not already set)
-            if (enriched.length > 0) {
-                setFromToken(prev => {
-                    if (prev) return prev; // Don't overwrite existing selection
-                    const withBalance = enriched.filter(t => t.uiBalance > 0);
-                    return withBalance.length > 0 ? withBalance[0] : null;
-                });
+            // Auto-select FROM token only if none selected
+            if (enriched.length > 0 && !fromTokenRef.current) {
+                const withBalance = enriched.filter(t => t.uiBalance > 0);
+                if (withBalance.length > 0) {
+                    setFromToken(withBalance[0]);
+                }
             }
         } catch (err) {
-            console.error("[SwapPanel] Failed to load wallet balances:", err);
+            console.error("[SwapPanel] Balance fetch error:", err);
         }
-    }, [connected, walletPubkey, tokenUniverse, connection]); // REMOVED fromToken from deps
+    }, []); // NO DEPS - reads from refs
 
+    // Load balances ONCE when connected and universe is ready
     useEffect(() => {
-        loadWalletBalances();
-
-        // Auto-refresh balances every 2 minutes (conservative for free tier RPC)
-        balanceRefreshRef.current = setInterval(loadWalletBalances, 120000);
+        if (!connected || !walletPubkey || tokenUniverse.length === 0) return;
+        if (balanceLoadedRef.current) return; // Already loaded
         
-        return () => {
-            if (balanceRefreshRef.current) {
-                clearInterval(balanceRefreshRef.current);
-            }
-        };
-    }, [loadWalletBalances]);
+        balanceLoadedRef.current = true;
+        loadWalletBalances();
+    }, [connected, walletPubkey, tokenUniverse.length, loadWalletBalances]);
+
+    // Reset loaded flag when wallet disconnects
+    useEffect(() => {
+        if (!connected) {
+            balanceLoadedRef.current = false;
+            setWalletTokens([]);
+            setFromToken(null);
+        }
+    }, [connected]);
 
     // ========================================================================
     // 3. FETCH QUOTE FUNCTION (NO useEffect - called explicitly)
