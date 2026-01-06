@@ -4,13 +4,11 @@
  * Wallet Balance Store (Zustand)
  * 
  * Single source of truth for wallet SOL balance.
+ * Uses server-side API route to avoid browser RPC 403 errors.
  * Components should READ from this store, not fetch directly.
- * Only ONE component should FETCH and update.
  */
 
 import { create } from 'zustand';
-import { PublicKey } from '@solana/web3.js';
-import { getSolanaConnection } from '@/lib/solana/connection';
 
 interface WalletBalanceState {
     // Balance in SOL (human-readable)
@@ -83,10 +81,15 @@ export const useWalletBalanceStore = create<WalletBalanceState>((set, get) => ({
         set({ loading: true, error: null });
 
         try {
-            const connection = getSolanaConnection();
-            const pubkey = new PublicKey(publicKey);
-            const balance = await connection.getBalance(pubkey);
-            const solBalance = balance / 1e9;
+            // Use server-side API route to avoid browser RPC 403 errors
+            const res = await fetch(`/api/wallet/balance?address=${publicKey}`);
+
+            if (!res.ok) {
+                throw new Error('Failed to fetch balance');
+            }
+
+            const data = await res.json();
+            const solBalance = data.sol || 0;
 
             set({
                 sol: solBalance,
@@ -106,3 +109,4 @@ export const useWalletBalanceStore = create<WalletBalanceState>((set, get) => ({
         }
     },
 }));
+

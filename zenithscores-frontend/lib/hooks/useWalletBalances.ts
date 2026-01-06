@@ -16,18 +16,29 @@ export function useWalletBalances(wallet?: string | null) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/wallet/${wallet}`);
-      if (!res.ok) throw new Error('Failed to fetch wallet snapshot');
-      const data = await res.json();
-      const map: BalanceMap = {
-        SOL: data.balanceLamports / 1e9,
-        'So11111111111111111111111111111111111111112': data.balanceLamports / 1e9
-      };
-      data.tokens.forEach((token: any) => {
-        if (token.amount && token.amount > 0) {
-          map[token.mint] = token.amount;
-        }
-      });
+      // Fetch SOL balance and tokens from correct API endpoints
+      const [balanceRes, tokensRes] = await Promise.all([
+        fetch(`/api/wallet/balance?address=${wallet}`),
+        fetch(`/api/wallet/tokens?address=${wallet}`)
+      ]);
+
+      const map: BalanceMap = {};
+
+      if (balanceRes.ok) {
+        const balanceData = await balanceRes.json();
+        map['SOL'] = balanceData.sol || 0;
+        map['So11111111111111111111111111111111111111112'] = balanceData.sol || 0;
+      }
+
+      if (tokensRes.ok) {
+        const tokensData = await tokensRes.json();
+        (tokensData.tokens || []).forEach((token: any) => {
+          if (token.amount && token.amount > 0) {
+            map[token.mint] = token.amount;
+          }
+        });
+      }
+
       if (mountedRef.current) {
         setBalances(map);
       }
