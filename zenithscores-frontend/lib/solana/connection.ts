@@ -12,10 +12,10 @@
 import { Connection } from '@solana/web3.js';
 
 // Helius RPC with API key (REQUIRED for production)
-const HELIUS_API_KEY = process.env.NEXT_PUBLIC_HELIUS_KEY;
+const HELIUS_API_KEY = process.env.NEXT_PUBLIC_HELIUS_API_KEY;
 
 if (!HELIUS_API_KEY) {
-    console.warn('[Solana Connection] NEXT_PUBLIC_HELIUS_KEY not set! Using fallback.');
+    console.warn('[Solana Connection] NEXT_PUBLIC_HELIUS_API_KEY not set! Using fallback.');
 }
 
 const RPC_URL = HELIUS_API_KEY

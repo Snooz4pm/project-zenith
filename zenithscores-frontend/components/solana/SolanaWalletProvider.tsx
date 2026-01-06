@@ -23,11 +23,12 @@ interface Props {
 export function SolanaWalletProvider({ children }: Props) {
   // Helius RPC for production
   const endpoint = useMemo(() => {
-    const rpc = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
-    if (!rpc && typeof window !== 'undefined') {
-      console.error('[SolanaWalletProvider] NEXT_PUBLIC_SOLANA_RPC_URL not set!');
+    const heliusKey = process.env.NEXT_PUBLIC_HELIUS_API_KEY;
+    if (heliusKey) {
+      return `https://mainnet.helius-rpc.com/?api-key=${heliusKey}`;
     }
-    return rpc || 'https://api.mainnet-beta.solana.com';
+    console.warn('[SolanaWalletProvider] NEXT_PUBLIC_HELIUS_API_KEY not set! Using fallback.');
+    return 'https://api.mainnet-beta.solana.com';
   }, []);
 
   // Phantom + Solflare only
