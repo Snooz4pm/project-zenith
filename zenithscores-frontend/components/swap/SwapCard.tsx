@@ -34,9 +34,6 @@ export default function SwapCard() {
     const [error, setError] = useState<string | null>(null);
     const [swapState, setSwapState] = useState<'idle' | 'loading' | 'success' | 'error' | 'connect'>('idle');
 
-    // Default tokens are managed by useSwapStore
-
-
     const [popularTokens, setPopularTokens] = useState<ZenithToken[]>([]);
 
     // Initialize Engine
