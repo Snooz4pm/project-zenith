@@ -68,6 +68,18 @@ export default function SwapPanel() {
     const quoteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastQuoteRef = useRef<string>('');
     const balanceRefreshRef = useRef<NodeJS.Timeout | null>(null);
+    
+    // ========================================================================
+    // REFS AS SOURCE OF TRUTH (prevents infinite loops)
+    // ========================================================================
+    const fromTokenRef = useRef<WalletToken | null>(null);
+    const toTokenRef = useRef<ZenithToken | null>(null);
+    const amountRef = useRef<string>('');
+
+    // Sync refs when state changes (NO LOGIC HERE - just keep refs fresh)
+    useEffect(() => { fromTokenRef.current = fromToken; }, [fromToken]);
+    useEffect(() => { toTokenRef.current = toToken; }, [toToken]);
+    useEffect(() => { amountRef.current = amount; }, [amount]);
 
     // ========================================================================
     // MINIMUM AMOUNTS (prevents "no route" for dust)
@@ -136,46 +148,121 @@ export default function SwapPanel() {
     }, [loadWalletBalances]);
 
     // ========================================================================
-    // 3. SYNC TO TOKEN FROM GRID/STORE (SIMPLE - no deps that cause loops)
+    // 3. FETCH QUOTE FUNCTION (NO useEffect - called explicitly)
     // ========================================================================
-    const fromTokenRef = useRef(fromToken);
-    fromTokenRef.current = fromToken;
+    const fetchQuote = useCallback(async () => {
+        const from = fromTokenRef.current;
+        const to = toTokenRef.current;
+        const amt = amountRef.current;
 
+        // Clear any pending quote
+        if (quoteTimeoutRef.current) {
+            clearTimeout(quoteTimeoutRef.current);
+            quoteTimeoutRef.current = null;
+        }
+
+        // GUARDS
+        if (!from || !to) return;
+        if (from.address === to.mint) {
+            setQuote(null);
+            setError(null);
+            setSwapState('idle');
+            return;
+        }
+        if (!amt || Number(amt) <= 0) {
+            setQuote(null);
+            setError(null);
+            setSwapState('idle');
+            return;
+        }
+        if (Number(amt) > from.uiBalance) {
+            setQuote(null);
+            setError('Insufficient balance');
+            setSwapState('idle');
+            return;
+        }
+
+        const minAmount = getMinAmount(from.symbol);
+        if (Number(amt) < minAmount) {
+            setQuote(null);
+            setError(`Minimum ${minAmount} ${from.symbol}`);
+            setSwapState('idle');
+            return;
+        }
+
+        // Deduplication
+        const quoteKey = `${from.address}-${to.mint}-${amt}`;
+        if (quoteKey === lastQuoteRef.current) return;
+
+        setNoRoute(false);
+        setError(null);
+        setSwapState('fetching-quote');
+
+        try {
+            lastQuoteRef.current = quoteKey;
+            const amountBase = uiToBase(Number(amt), from.decimals);
+            const slippageBps = autoSlippage(Number(amt));
+
+            const params = new URLSearchParams({
+                inputMint: from.address,
+                outputMint: to.mint,
+                amount: amountBase.toString(),
+                slippageBps: slippageBps.toString()
+            });
+
+            const res = await fetch(`${API_URL}/quote?${params}`);
+            const data = await res.json();
+
+            if (data.error === 'NO_ROUTE' || !data.outAmount || !data.routePlan?.length) {
+                setQuote(null);
+                setNoRoute(true);
+                setSwapState('idle');
+                return;
+            }
+
+            setNoRoute(false);
+            setQuote(data);
+            setSwapState('quote-ready');
+        } catch (err) {
+            console.error("[SwapPanel] Quote failed:", err);
+            setQuote(null);
+            setNoRoute(true);
+            setSwapState('idle');
+        }
+    }, []); // NO DEPS - reads from refs
+
+    // ========================================================================
+    // 4. HANDLE TOKEN SELECTION (explicit trigger)
+    // ========================================================================
+    const handleSelectToToken = useCallback((token: ZenithToken) => {
+        if (token.mint === fromTokenRef.current?.address) return;
+        setToToken(token);
+        // Fetch quote after state update
+        queueMicrotask(fetchQuote);
+    }, [fetchQuote]);
+
+    // Sync from Zustand store (grid click) - runs once when selectedToken changes
     useEffect(() => {
-        if (!selectedToken) return;
-        if (tokenUniverse.length === 0) return;
-        
+        if (!selectedToken || tokenUniverse.length === 0) return;
         const zenithToken = tokenUniverse.find(t => t.mint === selectedToken.address);
-        if (!zenithToken) return;
-        
-        // Check against ref to avoid stale closure
-        if (zenithToken.mint === fromTokenRef.current?.address) return;
-        
-        setToToken(zenithToken);
-    }, [selectedToken, tokenUniverse]);
+        if (zenithToken) {
+            handleSelectToToken(zenithToken);
+        }
+    }, [selectedToken, tokenUniverse, handleSelectToToken]);
 
+    // Sync from intent store
     useEffect(() => {
-        if (!intent?.toToken) return;
-        if (tokenUniverse.length === 0) return;
-        
+        if (!intent?.toToken || tokenUniverse.length === 0) return;
         const zenithToken = tokenUniverse.find(t => t.mint === intent.toToken.address);
-        if (!zenithToken) return;
-        
-        if (zenithToken.mint === fromTokenRef.current?.address) return;
-        
-        setToToken(zenithToken);
-    }, [intent, tokenUniverse]);
+        if (zenithToken) {
+            handleSelectToToken(zenithToken);
+        }
+    }, [intent, tokenUniverse, handleSelectToToken]);
 
-    // ========================================================================
-    // 4. AUTO-SELECT TO TOKEN (only if none selected)
-    // ========================================================================
-    const toTokenRef = useRef(toToken);
-    toTokenRef.current = toToken;
-
+    // Auto-select TO token (only once on mount)
     useEffect(() => {
         if (!fromToken || tokenUniverse.length === 0) return;
-        if (toTokenRef.current) return; // Already have a toToken
-        
+        if (toTokenRef.current) return;
         const candidate = tokenUniverse.find(t => t.mint !== fromToken.address);
         if (candidate) {
             setToToken(candidate);
@@ -183,109 +270,19 @@ export default function SwapPanel() {
     }, [fromToken, tokenUniverse]);
 
     // ========================================================================
-    // 5. FETCH QUOTE (DEBOUNCED 500ms, GUARDED)
+    // 5. HANDLE AMOUNT CHANGE (debounced quote fetch)
     // ========================================================================
-    useEffect(() => {
-        // Clear any pending quote fetch
+    const handleAmountChange = useCallback((value: string) => {
+        setAmount(value);
+        
+        // Clear pending quote
         if (quoteTimeoutRef.current) {
             clearTimeout(quoteTimeoutRef.current);
-            quoteTimeoutRef.current = null;
         }
-
-        // GUARD 1: No tokens selected
-        if (!fromToken || !toToken) {
-            return;
-        }
-
-        // GUARD 2: Same token check (CRITICAL - prevents "No route" errors)
-        if (!canQuote(fromToken?.address, toToken?.mint)) {
-            setQuote(null);
-            setSwapState('idle');
-            setError(null);
-            return;
-        }
-
-        // GUARD 2: Invalid amount
-        if (!amount || Number(amount) <= 0) {
-            setQuote(null);
-            setSwapState('idle');
-            setError(null);
-            return;
-        }
-
-        // GUARD 3: Amount exceeds balance
-        if (fromToken && Number(amount) > fromToken.uiBalance) {
-            setQuote(null);
-            setError('Insufficient balance');
-            setSwapState('idle');
-            return;
-        }
-
-        // GUARD 4: Minimum amount check (prevents "no route" for dust)
-        const minAmount = getMinAmount(fromToken?.symbol);
-        if (Number(amount) < minAmount) {
-            setQuote(null);
-            setError(`Minimum ${minAmount} ${fromToken?.symbol || ''}`);
-            setSwapState('idle');
-            return;
-        }
-
-        // Deduplication: Same params as last quote → skip (use ref to avoid stale closure)
-        const quoteKey = `${fromToken?.address}-${toToken?.mint}-${amount}`;
-        if (quoteKey === lastQuoteRef.current) {
-            return;
-        }
-
-        // Reset noRoute when params change
-        setNoRoute(false);
-        setError(null);
-        setSwapState('fetching-quote');
-
-        // Debounce: 500ms before fetching
-        quoteTimeoutRef.current = setTimeout(async () => {
-            if (!fromToken || !toToken) return;
-
-            lastQuoteRef.current = quoteKey;
-
-            try {
-                const amountBase = uiToBase(Number(amount), fromToken.decimals);
-                const slippageBps = autoSlippage(Number(amount));
-
-                const params = new URLSearchParams({
-                    inputMint: fromToken.address,
-                    outputMint: toToken.mint,
-                    amount: amountBase.toString(),
-                    slippageBps: slippageBps.toString()
-                });
-
-                const res = await fetch(`${API_URL}/quote?${params}`);
-                const data = await res.json();
-
-                // Handle NO_ROUTE gracefully (not an error, just no liquidity)
-                if (data.error === 'NO_ROUTE' || !data.outAmount || !data.routePlan?.length) {
-                    setQuote(null);
-                    setNoRoute(true);
-                    setSwapState('idle');
-                    return;
-                }
-
-                setNoRoute(false);
-                setQuote(data);
-                setSwapState('quote-ready');
-            } catch (err: any) {
-                console.error("[SwapPanel] Quote failed:", err);
-                setQuote(null);
-                setNoRoute(true);
-                setSwapState('idle');
-            }
-        }, 500);
-
-        return () => {
-            if (quoteTimeoutRef.current) {
-                clearTimeout(quoteTimeoutRef.current);
-            }
-        };
-    }, [amount, fromToken, toToken]); // REMOVED quote from deps - prevents loop
+        
+        // Debounce quote fetch
+        quoteTimeoutRef.current = setTimeout(fetchQuote, 400);
+    }, [fetchQuote]);
 
     // ========================================================================
     // 6. EXECUTE SWAP (FULL FLOW WITH SIMULATION)
@@ -403,7 +400,7 @@ export default function SwapPanel() {
         if (!fromToken) return;
         const maxBase = getMaxSwappable(fromToken);
         const maxUi = baseToUi(maxBase, fromToken.decimals);
-        setAmount(maxUi.toString());
+        handleAmountChange(maxUi.toString());
     };
 
     const handleSwitchTokens = () => {
@@ -419,6 +416,8 @@ export default function SwapPanel() {
             setAmount('');
             setQuote(null);
             setNoRoute(false);
+            // Trigger quote after state settles
+            queueMicrotask(fetchQuote);
         }
     };
 
@@ -548,7 +547,7 @@ export default function SwapPanel() {
                     type="number"
                     placeholder="0.00"
                     value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    onChange={(e) => handleAmountChange(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl bg-zinc-900/50 border border-white/5 text-right text-white font-mono text-lg outline-none placeholder-zinc-700 focus:border-emerald-500/30"
                 />
 
