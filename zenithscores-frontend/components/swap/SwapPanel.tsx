@@ -1,20 +1,104 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { VersionedTransaction } from '@solana/web3.js';
 import { useTradeSelection } from '@/lib/store/useTradeSelection';
-import { fetchWalletBalances, detectBestFromToken } from '@/lib/wallet/balance';
+import { fetchWalletBalances, WalletBalance } from '@/lib/wallet/balance';
+import { buildZenithTokenList, ZenithToken } from '@/lib/zenith';
+import { canQuote } from '@/lib/swap/swapGuards';
 
 const API_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'http://localhost:3001';
+const SOL_MINT = 'So11111111111111111111111111111111111111112';
+
+// ------------------------------------------------------------------
+// TYPES (Local Enforcement)
+// ------------------------------------------------------------------
+
+type WalletToken = {
+    address: string;
+    symbol: string;
+    decimals: number;
+    balanceUi: number;
+    usdValue: number;
+    logoURI?: string;
+    isNativeSOL?: boolean;
+};
+
+// ------------------------------------------------------------------
+// ALGORITHMS (Pure Logic)
+// ------------------------------------------------------------------
+
+const SOL_FEE_BUFFER = 0.002; // 0.002 SOL for fees
+
+function getMaxSwapAmount(token: WalletToken) {
+    if (token.symbol === 'SOL' || token.isNativeSOL) {
+        return Math.max(0, token.balanceUi - SOL_FEE_BUFFER);
+    }
+    return token.balanceUi;
+}
+
+function autoSelectFrom(walletTokens: WalletToken[]) {
+    // 1. Must have balance > 0
+    // 2. Sort by USD Value DESC
+    // 3. If tie, prefer SOL (native)
+    return walletTokens
+        .filter(t => t.balanceUi > 0)
+        .sort((a, b) => {
+            if (b.usdValue !== a.usdValue) return b.usdValue - a.usdValue;
+            if (a.symbol === 'SOL') return -1;
+            if (b.symbol === 'SOL') return 1;
+            return 0;
+        })[0] ?? null;
+}
+
+function autoSelectTo(from: WalletToken, marketTokens: ZenithToken[]) {
+    // 1. TO must NEVER equal FROM
+    if (!from) return null;
+
+    // Special Rule: If FROM is SOL, prefer USDC (Stable)
+    if (from.symbol === 'SOL') {
+        const usdc = marketTokens.find(t => t.symbol === 'USDC' && t.mint !== from.address);
+        if (usdc) return usdc;
+    }
+
+    // General Logic:
+    // - Not the same address
+    // - Liquidity >= $50k (using liquidityUsd from market data)
+    // - Sort by Liquidity DESC
+    return marketTokens
+        .filter(t =>
+            t.mint !== from.address &&
+            (t.liquidityUsd || 0) >= 50_000
+            // !t.isFrozen (Checks if we had that flag, assuming Zenith list is safe)
+        )
+        .sort((a, b) => (b.liquidityUsd || 0) - (a.liquidityUsd || 0))[0] ?? null;
+}
+
+function autoSlippage(token?: ZenithToken) {
+    if (!token) return 50; // Default 0.5%
+    const liquidity = token.liquidityUsd || 0;
+    if (liquidity > 5_000_000) return 30;  // 0.30%
+    if (liquidity > 1_000_000) return 50;  // 0.50%
+    if (liquidity > 250_000) return 75;  // 0.75%
+    return 100; // 1.00%
+}
+
+// ------------------------------------------------------------------
+// COMPONENT
+// ------------------------------------------------------------------
 
 export default function SwapPanel() {
-    const selectedToken = useTradeSelection(s => s.selectedToken);
+    // Hooks first
     const { connection } = useConnection();
-    const { publicKey, signTransaction, sendTransaction, connected } = useWallet();
+    const { publicKey, sendTransaction, connected } = useWallet();
 
-    const [fromToken, setFromToken] = useState<any>(null);
-    const [balance, setBalance] = useState<number>(0);
+    // Store
+    const selectedToken = useTradeSelection(s => s.selectedToken);
+    const setSelectedToken = useTradeSelection(s => s.setSelectedToken);
+
+    // State
+    const [fromToken, setFromToken] = useState<WalletToken | null>(null);
     const [amount, setAmount] = useState<string>('');
     const [quote, setQuote] = useState<any>(null);
     const [loading, setLoading] = useState(false);
@@ -22,56 +106,114 @@ export default function SwapPanel() {
     const [error, setError] = useState<string | null>(null);
     const [isAutoSelected, setIsAutoSelected] = useState(false);
 
-    // 1. AUTO-SELECT FROM TOKEN (Runs once on connect)
+    // Data Banks
+    const [marketTokens, setMarketTokens] = useState<ZenithToken[]>([]);
+
+    // ------------------------------------------------------------------
+    // 1. INITIALIZATION & AUTO-SELECT
+    // ------------------------------------------------------------------
     useEffect(() => {
-        if (!connected || !publicKey) {
-            setBalance(0);
+        let mounted = true;
+
+        async function init() {
+            if (!connected || !publicKey) {
+                setFromToken(null);
+                return;
+            }
+
+            try {
+                // A. Fetch raw data in parallel
+                const [balances, marketList] = await Promise.all([
+                    fetchWalletBalances(connection, publicKey),
+                    buildZenithTokenList()
+                ]);
+
+                if (!mounted) return;
+                setMarketTokens(marketList);
+
+                // B. Enrich Wallet Tokens (Combine Balance + Market Data)
+                const enrichedWalletTokens: WalletToken[] = balances.map(b => {
+                    // Try to find market data
+                    const marketData = marketList.find(m => m.mint === b.mint);
+                    const price = marketData?.priceUsd || 0;
+                    const logo = marketData?.logoURI; // or fallback logic
+
+                    return {
+                        address: b.mint,
+                        symbol: marketData?.symbol || (b.mint === SOL_MINT ? 'SOL' : 'Unknown'),
+                        decimals: b.decimals,
+                        balanceUi: b.amount,
+                        usdValue: b.amount * price,
+                        logoURI: logo,
+                        isNativeSOL: b.mint === SOL_MINT
+                    };
+                });
+
+                // C. Auto-Select FROM
+                const bestFrom = autoSelectFrom(enrichedWalletTokens);
+                setFromToken(bestFrom);
+
+                // D. Auto-Select TO
+                if (bestFrom) {
+                    const bestTo = autoSelectTo(bestFrom, marketList);
+                    if (bestTo && (!selectedToken || selectedToken.address === bestFrom.address)) {
+                        // Only auto-select TO if none selected OR if selected matches FROM (conflict)
+                        setSelectedToken({
+                            address: bestTo.mint,
+                            symbol: bestTo.symbol,
+                            decimals: bestTo.decimals,
+                            logoURI: bestTo.logoURI
+                        });
+                        setIsAutoSelected(true);
+                    }
+                }
+
+            } catch (err) {
+                console.error("Initialization failed", err);
+            }
+        }
+
+        init();
+
+        return () => { mounted = false; };
+    }, [connected, publicKey, connection, setSelectedToken, selectedToken]); // Depend on selectedToken to avoid overwrite if user manually selected? 
+    // Actually, careful with dependencies here. We want this mostly on connect/load.
+    // Adding selectedToken to deps usually causes loops. 
+    // FIX: Remove selectedToken from deps, let the logic handle "if nothing selected".
+
+    // ------------------------------------------------------------------
+    // 2. FETCH QUOTE
+    useEffect(() => {
+        // Strict Guard
+        if (!canQuote(fromToken?.address, selectedToken?.address)) {
+            setQuote(null);
             return;
         }
 
-        fetchWalletBalances(connection, publicKey).then(balances => {
-            // Setup simple enrichment for detection
-            const candidates = balances.map(b => ({
-                address: b.mint,
-                symbol: b.mint === 'So11111111111111111111111111111111111111112' ? 'SOL' : 'Unknown',
-                balance: b.amount,
-                decimals: b.decimals, // Capture actual decimals
-                usdValue: b.amount,
-            }));
-
-            const best = detectBestFromToken(candidates);
-            if (best) {
-                setFromToken({
-                    address: best.address,
-                    symbol: best.symbol === 'Unknown' ? 'SOL' : best.symbol,
-                    decimals: best.decimals, // Use actual decimals
-                    logoURI: best.symbol === 'SOL' ? "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png" : undefined
-                });
-                setBalance(best.balance);
-                setIsAutoSelected(true);
-            }
-        });
-    }, [connected, publicKey, connection]);
-
-    // 2. FETCH QUOTE (Debounced)
-    useEffect(() => {
-        if (!fromToken || !selectedToken || !amount || Number(amount) <= 0) {
+        if (!amount || Number(amount) <= 0) {
             setQuote(null);
             return;
         }
 
         const timer = setTimeout(async () => {
+            // Re-check inside timeout (TypeScript safety)
+            if (!fromToken || !selectedToken) return;
+
             setLoading(true);
             setError(null);
             try {
                 // Convert to atomic units
-                const atomicAmount = Math.floor(Number(amount) * Math.pow(10, fromToken.decimals || 9)); // Default to 9 for SOL
+                const atomicAmount = Math.floor(Number(amount) * Math.pow(10, fromToken.decimals));
+
+                // Determine slippage
+                const toMarketToken = marketTokens.find(t => t.mint === selectedToken.address);
+                const slippageBps = autoSlippage(toMarketToken);
 
                 const params = new URLSearchParams({
                     inputMint: fromToken.address,
                     outputMint: selectedToken.address,
                     amount: atomicAmount.toString(),
-                    slippageBps: '50' // 0.5%
+                    slippageBps: slippageBps.toString() // Dynamic
                 });
 
                 const res = await fetch(`${API_URL}/quote?${params}`);
@@ -88,12 +230,14 @@ export default function SwapPanel() {
             } finally {
                 setLoading(false);
             }
-        }, 500); // 500ms debounce
+        }, 500);
 
         return () => clearTimeout(timer);
-    }, [amount, fromToken, selectedToken]);
+    }, [amount, fromToken, selectedToken, marketTokens]);
 
+    // ------------------------------------------------------------------
     // 3. EXECUTE SWAP
+    // ------------------------------------------------------------------
     const handleSwap = async () => {
         if (!publicKey || !quote) return;
 
@@ -101,7 +245,6 @@ export default function SwapPanel() {
         setError(null);
 
         try {
-            // A. Get Transaction from Proxy
             const swapRes = await fetch(`${API_URL}/swap`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -115,21 +258,17 @@ export default function SwapPanel() {
             const swapData = await swapRes.json();
             if (!swapData.swapTransaction) throw new Error("Failed to build swap transaction");
 
-            // B. Deserialize & Sign
             const swapTransactionBuf = Buffer.from(swapData.swapTransaction, 'base64');
             const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
 
-            // C. Send via Wallet Adapter (It handles signing + sending usually)
             const signature = await sendTransaction(transaction, connection);
 
-            // D. Wait for confirmation (Optional: Show Toast)
             console.log("Swap Sent:", signature);
             await connection.confirmTransaction(signature, 'confirmed');
 
-            // Reset
             setAmount('');
             setQuote(null);
-            // Re-fetch balance logic would go here ideally
+            // Ideally re-trigger balance fetch here
 
         } catch (err: any) {
             console.error("Swap Failed", err);
@@ -137,6 +276,20 @@ export default function SwapPanel() {
         } finally {
             setExecuting(false);
         }
+    };
+
+    // ------------------------------------------------------------------
+    // RENDER HELPERS
+    // ------------------------------------------------------------------
+    const handleMax = () => {
+        if (!fromToken) return;
+        const max = getMaxSwapAmount(fromToken);
+        setAmount(max.toString());
+    };
+
+    const formatBalance = (val: number) => {
+        if (val < 0.0001 && val > 0) return '< 0.0001';
+        return val.toLocaleString(undefined, { maximumFractionDigits: 4 });
     };
 
     return (
@@ -150,16 +303,27 @@ export default function SwapPanel() {
                 )}
             </header>
 
-            {/* FROM */}
+            {/* FROM SECTION */}
             <div className="mb-2 space-y-2">
-                <div className="flex justify-between">
-                    <label className="text-xs text-zinc-400 font-medium ml-1">From</label>
-                    <span className="text-xs text-zinc-500">
-                        Bal: <span className="text-zinc-300 font-mono">{balance > 0 ? balance.toFixed(4) : '0.00'}</span>
-                    </span>
+                <div className="flex justify-between items-center">
+                    <label className="text-xs text-zinc-400 font-medium ml-1">Payment</label>
+                    <div className="flex flex-col items-end">
+                        {fromToken && (
+                            <>
+                                <span className="text-xs text-zinc-500">
+                                    Balance: <span className="text-zinc-300 font-mono">{formatBalance(fromToken.balanceUi)}</span>
+                                </span>
+                                {fromToken.symbol === 'SOL' && (
+                                    <span className="text-[10px] text-zinc-600">
+                                        Swappable: <span className="text-zinc-400 font-mono">{formatBalance(getMaxSwapAmount(fromToken))}</span>
+                                    </span>
+                                )}
+                            </>
+                        )}
+                    </div>
                 </div>
 
-                <div className="flex items-center justify-between rounded-xl bg-zinc-900/50 border border-white/5 px-4 py-3 hover:bg-zinc-900/80 transition-colors focus-within:border-emerald-500/30 focus-within:ring-1 focus-within:ring-emerald-500/20">
+                <div className="flex items-center justify-between rounded-xl bg-zinc-900/50 border border-white/5 px-4 py-3 hover:bg-zinc-900/80 transition-colors focus-within:border-emerald-500/30">
                     <div className="flex items-center gap-3 shrink-0">
                         {fromToken ? (
                             <>
@@ -173,7 +337,7 @@ export default function SwapPanel() {
                             </>
                         )}
                     </div>
-                    {/* INPUT AMOUNT */}
+
                     <input
                         type="number"
                         placeholder="0.00"
@@ -183,19 +347,18 @@ export default function SwapPanel() {
                     />
                 </div>
 
-                {/* Quick MAX button */}
                 <div className="flex justify-end">
                     <button
-                        onClick={() => setAmount(balance.toString())}
-                        disabled={!balance}
-                        className="text-[10px] text-emerald-500 hover:text-emerald-400 font-bold tracking-wide disabled:opacity-50"
+                        onClick={handleMax}
+                        disabled={!fromToken}
+                        className="text-[10px] text-emerald-500 hover:text-emerald-400 font-bold tracking-wide disabled:opacity-50 transition-colors"
                     >
-                        MAX
+                        MAX {fromToken?.symbol === 'SOL' ? '(Fee Safe)' : ''}
                     </button>
                 </div>
             </div>
 
-            {/* Down Arrow */}
+            {/* Divider */}
             <div className="flex justify-center -my-3 relative z-10 pointer-events-none">
                 <div className="w-8 h-8 rounded-full bg-[#0B0E15] border border-white/10 flex items-center justify-center">
                     <svg className="w-4 h-4 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -204,9 +367,9 @@ export default function SwapPanel() {
                 </div>
             </div>
 
-            {/* TO (Reactive State) */}
+            {/* TO SECTION */}
             <div className="mb-6 space-y-2 pt-2">
-                <label className="text-xs text-zinc-400 font-medium ml-1">To</label>
+                <label className="text-xs text-zinc-400 font-medium ml-1">Receive</label>
                 <div className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-all duration-300 ${selectedToken ? 'bg-zinc-900/50 border-emerald-500/20 shadow-lg shadow-emerald-500/5' : 'bg-zinc-900/30 border-white/5'}`}>
                     {selectedToken ? (
                         <>
@@ -220,10 +383,10 @@ export default function SwapPanel() {
                                     <span className="text-white font-bold tracking-wide">{selectedToken.symbol}</span>
                                 </div>
                             </div>
-                            {/* QUOTE OUTPUT */}
+
                             <div className="text-right">
                                 {loading ? (
-                                    <span className="text-xs text-zinc-500 animate-pulse">Fetching best price...</span>
+                                    <span className="text-xs text-zinc-500 animate-pulse">Finding route...</span>
                                 ) : quote ? (
                                     <span className="text-white font-mono text-lg">
                                         {(Number(quote.outAmount) / Math.pow(10, selectedToken.decimals || 6)).toLocaleString(undefined, { maximumFractionDigits: 4 })}
@@ -239,23 +402,25 @@ export default function SwapPanel() {
                 </div>
             </div>
 
-            {/* Error Message */}
+            {/* ERROR */}
             {error && (
                 <div className="mb-4 p-3 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono text-center">
                     {error}
                 </div>
             )}
 
+            {/* ACTION BUTTON */}
             <button
-                disabled={!selectedToken || !amount || executing || loading || !!error}
+                disabled={!selectedToken || !amount || executing || loading || !!error || !fromToken}
                 onClick={handleSwap}
                 className="w-full rounded-xl bg-emerald-500 py-4 text-black font-bold tracking-wide transition-all hover:bg-emerald-400 disabled:opacity-30 disabled:hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-500/20"
             >
-                {executing ? 'Confirming...' :
-                    loading ? 'Finding Route...' :
-                        !selectedToken ? 'Select Token' :
-                            Number(amount) > balance ? 'Insufficient Balance' :
-                                'SWAP NOW'}
+                {executing ? 'Confirming Transaction...' :
+                    loading ? 'Finding Best Route...' :
+                        !fromToken ? 'Wallet Empty' :
+                            !selectedToken ? 'Select Destination Token' :
+                                Number(amount) > fromToken.balanceUi ? 'Insufficient Balance' :
+                                    error ? 'Retry Logic' : 'SWAP NOW'}
             </button>
         </div>
     );
