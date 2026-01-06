@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { ExternalLink, RefreshCw, TrendingUp, TrendingDown, AlertCircle, Copy, Check } from 'lucide-react';
 import WalletGate from '@/components/wallet/WalletGate';
 import { useDirectWallet } from '@/components/wallet/DirectConnectButton';
 import { fetchPortfolio, fetchTransactions, formatTransaction, PortfolioData, WalletTransaction } from '@/lib/wallet/portfolio';
 
-const RPC_ENDPOINT = process.env.NEXT_PUBLIC_HELIUS_RPC_URL || 'https://api.mainnet-beta.solana.com';
+// No more Connection needed - portfolio functions use server-side API routes
 
 function formatUsd(value: number): string {
     if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
@@ -31,8 +31,6 @@ export default function WalletPage() {
     const [copied, setCopied] = useState(false);
     const [activeTab, setActiveTab] = useState<'holdings' | 'transactions'>('holdings');
 
-    const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-
     useEffect(() => {
         if (!isConnected || !publicKey) {
             setLoading(false);
@@ -46,10 +44,10 @@ export default function WalletPage() {
             try {
                 const pk = new PublicKey(publicKey);
 
-                // Fetch portfolio and transactions in parallel
+                // Fetch portfolio and transactions in parallel (via API routes)
                 const [portfolioData, txData] = await Promise.all([
-                    fetchPortfolio(connection, pk),
-                    fetchTransactions(connection, pk, 20)
+                    fetchPortfolio(pk),
+                    fetchTransactions(pk, 20)
                 ]);
 
                 setPortfolio(portfolioData);
@@ -70,7 +68,7 @@ export default function WalletPage() {
         setLoading(true);
         try {
             const pk = new PublicKey(publicKey);
-            const portfolioData = await fetchPortfolio(connection, pk);
+            const portfolioData = await fetchPortfolio(pk);
             setPortfolio(portfolioData);
         } catch (err) {
             console.error('[Wallet] Refresh error:', err);
@@ -160,8 +158,8 @@ export default function WalletPage() {
                         <button
                             onClick={() => setActiveTab('holdings')}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'holdings'
-                                    ? 'bg-white/10 text-white'
-                                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                                ? 'bg-white/10 text-white'
+                                : 'text-zinc-400 hover:text-white hover:bg-white/5'
                                 }`}
                         >
                             Holdings
@@ -169,8 +167,8 @@ export default function WalletPage() {
                         <button
                             onClick={() => setActiveTab('transactions')}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'transactions'
-                                    ? 'bg-white/10 text-white'
-                                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                                ? 'bg-white/10 text-white'
+                                : 'text-zinc-400 hover:text-white hover:bg-white/5'
                                 }`}
                         >
                             Transactions

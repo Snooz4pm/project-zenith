@@ -16,11 +16,15 @@ export default function UnlockValueClient() {
         store.loading = true;
         store.setError(null);
         try {
-          const res = await fetch(`/api/wallet/${publicKey.toBase58()}`);
-          if (!res.ok) throw new Error('Failed to fetch wallet snapshot');
-          const data = await res.json();
-          // You may want to map data to store fields
-          store.recoverable = data.tokens || [];
+          const address = publicKey.toBase58();
+
+          // Fetch tokens from correct API endpoint
+          const tokensRes = await fetch(`/api/wallet/tokens?address=${address}`);
+          if (!tokensRes.ok) throw new Error('Failed to fetch wallet tokens');
+          const tokensData = await tokensRes.json();
+
+          // Map tokens to recoverable items
+          store.recoverable = tokensData.tokens || [];
           store.lastScan = Date.now();
         } catch (err: any) {
           store.setError(err.message || 'Scan failed');
@@ -41,7 +45,8 @@ export default function UnlockValueClient() {
         if (connected && publicKey) {
           store.loading = true;
           store.setError(null);
-          fetch(`/api/wallet/${publicKey.toBase58()}`)
+          const address = publicKey.toBase58();
+          fetch(`/api/wallet/tokens?address=${address}`)
             .then(r => r.json())
             .then(data => {
               store.recoverable = data.tokens || [];

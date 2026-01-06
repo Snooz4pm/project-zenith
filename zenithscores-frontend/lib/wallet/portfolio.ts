@@ -2,10 +2,10 @@
  * Portfolio Fetcher
  * 
  * Fetches wallet holdings with prices and calculates momentum projections.
- * Uses existing balance.ts for raw balances, adds Jupiter prices.
+ * Uses server-side API routes for RPC calls (no browser 403 errors).
  */
 
-import { Connection, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { fetchWalletBalances, enrichWalletBalances, WalletToken } from './balance';
 import { buildZenithTokenList } from '@/lib/zenith';
 
@@ -80,9 +80,9 @@ async function fetchPrices(mints: string[]): Promise<Map<string, { price: number
 
 /**
  * Fetch complete portfolio data for a wallet
+ * Note: No longer needs Connection - uses server-side API routes
  */
 export async function fetchPortfolio(
-    connection: Connection,
     publicKey: PublicKey
 ): Promise<PortfolioData> {
     // Check cache
@@ -90,8 +90,8 @@ export async function fetchPortfolio(
         return portfolioCache;
     }
 
-    // 1. Get raw balances
-    const rawBalances = await fetchWalletBalances(connection, publicKey);
+    // 1. Get raw balances (via API routes - no connection needed)
+    const rawBalances = await fetchWalletBalances(publicKey);
 
     // 2. Get token metadata
     const tokenList = await buildZenithTokenList();
@@ -183,9 +183,9 @@ const TX_CACHE_TTL = 60000; // 1 minute
 
 /**
  * Fetch recent transactions for wallet
+ * Note: Now uses server-side API route - no Connection needed
  */
 export async function fetchTransactions(
-    connection: Connection,
     publicKey: PublicKey,
     limit: number = 20
 ): Promise<WalletTransaction[]> {
@@ -195,14 +195,21 @@ export async function fetchTransactions(
     }
 
     try {
-        const signatures = await connection.getSignaturesForAddress(publicKey, { limit });
+        const pubkeyStr = publicKey.toBase58();
+        const res = await fetch(`/api/wallet/transactions?address=${pubkeyStr}&limit=${limit}`);
 
-        const transactions: WalletTransaction[] = signatures.map(sig => ({
-            signature: sig.signature,
-            timestamp: (sig.blockTime || 0) * 1000,
+        if (!res.ok) {
+            throw new Error('Failed to fetch transactions');
+        }
+
+        const data = await res.json();
+
+        const transactions: WalletTransaction[] = (data.transactions || []).map((tx: any) => ({
+            signature: tx.signature,
+            timestamp: tx.timestamp,
             type: 'unknown' as const,
-            fee: 0.000005,
-            status: sig.err ? 'failed' as const : 'success' as const
+            fee: tx.fee || 0.000005,
+            status: tx.status === 'failed' ? 'failed' as const : 'success' as const
         }));
 
         txCache = transactions;
