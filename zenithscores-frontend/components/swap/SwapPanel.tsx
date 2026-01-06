@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { VersionedTransaction } from '@solana/web3.js';
+import { VersionedTransaction, PublicKey } from '@solana/web3.js';
 import { useTradeSelection } from '@/lib/store/useTradeSelection';
 import { useSwapStore } from '@/lib/store/useSwapStore';
 import { fetchWalletBalances, enrichWalletBalances, WalletToken } from '@/lib/wallet/balance';
@@ -44,7 +44,7 @@ export default function SwapPanel() {
     
     // Use either connection method
     const connected = walletAdapterConnected || directConnected;
-    const walletKey = publicKey || (directPublicKey ? { toString: () => directPublicKey } : null);
+    const walletPubkey = publicKey || (directPublicKey ? new PublicKey(directPublicKey) : null);
 
     // Store (for TO token from grid)
     const selectedToken = useTradeSelection(s => s.selectedToken);
@@ -83,15 +83,18 @@ export default function SwapPanel() {
     // 2. LOAD WALLET BALANCES (CACHED, 30s REFRESH)
     // ========================================================================
     const loadWalletBalances = useCallback(async () => {
-        if (!connected || !publicKey || tokenUniverse.length === 0) {
+        if (!connected || !walletPubkey || tokenUniverse.length === 0) {
             setWalletTokens([]);
             setFromToken(null);
             return;
         }
 
         try {
-            const balances = await fetchWalletBalances(connection, publicKey);
+            console.log('[SwapPanel] Loading balances for:', walletPubkey.toString());
+            const balances = await fetchWalletBalances(connection, walletPubkey);
+            console.log('[SwapPanel] Raw balances:', balances.length);
             const enriched = enrichWalletBalances(balances, tokenUniverse);
+            console.log('[SwapPanel] Enriched tokens:', enriched.length);
             setWalletTokens(enriched);
 
             // Auto-select FROM: highest balance token (with actual balance > 0)
@@ -104,7 +107,7 @@ export default function SwapPanel() {
         } catch (err) {
             console.error("[SwapPanel] Failed to load wallet balances:", err);
         }
-    }, [connected, publicKey, tokenUniverse, fromToken, connection]);
+    }, [connected, walletPubkey, tokenUniverse, fromToken, connection]);
 
     useEffect(() => {
         loadWalletBalances();
@@ -246,7 +249,7 @@ export default function SwapPanel() {
             return;
         }
 
-        if (!publicKey || !quote || !fromToken || !toToken) return;
+        if (!walletPubkey || !quote || !fromToken || !toToken) return;
 
         // GUARD: Same token (defensive)
         if (fromToken.address === toToken.mint) {
@@ -266,7 +269,7 @@ export default function SwapPanel() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     quoteResponse: quote,
-                    userPublicKey: publicKey.toString()
+                    userPublicKey: walletPubkey.toString()
                 })
             });
 
@@ -283,7 +286,7 @@ export default function SwapPanel() {
             // 2. SIMULATE TRANSACTION (CRITICAL - catches errors BEFORE signing)
             const simResult = await simulateSwapTransaction(
                 swapData.swapTransaction,
-                publicKey.toString()
+                walletPubkey.toString()
             );
 
             if (!simResult.success) {
