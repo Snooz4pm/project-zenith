@@ -1,70 +1,65 @@
-
 import { fetchJupiterTokens, getLivePrice } from './fetch/jupiter';
 import { fetchDexScreenerPools } from './fetch/dexScreener';
 import { normalizeToken } from './normalize/mapper';
+import { computeZenithScore } from './normalize/scoring';
 import { ZenithToken } from './types';
 
-export { getLivePrice };
-export type { ZenithToken };
+export type { ZenithToken } from './types';
+export { getLivePrice } from './fetch/jupiter';
 
-// ... imports
-
-// ...
+// ============================================
+// 3-LAYER ARCHITECTURE
+// ============================================
+// LAYER 1: Jupiter Token Universe (~14k)
+// LAYER 2: Filter by liquidity (implicit in DexScreener)
+// LAYER 3: Enrich with market data (DexScreener prices/volume)
+// ============================================
 
 export async function buildZenithTokenList(): Promise<ZenithToken[]> {
     try {
         console.log("Zenith: Initializing Token Intelligence Engine...");
 
-        // 1. Fetch Trusted Data Sources
-        // - Jupiter Strict: Validated, verified tokens (Core Trust).
-        // - DexScreener: Real-time market data for trending/liquidity checks.
-        const [jupStrict, pairs] = await Promise.all([
-            fetchJupiterTokens(), // Now using Strict list internally or needs config
-            fetchDexScreenerPools().catch(e => {
-                console.warn("Zenith: DexScreener data unavailable", e);
-                return [];
-            })
-        ]);
+        // LAYER 1: Fetch Jupiter token universe (14k+ tokens)
+        const jupiterTokens = await fetchJupiterTokens();
+        console.log(`[Layer 1] Jupiter universe: ${jupiterTokens.size} tokens`);
 
-        // 2. Map Jupiter Data (Metadata Source)
-        // Using 'strict' list ensures we start with ~600-800 high-quality tokens
-        // rather than 20k+ garbage tokens.
-        const tokenMap = jupStrict;
+        // LAYER 3: Fetch market data (prices, volume, liquidity)
+        const PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'http://localhost:3001';
+        const marketRes = await fetch(`${PROXY_URL}/market-data`).catch(() => null);
 
+        let marketPairs: any[] = [];
+        if (marketRes && marketRes.ok) {
+            const marketData = await marketRes.json();
+            marketPairs = marketData.pairs || [];
+            console.log(`[Layer 3] Market data: ${marketPairs.length} Solana pairs`);
+        } else {
+            console.warn("[Layer 3] Market data unavailable - using fallback");
+        }
+
+        // Merge Layers: Match market data with Jupiter metadata
         let tokens: ZenithToken[] = [];
 
-        // 3. Process DexScreener Pairs (Primary "Active" Source)
-        if (pairs.length > 0) {
-            tokens = pairs
+        if (marketPairs.length > 0) {
+            // Primary: DexScreener pairs enriched with Jupiter metadata
+            tokens = marketPairs
                 .map(pair => {
-                    const jupInfo = tokenMap.get(pair.baseToken.address);
-                    // Normalizer applies filters internally (Liq > 100k etc based on signals, but let's apply general Zenith filters here)
-                    const normalized = normalizeToken(pair, jupInfo);
+                    const jupMetadata = jupiterTokens.get(pair.baseToken.address);
+                    const normalized = normalizeToken(pair, jupMetadata);
 
-                    // "Grok-Style" Strict Filters for the Display Grid
+                    // Apply Zenith Trust Engine filters
                     if (!normalized) return null;
-
-                    // Filter: Liquidity Depth > $50k (User Requirement)
                     if (normalized.liquidityUsd < 50000) return null;
-
-                    // Filter: 24h Volume > $10k (User Requirement)
                     if (normalized.volume24hUsd < 10000) return null;
-
-                    // Filter: Must have valid metadata (Icon/Symbol)
-                    if (!normalized.logoURI && !jupInfo) return null; // Skip unknown junk
 
                     return normalized;
                 })
-                .filter((t): t is ZenithToken => t !== null)
-                .sort((a, b) => b.zenithScore - a.zenithScore);
+                .filter((t): t is ZenithToken => t !== null);
         }
 
-        // 4. Fallback / Augmentation
-        // If we have few tokens (API limit or market crash), fill with Top trusted assets from Jupiter
+        // Fallback: If market data failed, use top Jupiter tokens
         if (tokens.length < 12) {
             console.warn("Zenith: Low signal count. Engaging Jupiter Trusted Fallback.");
 
-            // Core Trusted Mints (SOL, USDC, USDT, JUP, RAY, BONK, WIF)
             const fallbackMints = [
                 'So11111111111111111111111111111111111111112', // SOL
                 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
@@ -79,14 +74,13 @@ export async function buildZenithTokenList(): Promise<ZenithToken[]> {
 
             fallbackMints.forEach(mint => {
                 if (!existingMints.has(mint)) {
-                    const jup = tokenMap.get(mint);
+                    const jup = jupiterTokens.get(mint);
                     if (jup) {
                         tokens.push({
                             mint: jup.address,
                             symbol: jup.symbol,
                             name: jup.name,
                             logoURI: jup.logoURI,
-                            // Mocks/Proxies for Fallback (safe assumptions for Majors)
                             priceUsd: 0,
                             liquidityUsd: 10000000,
                             volume24hUsd: 10000000,
@@ -99,10 +93,17 @@ export async function buildZenithTokenList(): Promise<ZenithToken[]> {
             });
         }
 
-        // 5. Dedup & Limit
+        // Compute scores
+        tokens.forEach(token => {
+            token.zenithScore = computeZenithScore(token);
+        });
+
+        // Sort by score
+        tokens.sort((a, b) => b.zenithScore - a.zenithScore);
+
+        // Dedup
         const seen = new Set<string>();
         const uniqueTokens: ZenithToken[] = [];
-
         for (const t of tokens) {
             if (!seen.has(t.mint)) {
                 seen.add(t.mint);
@@ -112,7 +113,6 @@ export async function buildZenithTokenList(): Promise<ZenithToken[]> {
 
         console.log(`Zenith: Engine ready. ${uniqueTokens.length} assets tracking.`);
 
-        // Return Top 50 for UI performance
         return uniqueTokens.slice(0, 50);
 
     } catch (err) {
