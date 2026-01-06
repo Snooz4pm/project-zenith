@@ -15,7 +15,7 @@ export type WalletToken = {
     decimals: number;
     logoURI?: string;
     uiBalance: number;
-    balance: number; // Raw balance in smallest units
+    balanceBase: bigint; // Base units (lamports for SOL, atomic for SPL)
 };
 
 // PREFERRED MAJORS (for auto-select priority)
@@ -84,7 +84,7 @@ export function enrichWalletBalances(
                 decimals: balance.decimals,
                 logoURI: metadata.logoURI,
                 uiBalance: balance.amount,
-                balance: Math.floor(balance.amount * Math.pow(10, balance.decimals))
+                balanceBase: BigInt(Math.floor(balance.amount * Math.pow(10, balance.decimals)))
             });
         }
     }

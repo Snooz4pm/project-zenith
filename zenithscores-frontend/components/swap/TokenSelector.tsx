@@ -10,7 +10,7 @@ export type SelectableToken = {
     decimals: number;
     logoURI?: string;
     uiBalance?: number; // Optional for wallet tokens
-    balance?: number; // Raw balance in smallest units (for WalletToken compatibility)
+    balanceBase?: bigint; // Base units (for WalletToken compatibility)
 };
 
 interface TokenSelectorProps {

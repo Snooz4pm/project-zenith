@@ -8,32 +8,10 @@ import { useTradeSelection } from '@/lib/store/useTradeSelection';
 import { fetchWalletBalances, enrichWalletBalances, WalletToken } from '@/lib/wallet/balance';
 import { buildZenithTokenList, ZenithToken } from '@/lib/zenith';
 import { canQuote } from '@/lib/swap/swapGuards';
-import { TokenSelector, SelectableToken } from './TokenSelector';
+import { getMaxSwappable, uiToBase, baseToUi, autoSlippage } from '@/lib/swap/utils';
+import { TokenSelector } from './TokenSelector';
 
 const API_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'http://localhost:3001';
-const SOL_MINT = 'So11111111111111111111111111111111111111112';
-const SOL_FEE_BUFFER = 0.01; // 0.01 SOL for fees
-
-// ------------------------------------------------------------------
-// ALGORITHMS
-// ------------------------------------------------------------------
-
-function getMaxSwapAmount(token: WalletToken | null) {
-    if (!token) return 0;
-    if (token.symbol === 'SOL') {
-        return Math.max(0, token.uiBalance - SOL_FEE_BUFFER);
-    }
-    return token.uiBalance;
-}
-
-function autoSlippage(token?: ZenithToken) {
-    if (!token) return 50; // Default 0.5%
-    const liquidity = token.liquidityUsd || 0;
-    if (liquidity > 5_000_000) return 30;  // 0.30%
-    if (liquidity > 1_000_000) return 50;  // 0.50%
-    if (liquidity > 250_000) return 75;  // 0.75%
-    return 100; // 1.00%
-}
 
 // ------------------------------------------------------------------
 // COMPONENT
@@ -118,21 +96,13 @@ export default function SwapPanel() {
     }, [selectedToken, tokenUniverse]);
 
     // ------------------------------------------------------------------
-    // 4. AUTO-SELECT TO TOKEN (Safe)
+    // 4. AUTO-SELECT TO TOKEN (Safe - no hardcoding)
     // ------------------------------------------------------------------
     useEffect(() => {
         if (!fromToken || toToken || tokenUniverse.length === 0) return;
 
-        // Find a different token (prefer USDC if FROM is SOL)
-        let candidate: ZenithToken | null = null;
-
-        if (fromToken.symbol === 'SOL') {
-            candidate = tokenUniverse.find(t => t.symbol === 'USDC') || null;
-        }
-
-        if (!candidate) {
-            candidate = tokenUniverse.find(t => t.mint !== fromToken.address) || null;
-        }
+        // Find any different token (highest liquidity first due to sorting)
+        const candidate = tokenUniverse.find(t => t.mint !== fromToken.address) || null;
 
         if (candidate) {
             setToToken(candidate);
@@ -161,16 +131,16 @@ export default function SwapPanel() {
             setLoading(true);
             setError(null);
             try {
-                // Convert to atomic units
-                const atomicAmount = Math.floor(Number(amount) * Math.pow(10, fromToken.decimals));
+                // Convert UI amount to base units (UNIVERSAL - works for ALL tokens)
+                const amountBase = uiToBase(Number(amount), fromToken.decimals);
 
-                // Determine slippage based on TO token liquidity
-                const slippageBps = autoSlippage(toToken);
+                // Auto-calculate slippage based on amount
+                const slippageBps = autoSlippage(Number(amount));
 
                 const params = new URLSearchParams({
                     inputMint: fromToken.address,
                     outputMint: toToken.mint,
-                    amount: atomicAmount.toString(),
+                    amount: amountBase.toString(),
                     slippageBps: slippageBps.toString()
                 });
 
@@ -264,8 +234,10 @@ export default function SwapPanel() {
     // ------------------------------------------------------------------
     const handleMax = () => {
         if (!fromToken) return;
-        const max = getMaxSwapAmount(fromToken);
-        setAmount(max.toString());
+        // Get max in base units, convert to UI (UNIVERSAL - works for ALL tokens)
+        const maxBase = getMaxSwappable(fromToken);
+        const maxUi = baseToUi(maxBase, fromToken.decimals);
+        setAmount(maxUi.toString());
     };
 
     const formatBalance = (val: number) => {
@@ -291,7 +263,7 @@ export default function SwapPanel() {
                                 </span>
                                 {fromToken.symbol === 'SOL' && (
                                     <span className="text-[10px] text-zinc-600">
-                                        Swappable: <span className="text-zinc-400 font-mono">{formatBalance(getMaxSwapAmount(fromToken))}</span>
+                                        Swappable: <span className="text-zinc-400 font-mono">{formatBalance(baseToUi(getMaxSwappable(fromToken), fromToken.decimals))}</span>
                                     </span>
                                 )}
                             </>
