@@ -20,7 +20,19 @@ import { getPhantom } from '@/lib/phantom';
 const RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 const API_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'http://localhost:3001';
 
-const connection = new Connection(RPC, 'confirmed');
+// Use commitment 'processed' for faster responses, reduce RPC load
+const connection = new Connection(RPC, {
+  commitment: 'confirmed',
+  confirmTransactionInitialTimeout: 60000,
+});
+
+// Track rate limit state
+let isRateLimited = false;
+let rateLimitResetTime = 0;
+
+// FREE TIER MODE: Skip simulation to conserve RPC calls
+// Set to true if using Helius free tier or hitting rate limits
+const SKIP_SIMULATION = process.env.NEXT_PUBLIC_SKIP_SIMULATION === 'true';
 
 // ============================================================================
 // TYPES
@@ -65,12 +77,26 @@ export type SwapState =
 /**
  * Simulate transaction before signing
  * Catches failures BEFORE user sees Phantom popup
+ * 
+ * NOTE: Skips simulation if rate limited OR if SKIP_SIMULATION is enabled (free tier)
  */
 export async function simulateSwapTransaction(
   base64Tx: string,
   userPubkey: string,
   isVersioned: boolean = true
-): Promise<{ success: boolean; error?: string; logs?: string[] }> {
+): Promise<{ success: boolean; error?: string; logs?: string[]; skipped?: boolean }> {
+  // FREE TIER: Skip simulation entirely to conserve RPC calls
+  if (SKIP_SIMULATION) {
+    console.log('[Simulation] Skipping - free tier mode');
+    return { success: true, skipped: true };
+  }
+
+  // Skip simulation if we're rate limited (avoid 429 blocking the swap)
+  if (isRateLimited && Date.now() < rateLimitResetTime) {
+    console.log('[Simulation] Skipping - rate limited');
+    return { success: true, skipped: true };
+  }
+
   try {
     if (isVersioned) {
       // Versioned transaction (Jupiter default)
@@ -111,6 +137,15 @@ export async function simulateSwapTransaction(
       return { success: true, logs: result.value.logs || undefined };
     }
   } catch (e: any) {
+    // Handle rate limit errors
+    if (e?.message?.includes('429') || e?.message?.includes('Too many requests')) {
+      console.log('[Simulation] Rate limited, will skip for 30s');
+      isRateLimited = true;
+      rateLimitResetTime = Date.now() + 30000;
+      // Return success to allow swap to proceed (user will see Phantom error if it fails)
+      return { success: true, skipped: true };
+    }
+
     return {
       success: false,
       error: e?.message || 'Simulation failed'

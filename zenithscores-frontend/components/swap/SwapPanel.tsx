@@ -125,8 +125,8 @@ export default function SwapPanel() {
     useEffect(() => {
         loadWalletBalances();
 
-        // Auto-refresh balances every 30s
-        balanceRefreshRef.current = setInterval(loadWalletBalances, 30000);
+        // Auto-refresh balances every 2 minutes (conservative for free tier RPC)
+        balanceRefreshRef.current = setInterval(loadWalletBalances, 120000);
         
         return () => {
             if (balanceRefreshRef.current) {
@@ -311,14 +311,18 @@ export default function SwapPanel() {
                 throw new Error("Failed to build swap transaction");
             }
 
-            // 2. SIMULATE TRANSACTION (CRITICAL - catches errors BEFORE signing)
+            // 2. SIMULATE TRANSACTION (optional - skipped if rate limited)
             const simResult = await simulateSwapTransaction(
                 swapData.swapTransaction,
                 walletPubkey.toString()
             );
 
-            if (!simResult.success) {
+            if (!simResult.success && !simResult.skipped) {
                 throw new Error(simResult.error || "Simulation failed - transaction would fail");
+            }
+            
+            if (simResult.skipped) {
+                console.log('[SwapPanel] Simulation skipped (rate limited)');
             }
 
             // 3. Deserialize the transaction
