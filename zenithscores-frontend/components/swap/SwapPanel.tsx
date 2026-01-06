@@ -32,7 +32,20 @@ type SwapState =
   | 'sending'
   | 'confirming'
   | 'success'
+  | 'arriving'    // New: Token is on its way
+  | 'arrived'     // New: Token has arrived
   | 'error';
+
+// ============================================================================
+// ARRIVAL TRACKING
+// ============================================================================
+interface ArrivingToken {
+    symbol: string;
+    logoURI?: string;
+    expectedAmount: number;
+    mint: string;
+    startTime: number;
+}
 
 // ============================================================================
 // COMPONENT
@@ -69,11 +82,15 @@ export default function SwapPanel() {
     const [noRoute, setNoRoute] = useState(false);
     const [txSignature, setTxSignature] = useState<string | null>(null);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [arrivingToken, setArrivingToken] = useState<ArrivingToken | null>(null);
+    const [arrivalProgress, setArrivalProgress] = useState(0);
     
     // Refs for cleanup & deduplication
     const quoteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastQuoteRef = useRef<string>('');
     const balanceLoadedRef = useRef(false); // Prevent duplicate loads
+    const arrivalPollRef = useRef<NodeJS.Timeout | null>(null);
+    const preSwapBalanceRef = useRef<number>(0);
     
     // ========================================================================
     // REFS AS SOURCE OF TRUTH (prevents infinite loops)
@@ -162,6 +179,115 @@ export default function SwapPanel() {
             setFromToken(null);
         }
     }, [connected]);
+
+    // ========================================================================
+    // 2.5 TOKEN ARRIVAL DETECTION - Poll for balance changes
+    // ========================================================================
+    const startArrivalPolling = useCallback((
+        tokenMint: string,
+        expectedAmount: number,
+        symbol: string,
+        logoURI?: string
+    ) => {
+        // Clear any existing poll
+        if (arrivalPollRef.current) {
+            clearInterval(arrivalPollRef.current);
+        }
+
+        // Store pre-swap balance for comparison
+        const existingToken = walletTokens.find(t => t.address === tokenMint);
+        preSwapBalanceRef.current = existingToken?.uiBalance || 0;
+        
+        // Set arriving state
+        setArrivingToken({
+            symbol,
+            logoURI,
+            expectedAmount,
+            mint: tokenMint,
+            startTime: Date.now()
+        });
+        setSwapState('arriving');
+        setArrivalProgress(0);
+
+        let pollCount = 0;
+        const maxPolls = 30; // 30 polls × 2s = 60s max wait
+        
+        arrivalPollRef.current = setInterval(async () => {
+            pollCount++;
+            
+            // Update progress bar (smooth animation)
+            const elapsed = Date.now() - (arrivingToken?.startTime || Date.now());
+            const progressPercent = Math.min(95, (elapsed / 10000) * 100); // 10s = 95%
+            setArrivalProgress(progressPercent);
+
+            try {
+                const conn = connectionRef.current;
+                const pubkey = walletPubkeyRef.current;
+                const universe = tokenUniverseRef.current;
+
+                if (!pubkey || universe.length === 0) return;
+
+                const balances = await fetchWalletBalances(conn, pubkey);
+                const enriched = enrichWalletBalances(balances, universe);
+                
+                // Check if the arriving token's balance increased
+                const newTokenBalance = enriched.find(t => t.address === tokenMint);
+                const newBalance = newTokenBalance?.uiBalance || 0;
+                const preBalance = preSwapBalanceRef.current;
+
+                console.log(`[Arrival] Poll ${pollCount}: ${symbol} balance ${preBalance} → ${newBalance}`);
+
+                if (newBalance > preBalance) {
+                    // TOKEN ARRIVED! 🎉
+                    clearInterval(arrivalPollRef.current!);
+                    arrivalPollRef.current = null;
+                    
+                    setWalletTokens(enriched);
+                    setArrivalProgress(100);
+                    setSwapState('arrived');
+
+                    // Auto-select the received token as FROM token for next swap
+                    if (newTokenBalance) {
+                        setTimeout(() => {
+                            setFromToken(newTokenBalance);
+                            setToToken(null);
+                            setAmount('');
+                            setQuote(null);
+                            
+                            // Clear arrival state after showing arrived UI
+                            setTimeout(() => {
+                                setArrivingToken(null);
+                                setSwapState('idle');
+                            }, 3000);
+                        }, 1500);
+                    }
+
+                    return;
+                }
+
+                // Timeout - give up but still refresh balances
+                if (pollCount >= maxPolls) {
+                    clearInterval(arrivalPollRef.current!);
+                    arrivalPollRef.current = null;
+                    setWalletTokens(enriched);
+                    setArrivingToken(null);
+                    setSwapState('idle');
+                    console.log('[Arrival] Timeout - token may still arrive');
+                }
+            } catch (err) {
+                console.error('[Arrival] Poll error:', err);
+            }
+        }, 2000); // Poll every 2 seconds
+    }, [walletTokens]);
+
+    // Cleanup arrival polling on unmount
+    useEffect(() => {
+        return () => {
+            if (arrivalPollRef.current) {
+                clearInterval(arrivalPollRef.current);
+            }
+        };
+    }, []);
 
     // ========================================================================
     // 3. FETCH QUOTE FUNCTION (NO useEffect - called explicitly)
@@ -406,22 +532,30 @@ export default function SwapPanel() {
             setSwapState('confirming');
             await connection.confirmTransaction(signature, 'confirmed');
 
-            // 6. Success!
+            // 6. Success! Transaction confirmed on chain
             setSwapState('success');
             setShowSuccess(true);
 
-            // 7. Reset form
+            // 7. Capture expected output for arrival tracking
+            const expectedOutput = quote?.outAmount 
+                ? Number(quote.outAmount) / Math.pow(10, toToken.decimals || 6)
+                : 0;
+
+            // 8. Reset form
             setAmount('');
             setQuote(null);
 
-            // 8. Refresh balances after 2s (give blockchain time)
-            setTimeout(loadWalletBalances, 2000);
-
-            // 9. Auto-hide success after 8s
+            // 9. Start arrival detection (poll for token balance increase)
+            // This shows "Token arriving..." and auto-refreshes when it lands
             setTimeout(() => {
                 setShowSuccess(false);
-                setSwapState('idle');
-            }, 8000);
+                startArrivalPolling(
+                    toToken.mint,
+                    expectedOutput,
+                    toToken.symbol,
+                    toToken.logoURI
+                );
+            }, 2000); // Start polling 2s after confirmation
 
         } catch (err: any) {
             console.error("[SwapPanel] Swap failed:", err);
@@ -479,9 +613,12 @@ export default function SwapPanel() {
 
     const isLoading = swapState === 'fetching-quote';
     const isExecuting = ['simulating', 'awaiting-signature', 'sending', 'confirming'].includes(swapState);
+    const isArriving = swapState === 'arriving' || swapState === 'arrived';
 
     const getButtonText = () => {
         if (!connected) return 'CONNECT WALLET';
+        if (swapState === 'arriving') return `${arrivingToken?.symbol || 'TOKENS'} ARRIVING...`;
+        if (swapState === 'arrived') return `${arrivingToken?.symbol || 'TOKENS'} ARRIVED! ✓`;
         if (swapState === 'simulating') return 'SIMULATING...';
         if (swapState === 'awaiting-signature') return 'CONFIRM IN PHANTOM';
         if (swapState === 'sending') return 'SENDING...';
@@ -540,6 +677,85 @@ export default function SwapPanel() {
                     >
                         Close
                     </button>
+                </div>
+            )}
+
+            {/* ARRIVING TOKEN OVERLAY */}
+            {arrivingToken && (swapState === 'arriving' || swapState === 'arrived') && (
+                <div className="absolute inset-0 bg-black/95 rounded-2xl flex flex-col items-center justify-center z-20 p-6">
+                    {/* Token Icon with Animation */}
+                    <div className={`relative mb-4 ${swapState === 'arriving' ? 'animate-pulse' : ''}`}>
+                        {arrivingToken.logoURI ? (
+                            <img 
+                                src={arrivingToken.logoURI} 
+                                className={`w-16 h-16 rounded-full ${swapState === 'arrived' ? 'ring-4 ring-emerald-500/50' : 'ring-2 ring-white/20'}`}
+                                alt={arrivingToken.symbol} 
+                            />
+                        ) : (
+                            <div className={`w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center ${swapState === 'arrived' ? 'ring-4 ring-emerald-500/50' : 'ring-2 ring-white/20'}`}>
+                                <span className="text-2xl font-bold text-white">{arrivingToken.symbol[0]}</span>
+                            </div>
+                        )}
+                        {swapState === 'arrived' && (
+                            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+                                <Check className="w-4 h-4 text-white" />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Status Text */}
+                    <h3 className="text-white font-bold text-lg mb-1">
+                        {swapState === 'arriving' ? `${arrivingToken.symbol} Arriving...` : `${arrivingToken.symbol} Arrived!`}
+                    </h3>
+                    <p className="text-zinc-400 text-sm text-center mb-4">
+                        {swapState === 'arriving' 
+                            ? `~${arrivingToken.expectedAmount.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${arrivingToken.symbol} incoming`
+                            : `Received! Ready to swap again`
+                        }
+                    </p>
+
+                    {/* Progress Bar */}
+                    {swapState === 'arriving' && (
+                        <div className="w-full max-w-[200px] mb-4">
+                            <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                <div 
+                                    className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-500 ease-out"
+                                    style={{ width: `${arrivalProgress}%` }}
+                                />
+                            </div>
+                            <p className="text-[10px] text-zinc-600 text-center mt-1 font-mono">
+                                Detecting balance change...
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Arrived Actions */}
+                    {swapState === 'arrived' && (
+                        <div className="flex flex-col items-center gap-2">
+                            <div className="text-emerald-400 text-xs font-mono flex items-center gap-1">
+                                <Check className="w-3 h-3" />
+                                Auto-selecting {arrivingToken.symbol} for next swap
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Skip Button */}
+                    {swapState === 'arriving' && (
+                        <button
+                            onClick={() => {
+                                if (arrivalPollRef.current) {
+                                    clearInterval(arrivalPollRef.current);
+                                    arrivalPollRef.current = null;
+                                }
+                                setArrivingToken(null);
+                                setSwapState('idle');
+                                loadWalletBalances();
+                            }}
+                            className="mt-4 text-zinc-500 hover:text-white text-sm"
+                        >
+                            Skip & Refresh
+                        </button>
+                    )}
                 </div>
             )}
 
@@ -687,11 +903,18 @@ export default function SwapPanel() {
 
             {/* ACTION BUTTON */}
             <button
-                disabled={!canExecute && connected && !!fromToken && !!toToken && !!amount}
+                disabled={(!canExecute && connected && !!fromToken && !!toToken && !!amount) || isArriving}
                 onClick={handleSwap}
-                className="w-full rounded-xl bg-white py-4 text-black font-bold tracking-wide transition-all hover:bg-zinc-200 disabled:opacity-30 disabled:hover:bg-white hover:shadow-lg font-mono flex items-center justify-center gap-2"
+                className={`w-full rounded-xl py-4 font-bold tracking-wide transition-all hover:shadow-lg font-mono flex items-center justify-center gap-2 ${
+                    swapState === 'arrived' 
+                        ? 'bg-emerald-500 text-white hover:bg-emerald-400' 
+                        : swapState === 'arriving'
+                        ? 'bg-gradient-to-r from-blue-500 to-emerald-500 text-white cursor-wait'
+                        : 'bg-white text-black hover:bg-zinc-200 disabled:opacity-30 disabled:hover:bg-white'
+                }`}
             >
-                {isExecuting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {(isExecuting || swapState === 'arriving') && <Loader2 className="w-4 h-4 animate-spin" />}
+                {swapState === 'arrived' && <Check className="w-4 h-4" />}
                 {getButtonText()}
             </button>
 

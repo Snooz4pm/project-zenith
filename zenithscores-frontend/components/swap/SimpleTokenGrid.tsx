@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { ZenithToken } from "@/lib/zenith";
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const TOKENS_PER_PAGE = 30;
+// 8 rows × 3 columns = 24 tokens per page
+const TOKENS_PER_PAGE = 24;
 
 export function SimpleTokenGrid({
     tokens,
@@ -64,8 +65,8 @@ export function SimpleTokenGrid({
                 </div>
             </div>
 
-            {/* Token Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4">
+            {/* Token Grid - 3 columns × 8 rows */}
+            <div className="grid grid-cols-3 gap-3 p-4">
                 {currentTokens.map(t => {
                     if (!t.mint || !t.symbol) return null;
 
@@ -73,17 +74,17 @@ export function SimpleTokenGrid({
                         <button
                             key={t.mint}
                             onClick={() => onSelect(t)}
-                            className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/5 text-left hover:border-emerald-500/30 active:scale-95"
+                            className="flex items-center gap-3 p-3 rounded-xl bg-[#0B0E15] hover:bg-white/10 transition-all border border-white/5 text-left hover:border-emerald-500/30 active:scale-[0.98] group"
                         >
                             <img
                                 src={t.logoURI || 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'}
                                 onError={(e) => {
                                     (e.currentTarget as HTMLImageElement).src = 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'
                                 }}
-                                className="w-8 h-8 rounded-full bg-zinc-800 object-cover"
+                                className="w-8 h-8 rounded-full bg-zinc-800 object-cover group-hover:ring-2 ring-emerald-500/20 transition-all"
                                 alt={t.symbol}
                             />
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                                 <div className="text-sm font-bold text-white truncate">{t.symbol}</div>
                                 <div className="text-xs text-zinc-500 truncate">{t.name}</div>
                             </div>
