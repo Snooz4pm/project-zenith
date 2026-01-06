@@ -647,8 +647,36 @@ export default function SwapPanel() {
     // ========================================================================
     // RENDER
     // ========================================================================
+    // DEBUG OVERLAY (visible only in development)
+    const [showDebug, setShowDebug] = useState(false);
+
     return (
         <div className="rounded-2xl border border-white/10 bg-black p-6 shadow-2xl relative">
+            {/* DEBUG OVERLAY */}
+            {showDebug && (
+                <div className="absolute inset-0 bg-black/95 rounded-2xl z-50 p-6 overflow-auto">
+                    <h3 className="text-white font-bold text-lg mb-2">Debug Info</h3>
+                    <button
+                        onClick={() => setShowDebug(false)}
+                        className="mb-4 text-zinc-500 hover:text-white text-sm"
+                    >Close</button>
+                    <div className="mb-4">
+                        <h4 className="text-emerald-400 font-mono">Token Universe</h4>
+                        <pre className="text-xs text-zinc-300 bg-zinc-900 rounded p-2 max-h-40 overflow-auto">{JSON.stringify(tokenUniverse, null, 2)}</pre>
+                    </div>
+                    <div className="mb-4">
+                        <h4 className="text-emerald-400 font-mono">Wallet Tokens</h4>
+                        <pre className="text-xs text-zinc-300 bg-zinc-900 rounded p-2 max-h-40 overflow-auto">{JSON.stringify(walletTokens, null, 2)}</pre>
+                    </div>
+                </div>
+            )}
+            {/* DEBUG BUTTON (bottom right corner, dev only) */}
+            {process.env.NODE_ENV !== 'production' && (
+                <button
+                    onClick={() => setShowDebug(v => !v)}
+                    className="fixed bottom-6 right-6 z-50 bg-emerald-700 text-white px-3 py-1 rounded shadow-lg hover:bg-emerald-600 text-xs font-mono"
+                >Debug</button>
+            )}
             {/* SUCCESS OVERLAY */}
             {showSuccess && txSignature && (
                 <div className="absolute inset-0 bg-black/95 rounded-2xl flex flex-col items-center justify-center z-20 p-6">
