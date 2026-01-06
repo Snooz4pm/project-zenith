@@ -40,7 +40,7 @@ type SwapState =
 export default function SwapPanel() {
     // Hooks
     const { connection } = useConnection();
-    const { publicKey, sendTransaction, connected: walletAdapterConnected } = useWallet();
+    const { publicKey, sendTransaction, connected: walletAdapterConnected, connect: walletAdapterConnect, select, wallets } = useWallet();
     const { publicKey: directPublicKey, isConnected: directConnected } = useDirectWallet();
     
     // Use either connection method
@@ -304,9 +304,21 @@ export default function SwapPanel() {
     // 6. EXECUTE SWAP (FULL FLOW WITH SIMULATION)
     // ========================================================================
     const handleSwap = async () => {
-        // Not connected → connect directly (no modal)
+        // Not connected → connect via wallet adapter (Phantom-trusted flow)
         if (!connected) {
-            await connectWallet();
+            try {
+                // Select Phantom wallet adapter if available
+                const phantomWallet = wallets.find(w => w.adapter.name === 'Phantom');
+                if (phantomWallet) {
+                    select(phantomWallet.adapter.name);
+                    await walletAdapterConnect();
+                } else {
+                    // Fallback to direct connect
+                    await connectWallet();
+                }
+            } catch (err) {
+                console.log('[SwapPanel] Connect cancelled or failed');
+            }
             return;
         }
 
@@ -362,26 +374,30 @@ export default function SwapPanel() {
             const swapTransactionBuf = Buffer.from(swapData.swapTransaction, 'base64');
             const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
 
-            // 4. Sign and send (use direct Phantom if available, else wallet adapter)
+            // 4. Sign and send via wallet adapter (Phantom-trusted method)
+            // This opens Phantom cleanly with proper dApp context
             setSwapState('awaiting-signature');
+            console.log('[SwapPanel] Opening wallet for signature...');
             
             let signature: string;
-            const phantom = getPhantom();
             
-            if (directConnected && phantom?.isConnected) {
-                // Direct Phantom connection - use signAndSendTransaction
-                console.log('[SwapPanel] Using direct Phantom signAndSendTransaction');
-                const result = await phantom.signAndSendTransaction(transaction, {
-                    skipPreflight: false,
-                    preflightCommitment: 'confirmed'
-                });
-                signature = result.signature;
-            } else if (walletAdapterConnected && sendTransaction) {
-                // Wallet adapter connection
-                console.log('[SwapPanel] Using wallet adapter sendTransaction');
+            // PREFER wallet adapter (Phantom's trusted path)
+            if (walletAdapterConnected && sendTransaction) {
+                console.log('[SwapPanel] Using wallet adapter (trusted path)');
                 signature = await sendTransaction(transaction, connection);
             } else {
-                throw new Error('No wallet connected');
+                // Fallback to direct Phantom only if adapter not available
+                const phantom = getPhantom();
+                if (phantom?.isConnected) {
+                    console.log('[SwapPanel] Fallback: direct Phantom');
+                    const result = await phantom.signAndSendTransaction(transaction, {
+                        skipPreflight: false,
+                        preflightCommitment: 'confirmed'
+                    });
+                    signature = result.signature;
+                } else {
+                    throw new Error('No wallet connected');
+                }
             }
             
             setTxSignature(signature);

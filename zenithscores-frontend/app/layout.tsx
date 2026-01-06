@@ -60,8 +60,8 @@ export const viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.zenithscores.com'),
   title: "ZenithScores | Market Intelligence",
-  description: "Real-time market regime analysis powered by Machine Alpha. Track BULLISH, BEARISH, and CONSOLIDATION signals with VIX and 200-Day SMA indicators.",
-  keywords: ["market analysis", "trading signals", "VIX", "SMA", "market regime", "zenith scores"],
+  description: "Non-custodial Solana swap terminal powered by Jupiter. Real-time market analysis and trading signals.",
+  keywords: ["market analysis", "trading signals", "solana", "jupiter", "swap", "defi", "zenith scores"],
   verification: {
     google: 'crE3qi5ygHNAn3Yz803lwq85AS9dDihHP1SfsNKTBKg',
   },
@@ -69,6 +69,10 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'ZenithScores',
+  },
+  other: {
+    'solana-wallet': 'ZenithScores',
+    'dapp-name': 'ZenithScores',
   },
 };
 
