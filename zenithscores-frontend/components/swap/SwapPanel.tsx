@@ -5,6 +5,7 @@ import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { VersionedTransaction } from '@solana/web3.js';
 import { useTradeSelection } from '@/lib/store/useTradeSelection';
+import { useSwapStore } from '@/lib/store/useSwapStore';
 import { fetchWalletBalances, enrichWalletBalances, WalletToken } from '@/lib/wallet/balance';
 import { buildZenithTokenList, ZenithToken } from '@/lib/zenith';
 import { canQuote } from '@/lib/swap/swapGuards';
@@ -26,6 +27,7 @@ export default function SwapPanel() {
     // Store (for TO token from grid)
     const selectedToken = useTradeSelection(s => s.selectedToken);
     const setSelectedToken = useTradeSelection(s => s.setSelectedToken);
+    const intent = useSwapStore(s => s.intent); // Listen to grid clicks
 
     // State
     const [tokenUniverse, setTokenUniverse] = useState<ZenithToken[]>([]);
@@ -94,6 +96,18 @@ export default function SwapPanel() {
             }
         }
     }, [selectedToken, tokenUniverse]);
+
+    // ------------------------------------------------------------------
+    // 3b. ALSO LISTEN TO INTENT FROM GRID CLICKS
+    // ------------------------------------------------------------------
+    useEffect(() => {
+        if (intent?.toToken) {
+            const zenithToken = tokenUniverse.find(t => t.mint === intent.toToken.address);
+            if (zenithToken) {
+                setToToken(zenithToken);
+            }
+        }
+    }, [intent, tokenUniverse]);
 
     // ------------------------------------------------------------------
     // 4. AUTO-SELECT TO TOKEN (Safe - no hardcoding)
@@ -246,15 +260,16 @@ export default function SwapPanel() {
     };
 
     return (
-        <div className="rounded-2xl border border-white/5 bg-[#0B0E15] p-6 shadow-2xl backdrop-blur-xl">
-            <header className="mb-6">
-                <h2 className="text-xl font-bold text-white tracking-tight">Swap</h2>
+        <div className="rounded-2xl border border-white/10 bg-black p-6 shadow-2xl">
+            <header className="mb-6 border-b border-white/10 pb-4">
+                <h2 className="text-xl font-bold text-white tracking-tight font-mono">SWAP</h2>
+                <p className="text-xs text-zinc-500 mt-1">Non-custodial swaps via Jupiter</p>
             </header>
 
             {/* FROM SECTION */}
             <div className="mb-2 space-y-2">
                 <div className="flex justify-between items-center">
-                    <label className="text-xs text-zinc-400 font-medium ml-1">You Pay</label>
+                    <label className="text-xs text-zinc-400 font-medium ml-1 font-mono">YOU PAY</label>
                     <div className="flex flex-col items-end">
                         {fromToken && (
                             <>
@@ -311,8 +326,8 @@ export default function SwapPanel() {
 
             {/* TO SECTION */}
             <div className="mb-6 space-y-2 pt-2">
-                <label className="text-xs text-zinc-400 font-medium ml-1">You Receive</label>
-                <div className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-all duration-300 ${toToken ? 'bg-zinc-900/50 border-emerald-500/20 shadow-lg shadow-emerald-500/5' : 'bg-zinc-900/30 border-white/5'}`}>
+                <label className="text-xs text-zinc-400 font-medium ml-1 font-mono">YOU RECEIVE</label>
+                <div className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-all duration-300 ${toToken ? 'bg-zinc-900/30 border-emerald-500/30 shadow-lg shadow-emerald-500/5' : 'bg-zinc-900/20 border-white/10'}`}>
                     {toToken ? (
                         <>
                             <div className="flex items-center gap-3">
@@ -339,7 +354,7 @@ export default function SwapPanel() {
                             </div>
                         </>
                     ) : (
-                        <span className="text-zinc-500 italic text-sm">Select a token on the right...</span>
+                        <span className="text-zinc-500 text-sm font-mono">Select a token →</span>
                     )}
                 </div>
             </div>
@@ -355,15 +370,15 @@ export default function SwapPanel() {
             <button
                 disabled={executing || loading}
                 onClick={handleSwap}
-                className="w-full rounded-xl bg-emerald-500 py-4 text-black font-bold tracking-wide transition-all hover:bg-emerald-400 disabled:opacity-30 disabled:hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-500/20"
+                className="w-full rounded-xl bg-white py-4 text-black font-bold tracking-wide transition-all hover:bg-zinc-200 disabled:opacity-30 disabled:hover:bg-white hover:shadow-lg font-mono"
             >
-                {!connected ? 'Connect Wallet' :
-                    executing ? 'Signing Transaction...' :
-                        loading ? 'Finding Best Route...' :
-                            !fromToken ? 'Select Payment Token' :
-                                !toToken ? 'Select Destination Token' :
-                                    !amount || Number(amount) <= 0 ? 'Enter Amount' :
-                                        Number(amount) > fromToken.uiBalance ? 'Insufficient Balance' :
+                {!connected ? 'CONNECT WALLET' :
+                    executing ? 'SIGNING TX...' :
+                        loading ? 'FINDING ROUTE...' :
+                            !fromToken ? 'SELECT PAYMENT TOKEN' :
+                                !toToken ? 'SELECT DESTINATION' :
+                                    !amount || Number(amount) <= 0 ? 'ENTER AMOUNT' :
+                                        Number(amount) > fromToken.uiBalance ? 'INSUFFICIENT BALANCE' :
                                             'SWAP NOW'}
             </button>
         </div>
