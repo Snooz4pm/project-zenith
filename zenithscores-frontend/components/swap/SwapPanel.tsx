@@ -138,48 +138,63 @@ export default function SwapPanel() {
     // ========================================================================
     // 3. SYNC TO TOKEN FROM GRID/STORE
     // ========================================================================
-    useEffect(() => {
-        if (selectedToken) {
-            const zenithToken = tokenUniverse.find(t => t.mint === selectedToken.address);
-            if (zenithToken && zenithToken.mint !== fromToken?.address) {
-                setToToken(zenithToken);
-            }
-        }
-    }, [selectedToken, tokenUniverse, fromToken]);
-
-    useEffect(() => {
-        if (intent?.toToken) {
-            const zenithToken = tokenUniverse.find(t => t.mint === intent.toToken.address);
-            if (zenithToken && zenithToken.mint !== fromToken?.address) {
-                setToToken(zenithToken);
-            }
-        }
-    }, [intent, tokenUniverse, fromToken]);
-
-    // ========================================================================
-    // 4. AUTO-SELECT TO TOKEN (DIFFERENT FROM "FROM")
+    // 3. SYNC TO TOKEN FROM GRID/STORE (only when selectedToken changes)
     // ========================================================================
     useEffect(() => {
-        if (!fromToken || toToken || tokenUniverse.length === 0) return;
-
-        const candidate = tokenUniverse.find(t => t.mint !== fromToken.address);
-        if (candidate) {
-            setToToken(candidate);
+        if (!selectedToken) return;
+        
+        const zenithToken = tokenUniverse.find(t => t.mint === selectedToken.address);
+        if (zenithToken) {
+            // Only set if different from current fromToken (avoid same-token swap)
+            setToToken(prev => {
+                if (zenithToken.mint === fromToken?.address) return prev;
+                return zenithToken;
+            });
         }
-    }, [fromToken, toToken, tokenUniverse]);
+    }, [selectedToken, tokenUniverse]); // Removed fromToken - use ref inside
+
+    useEffect(() => {
+        if (!intent?.toToken) return;
+        
+        const zenithToken = tokenUniverse.find(t => t.mint === intent.toToken.address);
+        if (zenithToken) {
+            setToToken(prev => {
+                if (zenithToken.mint === fromToken?.address) return prev;
+                return zenithToken;
+            });
+        }
+    }, [intent, tokenUniverse]); // Removed fromToken - check inside
+
+    // ========================================================================
+    // 4. AUTO-SELECT TO TOKEN (only once when fromToken first set)
+    // ========================================================================
+    useEffect(() => {
+        if (!fromToken || tokenUniverse.length === 0) return;
+
+        // Only auto-select if toToken is not set
+        setToToken(prev => {
+            if (prev) return prev; // Already has a toToken
+            const candidate = tokenUniverse.find(t => t.mint !== fromToken.address);
+            return candidate || null;
+        });
+    }, [fromToken, tokenUniverse]); // Removed toToken - use functional update
 
     // ========================================================================
     // 5. FETCH QUOTE (DEBOUNCED 500ms, GUARDED)
     // ========================================================================
-    // 5. FETCH QUOTE (DEBOUNCED 500ms, GUARDED)
-    // ========================================================================
     useEffect(() => {
-        // Clear pending quote
+        // Clear any pending quote fetch
         if (quoteTimeoutRef.current) {
             clearTimeout(quoteTimeoutRef.current);
+            quoteTimeoutRef.current = null;
         }
 
-        // GUARD 1: Same token check (CRITICAL - prevents "No route" errors)
+        // GUARD 1: No tokens selected
+        if (!fromToken || !toToken) {
+            return;
+        }
+
+        // GUARD 2: Same token check (CRITICAL - prevents "No route" errors)
         if (!canQuote(fromToken?.address, toToken?.mint)) {
             setQuote(null);
             setSwapState('idle');
