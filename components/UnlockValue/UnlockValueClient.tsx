@@ -58,13 +58,20 @@ export default function UnlockValueClient() {
   // 4️⃣ Frontend: Claim Flow (Sequential Batching)
   async function startClaimProcess() {
     const accounts = store.recoverable.map(i => i.pubkey);
-    if (!publicKey || !signTransaction || !accounts.length) return;
+
+    // Safety Checks
+    if (!publicKey) return;
+    if (!signTransaction) {
+      store.setError("This wallet does not support signing transactions via the app. Please use Phantom or Solflare.");
+      return;
+    }
+    if (!accounts.length) return;
 
     setClaimStatus('Preparing transactions...');
     store.setError(null);
 
     try {
-      // 1. Get Batches
+      // 1. Get Batches from API
       const res = await fetch('/api/unlock/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -83,45 +90,45 @@ export default function UnlockValueClient() {
       setTotalBatches(batches.length);
       setProcessingIndex(0);
 
-      // 2. Sequential Signing
-      let recoveredInSession = 0;
-
+      // 2. Sequential Signing Loop
       for (let i = 0; i < batches.length; i++) {
         setProcessingIndex(i + 1);
         setClaimStatus(`Signing batch ${i + 1} of ${batches.length}...`);
 
+        // Deserialize transaction
         const txPath = batches[i];
         const tx = Transaction.from(Buffer.from(txPath, 'base64'));
 
         try {
-          // Sign
+          console.log(`[Unlock] Batch ${i + 1}: Requesting signature...`);
+          // A: Sign
           const signed = await signTransaction(tx);
-          // Send
+          console.log(`[Unlock] Batch ${i + 1}: Signed. Sending...`);
+
+          // B: Send Raw
           const sig = await connection.sendRawTransaction(signed.serialize());
+          console.log(`[Unlock] Batch ${i + 1}: Sent. Sig: ${sig}`);
 
           setClaimStatus(`Confirming batch ${i + 1}...`);
           await connection.confirmTransaction(sig, 'confirmed');
+          console.log(`[Unlock] Batch ${i + 1}: Confirmed.`);
 
-          // Assuming approx 0.002 SOL per account, simpler to just sum up totalSol / batches for visual?
-          // Or just wait until end.
-        } catch (err) {
-          console.error("Batch failed", err);
-          throw new Error('Transaction rejected or failed. Stopping.');
+        } catch (err: any) {
+          console.error(`[Unlock] Batch ${i + 1} Failed:`, err);
+          // Stop strictly on error
+          throw new Error('Transaction rejected or failed. Stopping process.');
         }
       }
 
-      // Success
+      // 3. Success State
       setClaimStatus('Success!');
-      store.addRecovered(totalSol); // Add to global counter
+      store.addRecovered(totalSol);
 
-      // Refresh scan to show empty
+      // Refresh to clear UI
       await runScan();
 
-      // Show success animation (via store or local state handling in UI)
-      // For now, relies on UI below
-
     } catch (err: any) {
-      console.error(err);
+      console.error('[Unlock] Process Error:', err);
       store.setError(err.message || 'Claim failed');
     } finally {
       setClaimStatus('');
