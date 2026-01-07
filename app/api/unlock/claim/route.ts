@@ -25,37 +25,41 @@ export async function POST(req: Request) {
         }
 
         const owner = new PublicKey(address);
-        const tx = new Transaction();
+        const MAX_ACCOUNTS_PER_TX = 20;
 
-        // Batch limit safety (stay under transaction size limits)
-        // 20 accounts is a safe conservative limit for a single TX
-        const batch = accounts.slice(0, 20);
-
-        for (const acc of batch) {
-            tx.add(
-                createCloseAccountInstruction(
-                    new PublicKey(acc), // account to close
-                    owner,              // destination for rent SOL
-                    owner,              // authority
-                    [],
-                    TOKEN_PROGRAM_ID
-                )
-            );
+        // Chunk accounts
+        const chunks: string[][] = [];
+        for (let i = 0; i < accounts.length; i += MAX_ACCOUNTS_PER_TX) {
+            chunks.push(accounts.slice(i, i + MAX_ACCOUNTS_PER_TX));
         }
 
-        tx.feePayer = owner;
         const { blockhash } = await connection.getLatestBlockhash();
-        tx.recentBlockhash = blockhash;
+        const batches: string[] = [];
 
-        // Serialize partially (unsigned)
-        const serialized = tx.serialize({ requireAllSignatures: false }).toString('base64');
+        for (const chunk of chunks) {
+            const tx = new Transaction();
+            for (const acc of chunk) {
+                tx.add(
+                    createCloseAccountInstruction(
+                        new PublicKey(acc),
+                        owner,
+                        owner,
+                        [],
+                        TOKEN_PROGRAM_ID
+                    )
+                );
+            }
+            tx.feePayer = owner;
+            tx.recentBlockhash = blockhash;
+            batches.push(tx.serialize({ requireAllSignatures: false }).toString('base64'));
+        }
 
         return NextResponse.json({
-            transaction: serialized,
-            count: batch.length
+            batches,
+            totalProcessed: accounts.length
         });
     } catch (err: any) {
         console.error('[Unlock Claim] Error:', err);
-        return NextResponse.json({ error: 'Failed to build transaction' }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to build transactions' }, { status: 500 });
     }
 }
