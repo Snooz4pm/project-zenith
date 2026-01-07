@@ -2,9 +2,10 @@
 
 import { FC, ReactNode, useMemo } from 'react';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
+import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 
-// Note: WalletModalProvider removed — we use direct Phantom connection (Jupiter-style)
+import '@solana/wallet-adapter-react-ui/styles.css';
 
 export const Providers: FC<{ children: ReactNode }> = ({ children }) => {
   // Use Helius RPC with API key (matches SolanaWalletProvider pattern)
@@ -28,8 +29,10 @@ export const Providers: FC<{ children: ReactNode }> = ({ children }) => {
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect={false}>
-        {children}
+      <WalletProvider wallets={wallets} autoConnect>
+        <WalletModalProvider>
+          {children}
+        </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
   );
