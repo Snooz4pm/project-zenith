@@ -1,0 +1,1347 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  emailVerified DateTime?
+  password_hash String?
+  provider      String?   @default("google")
+  name          String?
+  image         String?   // NextAuth expects 'image', not 'avatar'
+  created_at    DateTime  @default(now())
+  last_login    DateTime?
+
+  // Launch-critical fields
+  calibrationCompleted Boolean  @default(false)
+  tier                 String   @default("free")
+  tradingStyle         Json?
+
+  // PayPal Subscription fields
+  subscriptionId       String?  // PayPal subscription ID
+  subscriptionStatus   String?  @default("inactive") // active, canceled, expired, inactive
+  subscriptionStart    DateTime?
+  subscriptionEnd      DateTime?
+  paypalCustomerId     String?  // PayPal customer/payer ID
+
+  // NextAuth relations
+  accounts      Account[]
+  sessions      Session[]
+  tradingNotes  TradingNote[]
+  activities    Activity[]    @relation("UserActivities")
+
+  // Personalization relations
+  preferences           UserPreferences?       @relation("UserPreferences")
+  assetViews            UserAssetView[]        @relation("UserAssetViews")
+  watchlists            UserWatchlist[]        @relation("UserWatchlists")
+  signalInteractions    UserSignalInteraction[] @relation("UserSignalInteractions")
+
+  courseProgress        UserCourseProgress[]    @relation("UserCourseProgress")
+  journals              TradeJournal[]          @relation("UserJournals")
+  portfolio             Portfolio?              @relation("UserPortfolio")
+  newsResponses         NewsResponse[]          @relation("UserNewsResponses")
+  intelProfile          UserIntelProfile?       @relation("UserIntelProfile")
+
+  // Community System relations
+  posts                 CommunityPost[]         @relation("UserPosts")
+  comments              Comment[]               @relation("UserComments")
+  notifications         Notification[]          @relation("UserNotifications")
+  sourceNotifications   Notification[]          @relation("SourceUserNotifications")
+  conversationsAsA      Conversation[]          @relation("ConversationsAsA")
+  conversationsAsB      Conversation[]          @relation("ConversationsAsB")
+  sentMessages          DirectMessage[]         @relation("SentMessages")
+
+  // Trader Rooms relations
+  createdRooms          Room[]                  @relation("CreatedRooms")
+  roomMemberships       RoomMembership[]        @relation("UserRoomMemberships")
+  roomJoinRequests      RoomJoinRequest[]       @relation("UserRoomJoinRequests")
+  
+  // Decision Lab
+  decisionAttempts      DecisionAttempt[]
+
+  // Discipline Gate
+  disciplineState       DisciplineState?
+}
+
+// Required by NextAuth PrismaAdapter for OAuth
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// Required by NextAuth PrismaAdapter for sessions
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model articles {
+  id                  Int       @id @default(autoincrement())
+  hash                String    @unique @db.VarChar(64)
+  title               String
+  article             String
+  url                 String
+  source              String    @db.VarChar(255)
+  category            String    @default("General") @db.VarChar(50)
+  category_confidence Decimal?  @default(0.0) @db.Decimal(3, 2)
+  matched_keywords    Json?     @default("[]")
+  fetched_at          DateTime  @default(now()) @db.Timestamp(6)
+  published_at        DateTime? @db.Timestamp(6)
+  word_count          Int?
+  sentiment_score     Decimal?  @db.Decimal(3, 2)
+  importance_score    Decimal?  @db.Decimal(3, 2)
+  created_at          DateTime  @default(now()) @db.Timestamp(6)
+  updated_at          DateTime  @default(now()) @db.Timestamp(6)
+  why_it_matters      String?
+
+  @@index([category], map: "idx_articles_category")
+  @@index([category, fetched_at(sort: Desc)], map: "idx_articles_category_fetched")
+  @@index([fetched_at(sort: Desc)], map: "idx_articles_fetched_at")
+  @@index([hash], map: "idx_articles_hash")
+  @@index([matched_keywords], map: "idx_articles_keywords", type: Gin)
+  @@index([source], map: "idx_articles_source")
+}
+
+model categories {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique @db.VarChar(50)
+  description   String?
+  keyword_count Int?     @default(0)
+  article_count Int?     @default(0)
+  created_at    DateTime @default(now()) @db.Timestamp(6)
+}
+
+model community_comments {
+  id         Int       @id @default(autoincrement())
+  post_id    Int?
+  user_id    String    @db.VarChar(255)
+  username   String    @db.VarChar(255)
+  content    String
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model community_likes {
+  user_id String @db.VarChar(255)
+  post_id Int
+
+  @@id([user_id, post_id])
+}
+
+model community_posts {
+  id             Int       @id @default(autoincrement())
+  user_id        String    @db.VarChar(255)
+  username       String    @db.VarChar(255)
+  avatar         String?
+  type           String    @db.VarChar(50)
+  content        String
+  asset          Json?
+  likes_count    Int?      @default(0)
+  comments_count Int?      @default(0)
+  created_at     DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model playing_with_neon {
+  id    Int    @id @default(autoincrement())
+  name  String
+  value Float? @db.Real
+}
+
+model product_outcomes {
+  id                    Int       @id @default(autoincrement())
+  keyword               String?   @db.VarChar
+  avg_price             Float?
+  supplier_count        Int?
+  listing_count         Int?
+  predicted_opportunity Float?
+  confidence            String?   @db.VarChar
+  is_red_ocean          Boolean?
+  created_at            DateTime? @db.Timestamp(6)
+
+  @@index([id], map: "ix_product_outcomes_id")
+  @@index([keyword], map: "ix_product_outcomes_keyword")
+}
+
+model source_stats {
+  id             Int       @id @default(autoincrement())
+  source         String    @unique @db.VarChar(255)
+  total_articles Int?      @default(0)
+  last_scraped   DateTime? @db.Timestamp(6)
+  success_rate   Decimal?  @default(100.0) @db.Decimal(5, 2)
+  avg_confidence Decimal?  @default(0.0) @db.Decimal(3, 2)
+  created_at     DateTime  @default(now()) @db.Timestamp(6)
+}
+
+model trading_assets {
+  id               Int       @id @default(autoincrement())
+  symbol           String    @unique @db.VarChar(20)
+  name             String?   @db.VarChar(100)
+  asset_type       String    @db.VarChar(20)
+  current_price    Decimal?  @default(0) @db.Decimal(20, 8)
+  price_change_24h Decimal?  @default(0) @db.Decimal(10, 4)
+  high_24h         Decimal?  @default(0) @db.Decimal(20, 8)
+  low_24h          Decimal?  @default(0) @db.Decimal(20, 8)
+  volume_24h       Decimal?  @default(0) @db.Decimal(20, 2)
+  market_cap       Decimal?  @default(0) @db.Decimal(25, 2)
+  last_updated     DateTime? @default(now()) @db.Timestamp(6)
+  is_active        Boolean?  @default(true)
+  max_leverage     Int?      @default(5)
+
+  @@index([symbol], map: "idx_trading_assets_symbol")
+  @@index([asset_type], map: "idx_trading_assets_type")
+}
+
+model trading_holdings {
+  id                     Int       @id @default(autoincrement())
+  user_id                Int?
+  asset_id               Int?
+  symbol                 String    @db.VarChar(20)
+  quantity               Decimal   @default(0) @db.Decimal(20, 8)
+  avg_buy_price          Decimal   @default(0) @db.Decimal(20, 8)
+  leverage               Int?      @default(1)
+  margin_used            Decimal?  @default(0) @db.Decimal(20, 2)
+  entry_value            Decimal?  @default(0) @db.Decimal(20, 2)
+  current_value          Decimal?  @default(0) @db.Decimal(20, 2)
+  unrealized_pnl         Decimal?  @default(0) @db.Decimal(20, 2)
+  unrealized_pnl_percent Decimal?  @default(0) @db.Decimal(10, 4)
+  stop_loss_price        Decimal?  @db.Decimal(20, 8)
+  take_profit_price      Decimal?  @db.Decimal(20, 8)
+  liquidation_price      Decimal?  @db.Decimal(20, 8)
+  created_at             DateTime? @default(now()) @db.Timestamp(6)
+  updated_at             DateTime? @default(now()) @db.Timestamp(6)
+
+  @@unique([user_id, asset_id])
+  @@index([asset_id], map: "idx_trading_holdings_asset")
+  @@index([user_id], map: "idx_trading_holdings_user")
+}
+
+model trading_pending_orders {
+  id                Int       @id @default(autoincrement())
+  user_id           Int?
+  asset_id          Int?
+  symbol            String    @db.VarChar(20)
+  order_type        String    @db.VarChar(20)
+  trade_type        String    @db.VarChar(10)
+  quantity          Decimal   @db.Decimal(20, 8)
+  leverage          Int?      @default(1)
+  trigger_price     Decimal   @db.Decimal(20, 8)
+  limit_price       Decimal?  @db.Decimal(20, 8)
+  stop_loss_price   Decimal?  @db.Decimal(20, 8)
+  take_profit_price Decimal?  @db.Decimal(20, 8)
+  margin_reserved   Decimal?  @default(0) @db.Decimal(20, 2)
+  status            String?   @default("pending") @db.VarChar(20)
+  expires_at        DateTime? @db.Timestamp(6)
+  created_at        DateTime? @default(now()) @db.Timestamp(6)
+  triggered_at      DateTime? @db.Timestamp(6)
+  cancelled_at      DateTime? @db.Timestamp(6)
+
+  @@index([user_id], map: "idx_pending_orders_user")
+}
+
+model trading_portfolio_history {
+  id              Int       @id @default(autoincrement())
+  user_id         Int?
+  portfolio_value Decimal   @db.Decimal(20, 2)
+  wallet_balance  Decimal   @db.Decimal(20, 2)
+  total_pnl       Decimal?  @default(0) @db.Decimal(20, 2)
+  recorded_at     DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([user_id, recorded_at(sort: Desc)], map: "idx_portfolio_history_user_time")
+}
+
+model trading_trades {
+  id                 Int       @id @default(autoincrement())
+  user_id            Int?
+  asset_id           Int?
+  symbol             String    @db.VarChar(20)
+  trade_type         String    @db.VarChar(10)
+  order_type         String?   @default("market") @db.VarChar(20)
+  quantity           Decimal   @db.Decimal(20, 8)
+  leverage           Int?      @default(1)
+  price_at_execution Decimal   @db.Decimal(20, 8)
+  total_value        Decimal   @db.Decimal(20, 2)
+  margin_cost        Decimal?  @default(0) @db.Decimal(20, 2)
+  stop_loss_price    Decimal?  @db.Decimal(20, 8)
+  take_profit_price  Decimal?  @db.Decimal(20, 8)
+  realized_pnl       Decimal?  @default(0) @db.Decimal(20, 2)
+  status             String?   @default("executed") @db.VarChar(20)
+  trigger_type       String?   @db.VarChar(20)
+  executed_at        DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([status], map: "idx_trading_trades_status")
+  @@index([executed_at(sort: Desc)], map: "idx_trading_trades_time")
+  @@index([user_id], map: "idx_trading_trades_user")
+}
+
+model trading_users {
+  id                 Int       @id @default(autoincrement())
+  session_id         String    @unique @db.VarChar(100)
+  username           String?   @db.VarChar(50)
+  wallet_balance     Decimal?  @default(10000.00) @db.Decimal(20, 2)
+  margin_used        Decimal?  @default(0.00) @db.Decimal(20, 2)
+  available_margin   Decimal?  @default(10000.00) @db.Decimal(20, 2)
+  portfolio_value    Decimal?  @default(10000.00) @db.Decimal(20, 2)
+  total_pnl          Decimal?  @default(0.00) @db.Decimal(20, 2)
+  realized_pnl       Decimal?  @default(0.00) @db.Decimal(20, 2)
+  unrealized_pnl     Decimal?  @default(0.00) @db.Decimal(20, 2)
+  total_trades       Int?      @default(0)
+  winning_trades     Int?      @default(0)
+  losing_trades      Int?      @default(0)
+  win_rate           Decimal?  @default(0.00) @db.Decimal(5, 2)
+  max_leverage       Int?      @default(5)
+  created_at         DateTime? @default(now()) @db.Timestamp(6)
+  last_active        DateTime? @default(now()) @db.Timestamp(6)
+  is_premium         Boolean?  @default(false)
+  premium_expires_at DateTime? @db.Timestamp(6)
+
+  @@index([portfolio_value(sort: Desc)], map: "idx_trading_users_portfolio")
+  @@index([session_id], map: "idx_trading_users_session")
+}
+
+model user_sessions {
+  id            Int       @id @default(autoincrement())
+  user_id       Int?
+  session_token String    @unique @db.VarChar(255)
+  expires_at    DateTime  @db.Timestamp(6)
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([session_token], map: "idx_user_sessions_token")
+}
+
+model users {
+  id              Int       @id @default(autoincrement())
+  google_id       String    @unique @db.VarChar(255)
+  email           String    @unique @db.VarChar(255)
+  name            String?   @db.VarChar(255)
+  profile_picture String?
+  created_at      DateTime? @default(now()) @db.Timestamp(6)
+  last_login      DateTime? @default(now()) @db.Timestamp(6)
+  is_active       Boolean?  @default(true)
+
+  @@index([email], map: "idx_users_email")
+  @@index([google_id], map: "idx_users_google_id")
+}
+
+model zenith_scores {
+  symbol     String    @id @db.VarChar(20)
+  score      Decimal?  @db.Decimal(5, 2)
+  change_24h Decimal?  @db.Decimal(10, 4)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model UserTrait {
+  id                Int      @id @default(autoincrement())
+  user_id           String   @unique @db.VarChar(255)
+  analytical_depth  Int      @default(0)
+  risk_discipline   Int      @default(0)
+  adaptability      Int      @default(0)
+  consistency       Int      @default(0)
+  emotional_stability Int    @default(0)
+  calibration_confidence Int    @default(0)
+  updated_at        DateTime @default(now()) @updatedAt
+
+  @@index([user_id], map: "idx_user_traits_user")
+}
+
+model PathDefinition {
+  id          String   @id @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?
+  created_at  DateTime @default(now())
+}
+
+model UserPathScore {
+  id         Int      @id @default(autoincrement())
+  user_id    String   @db.VarChar(255)
+  path_id    String   @db.VarChar(50)
+  score      Int      @default(0)
+  confidence Int      @default(0)
+  updated_at DateTime @default(now()) @updatedAt
+
+  @@unique([user_id, path_id])
+  @@index([user_id], map: "idx_user_path_scores_user")
+}
+
+// ========================
+// PHASE 2: COMMUNITY ENHANCEMENTS
+// ========================
+
+model community_follows {
+  id           Int       @id @default(autoincrement())
+  follower_id  String    @db.VarChar(255)
+  following_id String    @db.VarChar(255)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+
+  @@unique([follower_id, following_id])
+  @@index([follower_id], map: "idx_follows_follower")
+  @@index([following_id], map: "idx_follows_following")
+}
+
+model shared_trades {
+  id               Int       @id @default(autoincrement())
+  user_id          String    @db.VarChar(255)
+  trade_id         Int
+  symbol           String    @db.VarChar(20)
+  trade_type       String    @db.VarChar(10)
+  entry_price      Decimal   @db.Decimal(20, 8)
+  exit_price       Decimal?  @db.Decimal(20, 8)
+  pnl              Decimal?  @db.Decimal(20, 2)
+  pnl_percent      Decimal?  @db.Decimal(10, 4)
+  caption          String?
+  likes_count      Int       @default(0)
+  comments_count   Int       @default(0)
+  is_open          Boolean   @default(true)
+  shared_at        DateTime? @default(now()) @db.Timestamp(6)
+  closed_at        DateTime? @db.Timestamp(6)
+
+  @@index([user_id], map: "idx_shared_trades_user")
+  @@index([shared_at(sort: Desc)], map: "idx_shared_trades_time")
+}
+
+// ========================
+// PHASE 3: BADGE SYSTEM
+// ========================
+
+model badges {
+  id          String   @id @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String
+  icon        String   @db.VarChar(10)
+  category    String   @db.VarChar(50)
+  rarity      String   @default("common") @db.VarChar(20)
+  requirement String?
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+}
+
+model user_badges {
+  id         Int       @id @default(autoincrement())
+  user_id    String    @db.VarChar(255)
+  badge_id   String    @db.VarChar(50)
+  earned_at  DateTime  @default(now()) @db.Timestamp(6)
+  is_pinned  Boolean   @default(false)
+
+  @@unique([user_id, badge_id])
+  @@index([user_id], map: "idx_user_badges_user")
+}
+
+model user_profiles {
+  id              Int       @id @default(autoincrement())
+  user_id         String    @unique @db.VarChar(255)
+  display_name    String?   @db.VarChar(100)
+  bio             String?
+  career_path     String?   @db.VarChar(50)
+  experience_level String?  @default("beginner") @db.VarChar(20)
+  twitter_handle  String?   @db.VarChar(50)
+  discord_handle  String?   @db.VarChar(50)
+  is_public       Boolean   @default(true)
+  show_trades     Boolean   @default(true)
+  show_badges     Boolean   @default(true)
+  created_at      DateTime  @default(now()) @db.Timestamp(6)
+  updated_at      DateTime  @default(now()) @db.Timestamp(6)
+
+  @@index([career_path], map: "idx_profiles_path")
+}
+
+// ========================
+// PHASE 5: TRADING NOTES
+// ========================
+
+model TradingNote {
+  id           Int      @id @default(autoincrement())
+  userId       String   @db.VarChar(255)
+  content      String   @db.Text
+  sentiment    String?  @db.VarChar(20)  // Bullish, Bearish, Neutral
+  phase        String?  @db.VarChar(20)  // Pre-market, Entry, etc.
+  asset        String?  @db.VarChar(20)  // Ticker symbol
+  stressLevel  Int?     @default(3)      // 1-5 scale
+  mood         String?  @db.VarChar(10)  // Emoji
+  snapshotUrl  String?  @db.Text         // Image link or base64
+  
+  // New field for Decision Lab & structured data
+  metadata     Json?    
+  
+  createdAt    DateTime @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime @default(now()) @updatedAt @db.Timestamp(6)
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_trading_notes_user")
+  @@index([createdAt(sort: Desc)], map: "idx_trading_notes_time")
+}
+
+// ========================
+// CONVERSION STRATEGY: PERSONALIZATION TABLES
+// ========================
+
+model UserPreferences {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation("UserPreferences", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Calibration data
+  riskTolerance    Int?     @default(5) // 1-10 scale
+  timeHorizon      String?  // "short", "medium", "long"
+  analysisStyle    String?  // "technical", "fundamental", "both"
+  patienceLevel    Int?     // 1-10 scale
+  learningBias     Int?     // 1-10 scale (action vs learning)
+  userArchetype    String?  // "conservative", "moderate", "aggressive"
+
+  // Preferences
+  defaultView      String?  @default("market")
+  notifications    Json?    @default("{}")
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model UserAssetView {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation("UserAssetViews", fields: [userId], references: [id], onDelete: Cascade)
+
+  assetType        String   // "crypto", "stocks", "forex"
+  symbol           String   // "BTC", "AAPL", "EURUSD"
+  name             String?
+
+  // Tracking data
+  viewCount        Int      @default(1)
+  lastViewed       DateTime @default(now())
+  firstViewed      DateTime @default(now())
+
+  // Performance tracking (for "Your Edge")
+  notes            String?
+  userRating       Int?     // 1-5 stars
+  winLoss          Boolean? // true = win, false = loss
+
+  @@unique([userId, assetType, symbol])
+  @@index([userId, lastViewed])
+  @@index([assetType, symbol])
+}
+
+model UserWatchlist {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation("UserWatchlists", fields: [userId], references: [id], onDelete: Cascade)
+
+  assetType        String   // "crypto", "stocks", "forex"
+  symbol           String
+  name             String?
+  addedAt          DateTime @default(now())
+  notes            String?
+
+  @@unique([userId, assetType, symbol])
+  @@index([userId, addedAt])
+}
+
+model UserSignalInteraction {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation("UserSignalInteractions", fields: [userId], references: [id], onDelete: Cascade)
+
+  signalId         String
+  assetType        String
+  symbol           String
+
+  // Interaction data
+  viewed           Boolean  @default(true)
+  saved            Boolean  @default(false)
+  actedUpon        Boolean? // Did they trade this?
+  profitLoss       Float?   // If actedUpon, result
+  confidence       Int?     // 1-10 how confident they were
+
+  interactedAt     DateTime @default(now())
+
+  @@index([userId, interactedAt])
+  @@index([signalId])
+}
+
+// ========================
+// LAUNCH CORE: ACTIVITY TRACKING
+// ========================
+
+model Activity {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("UserActivities", fields: [userId], references: [id], onDelete: Cascade)
+
+  type       String   // view, note, watchlist, lesson, trade_mock
+  targetId   String?  // asset symbol, note id, etc.
+  targetType String?  // asset, note, lesson
+  metadata   Json?
+
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type])
+}
+
+// ========================
+// PHASE 1: CHART CACHE
+// ========================
+
+model ChartCache {
+  id         String   @id @default(cuid())
+
+  symbol     String   @db.VarChar(20)
+  assetType  String   @db.VarChar(10)  // stock, crypto, forex
+  timeframe  String   @db.VarChar(5)   // 1m, 5m, 15m, 30m, 1H, 1D, 1W, 1M
+  range      String   @db.VarChar(5)   // 1D, 1W, 1M, 3M, 6M, 1Y, 5Y, ALL
+
+  data       Json     // OHLCV array
+  provider   String   @db.VarChar(20)  // finnhub, alpha_vantage, dexscreener
+
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+
+  @@unique([symbol, timeframe, range])
+  @@index([symbol])
+  @@index([expiresAt])
+}
+
+// ========================
+// PHASE 7: REAL-TIME DATA FOUNDATION
+// ========================
+
+model PriceHistory {
+  id          Int      @id @default(autoincrement())
+  symbol      String   @db.VarChar(20)
+  assetType   String   @db.VarChar(10) // crypto, stock, forex
+  price       Decimal  @db.Decimal(20, 8)
+  volume      Decimal? @db.Decimal(20, 2)
+  timestamp   DateTime @default(now()) @db.Timestamp(6)
+  source      String   @db.VarChar(20) // 'alpha_vantage', 'dexscreener', 'finnhub', 'verified_dual'
+
+  @@index([symbol, timestamp(sort: Desc)], map: "idx_price_history_symbol_time")
+  @@index([assetType], map: "idx_price_history_type")
+  @@index([timestamp(sort: Desc)], map: "idx_price_history_time")
+}
+
+// ========================
+// PHASE 8: TRUE LIFETIME ZENITH SCORE
+// ========================
+
+model AssetLifetimeScore {
+  id            String   @id @default(cuid())
+  symbol        String   @unique
+  assetType     String   // 'stock', 'crypto', 'forex'
+  launchDate    DateTime // IPO date or token launch
+  firstPrice    Float    // First recorded price
+
+  // Lifetime metrics (calculated once, updated periodically)
+  lifetimeReturn  Float    // Total return since launch
+  volatilityScore Float    // 0-100, lower volatility = higher score
+  consistencyScore Float   // 0-100, how consistent are gains
+  recoveryScore   Float    // 0-100, how well it recovers from drawdowns
+  volumeScore     Float    // 0-100, lifetime volume consistency
+
+  // Timeframe-adjusted weights
+  weights         Json     // { daily: 0.2, weekly: 0.3, monthly: 0.5 }
+
+  // Final scores
+  baseScore       Float    // 0-100, lifetime score
+  currentScore    Float    // 0-100, adjusted for current conditions
+  trendScore      Float    // -100 to +100, current trend strength
+
+  updatedAt      DateTime @updatedAt
+  lastCalculated DateTime
+
+  @@index([symbol])
+  @@index([baseScore])
+  @@index([currentScore])
+}
+
+model TimeframeAnalysis {
+  id        String   @id @default(cuid())
+  symbol    String
+  timeframe String   // '1D', '1W', '1M', '1Y', 'ALL'
+  data      Json     // OHLCV for this timeframe
+  metrics   Json     // Calculated metrics
+  score     Float    // Score for this timeframe only
+  weight    Float    // How much this timeframe contributes to total
+
+  @@unique([symbol, timeframe])
+  @@index([symbol])
+}
+
+model MarketCandle {
+  id        String   @id @default(cuid())
+
+  symbol    String
+  timeframe String
+  timestamp DateTime
+
+  open      Decimal  @db.Decimal(20, 8)
+  high      Decimal  @db.Decimal(20, 8)
+  low       Decimal  @db.Decimal(20, 8)
+  close     Decimal  @db.Decimal(20, 8)
+  volume    Decimal  @db.Decimal(20, 2)
+
+  source    String   @db.VarChar(20) // 'alphavantage' | 'finnhub' | 'dexscreener'
+  createdAt DateTime @default(now())
+
+  @@unique([symbol, timeframe, timestamp])
+  @@index([symbol, timeframe, timestamp])
+}
+
+// ========================
+// CHART ALERT SYSTEM
+// ========================
+
+model PriceAlert {
+  id            String   @id @default(cuid())
+  userId        String   @db.VarChar(255)
+
+  // Alert target
+  symbol        String   @db.VarChar(20)
+  assetType     String   @db.VarChar(10) // stock, crypto, forex
+  targetPrice   Decimal  @db.Decimal(20, 8)
+  direction     String   @db.VarChar(10) // 'above', 'below', 'cross'
+
+  // Alert context
+  note          String?  @db.Text // User's thesis/reason
+  chartSnapshot String?  @db.Text // Optional base64 or URL
+
+  // Prediction tracking (gamification)
+  predictedDirection String? @db.VarChar(10) // 'up', 'down', null
+  predictedWithin    Int?     // Hours until target should hit
+
+  // Status
+  status        String   @default("active") @db.VarChar(20) // active, triggered, expired, cancelled
+  priceAtCreation Decimal @db.Decimal(20, 8)
+  priceAtTrigger  Decimal? @db.Decimal(20, 8)
+
+  // Timestamps
+  createdAt     DateTime @default(now())
+  triggeredAt   DateTime?
+  expiresAt     DateTime?
+
+  // Scoring (was prediction correct?)
+  wasCorrect    Boolean?
+  pointsEarned  Int?     @default(0)
+
+  @@index([userId], map: "idx_price_alerts_user")
+  @@index([symbol], map: "idx_price_alerts_symbol")
+  @@index([status], map: "idx_price_alerts_status")
+  @@index([createdAt(sort: Desc)], map: "idx_price_alerts_time")
+}
+
+// ========================
+// PHASE 6: LEARNING PROGRESS
+// ========================
+
+model UserCourseProgress {
+  id                  String   @id @default(cuid())
+  userId              String   @db.VarChar(255)
+  courseId            String   @db.VarChar(100)
+  completed           Boolean  @default(false)
+  progress            Int      @default(0) // 0-100
+  lastModuleCompleted String?  @db.VarChar(100)
+  updatedAt           DateTime @default(now()) @updatedAt
+
+  user User? @relation("UserCourseProgress", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+// ========================
+// NOTEBOOK SYSTEM (Flight Recorder)
+// ========================
+
+model TradeJournal {
+  id          String   @id @default(cuid())
+  userId      String   @db.VarChar(255)
+  title       String?  @db.VarChar(255)
+  assetSymbol String?  @db.VarChar(20)
+
+  // Mission type: 'mission' for live tracking, 'deep_dive' for research
+  type        String   @default("mission") @db.VarChar(20)
+
+  // Phase Locks: BRIEFING -> LIVE -> DEBRIEF -> ARCHIVED
+  status      String   @default("BRIEFING") @db.VarChar(20)
+
+  // Content Blocks (Using JSON for flexible structured data)
+  // Thesis: Array of { type: 'hypothesis'|'fact'|'intuition'|'rule', content: string, conviction: number }
+  thesis      Json?    @default("[]")
+
+  // The Flight Recorder: Append-only log during execution
+  // LiveLog: Array of { id: string, timestamp: Date, content: string, sentiment: 'fear'|'neutral'|'greed'|'confidence' }
+  liveLog     Json?    @default("[]")
+
+  // The Scorecard (Post-Trade)
+  outcome        String?  @db.VarChar(20) // WIN / LOSS / BE
+  disciplineScore Int?     @default(0)    // 0-100
+  reviewNotes    String?  @db.Text
+
+  // Telemetry (Context at creation)
+  marketContext  Json?    // { vix: 14.2, regime: 'BULL_TREND', session: 'NY' }
+
+  tags           String[] @default([])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User? @relation("UserJournals", fields: [userId], references: [id], onDelete: Cascade)
+  missionUpdates MissionUpdate[]
+
+  @@index([userId])
+  @@index([assetSymbol])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt(sort: Desc)])
+}
+
+// Mission Updates: Append-only observations from Asset Detail pages
+model MissionUpdate {
+  id          String   @id @default(cuid())
+  journalId   String
+
+  price       Float?   // Current price when update was made
+  note        String   @db.Text
+  source      String   @db.VarChar(20) // 'asset_page' | 'notebook'
+
+  createdAt   DateTime @default(now())
+
+  journal     TradeJournal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@index([journalId])
+  @@index([createdAt(sort: Desc)])
+}
+
+// ========================
+// TRADING ENGINE (Ledger-Based)
+// ========================
+
+model Portfolio {
+  id              String   @id @default(cuid())
+  userId          String   @unique @db.VarChar(255)
+
+  balance         Float    @default(50000) // Available Cash (USDT) - Default 50k paper
+  totalRealizedPnL Float   @default(0)     // Lifetime PnL
+
+  positions       Position[]
+  trades          Trade[]
+  snapshots       PortfolioSnapshot[]
+
+  updatedAt       DateTime @updatedAt
+  user            User     @relation("UserPortfolio", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Position {
+  id              String   @id @default(cuid())
+  portfolioId     String
+
+  symbol          String   @db.VarChar(20) // BTCUSD, AAPL
+  quantity        Float    // Amount held
+  avgEntryPrice   Float    // Weighted Average Price
+
+  portfolio       Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, symbol]) // One position per asset per user
+}
+
+model Trade {
+  id              String   @id @default(cuid())
+  portfolioId     String
+
+  symbol          String   @db.VarChar(20)
+  side            String   // 'BUY' or 'SELL'
+  quantity        Float    // Always positive
+  price           Float    // Execution Price
+
+  // For Sells Only:
+  realizedPnL     Float?
+
+  timestamp       DateTime @default(now())
+
+  portfolio       Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, timestamp])
+}
+
+model PortfolioSnapshot {
+  id          String   @id @default(cuid())
+  portfolioId String
+  timestamp   DateTime @default(now())
+  totalEquity Float    // Cash + Position Value at snapshot time
+
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, timestamp])
+}
+
+// ========================
+// NEWS INTELLIGENCE: Market Bias Tracking
+// ========================
+
+model NewsResponse {
+  id        String   @id @default(cuid())
+  userId    String   @db.VarChar(255)
+  articleId Int      // References articles.id from news database
+
+  // User's market bias based on this news
+  bias      String   @db.VarChar(10) // 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'UNCLEAR'
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user      User     @relation("UserNewsResponses", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Constraints
+  @@unique([userId, articleId]) // One response per user per article
+  @@index([userId])
+  @@index([articleId])
+  @@index([bias])
+  @@index([createdAt(sort: Desc)])
+}
+
+// ========================
+// INTELLIGENCE FEED SYSTEM
+// ========================
+
+model IntelligenceItem {
+  id          String   @id @default(cuid())
+  source      String   @db.VarChar(50) // 'finnhub' | 'alphavantage'
+  externalId  String   @unique
+  headline    String   @db.VarChar(500)
+  summary     String?  @db.Text
+  url         String
+  imageUrl    String?
+  publishedAt DateTime
+  assetTags   String[] @default([])
+  category    String?  @db.VarChar(50) // 'earnings' | 'macro' | 'sector'
+  sentiment   Float?   @default(0)     // -1 to 1
+  impactScore Float?   @default(0)     // 0 to 100
+  createdAt   DateTime @default(now())
+
+  @@index([publishedAt(sort: Desc)])
+  @@index([assetTags])
+  @@index([category])
+}
+
+model UserIntelProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique @db.VarChar(255)
+  watchedAssets   String[] @default([])
+  attentionBias   Json?    // { crypto: 0.6, stocks: 0.3, forex: 0.1 }
+  lastViewed      DateTime?
+  clickHistory    Json?    // array of { itemId, timestamp }
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation("UserIntelProfile", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ========================
+// COMMUNITY SYSTEM
+// ========================
+
+model CommunityPost {
+  id          String   @id @default(cuid())
+  authorId    String
+  roomId      String?  // Nullable for backward compatibility
+  asset       String?  @db.VarChar(20)  // BTC, AAPL, EURUSD
+  marketType  String?  @db.VarChar(20)  // stock / crypto / forex
+  postType    String   @default("insight") @db.VarChar(20) // question / insight / thesis
+  title       String   @db.VarChar(200)
+  body        String   @db.VarChar(2000)
+  imageUrl    String?  @db.Text
+  resolved    Boolean  @default(false) // For questions
+  isPinned    Boolean  @default(false) // Pin to top of profile
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author      User     @relation("UserPosts", fields: [authorId], references: [id], onDelete: Cascade)
+  room        Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  comments    Comment[]
+
+  @@index([authorId])
+  @@index([createdAt(sort: Desc)])
+  @@index([asset])
+  @@index([postType])
+  @@index([roomId, createdAt(sort: Desc)])
+}
+
+model Comment {
+  id          String   @id @default(cuid())
+  postId      String
+  authorId    String
+  parentId    String?  // For nested replies (max depth 1)
+  body        String   @db.VarChar(1000)
+  createdAt   DateTime @default(now())
+
+  post        CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author      User     @relation("UserComments", fields: [authorId], references: [id], onDelete: Cascade)
+  parent      Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[] @relation("CommentReplies")
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+  @@index([createdAt(sort: Desc)])
+}
+
+model Notification {
+  id              String   @id @default(cuid())
+  userId          String   // Recipient
+  type            String   @db.VarChar(50) // COMMENT_ON_POST, DIRECT_MESSAGE
+  sourceUserId    String   // Who triggered it
+  sourceEntityId  String   // postId or conversationId
+  message         String?  @db.VarChar(200) // Preview text
+  read            Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  user            User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  sourceUser      User     @relation("SourceUserNotifications", fields: [sourceUserId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([sourceEntityId])
+}
+
+model Conversation {
+  id            String   @id @default(cuid())
+  participantA  String   // Always alphabetically first
+  participantB  String   // Always alphabetically second
+  lastMessageAt DateTime @default(now())
+  contextType   String?  @db.VarChar(20) // post / comment (what initiated)
+  contextId     String?  // postId or commentId
+  createdAt     DateTime @default(now())
+
+  userA         User     @relation("ConversationsAsA", fields: [participantA], references: [id], onDelete: Cascade)
+  userB         User     @relation("ConversationsAsB", fields: [participantB], references: [id], onDelete: Cascade)
+  messages      DirectMessage[]
+
+  @@unique([participantA, participantB])
+  @@index([participantA])
+  @@index([participantB])
+  @@index([lastMessageAt(sort: Desc)])
+}
+
+model DirectMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String   @db.VarChar(2000)
+  createdAt      DateTime @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([senderId])
+}
+
+// ========================
+// TRADER ROOMS SYSTEM
+// ========================
+
+model Room {
+  id               String   @id @default(cuid())
+  slug             String   @unique @db.VarChar(50)  // crypto-intraday
+  name             String   @db.VarChar(100)         // Crypto — Intraday
+  description      String   @db.VarChar(300)
+  marketType       String   @db.VarChar(20)          // crypto / stock / forex
+
+  // Room configuration
+  isSystem         Boolean  @default(false)          // System vs user-created
+  isPublic         Boolean  @default(true)           // Public vs private
+  requiresApproval Boolean  @default(false)          // Auto-join vs approval needed
+  maxMembers       Int?                              // Optional member cap
+
+  // Creator (null for system rooms)
+  creatorId        String?  @db.VarChar(255)
+
+  // Denormalized counts
+  memberCount      Int      @default(0)
+  postCount        Int      @default(0)
+
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  creator          User?             @relation("CreatedRooms", fields: [creatorId], references: [id], onDelete: SetNull)
+  members          RoomMembership[]
+  posts            CommunityPost[]
+  joinRequests     RoomJoinRequest[]
+
+  @@index([isActive, marketType])
+  @@index([slug])
+  @@index([creatorId])
+  @@index([isPublic, isActive])
+}
+
+model RoomMembership {
+  id        String   @id @default(cuid())
+  userId    String   @db.VarChar(255)
+  roomId    String
+
+  joinedAt  DateTime @default(now())
+
+  // Relations
+  user      User     @relation("UserRoomMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])  // Prevent duplicate memberships
+  @@index([userId])
+  @@index([roomId])
+}
+
+model RoomJoinRequest {
+  id         String   @id @default(cuid())
+  userId     String   @db.VarChar(255)
+  roomId     String
+  message    String?  @db.VarChar(500)  // Why they want to join
+  status     String   @default("pending") @db.VarChar(20)  // pending / approved / rejected
+
+  createdAt  DateTime @default(now())
+  reviewedAt DateTime?
+  reviewedBy String?  @db.VarChar(255)
+
+  // Relations
+  user       User     @relation("UserRoomJoinRequests", fields: [userId], references: [id], onDelete: Cascade)
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@index([roomId, status])
+  @@index([userId])
+  @@index([status])
+}
+
+// ========================
+// MARKET CONVICTION: PREDICTIONS SYSTEM
+// ========================
+
+model MarketPrediction {
+  id              String   @id @default(cuid())
+  authorId        String   @db.VarChar(255)
+  
+  // Prediction details
+  symbol          String   @db.VarChar(20)   // BTC, AAPL, EURUSD
+  assetType       String   @db.VarChar(10)   // crypto, stock, forex
+  direction       String   @db.VarChar(10)   // BULLISH, BEARISH
+  targetPrice     Float                       // Target price
+  currentPrice    Float                       // Price when prediction made
+  
+  // Timeframe
+  deadline        DateTime                    // When prediction expires
+  
+  // Thesis
+  thesis          String   @db.VarChar(500)  // Why they think this
+  confidence      Int      @default(50)      // 1-100 confidence level
+  
+  // Voting
+  agreesCount     Int      @default(0)
+  disagreesCount  Int      @default(0)
+  
+  // Resolution
+  status          String   @default("active") @db.VarChar(20) // active, resolved, expired
+  finalPrice      Float?                      // Price at deadline
+  wasCorrect      Boolean?                    // Was the prediction correct?
+  pointsEarned    Int      @default(0)        // Points earned/lost
+  resolvedAt      DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  votes           PredictionVote[]
+  
+  @@index([authorId])
+  @@index([symbol])
+  @@index([status])
+  @@index([deadline])
+  @@index([createdAt(sort: Desc)])
+}
+
+model PredictionVote {
+  id            String   @id @default(cuid())
+  predictionId  String
+  voterId       String   @db.VarChar(255)
+  
+  vote          String   @db.VarChar(10)   // AGREE or DISAGREE
+  
+  createdAt     DateTime @default(now())
+  
+  prediction    MarketPrediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+  
+  @@unique([predictionId, voterId])
+  @@index([predictionId])
+  @@index([voterId])
+}
+
+// User prediction stats (aggregated for performance)
+model UserPredictionStats {
+  id              String   @id @default(cuid())
+  userId          String   @unique @db.VarChar(255)
+  
+  totalPredictions Int     @default(0)
+  correctPredictions Int   @default(0)
+  incorrectPredictions Int @default(0)
+  pendingPredictions Int   @default(0)
+  
+  accuracyRate    Float    @default(0)      // Percentage
+  totalPoints     Int      @default(0)
+  streak          Int      @default(0)      // Current win streak
+  bestStreak      Int      @default(0)      // Best ever streak
+  
+  rank            Int?                       // Leaderboard position
+  
+  // Prop Firm Gamification
+  virtualBalance  Float    @default(50000)   // Starting $50k
+  maxDailyLoss    Float    @default(0)       // Track daily drawdown
+  
+  updatedAt       DateTime @updatedAt
+  
+  @@index([accuracyRate(sort: Desc)])
+  @@index([totalPoints(sort: Desc)])
+}
+
+// ========================
+// DECISION LAB MODELS
+// ========================
+
+model DecisionScenario {
+  id               String   @id @default(uuid())
+  title            String   @db.VarChar(255)
+  description      String?  @db.Text
+  marketType       String   @db.VarChar(20)  // crypto, forex, stocks
+  symbol           String   @db.VarChar(20)
+  timeframe        String   @db.VarChar(10)
+  difficulty       String   @default("medium") @db.VarChar(20)
+  isPremium        Boolean  @default(false)
+  
+  source           String   @db.VarChar(50)  // finnhub, alpha_vantage, dexscreener
+  startTime        DateTime @db.Timestamp(6)
+  pauseTime        DateTime @db.Timestamp(6)
+  endTime          DateTime @db.Timestamp(6)
+  basePrice        Float?   // Anchor price for all calculations (e.g., 65200 for BTC)
+  
+  // Immutable Data Snapshots
+  chartData        Json     // Full candle array [start -> end]
+  annotations      Json?    // Levels, zones, notes
+  
+  // Explanations
+  explanationSetup   String? @db.Text
+  explanationOutcome String? @db.Text
+  decisionPrompt     String? @db.Text  // "Do you catch the knife?"
+  eventName          String? @db.VarChar(255) // "COVID-19 market panic"
+  
+  createdAt        DateTime @default(now()) @db.Timestamp(6)
+  updatedAt        DateTime @default(now()) @updatedAt @db.Timestamp(6)
+
+  attempts         DecisionAttempt[]
+  
+  @@index([marketType], map: "idx_scenarios_market")
+  @@index([difficulty], map: "idx_scenarios_difficulty")
+  @@index([isPremium], map: "idx_scenarios_premium")
+}
+
+model DecisionAttempt {
+  id               String   @id @default(uuid())
+  scenarioId       String
+  userId           String
+  
+  choice           String   @db.VarChar(20)  // BUY, SELL, STAY_OUT
+  timeToDecisionMs Int      // Critical for behavioral analysis
+  
+  // Financial Result
+  pnl              Float?   // Profit/Loss in dollars
+  returnPercentage Float?   // ROI %
+  leverage         Int      @default(1) // 1x or 2x (Conviction)
+  stake            Int      @default(10000) // Bet size
+  
+  decidedAt        DateTime @default(now()) @db.Timestamp(6)
+  
+  scenario         DecisionScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Idempotency: One attempt per user per scenario (for now)
+  @@unique([userId, scenarioId])
+  @@index([userId], map: "idx_attempts_user")
+  @@index([scenarioId], map: "idx_attempts_scenario")
+}
+ 
+
+
+// ============================================
+// DISCIPLINE GATE (Psychological Guardrails)
+// ============================================
+
+model DisciplineState {
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  gateLevel         String    @default("beginner") // beginner, pro, expert
+  currentStatus     String    @default("open")     // open, warning, locked
+  
+  lockReason        String?
+  lockExplanation   String?
+  lockExpiresAt     DateTime?
+  
+  // JSON Blobs for flexible metrics
+  behavioralBaseline   Json?   // { avgHoldTime, avgTradesPerReview, etc }
+  sessionMetrics       Json?   // { switchesInLast2Min, tradesInLastHour }
+  
+  updatedAt         DateTime  @updatedAt
+  
+  violations        GateViolation[]
+  overrides         GateOverride[]
+}
+
+model GateViolation {
+  id                String    @id @default(uuid())
+  disciplineStateId String
+  disciplineState   DisciplineState @relation(fields: [disciplineStateId], references: [id], onDelete: Cascade)
+  
+  violationType     String    // overtrading, rapid_switching, revenge_trading, regime_chaos
+  severity          String    // warning, soft_lock, hard_lock
+  message           String
+  contextData       Json?     // { switchedFrom: 'AAPL', switchedTo: 'TSLA', timeDelta: 1200ms }
+  
+  createdAt         DateTime  @default(now())
+}
+
+model GateOverride {
+  id                String    @id @default(uuid())
+  disciplineStateId String
+  disciplineState   DisciplineState @relation(fields: [disciplineStateId], references: [id], onDelete: Cascade)
+  
+  reason            String?
+  forcedWait        Int       @default(0) // Seconds user had to hold the button
+  
+  createdAt         DateTime  @default(now())
+}

@@ -1,122 +1,49 @@
-# ============================================
-# CRITICAL SECURITY - NEVER COMMIT THESE FILES
-# ============================================
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Environment Variables (CONTAINS API KEYS & SECRETS)
-.env
-.env.*
-.env.local
-.env.production
-.env.development
-.env.test
-*.env
-.envrc
-ENV_VARIABLES.md
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
-# IDE and OS files
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
 .DS_Store
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+*.pem
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-# lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-.venv/
-venv/
-ENV/
-env/
-.pytest_cache/
-.coverage
-htmlcov/
-*.pyc
-
-# Node.js
-node_modules/
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-.npm
-.yarn/cache
-.yarn/unplugged
-.yarn/build-state.yml
-.yarn/install-state.gz
-.pnp.*
 
-# Next.js
-.next/
-out/
-build/
-dist/
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# Testing
-coverage/
-.nyc_output/
+# local scripts
+count_users.js
+check_scenarios.js
+inspect_data.js
 
-# Temporary files
-*.tmp
-*.temp
-probe_*.py
-test_*.py
-*_test.py
-*.bak
-*.backup
-
-# Database dumps
-*.sql
-*.db
-*.sqlite
-*.sqlite3
-
-# Logs
-logs/
-*.log
-
-# OS
-Thumbs.db
-.DS_Store
-desktop.ini
-
-# Vercel
-.vercel
-
-# Local development
-.local/
-local/
-tmp/
-temp/
-
-# Documentation that might contain sensitive info
-NOTES.md
-TODO.md
-SECRETS.md
-CREDENTIALS.md
-zenithscores-frontend/check_users.js
-.claude/settings.local.json
+# Test data files
+raydium-test.json

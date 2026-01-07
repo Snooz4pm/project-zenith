@@ -1,8 +1,0 @@
-backend/
-python/
-python_api/
-api/
-*.py
-pyproject.toml
-requirements.txt
-runtime.txt
