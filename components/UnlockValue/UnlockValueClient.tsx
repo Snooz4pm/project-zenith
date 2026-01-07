@@ -5,8 +5,10 @@ import { Transaction } from '@solana/web3.js';
 import { useUnlockValueStore } from './UnlockValueStore';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 
+import { Buffer } from 'buffer';
+
 export default function UnlockValueClient() {
-  const { publicKey, connected, signTransaction } = useWallet();
+  const { publicKey, connected, sendTransaction } = useWallet();
   const { setVisible } = useWalletModal();
   const { connection } = useConnection();
   const store = useUnlockValueStore();
@@ -61,8 +63,8 @@ export default function UnlockValueClient() {
 
     // Safety Checks
     if (!publicKey) return;
-    if (!signTransaction) {
-      store.setError("This wallet does not support signing transactions via the app. Please use Phantom or Solflare.");
+    if (!sendTransaction) {
+      store.setError("Wallet does not support transaction sending. Please use Phantom or Solflare.");
       return;
     }
     if (!accounts.length) return;
@@ -100,23 +102,20 @@ export default function UnlockValueClient() {
         const tx = Transaction.from(Buffer.from(txPath, 'base64'));
 
         try {
-          console.log(`[Unlock] Batch ${i + 1}: Requesting signature...`);
-          // A: Sign
-          const signed = await signTransaction(tx);
-          console.log(`[Unlock] Batch ${i + 1}: Signed. Sending...`);
+          console.log(`[Unlock] Batch ${i + 1}: Invoking wallet...`);
 
-          // B: Send Raw
-          const sig = await connection.sendRawTransaction(signed.serialize());
-          console.log(`[Unlock] Batch ${i + 1}: Sent. Sig: ${sig}`);
+          // Use standard sendTransaction hook (handles Signing + Sending)
+          const sig = await sendTransaction(tx, connection);
 
+          console.log(`[Unlock] Batch ${i + 1}: Sent! Signature: ${sig}`);
           setClaimStatus(`Confirming batch ${i + 1}...`);
+
           await connection.confirmTransaction(sig, 'confirmed');
           console.log(`[Unlock] Batch ${i + 1}: Confirmed.`);
 
         } catch (err: any) {
           console.error(`[Unlock] Batch ${i + 1} Failed:`, err);
-          // Stop strictly on error
-          throw new Error('Transaction rejected or failed. Stopping process.');
+          throw new Error('Transaction failed or rejected by wallet.');
         }
       }
 
