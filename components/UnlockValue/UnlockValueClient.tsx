@@ -3,9 +3,11 @@ import React, { useEffect, useState } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { Transaction } from '@solana/web3.js';
 import { useUnlockValueStore } from './UnlockValueStore';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 
 export default function UnlockValueClient() {
-  const { publicKey, connected, signTransaction } = useWallet();
+  const { publicKey, connected, signTransaction, connect } = useWallet();
+  const { setVisible } = useWalletModal();
   const { connection } = useConnection();
   const store = useUnlockValueStore();
   const [totalSol, setTotalSol] = useState<number>(0);
@@ -13,6 +15,10 @@ export default function UnlockValueClient() {
 
   // 2️⃣ Frontend: Scan Logic
   async function runScan() {
+    if (!connected) {
+      setVisible(true);
+      return;
+    }
     if (!publicKey) return;
 
     store.loading = true;
@@ -94,68 +100,76 @@ export default function UnlockValueClient() {
         </div>
       )}
 
-      {!connected ? (
-        <div className="p-8 bg-zinc-900 rounded border border-zinc-800 text-center text-zinc-500">
-          Connect wallet to scan
-        </div>
-      ) : (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between bg-zinc-900/50 p-6 rounded border border-zinc-800">
-            <div>
-              <div className="text-lg font-medium text-white">Total Recoverable</div>
-              <div className="text-3xl font-bold text-emerald-400">{totalSol.toFixed(4)} SOL</div>
-            </div>
+      {/* Main Content Area */}
+      <div className="space-y-6">
+        {!connected ? (
+          <div className="p-8 bg-zinc-900 rounded border border-zinc-800 text-center text-zinc-500">
+            <button
+              onClick={() => setVisible(true)}
+              className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-medium"
+            >
+              Connect Wallet to Scan
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between bg-zinc-900/50 p-6 rounded border border-zinc-800">
+              <div>
+                <div className="text-lg font-medium text-white">Total Recoverable</div>
+                <div className="text-3xl font-bold text-emerald-400">{totalSol.toFixed(4)} SOL</div>
+              </div>
 
-            <div className="flex gap-4">
-              <button
-                onClick={runScan}
-                disabled={store.loading || !!claimStatus}
-                className="px-6 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded font-medium disabled:opacity-50"
-              >
-                {store.loading ? 'Scanning...' : 'Scan Wallet'}
-              </button>
-
-              {totalSol > 0 && (
+              <div className="flex gap-4">
                 <button
-                  onClick={() => claim(store.recoverable.map(i => i.pubkey))}
-                  disabled={!!claimStatus}
-                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-medium disabled:opacity-50"
+                  onClick={runScan}
+                  disabled={store.loading || !!claimStatus}
+                  className="px-6 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded font-medium disabled:opacity-50"
                 >
-                  Claim {totalSol.toFixed(4)} SOL
+                  {store.loading ? 'Scanning...' : 'Scan Wallet'}
                 </button>
-              )}
+
+                {totalSol > 0 && (
+                  <button
+                    onClick={() => claim(store.recoverable.map(i => i.pubkey))}
+                    disabled={!!claimStatus}
+                    className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-medium disabled:opacity-50"
+                  >
+                    Claim {totalSol.toFixed(4)} SOL
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-8">
-            <Section
-              title="Reclaimable Rent (Empty Accounts)"
-              items={store.recoverable}
-              renderItem={(item) => (
-                <div className="flex justify-between items-center">
-                  <span className="font-mono text-sm text-zinc-400">{item.mint}</span>
-                  <span className="text-emerald-400 font-mono">+{item.rentSol} SOL</span>
-                </div>
-              )}
-            />
-            <Section
-              title="Dust (Low Balance)"
-              items={store.dust}
-              renderItem={(item) => (
-                <div className="flex justify-between items-center">
-                  <span className="font-mono text-sm text-zinc-400">{item.mint}</span>
-                  <span className="text-zinc-500 font-mono">{item.amount.toExponential(2)}</span>
-                </div>
-              )}
-            />
-          </div>
+            <div className="space-y-8">
+              <Section
+                title="Reclaimable Rent (Empty Accounts)"
+                items={store.recoverable}
+                renderItem={(item) => (
+                  <div className="flex justify-between items-center">
+                    <span className="font-mono text-sm text-zinc-400">{item.mint}</span>
+                    <span className="text-emerald-400 font-mono">+{item.rentSol} SOL</span>
+                  </div>
+                )}
+              />
+              <Section
+                title="Dust (Low Balance)"
+                items={store.dust}
+                renderItem={(item) => (
+                  <div className="flex justify-between items-center">
+                    <span className="font-mono text-sm text-zinc-400">{item.mint}</span>
+                    <span className="text-zinc-500 font-mono">{item.amount.toExponential(2)}</span>
+                  </div>
+                )}
+              />
+            </div>
 
-          <div className="text-center text-xs text-zinc-500 mt-12">
-            Transactions are executed <strong>directly on-chain</strong>.<br />
-            ZenithScores never has access to your wallet.
-          </div>
-        </div>
-      )}
+            <div className="text-center text-xs text-zinc-500 mt-12">
+              Transactions are executed <strong>directly on-chain</strong>.<br />
+              ZenithScores never has access to your wallet.
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
