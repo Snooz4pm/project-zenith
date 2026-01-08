@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 const NAV_ITEMS = [
   { label: 'Swap', href: '/', icon: Home },
   { label: 'Signals', href: '/signals', icon: Activity },
+  { label: 'Terminal', href: '/terminal', icon: TrendingUp },
 ] as const;
 
 export default function MobileBottomNavNew() {
@@ -22,7 +23,7 @@ export default function MobileBottomNavNew() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[var(--void)] border-t border-white/5 backdrop-blur-xl">
-      <div className="grid grid-cols-5 h-16" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="grid grid-cols-3 h-16" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);

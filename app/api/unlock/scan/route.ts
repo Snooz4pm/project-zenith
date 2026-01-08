@@ -41,9 +41,9 @@ export async function GET(req: Request) {
         }, 'processed'); // Use processed commitment for speed
 
         const reclaimable = [];
-        const dust = [];
+        const tokensWithBalance = [];
 
-        // Process accounts in parallel for better performance
+        // First pass: collect reclaimable and tokens with balance
         for (const acc of accounts.value) {
             const info = acc.account.data.parsed.info;
             const amount = info.tokenAmount.uiAmount;
@@ -58,18 +58,82 @@ export async function GET(req: Request) {
                 });
             }
 
-            // Dust (optional threshold - keeping strictly < 0.0001 for now)
-            if (amount > 0 && amount < 0.0001) {
-                dust.push({
+            // Collect all tokens with balance for price lookup
+            if (amount > 0) {
+                tokensWithBalance.push({
                     pubkey: acc.pubkey.toBase58(),
                     mint: info.mint,
                     amount,
+                    decimals: info.tokenAmount.decimals,
+                    rawAmount: info.tokenAmount.amount, // raw amount before decimal adjustment
                 });
             }
         }
 
+        // Fetch prices from Jupiter for tokens with balance
+        const dust = [];
+        if (tokensWithBalance.length > 0) {
+            try {
+                const mints = tokensWithBalance.map(t => t.mint).join(',');
+                const priceResponse = await fetch(`https://price.jup.ag/v4/price?ids=${mints}`);
+                const priceData = await priceResponse.json();
+
+                // Calculate USD values and identify dust
+                for (const token of tokensWithBalance) {
+                    const priceInfo = priceData.data?.[token.mint];
+                    if (priceInfo?.price) {
+                        const usdValue = token.amount * priceInfo.price;
+
+                        // Dust threshold: < $0.01 USD
+                        if (usdValue < 0.01 && usdValue > 0) {
+                            dust.push({
+                                pubkey: token.pubkey,
+                                mint: token.mint,
+                                amount: token.amount,
+                                decimals: token.decimals,
+                                rawAmount: token.rawAmount,
+                                usdValue,
+                                swappable: true,
+                            });
+                        }
+                    } else {
+                        // No price found - include if amount is very small
+                        if (token.amount < 0.0001) {
+                            dust.push({
+                                pubkey: token.pubkey,
+                                mint: token.mint,
+                                amount: token.amount,
+                                decimals: token.decimals,
+                                rawAmount: token.rawAmount,
+                                usdValue: 0,
+                                swappable: false, // Can't swap if no price
+                            });
+                        }
+                    }
+                }
+            } catch (priceErr) {
+                console.warn('[Unlock Scan] Price fetch failed:', priceErr);
+                // Fallback to amount-based dust detection
+                for (const token of tokensWithBalance) {
+                    if (token.amount < 0.0001) {
+                        dust.push({
+                            pubkey: token.pubkey,
+                            mint: token.mint,
+                            amount: token.amount,
+                            decimals: token.decimals,
+                            rawAmount: token.rawAmount,
+                            usdValue: 0,
+                            swappable: false,
+                        });
+                    }
+                }
+            }
+        }
+
         const scanTime = Date.now() - startTime;
-        console.log(`[Unlock Scan] Completed in ${scanTime}ms - Found ${reclaimable.length} reclaimable, ${dust.length} dust`);
+        const totalDustUsd = dust.reduce((sum, d) => sum + d.usdValue, 0);
+        const swappableDust = dust.filter(d => d.swappable).length;
+        console.log(`[Unlock Scan] Completed in ${scanTime}ms - Found ${reclaimable.length} reclaimable, ${dust.length} dust ($${totalDustUsd.toFixed(4)} USD, ${swappableDust} swappable)`);
 
         const result = {
             reclaimable,

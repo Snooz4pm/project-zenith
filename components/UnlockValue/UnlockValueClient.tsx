@@ -354,16 +354,7 @@ export default function UnlockValueClient() {
                   </div>
                 )}
               />
-              <Section
-                title="[ DUST - LOW BALANCE TOKENS ]"
-                items={store.dust}
-                renderItem={(item) => (
-                  <div className="flex justify-between items-center">
-                    <span className="font-mono text-sm text-zinc-400">{item.mint}</span>
-                    <span className="text-zinc-500 font-mono">{item.amount.toExponential(2)}</span>
-                  </div>
-                )}
-              />
+              <DustSection dust={store.dust} />
             </div>
 
             <div className="text-center text-xs text-zinc-500 mt-12 font-mono">
@@ -446,6 +437,161 @@ function Section({ title, items, renderItem }: { title: string; items: any[], re
         {items.map((item, i) => (
           <div key={i} className="bg-zinc-900/50 p-4 rounded border border-zinc-800/50 hover:border-emerald-500/30 transition-all backdrop-blur-sm">
             {renderItem(item)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DustSection({ dust }: { dust: any[] }) {
+  const [swapping, setSwapping] = useState(false);
+  const [swapStatus, setSwapStatus] = useState('');
+  const wallet = useWallet();
+  const { connection } = useConnection();
+  const { publicKey, sendTransaction } = wallet;
+
+  if (dust.length === 0) return null;
+
+  const swappableDust = dust.filter(d => d.swappable);
+  const totalDustUsd = dust.reduce((sum, d) => sum + (d.usdValue || 0), 0);
+
+  const handleSwapDust = async () => {
+    if (!publicKey || !sendTransaction || swappableDust.length === 0) return;
+
+    setSwapping(true);
+    setSwapStatus('Building swap transactions...');
+
+    try {
+      // Call Jupiter API to swap all dust tokens to SOL
+      const response = await fetch('/api/unlock/swap-dust', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: publicKey.toBase58(),
+          tokens: swappableDust.map(d => ({
+            mint: d.mint,
+            amount: d.amount,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to build swap transactions');
+      }
+
+      const { swapTransaction } = await response.json();
+
+      setSwapStatus('Opening wallet for signature...');
+
+      // Deserialize and send transaction
+      const txBytes = Uint8Array.from(atob(swapTransaction), c => c.charCodeAt(0));
+      const tx = VersionedTransaction.deserialize(txBytes);
+
+      const sig = await sendTransaction(tx, connection, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
+
+      setSwapStatus('Confirming transaction...');
+
+      const latestBlockhash = await connection.getLatestBlockhash('confirmed');
+      const confirmation = await connection.confirmTransaction({
+        signature: sig,
+        blockhash: latestBlockhash.blockhash,
+        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+      }, 'confirmed');
+
+      if (confirmation.value.err) {
+        throw new Error('Transaction failed on-chain');
+      }
+
+      setSwapStatus('Success! Dust swapped to SOL');
+      setTimeout(() => {
+        setSwapStatus('');
+        setSwapping(false);
+      }, 3000);
+
+    } catch (err: any) {
+      console.error('[Dust Swap] Error:', err);
+      setSwapStatus(err.message || 'Swap failed');
+      setTimeout(() => {
+        setSwapStatus('');
+        setSwapping(false);
+      }, 5000);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full" />
+          <h2 className="text-lg font-bold font-mono text-white tracking-wide">[ DUST TOKENS ]</h2>
+          <span className="text-sm font-mono text-zinc-500">({dust.length})</span>
+        </div>
+        {swappableDust.length > 0 && (
+          <button
+            onClick={handleSwapDust}
+            disabled={swapping}
+            className="px-4 py-1.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 rounded font-mono text-sm border border-cyan-500/30 hover:border-cyan-500/50 transition-all disabled:opacity-50"
+          >
+            {swapping ? '[ SWAPPING... ]' : `[ SWAP ALL → SOL ]`}
+          </button>
+        )}
+      </div>
+
+      {swapStatus && (
+        <div className="mb-3 bg-cyan-500/10 text-cyan-400 p-3 rounded font-mono text-sm border border-cyan-500/20">
+          {swapStatus}
+        </div>
+      )}
+
+      <div className="bg-cyan-900/10 border border-cyan-500/20 rounded p-3 mb-3 font-mono text-sm">
+        <div className="flex justify-between items-center">
+          <span className="text-zinc-400">Total Dust Value:</span>
+          <span className="text-cyan-400 font-bold">${totalDustUsd.toFixed(4)} USD</span>
+        </div>
+        {swappableDust.length > 0 && (
+          <div className="text-xs text-zinc-500 mt-1">
+            &gt; {swappableDust.length} token{swappableDust.length > 1 ? 's' : ''} can be swapped (2% platform fee)
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-2">
+        {dust.map((item, i) => (
+          <div key={i} className="bg-zinc-900/50 p-4 rounded border border-zinc-800/50 hover:border-cyan-500/30 transition-all backdrop-blur-sm">
+            <div className="flex justify-between items-center">
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm text-zinc-300">{item.mint.slice(0, 8)}...</span>
+                  {item.swappable ? (
+                    <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded font-mono border border-cyan-500/30">
+                      SWAPPABLE
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-zinc-700/50 text-zinc-500 px-2 py-0.5 rounded font-mono">
+                      NO PRICE
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs text-zinc-500 font-mono mt-1">
+                  &gt; Amount: {item.amount.toExponential(2)}
+                </span>
+              </div>
+              <div className="text-right">
+                {item.usdValue > 0 ? (
+                  <>
+                    <div className="text-cyan-400 font-mono font-bold">${item.usdValue.toFixed(4)}</div>
+                    <div className="text-xs text-zinc-500 font-mono">USD value</div>
+                  </>
+                ) : (
+                  <span className="text-zinc-500 font-mono text-sm">-</span>
+                )}
+              </div>
+            </div>
           </div>
         ))}
       </div>
