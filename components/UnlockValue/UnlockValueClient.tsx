@@ -1,7 +1,7 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import { Transaction, VersionedTransaction } from '@solana/web3.js';
+import { VersionedTransaction } from '@solana/web3.js';
 import { useUnlockValueStore } from './UnlockValueStore';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 
@@ -66,14 +66,9 @@ export default function UnlockValueClient() {
     console.log('[Unlock] Accounts to claim:', accounts.length);
 
     // Safety Checks
-    if (!connected) {
+    if (!connected || !publicKey) {
       console.error('[Unlock] Wallet not connected!');
-      setVisible(true);
-      return;
-    }
-
-    if (!publicKey) {
-      console.error('[Unlock] No public key available!');
+      store.setError("Please connect your wallet first");
       return;
     }
 
