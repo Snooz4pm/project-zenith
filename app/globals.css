@@ -293,3 +293,54 @@ html {
   background-size: 400% 100%;
   animation: shimmer 1.4s infinite;
 }
+
+/* ====================================
+   UNLOCK VALUE SCANNER ANIMATIONS
+   ==================================== */
+@keyframes scan {
+  0% {
+    top: 0;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes progress {
+  0% {
+    width: 0%;
+  }
+  30% {
+    width: 45%;
+  }
+  70% {
+    width: 75%;
+  }
+  100% {
+    width: 95%;
+  }
+}
+
+.animate-scan {
+  animation: scan 2s ease-in-out infinite;
+}
+
+.animate-progress {
+  animation: progress 2s ease-out infinite;
+}
+
+.delay-75 {
+  animation-delay: 75ms;
+}
+
+.delay-150 {
+  animation-delay: 150ms;
+}
