@@ -18,7 +18,7 @@ export default function UnlockValueClient() {
   const [processingIndex, setProcessingIndex] = useState<number>(0);
   const [totalBatches, setTotalBatches] = useState<number>(0);
 
-  // 2️⃣ Frontend: Scan Logic (with minimum animation time)
+  // 2️⃣ Frontend: Scan Logic - FAST
   async function runScan() {
     if (!connected) {
       setVisible(true);
@@ -30,22 +30,10 @@ export default function UnlockValueClient() {
     store.setError(null);
     setClaimStatus('');
 
-    const startTime = Date.now();
-    const MIN_ANIMATION_TIME = 1200; // Show animation for at least 1.2s
-
     try {
       const res = await fetch(`/api/unlock/scan?address=${publicKey.toBase58()}`);
       if (!res.ok) throw new Error('Scan failed');
       const data = await res.json();
-
-      // Calculate remaining time to show animation
-      const elapsed = Date.now() - startTime;
-      const remainingTime = Math.max(0, MIN_ANIMATION_TIME - elapsed);
-
-      // Wait for minimum animation time if scan was too fast
-      if (remainingTime > 0) {
-        await new Promise(resolve => setTimeout(resolve, remainingTime));
-      }
 
       store.recoverable = data.reclaimable || [];
       store.dust = data.dust || [];

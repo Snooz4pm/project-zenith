@@ -330,11 +330,11 @@ html {
 }
 
 .animate-scan {
-  animation: scan 2s ease-in-out infinite;
+  animation: scan 0.8s ease-in-out infinite;
 }
 
 .animate-progress {
-  animation: progress 2s ease-out infinite;
+  animation: progress 0.8s ease-out infinite;
 }
 
 .delay-75 {
