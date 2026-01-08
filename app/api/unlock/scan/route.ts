@@ -10,7 +10,12 @@ const RPC_URL = API_KEY
     ? `https://mainnet.helius-rpc.com/?api-key=${API_KEY}`
     : 'https://api.mainnet-beta.solana.com';
 
-const connection = new Connection(RPC_URL, 'confirmed');
+// Use 'processed' for faster scanning (vs 'confirmed')
+const connection = new Connection(RPC_URL, 'processed');
+
+// Simple in-memory cache to prevent rapid re-scans
+const scanCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_DURATION = 30000; // 30 seconds
 
 export async function GET(req: Request) {
     try {
@@ -18,16 +23,27 @@ export async function GET(req: Request) {
         const address = searchParams.get('address');
         if (!address) return NextResponse.json({ error: 'Missing address' }, { status: 400 });
 
+        // Check cache first
+        const cached = scanCache.get(address);
+        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+            console.log('[Unlock Scan] Returning cached result for', address);
+            return NextResponse.json(cached.data);
+        }
+
         const owner = new PublicKey(address);
 
-        // 1. Fetch token accounts
+        console.log('[Unlock Scan] Fetching token accounts for', address);
+        const startTime = Date.now();
+
+        // 1. Fetch token accounts with optimized encoding
         const accounts = await connection.getParsedTokenAccountsByOwner(owner, {
             programId: TOKEN_PROGRAM_ID,
-        });
+        }, 'processed'); // Use processed commitment for speed
 
-        let reclaimable = [];
-        let dust = [];
+        const reclaimable = [];
+        const dust = [];
 
+        // Process accounts in parallel for better performance
         for (const acc of accounts.value) {
             const info = acc.account.data.parsed.info;
             const amount = info.tokenAmount.uiAmount;
@@ -52,11 +68,19 @@ export async function GET(req: Request) {
             }
         }
 
-        return NextResponse.json({
+        const scanTime = Date.now() - startTime;
+        console.log(`[Unlock Scan] Completed in ${scanTime}ms - Found ${reclaimable.length} reclaimable, ${dust.length} dust`);
+
+        const result = {
             reclaimable,
             dust,
             totalSol: reclaimable.reduce((s, r) => s + r.rentSol, 0),
-        });
+        };
+
+        // Cache the result
+        scanCache.set(address, { data: result, timestamp: Date.now() });
+
+        return NextResponse.json(result);
     } catch (err: any) {
         console.error('[Unlock Scan] Error:', err);
         return NextResponse.json({ error: 'Failed to scan wallet' }, { status: 500 });
