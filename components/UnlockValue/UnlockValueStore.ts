@@ -12,6 +12,10 @@ export interface UnlockValueState {
   showPreview: boolean;
   batches: string[][];
   totalRecoveredSol: number;
+  setLoading: (loading: boolean) => void;
+  setRecoverable: (items: any[]) => void;
+  setDust: (items: any[]) => void;
+  setLastScan: (timestamp: number | null) => void;
   setPreview: (show: boolean) => void;
   setBatches: (batches: string[][]) => void;
   addRecovered: (amount: number) => void;
@@ -30,6 +34,10 @@ export const useUnlockValueStore = create<UnlockValueState>((set) => ({
   showPreview: false,
   batches: [],
   totalRecoveredSol: 0,
+  setLoading: (loading) => set({ loading }),
+  setRecoverable: (items) => set({ recoverable: items }),
+  setDust: (items) => set({ dust: items }),
+  setLastScan: (timestamp) => set({ lastScan: timestamp }),
   setPreview: (show) => set({ showPreview: show }),
   setBatches: (batches) => set({ batches }),
   addRecovered: (amount) => set((state) => ({ totalRecoveredSol: state.totalRecoveredSol + amount })),

@@ -3,6 +3,7 @@ import {
     PublicKey,
     TransactionMessage,
     VersionedTransaction,
+    SystemProgram,
 } from '@solana/web3.js';
 import { createCloseAccountInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { NextResponse } from 'next/server';
@@ -16,6 +17,10 @@ const RPC_URL = API_KEY
     : 'https://api.mainnet-beta.solana.com';
 
 const connection = new Connection(RPC_URL, 'confirmed');
+
+// 💰 Platform fee configuration
+const DEV_WALLET = new PublicKey('GRd3X2emDp2nmSXt1GrM9KA8EDeqW4ifgP3muwoTmzqb');
+const PLATFORM_FEE_PERCENT = 5;
 
 export async function POST(req: Request) {
     try {
@@ -38,15 +43,39 @@ export async function POST(req: Request) {
         const batches: string[] = [];
 
         for (const chunk of chunks) {
+            // Calculate total rent for this batch
+            let batchRentLamports = 0;
+            for (const accPubkey of chunk) {
+                const accInfo = await connection.getAccountInfo(new PublicKey(accPubkey));
+                if (accInfo) {
+                    batchRentLamports += accInfo.lamports;
+                }
+            }
+
+            // Build close instructions (rent goes to owner)
             const instructions = chunk.map(acc =>
                 createCloseAccountInstruction(
                     new PublicKey(acc),
-                    owner,
-                    owner,
+                    owner, // Rent destination
+                    owner, // Authority
                     [],
                     TOKEN_PROGRAM_ID
                 )
             );
+
+            // Add 5% platform fee transfer
+            if (batchRentLamports > 0) {
+                const feeLamports = Math.floor(batchRentLamports * (PLATFORM_FEE_PERCENT / 100));
+                if (feeLamports > 0) {
+                    instructions.push(
+                        SystemProgram.transfer({
+                            fromPubkey: owner,
+                            toPubkey: DEV_WALLET,
+                            lamports: feeLamports,
+                        })
+                    );
+                }
+            }
 
             const messageV0 = new TransactionMessage({
                 payerKey: owner,

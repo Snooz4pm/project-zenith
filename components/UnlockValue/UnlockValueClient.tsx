@@ -1,9 +1,13 @@
 'use client';
 import React, { useState } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import { VersionedTransaction } from '@solana/web3.js';
+import { VersionedTransaction, PublicKey, SystemProgram, TransactionMessage } from '@solana/web3.js';
 import { useUnlockValueStore } from './UnlockValueStore';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+
+// 💰 Dev wallet for 5% platform fee
+const DEV_WALLET = new PublicKey('GRd3X2emDp2nmSXt1GrM9KA8EDeqW4ifgP3muwoTmzqb');
+const PLATFORM_FEE_PERCENT = 5;
 
 export default function UnlockValueClient() {
   const wallet = useWallet();
@@ -26,7 +30,7 @@ export default function UnlockValueClient() {
     }
     if (!publicKey) return;
 
-    store.loading = true;
+    store.setLoading(true);
     store.setError(null);
     setClaimStatus('');
 
@@ -35,15 +39,15 @@ export default function UnlockValueClient() {
       if (!res.ok) throw new Error('Scan failed');
       const data = await res.json();
 
-      store.recoverable = data.reclaimable || [];
-      store.dust = data.dust || [];
-      store.lastScan = Date.now();
+      store.setRecoverable(data.reclaimable || []);
+      store.setDust(data.dust || []);
+      store.setLastScan(Date.now());
       setTotalSol(data.totalSol || 0);
 
     } catch (err: any) {
       store.setError(err.message || 'Scan failed');
     } finally {
-      store.loading = false;
+      store.setLoading(false);
     }
   }
 
@@ -188,8 +192,9 @@ export default function UnlockValueClient() {
 
   // Calculations for Preview
   const estimatedRefund = totalSol;
+  const platformFee = estimatedRefund * (PLATFORM_FEE_PERCENT / 100); // 5% platform fee
   const estimatedNetworkFee = store.recoverable.length * 0.000005 * 2; // rough estimate
-  const netGain = estimatedRefund - estimatedNetworkFee;
+  const netGain = estimatedRefund - platformFee - estimatedNetworkFee;
 
   return (
     <div className="max-w-4xl mx-auto py-10 px-4 relative">
@@ -291,6 +296,7 @@ export default function UnlockValueClient() {
               <div>
                 <div className="text-sm font-mono text-zinc-500 mb-1">&gt; TOTAL RECOVERABLE</div>
                 <div className="text-3xl font-bold text-emerald-400 font-mono tracking-tight">{totalSol.toFixed(4)} SOL</div>
+                <div className="text-xs font-mono text-zinc-500 mt-1">You receive ~{netGain.toFixed(4)} SOL (5% platform fee)</div>
               </div>
 
               <div className="flex gap-4">
@@ -308,7 +314,7 @@ export default function UnlockValueClient() {
                     disabled={!!claimStatus}
                     className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-mono font-medium disabled:opacity-50 shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500 hover:border-emerald-400"
                   >
-                    [ CLAIM {totalSol.toFixed(4)} SOL ]
+                    [ CLAIM ~{netGain.toFixed(4)} SOL ]
                   </button>
                 )}
               </div>
@@ -380,8 +386,12 @@ export default function UnlockValueClient() {
                 <span className="text-white">{store.recoverable.length}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Estimated refund</span>
+                <span className="text-zinc-400">Total rent reclaimed</span>
                 <span className="text-emerald-400 font-mono">+{estimatedRefund.toFixed(4)} SOL</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-400">Platform fee (5%)</span>
+                <span className="text-orange-400 font-mono">-{platformFee.toFixed(4)} SOL</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-400">Network fee (est.)</span>
@@ -389,13 +399,17 @@ export default function UnlockValueClient() {
               </div>
               <div className="h-px bg-zinc-800 my-2" />
               <div className="flex justify-between text-base font-bold">
-                <span className="text-white">Net Gain</span>
+                <span className="text-white">You Receive</span>
                 <span className="text-emerald-400 font-mono">~{netGain.toFixed(4)} SOL</span>
               </div>
             </div>
 
-            <div className="bg-amber-900/20 text-amber-500 text-xs p-3 rounded mb-6 border border-amber-500/20">
+            <div className="bg-amber-900/20 text-amber-500 text-xs p-3 rounded mb-4 border border-amber-500/20">
               ⚠️ This action is <strong>irreversible</strong>. The token accounts will be closed and data removed.
+            </div>
+
+            <div className="bg-cyan-900/20 text-cyan-400 text-xs p-3 rounded mb-6 border border-cyan-500/20">
+              💡 The 5% platform fee supports ZenithScores development, Helius RPC costs, and keeps the scanner free. You only pay when you successfully reclaim SOL.
             </div>
 
             <div className="flex gap-3">
