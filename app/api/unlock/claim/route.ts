@@ -1,7 +1,8 @@
 import {
     Connection,
     PublicKey,
-    Transaction,
+    TransactionMessage,
+    VersionedTransaction,
 } from '@solana/web3.js';
 import { createCloseAccountInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { NextResponse } from 'next/server';
@@ -37,21 +38,24 @@ export async function POST(req: Request) {
         const batches: string[] = [];
 
         for (const chunk of chunks) {
-            const tx = new Transaction();
-            for (const acc of chunk) {
-                tx.add(
-                    createCloseAccountInstruction(
-                        new PublicKey(acc),
-                        owner,
-                        owner,
-                        [],
-                        TOKEN_PROGRAM_ID
-                    )
-                );
-            }
-            tx.feePayer = owner;
-            tx.recentBlockhash = blockhash;
-            batches.push(tx.serialize({ requireAllSignatures: false }).toString('base64'));
+            const instructions = chunk.map(acc =>
+                createCloseAccountInstruction(
+                    new PublicKey(acc),
+                    owner,
+                    owner,
+                    [],
+                    TOKEN_PROGRAM_ID
+                )
+            );
+
+            const messageV0 = new TransactionMessage({
+                payerKey: owner,
+                recentBlockhash: blockhash,
+                instructions,
+            }).compileToV0Message();
+
+            const tx = new VersionedTransaction(messageV0);
+            batches.push(Buffer.from(tx.serialize()).toString('base64'));
         }
 
         return NextResponse.json({

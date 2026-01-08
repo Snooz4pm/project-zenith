@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import { Transaction } from '@solana/web3.js';
+import { Transaction, VersionedTransaction } from '@solana/web3.js';
 import { useUnlockValueStore } from './UnlockValueStore';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 
@@ -97,9 +97,9 @@ export default function UnlockValueClient() {
         setProcessingIndex(i + 1);
         setClaimStatus(`Signing batch ${i + 1} of ${batches.length}...`);
 
-        // Deserialize transaction
+        // Deserialize transaction (Versioned)
         const txPath = batches[i];
-        const tx = Transaction.from(Buffer.from(txPath, 'base64'));
+        const tx = VersionedTransaction.deserialize(Buffer.from(txPath, 'base64'));
 
         try {
           console.log(`[Unlock] Batch ${i + 1}: Invoking wallet...`);
