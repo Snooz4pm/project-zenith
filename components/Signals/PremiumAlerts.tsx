@@ -815,20 +815,23 @@ function NewCoinsTab({ onAlert, isPremium }: { onAlert: (alert: Omit<Alert, 'id'
     const [coins, setCoins] = useState<NewCoin[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const alertedRef = React.useRef(false); // Prevent duplicate alerts
 
     useEffect(() => {
         const fetchCoins = async () => {
             try {
                 setLoading(true);
+                setError(null);
                 const res = await fetch(`/api/signals/new-coins?premium=${isPremium}`);
                 if (!res.ok) throw new Error('Failed to fetch');
                 const data = await res.json();
                 setCoins(data.coins || []);
 
-                // Alert on high-score coins for premium users
-                if (isPremium && data.coins?.length > 0) {
+                // Alert on high-score coins for premium users (once only)
+                if (isPremium && data.coins?.length > 0 && !alertedRef.current) {
                     const topCoin = data.coins[0];
                     if (topCoin.apeScore >= 70) {
+                        alertedRef.current = true;
                         onAlert({
                             type: 'newCoin',
                             title: '🚀 Strong Ape Opportunity',
@@ -838,15 +841,16 @@ function NewCoinsTab({ onAlert, isPremium }: { onAlert: (alert: Omit<Alert, 'id'
                 }
             } catch (err) {
                 setError('Failed to load new coins');
+                console.error('[NewCoins] Fetch error:', err);
             } finally {
                 setLoading(false);
             }
         };
 
         fetchCoins();
-        const interval = setInterval(fetchCoins, 60000);
+        const interval = setInterval(fetchCoins, 60000); // Refresh every minute
         return () => clearInterval(interval);
-    }, [onAlert, isPremium]);
+    }, [isPremium]); // Removed onAlert from deps to prevent infinite loop
 
     if (loading) {
         return (
