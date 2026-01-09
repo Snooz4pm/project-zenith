@@ -19,7 +19,9 @@ import {
 
 const JUPITER_TOKEN_API = 'https://token.jup.ag/strict'; // Verified tokens only
 const JUPITER_PRICE_API = 'https://price.jup.ag/v6/price';
-const JUPITER_QUOTE_API = 'https://quote-api.jup.ag/v6/quote';
+// Use Railway proxy for quotes if configured, otherwise direct Jupiter
+const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || '';
+const JUPITER_QUOTE_API = JUPITER_PROXY_URL ? `${JUPITER_PROXY_URL}/quote` : 'https://quote-api.jup.ag/v6/quote';
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 // Cache for token list (refresh every 5 minutes)
