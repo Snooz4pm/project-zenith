@@ -302,3 +302,61 @@ model PremiumSubscription {
   @@index([isActive])
 }
 
+// =============================================================================
+// PREMIUM ALERTS SYSTEM
+// =============================================================================
+
+// User Alert Preferences
+model AlertPreferences {
+  id              String   @id @default(cuid())
+  walletAddress   String   @unique
+  
+  // Notification channels
+  pushEnabled     Boolean  @default(true)
+  memoEnabled     Boolean  @default(false)
+  
+  // Frequency: instant, daily, weekly
+  frequency       String   @default("instant")
+  
+  // Thresholds
+  minApeScore     Int      @default(70)
+  minTradeSize    Float    @default(10000) // USD
+  rugRiskThreshold Int     @default(60)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([walletAddress])
+}
+
+// Tracked Wallets (Whale Tracking)
+model TrackedWallet {
+  id              String   @id @default(cuid())
+  userWallet      String   // Who is tracking
+  trackedAddress  String   // Wallet being tracked
+  label           String?  // "SOL Whale #1"
+  isPreset        Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([userWallet, trackedAddress])
+  @@index([userWallet])
+}
+
+// Alerts History
+model Alert {
+  id              String   @id @default(cuid())
+  walletAddress   String   // Who receives
+  
+  type            String   // whale_buy, new_coin, rug_risk
+  title           String
+  message         String
+  tokenMint       String?
+  metadata        String?  // JSON for extra data
+  
+  isRead          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  
+  @@index([walletAddress])
+  @@index([createdAt(sort: Desc)])
+}
