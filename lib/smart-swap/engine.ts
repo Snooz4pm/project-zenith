@@ -1,12 +1,11 @@
 /**
- * Smart Swap Engine V3 - Production Architecture
+ * Smart Swap Engine - Simple & Working
  *
- * 3-PHASE APPROACH:
- * PHASE 1: Get Jupiter token list, filter locally (NO quotes)
- * PHASE 2: Price-based estimation (covers 100s of tokens instantly)
- * PHASE 3: Real Jupiter quotes (ONLY top 10-15 candidates)
- *
- * This is how real aggregators work.
+ * SMART FILTER APPROACH:
+ * - Curated list of top tradeable tokens
+ * - Instant price estimates
+ * - Real quotes for what user selects
+ * - No complex filtering that fails
  */
 
 import {
@@ -14,120 +13,74 @@ import {
     SwapRecommendation,
     SmartSwapRequest,
     SmartSwapResponse,
-    RISK_MODE_CONFIG,
 } from './types';
 
-const JUPITER_TOKEN_API = 'https://token.jup.ag/strict'; // Verified tokens only
+// Railway proxy for quotes
+const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://quote-api.jup.ag/v6';
 const JUPITER_PRICE_API = 'https://price.jup.ag/v6/price';
-// Use Railway proxy for quotes if configured, otherwise direct Jupiter
-const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || '';
-const JUPITER_QUOTE_API = JUPITER_PROXY_URL ? `${JUPITER_PROXY_URL}/quote` : 'https://quote-api.jup.ag/v6/quote';
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
-// Cache for token list (refresh every 5 minutes)
-let tokenListCache: any[] = [];
-let tokenListCacheTime = 0;
-const TOKEN_LIST_CACHE_DURATION = 5 * 60 * 1000;
+// ============================================================================
+// CURATED TOKEN LIST - Always works, no API filtering needed
+// ============================================================================
 
-// =============================================================================
-// PHASE 1: Get Token Universe (FAST, NO QUOTES)
-// =============================================================================
-
-interface TokenInfo {
-    address: string;
+interface TokenData {
+    mint: string;
     symbol: string;
     name: string;
     decimals: number;
-    logoURI?: string;
-    daily_volume?: number;
-    // Price will be fetched in Phase 2
-    price?: number;
+    category: 'stablecoin' | 'liquid-staking' | 'defi' | 'memecoin' | 'utility';
 }
 
-async function getTokenUniverse(): Promise<TokenInfo[]> {
-    const now = Date.now();
+const CURATED_TOKENS: TokenData[] = [
+    // Stablecoins
+    { mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', symbol: 'USDC', name: 'USD Coin', decimals: 6, category: 'stablecoin' },
+    { mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', symbol: 'USDT', name: 'Tether USD', decimals: 6, category: 'stablecoin' },
 
-    // Use cache if fresh
-    if (tokenListCache.length > 0 && now - tokenListCacheTime < TOKEN_LIST_CACHE_DURATION) {
-        console.log(`[Smart Swap] Using cached token list (${tokenListCache.length} tokens)`);
-        return tokenListCache;
-    }
+    // Liquid Staking
+    { mint: 'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', symbol: 'mSOL', name: 'Marinade SOL', decimals: 9, category: 'liquid-staking' },
+    { mint: 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn', symbol: 'JitoSOL', name: 'Jito SOL', decimals: 9, category: 'liquid-staking' },
+    { mint: 'bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1', symbol: 'bSOL', name: 'BlazeStake SOL', decimals: 9, category: 'liquid-staking' },
 
-    try {
-        console.log('[Smart Swap] Fetching Jupiter token list...');
-        const response = await fetch(JUPITER_TOKEN_API, {
-            headers: { 'Accept': 'application/json' },
-        });
+    // DeFi
+    { mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', symbol: 'JUP', name: 'Jupiter', decimals: 6, category: 'defi' },
+    { mint: 'RasVKbLFpzNjcRCgMnpYXJC7mJrg4tGSSSwUjMZ3Wfu', symbol: 'RAY', name: 'Raydium', decimals: 6, category: 'defi' },
+    { mint: 'orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE', symbol: 'ORCA', name: 'Orca', decimals: 6, category: 'defi' },
 
-        if (!response.ok) {
-            console.error('[Smart Swap] Failed to fetch token list:', response.status);
-            return [];
-        }
+    // Memecoins
+    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', symbol: 'BONK', name: 'Bonk', decimals: 5, category: 'memecoin' },
+    { mint: '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs', symbol: 'WIF', name: 'dogwifhat', decimals: 6, category: 'memecoin' },
+    { mint: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5', symbol: 'MEW', name: 'cat in a dogs world', decimals: 5, category: 'memecoin' },
+    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', symbol: 'WEN', name: 'WEN', decimals: 5, category: 'memecoin' },
 
-        const tokens = await response.json();
-        console.log(`[Smart Swap] Got ${tokens.length} tokens from Jupiter`);
+    // Utility
+    { mint: 'HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3', symbol: 'PYTH', name: 'Pyth Network', decimals: 6, category: 'utility' },
+    { mint: 'rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof', symbol: 'RNDR', name: 'Render', decimals: 8, category: 'utility' },
+    { mint: 'hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux', symbol: 'HNT', name: 'Helium', decimals: 8, category: 'utility' },
+];
 
-        // Filter to tradeable tokens (skip weird ones)
-        const filtered = tokens.filter((t: any) =>
-            t.address &&
-            t.symbol &&
-            t.decimals <= 18 &&
-            t.address !== SOL_MINT // Skip SOL itself
-        ).map((t: any) => ({
-            address: t.address,
-            symbol: t.symbol,
-            name: t.name || t.symbol,
-            decimals: t.decimals,
-            logoURI: t.logoURI,
-        }));
+// ============================================================================
+// PRICE FETCHING
+// ============================================================================
 
-        // Cache it
-        tokenListCache = filtered;
-        tokenListCacheTime = now;
-
-        console.log(`[Smart Swap] Filtered to ${filtered.length} tradeable tokens`);
-        return filtered;
-    } catch (error) {
-        console.error('[Smart Swap] Token list fetch error:', error);
-        return [];
-    }
-}
-
-// =============================================================================
-// PHASE 2: Price-Based Estimation (CHEAP, INSTANT)
-// =============================================================================
-
-interface EstimatedCandidate {
-    token: TokenInfo;
-    price: number;
-    estimatedOut: number;
-    estimatedUsd: number;
-}
-
-async function getTokenPrices(mints: string[]): Promise<Map<string, number>> {
+async function fetchPrices(mints: string[]): Promise<Map<string, number>> {
     const prices = new Map<string, number>();
 
     try {
-        // Jupiter price API accepts comma-separated IDs
-        // Batch in chunks of 100
-        const chunks = [];
-        for (let i = 0; i < mints.length; i += 100) {
-            chunks.push(mints.slice(i, i + 100));
-        }
+        const ids = mints.join(',');
+        const response = await fetch(`${JUPITER_PRICE_API}?ids=${ids}`, {
+            headers: { 'Accept': 'application/json' },
+        });
 
-        for (const chunk of chunks) {
-            const ids = chunk.join(',');
-            const response = await fetch(`${JUPITER_PRICE_API}?ids=${ids}`);
-
-            if (response.ok) {
-                const data = await response.json();
-                for (const [mint, info] of Object.entries(data.data || {})) {
-                    prices.set(mint, (info as any).price || 0);
+        if (response.ok) {
+            const data = await response.json();
+            for (const [mint, info] of Object.entries(data.data || {})) {
+                const price = (info as any)?.price;
+                if (price && price > 0) {
+                    prices.set(mint, price);
                 }
             }
         }
-
-        console.log(`[Smart Swap] Got prices for ${prices.size} tokens`);
     } catch (error) {
         console.error('[Smart Swap] Price fetch error:', error);
     }
@@ -135,204 +88,103 @@ async function getTokenPrices(mints: string[]): Promise<Map<string, number>> {
     return prices;
 }
 
-async function estimateCandidates(
-    tokens: TokenInfo[],
-    inputValueUsd: number,
-    riskMode: RiskMode
-): Promise<EstimatedCandidate[]> {
-    console.log(`[Smart Swap] Estimating ${tokens.length} tokens...`);
-
-    // Get prices for all tokens
-    const mints = tokens.map(t => t.address);
-    const prices = await getTokenPrices(mints);
-
-    const candidates: EstimatedCandidate[] = [];
-
-    for (const token of tokens) {
-        const price = prices.get(token.address);
-        if (!price || price <= 0) continue; // Skip tokens without price
-
-        // Estimate output
-        const estimatedOut = inputValueUsd / price;
-        const estimatedUsd = estimatedOut * price; // Should equal inputValueUsd
-
-        candidates.push({
-            token,
-            price,
-            estimatedOut,
-            estimatedUsd,
-        });
-    }
-
-    // Sort by estimated output (most tokens first - for memecoins etc)
-    candidates.sort((a, b) => b.estimatedOut - a.estimatedOut);
-
-    console.log(`[Smart Swap] ${candidates.length} tokens with valid prices`);
-    return candidates;
-}
-
-// =============================================================================
-// PHASE 3: Real Quotes (ONLY TOP CANDIDATES)
-// =============================================================================
-
-async function getJupiterQuote(
-    inputMint: string,
-    outputMint: string,
-    amountInLamports: string
-): Promise<any> {
-    try {
-        const url = `${JUPITER_QUOTE_API}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountInLamports}&slippageBps=50`;
-
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 3000); // 3s timeout
-
-        const response = await fetch(url, {
-            headers: { 'Accept': 'application/json' },
-            signal: controller.signal,
-        });
-
-        clearTimeout(timeout);
-
-        if (!response.ok) return null;
-        return await response.json();
-    } catch (error) {
-        return null;
-    }
-}
-
-async function quoteTopCandidates(
-    candidates: EstimatedCandidate[],
-    inputMint: string,
-    amountInLamports: string,
-    limit: number = 15
-): Promise<SwapRecommendation[]> {
-    const topCandidates = candidates.slice(0, limit);
-    console.log(`[Smart Swap] Quoting top ${topCandidates.length} candidates...`);
-
-    const recommendations: SwapRecommendation[] = [];
-
-    // Quote in parallel (Promise.allSettled to handle failures)
-    const quotePromises = topCandidates.map(async (candidate) => {
-        const quote = await getJupiterQuote(inputMint, candidate.token.address, amountInLamports);
-        return { candidate, quote };
-    });
-
-    const results = await Promise.allSettled(quotePromises);
-
-    for (const result of results) {
-        if (result.status !== 'fulfilled') continue;
-
-        const { candidate, quote } = result.value;
-
-        let outAmount: number;
-        let priceImpact: number;
-        let hasRealQuote: boolean;
-
-        if (quote && quote.outAmount) {
-            // Real quote
-            outAmount = Number(quote.outAmount) / Math.pow(10, candidate.token.decimals);
-            priceImpact = parseFloat(quote.priceImpactPct || '0');
-            hasRealQuote = true;
-        } else {
-            // Fallback to estimate
-            outAmount = candidate.estimatedOut;
-            priceImpact = 0.1;
-            hasRealQuote = false;
-        }
-
-        const outputValueUsd = outAmount * candidate.price;
-
-        // Risk level based on price impact
-        let riskLevel: 'low' | 'medium' | 'high' = 'low';
-        if (Math.abs(priceImpact) > 2) riskLevel = 'high';
-        else if (Math.abs(priceImpact) > 0.5) riskLevel = 'medium';
-
-        // Score: lower price impact = higher score
-        const smartSwapScore = Math.round(100 - Math.abs(priceImpact) * 15);
-
-        recommendations.push({
-            tokenOut: {
-                mint: candidate.token.address,
-                symbol: candidate.token.symbol,
-                name: candidate.token.name,
-                decimals: candidate.token.decimals,
-                logoURI: candidate.token.logoURI,
-            },
-            estimatedAmountOut: outAmount,
-            estimatedSlippage: Math.abs(priceImpact),
-            liquidityScore: hasRealQuote ? 90 : 70,
-            riskLevel,
-            riskScore: hasRealQuote ? (100 - Math.abs(priceImpact) * 10) : 75,
-            smartSwapScore: hasRealQuote ? smartSwapScore : 65,
-            explanation: hasRealQuote
-                ? `Receive ~${outAmount.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${candidate.token.symbol} ($${outputValueUsd.toFixed(2)}) • ${priceImpact.toFixed(2)}% impact`
-                : `Est. ~${outAmount.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${candidate.token.symbol} ($${outputValueUsd.toFixed(2)}) • final amount depends on liquidity`,
-            priceImpact,
-        });
-    }
-
-    // Sort by smart score (real quotes first, then by score)
-    recommendations.sort((a, b) => {
-        // Prioritize real quotes
-        const aReal = a.liquidityScore >= 90 ? 1 : 0;
-        const bReal = b.liquidityScore >= 90 ? 1 : 0;
-        if (aReal !== bReal) return bReal - aReal;
-        return b.smartSwapScore - a.smartSwapScore;
-    });
-
-    return recommendations;
-}
-
-// =============================================================================
-// MAIN: Generate Recommendations (3-Phase)
-// =============================================================================
+// ============================================================================
+// MAIN: Generate Recommendations
+// ============================================================================
 
 export async function generateRecommendations(
     request: SmartSwapRequest
 ): Promise<SmartSwapResponse> {
-    const { amountIn, tokenInMint, riskMode } = request;
-    const startTime = Date.now();
+    const { amountIn, riskMode } = request;
 
-    console.log(`[Smart Swap V3] Starting 3-phase analysis for ${amountIn} SOL`);
+    console.log(`[Smart Swap] Generating for ${amountIn} SOL, mode: ${riskMode}`);
 
-    // Convert SOL to lamports
-    const amountInLamports = Math.floor(amountIn * 1e9).toString();
+    // Get all prices at once (single API call)
+    const allMints = [SOL_MINT, ...CURATED_TOKENS.map(t => t.mint)];
+    const prices = await fetchPrices(allMints);
 
-    // Get SOL price first
-    const solPrices = await getTokenPrices([SOL_MINT]);
-    const solPrice = solPrices.get(SOL_MINT) || 180; // Fallback
+    const solPrice = prices.get(SOL_MINT) || 180; // Fallback
     const inputValueUsd = amountIn * solPrice;
 
-    console.log(`[Smart Swap V3] SOL price: $${solPrice}, Input: $${inputValueUsd.toFixed(2)}`);
+    console.log(`[Smart Swap] SOL price: $${solPrice}, Input: $${inputValueUsd.toFixed(2)}`);
+    console.log(`[Smart Swap] Got ${prices.size} prices`);
 
-    // PHASE 1: Get token universe
-    const allTokens = await getTokenUniverse();
-    if (allTokens.length === 0) {
-        console.error('[Smart Swap V3] No tokens available');
-        return { recommendations: [], timestamp: Date.now(), riskMode };
+    // Filter tokens based on risk mode
+    let tokensToShow: TokenData[];
+
+    if (riskMode === 'safe') {
+        // Safe: stablecoins + liquid staking + established DeFi
+        tokensToShow = CURATED_TOKENS.filter(t =>
+            t.category === 'stablecoin' ||
+            t.category === 'liquid-staking' ||
+            t.category === 'defi'
+        );
+    } else if (riskMode === 'degenerate') {
+        // Degen: memecoins + utility
+        tokensToShow = CURATED_TOKENS.filter(t =>
+            t.category === 'memecoin' ||
+            t.category === 'utility'
+        );
+    } else {
+        // Balanced: all tokens
+        tokensToShow = CURATED_TOKENS;
     }
 
-    // PHASE 2: Estimate all tokens (fast)
-    const candidates = await estimateCandidates(allTokens, inputValueUsd, riskMode);
-    if (candidates.length === 0) {
-        console.error('[Smart Swap V3] No candidates with prices');
-        return { recommendations: [], timestamp: Date.now(), riskMode };
+    console.log(`[Smart Swap] ${tokensToShow.length} tokens for ${riskMode} mode`);
+
+    // Build recommendations
+    const recommendations: SwapRecommendation[] = [];
+
+    for (const token of tokensToShow) {
+        const tokenPrice = prices.get(token.mint);
+
+        if (!tokenPrice || tokenPrice <= 0) {
+            console.log(`[Smart Swap] No price for ${token.symbol}`);
+            continue;
+        }
+
+        // Calculate estimated output
+        const estimatedOut = inputValueUsd / tokenPrice;
+        const outputValueUsd = estimatedOut * tokenPrice;
+
+        // Risk level based on category
+        let riskLevel: 'low' | 'medium' | 'high' = 'medium';
+        if (token.category === 'stablecoin') riskLevel = 'low';
+        else if (token.category === 'liquid-staking') riskLevel = 'low';
+        else if (token.category === 'memecoin') riskLevel = 'high';
+
+        // Score based on category
+        let smartSwapScore = 75;
+        if (token.category === 'stablecoin') smartSwapScore = 95;
+        else if (token.category === 'liquid-staking') smartSwapScore = 90;
+        else if (token.category === 'defi') smartSwapScore = 85;
+        else if (token.category === 'memecoin') smartSwapScore = 70;
+
+        recommendations.push({
+            tokenOut: {
+                mint: token.mint,
+                symbol: token.symbol,
+                name: token.name,
+                decimals: token.decimals,
+            },
+            estimatedAmountOut: estimatedOut,
+            estimatedSlippage: 0.1, // Estimate
+            liquidityScore: smartSwapScore,
+            riskLevel,
+            riskScore: smartSwapScore,
+            smartSwapScore,
+            explanation: `~${estimatedOut.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${token.symbol} ($${outputValueUsd.toFixed(2)}) • ${token.category}`,
+            priceImpact: 0.1,
+        });
     }
 
-    // PHASE 3: Quote top candidates
-    const recommendations = await quoteTopCandidates(
-        candidates,
-        tokenInMint,
-        amountInLamports,
-        15 // Quote top 15
-    );
+    // Sort by score
+    recommendations.sort((a, b) => b.smartSwapScore - a.smartSwapScore);
 
-    const elapsed = Date.now() - startTime;
-    console.log(`[Smart Swap V3] Complete: ${recommendations.length} recommendations in ${elapsed}ms`);
-    console.log(`[Smart Swap V3] Scanned ${allTokens.length} tokens, priced ${candidates.length}, quoted ${Math.min(15, candidates.length)}`);
+    console.log(`[Smart Swap] Returning ${recommendations.length} recommendations`);
 
     return {
-        recommendations: recommendations.slice(0, 6), // Show top 6
+        recommendations,
         timestamp: Date.now(),
         riskMode,
     };
