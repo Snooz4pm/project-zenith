@@ -8,7 +8,6 @@ const NAV_ITEMS = [
   { label: 'Swap', href: '/', icon: Home },
   { label: 'Signals', href: '/signals', icon: Activity },
   { label: 'Smart', href: '/smart-swap', icon: Sparkles },
-  { label: 'Terminal', href: '/terminal', icon: TrendingUp },
 ] as const;
 
 export default function MobileBottomNavNew() {
