@@ -24,7 +24,7 @@ const CACHE_DURATION = 60000; // 1 minute
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { amountIn, tokenInMint, riskMode } = body;
+        const { amountIn, tokenInMint, riskMode, filters } = body;
 
         // Validation
         if (!amountIn || amountIn <= 0) {
@@ -50,8 +50,8 @@ export async function POST(req: Request) {
 
         console.log(`[Smart Swap API] Request: ${amountIn} ${tokenInMint} (${riskMode} mode)`);
 
-        // Check cache
-        const cacheKey = `${amountIn}-${tokenInMint}-${riskMode}`;
+        // Check cache (include filters in key)
+        const cacheKey = `${amountIn}-${tokenInMint}-${riskMode}-${JSON.stringify(filters || {})}`;
         const cached = recommendationCache.get(cacheKey);
         if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
             console.log('[Smart Swap API] Returning cached recommendations');
@@ -63,6 +63,7 @@ export async function POST(req: Request) {
             amountIn,
             tokenInMint,
             riskMode: riskMode as RiskMode,
+            filters,
         };
 
         const recommendations = await generateRecommendations(request);

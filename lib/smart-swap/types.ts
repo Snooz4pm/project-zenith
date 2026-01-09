@@ -45,18 +45,27 @@ export interface SwapRecommendation {
     smartSwapScore: number; // composite score
     explanation: string;
     priceImpact: number;
+    outputValueUsd?: number; // USD value of output
+    category?: string; // Token category
+}
+
+export interface SmartSwapFilters {
+    categories?: string[];  // 'stablecoin', 'lst', 'defi', 'meme', 'gaming', 'ai'
+    search?: string;
 }
 
 export interface SmartSwapRequest {
     amountIn: number;
     tokenInMint: string;
     riskMode: RiskMode;
+    filters?: SmartSwapFilters;
 }
 
 export interface SmartSwapResponse {
     recommendations: SwapRecommendation[];
     timestamp: number;
     riskMode: RiskMode;
+    totalTokens?: number; // Total tokens available
 }
 
 // Risk mode configurations

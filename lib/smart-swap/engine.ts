@@ -1,10 +1,12 @@
 /**
- * Smart Swap Engine - Uses Same Logic as /swap
+ * Smart Swap Engine V4 - Enhanced with 1K Tokens + USD Values
  *
  * APPROACH:
- * - Uses Railway proxy for quotes (same as existing swap)
- * - Curated list of popular tokens
- * - Risk mode filtering by category
+ * 1. Fetch Jupiter token list (1K+ tokens)
+ * 2. Batch fetch prices for estimation
+ * 3. User filters by category, volume, etc.
+ * 4. Quote only top matches via Railway proxy
+ * 5. Show USD values
  */
 
 import {
@@ -15,113 +17,274 @@ import {
 } from './types';
 import { fetchQuote } from '@/lib/swap/execution';
 
+const JUPITER_TOKEN_API = 'https://token.jup.ag/strict';
+const JUPITER_PRICE_API = 'https://price.jup.ag/v6/price';
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
+// Cache for token list
+let tokenListCache: TokenInfo[] = [];
+let tokenListCacheTime = 0;
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+
 // ============================================================================
-// CURATED TOKEN LIST
+// TYPES
 // ============================================================================
 
-interface TokenData {
-    mint: string;
+export interface TokenInfo {
+    address: string;
     symbol: string;
     name: string;
     decimals: number;
-    category: 'stablecoin' | 'liquid-staking' | 'defi' | 'memecoin' | 'utility';
+    logoURI?: string;
+    tags?: string[];
+    price?: number;
 }
 
-const CURATED_TOKENS: TokenData[] = [
-    // Stablecoins
-    { mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', symbol: 'USDC', name: 'USD Coin', decimals: 6, category: 'stablecoin' },
-    { mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', symbol: 'USDT', name: 'Tether USD', decimals: 6, category: 'stablecoin' },
+export interface SmartSwapFilters {
+    categories?: string[];  // 'stablecoin', 'lst', 'defi', 'meme', 'gaming', 'ai'
+    minPrice?: number;
+    maxPrice?: number;
+    search?: string;
+}
 
-    // Liquid Staking
-    { mint: 'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', symbol: 'mSOL', name: 'Marinade SOL', decimals: 9, category: 'liquid-staking' },
-    { mint: 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn', symbol: 'JitoSOL', name: 'Jito SOL', decimals: 9, category: 'liquid-staking' },
-    { mint: 'bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1', symbol: 'bSOL', name: 'BlazeStake SOL', decimals: 9, category: 'liquid-staking' },
-
-    // DeFi
-    { mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', symbol: 'JUP', name: 'Jupiter', decimals: 6, category: 'defi' },
-    { mint: 'RaydiumuX7bNEPbxCnKXGEHiZdLx2qQf7K5dHQ4LxQv', symbol: 'RAY', name: 'Raydium', decimals: 6, category: 'defi' },
-    { mint: 'orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE', symbol: 'ORCA', name: 'Orca', decimals: 6, category: 'defi' },
-
-    // Memecoins
-    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', symbol: 'BONK', name: 'Bonk', decimals: 5, category: 'memecoin' },
-    { mint: '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs', symbol: 'WIF', name: 'dogwifhat', decimals: 6, category: 'memecoin' },
-    { mint: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5', symbol: 'MEW', name: 'cat in a dogs world', decimals: 5, category: 'memecoin' },
-    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', symbol: 'WEN', name: 'WEN', decimals: 5, category: 'memecoin' },
-
-    // Utility
-    { mint: 'HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3', symbol: 'PYTH', name: 'Pyth Network', decimals: 6, category: 'utility' },
-    { mint: 'rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof', symbol: 'RNDR', name: 'Render', decimals: 8, category: 'utility' },
-];
+// Token categories based on tags/patterns
+const TOKEN_CATEGORIES: Record<string, string[]> = {
+    stablecoin: ['USDC', 'USDT', 'PYUSD', 'DAI', 'USDH', 'UXD'],
+    lst: ['mSOL', 'JitoSOL', 'bSOL', 'stSOL', 'JSOL', 'LST'],
+    defi: ['JUP', 'RAY', 'ORCA', 'MNGO', 'SRM', 'STEP'],
+    meme: ['BONK', 'WIF', 'MEW', 'WEN', 'POPCAT', 'SLERF', 'BOME', 'MYRO'],
+    gaming: ['ATLAS', 'POLIS', 'GST', 'GMT', 'DUST'],
+    ai: ['RNDR', 'TAO', 'ALEPH'],
+    utility: ['PYTH', 'HNT', 'MOBILE', 'IOT', 'HONEY'],
+};
 
 // ============================================================================
-// MAIN: Generate Recommendations using same quote logic as /swap
+// PHASE 1: Fetch Token Universe
+// ============================================================================
+
+async function fetchTokenList(): Promise<TokenInfo[]> {
+    const now = Date.now();
+
+    // Use cache if fresh
+    if (tokenListCache.length > 0 && now - tokenListCacheTime < CACHE_DURATION) {
+        console.log(`[Smart Swap] Using cached token list (${tokenListCache.length} tokens)`);
+        return tokenListCache;
+    }
+
+    try {
+        console.log('[Smart Swap] Fetching Jupiter token list...');
+        const response = await fetch(JUPITER_TOKEN_API);
+
+        if (!response.ok) {
+            console.error('[Smart Swap] Token list fetch failed:', response.status);
+            return tokenListCache; // Return stale cache
+        }
+
+        const tokens = await response.json();
+
+        // Filter and limit to tradeable tokens
+        const filtered = tokens
+            .filter((t: any) =>
+                t.address &&
+                t.symbol &&
+                t.address !== SOL_MINT
+            )
+            .slice(0, 1000) // Limit to 1000 tokens
+            .map((t: any) => ({
+                address: t.address,
+                symbol: t.symbol,
+                name: t.name || t.symbol,
+                decimals: t.decimals,
+                logoURI: t.logoURI,
+                tags: t.tags || [],
+            }));
+
+        tokenListCache = filtered;
+        tokenListCacheTime = now;
+
+        console.log(`[Smart Swap] Cached ${filtered.length} tokens`);
+        return filtered;
+    } catch (error) {
+        console.error('[Smart Swap] Token list error:', error);
+        return tokenListCache;
+    }
+}
+
+// ============================================================================
+// PHASE 2: Batch Fetch Prices
+// ============================================================================
+
+async function fetchTokenPrices(tokens: TokenInfo[]): Promise<Map<string, number>> {
+    const prices = new Map<string, number>();
+
+    // Batch in chunks of 100
+    const chunks: TokenInfo[][] = [];
+    for (let i = 0; i < tokens.length; i += 100) {
+        chunks.push(tokens.slice(i, i + 100));
+    }
+
+    console.log(`[Smart Swap] Fetching prices for ${tokens.length} tokens in ${chunks.length} batches`);
+
+    try {
+        await Promise.all(chunks.map(async (chunk) => {
+            const ids = chunk.map(t => t.address).join(',');
+            const response = await fetch(`${JUPITER_PRICE_API}?ids=${ids}`);
+
+            if (response.ok) {
+                const data = await response.json();
+                for (const [mint, info] of Object.entries(data.data || {})) {
+                    const price = (info as any)?.price;
+                    if (price && price > 0) {
+                        prices.set(mint, price);
+                    }
+                }
+            }
+        }));
+    } catch (error) {
+        console.error('[Smart Swap] Price fetch error:', error);
+    }
+
+    console.log(`[Smart Swap] Got prices for ${prices.size} tokens`);
+    return prices;
+}
+
+// ============================================================================
+// PHASE 3: Filter Tokens
+// ============================================================================
+
+function categorizeToken(token: TokenInfo): string {
+    for (const [category, symbols] of Object.entries(TOKEN_CATEGORIES)) {
+        if (symbols.some(s => token.symbol.toUpperCase().includes(s.toUpperCase()))) {
+            return category;
+        }
+    }
+
+    // Check tags
+    if (token.tags?.includes('stablecoin')) return 'stablecoin';
+    if (token.tags?.includes('lp-token')) return 'lp';
+
+    return 'other';
+}
+
+function filterTokens(
+    tokens: TokenInfo[],
+    riskMode: RiskMode,
+    filters?: SmartSwapFilters
+): TokenInfo[] {
+    let filtered = [...tokens];
+
+    // Risk mode filtering
+    if (riskMode === 'safe') {
+        // Only stablecoins, LST, and established DeFi
+        filtered = filtered.filter(t => {
+            const category = categorizeToken(t);
+            return ['stablecoin', 'lst', 'defi'].includes(category);
+        });
+    } else if (riskMode === 'degenerate') {
+        // Memes, gaming, AI, and unknown
+        filtered = filtered.filter(t => {
+            const category = categorizeToken(t);
+            return ['meme', 'gaming', 'ai', 'utility', 'other'].includes(category);
+        });
+    }
+
+    // Apply custom filters
+    if (filters?.search) {
+        const search = filters.search.toLowerCase();
+        filtered = filtered.filter(t =>
+            t.symbol.toLowerCase().includes(search) ||
+            t.name.toLowerCase().includes(search)
+        );
+    }
+
+    if (filters?.categories && filters.categories.length > 0) {
+        filtered = filtered.filter(t => {
+            const category = categorizeToken(t);
+            return filters.categories!.includes(category);
+        });
+    }
+
+    return filtered;
+}
+
+// ============================================================================
+// MAIN: Generate Recommendations
 // ============================================================================
 
 export async function generateRecommendations(
-    request: SmartSwapRequest
-): Promise<SmartSwapResponse> {
-    const { amountIn, tokenInMint, riskMode } = request;
+    request: SmartSwapRequest & { filters?: SmartSwapFilters }
+): Promise<SmartSwapResponse & { totalTokens: number }> {
+    const { amountIn, tokenInMint, riskMode, filters } = request;
+    const startTime = Date.now();
 
-    console.log(`[Smart Swap] Generating for ${amountIn} SOL, mode: ${riskMode}`);
+    console.log(`[Smart Swap] Starting for ${amountIn} SOL, mode: ${riskMode}`);
 
-    // Convert SOL to lamports (same as useSwap)
+    // Convert to lamports
     const amountInLamports = Math.floor(amountIn * 1e9).toString();
 
-    // Filter tokens based on risk mode
-    let tokensToQuote: TokenData[];
+    // PHASE 1: Get token list
+    const allTokens = await fetchTokenList();
 
-    if (riskMode === 'safe') {
-        tokensToQuote = CURATED_TOKENS.filter(t =>
-            t.category === 'stablecoin' ||
-            t.category === 'liquid-staking' ||
-            t.category === 'defi'
-        );
-    } else if (riskMode === 'degenerate') {
-        tokensToQuote = CURATED_TOKENS.filter(t =>
-            t.category === 'memecoin' ||
-            t.category === 'utility'
-        );
-    } else {
-        tokensToQuote = CURATED_TOKENS;
-    }
+    // PHASE 2: Filter tokens
+    const filteredTokens = filterTokens(allTokens, riskMode, filters);
+    console.log(`[Smart Swap] Filtered to ${filteredTokens.length} tokens`);
 
-    console.log(`[Smart Swap] Quoting ${tokensToQuote.length} tokens`);
+    // PHASE 3: Get prices for filtered tokens
+    const prices = await fetchTokenPrices(filteredTokens);
 
-    // Quote each token using the same fetchQuote as existing swap
+    // Get SOL price for USD calculations
+    const solPrices = await fetchTokenPrices([{ address: SOL_MINT, symbol: 'SOL', name: 'Solana', decimals: 9 }]);
+    const solPrice = solPrices.get(SOL_MINT) || 180;
+    const inputValueUsd = amountIn * solPrice;
+
+    console.log(`[Smart Swap] SOL: $${solPrice}, Input: $${inputValueUsd.toFixed(2)}`);
+
+    // PHASE 4: Estimate returns and select top candidates
+    const candidates = filteredTokens
+        .filter(t => prices.has(t.address))
+        .map(t => ({
+            token: t,
+            price: prices.get(t.address)!,
+            estimatedOut: inputValueUsd / prices.get(t.address)!,
+            estimatedUsd: inputValueUsd, // Same as input for estimation
+            category: categorizeToken(t),
+        }))
+        .sort((a, b) => b.estimatedOut - a.estimatedOut)
+        .slice(0, 20); // Top 20 for quoting
+
+    console.log(`[Smart Swap] Quoting top ${candidates.length} candidates`);
+
+    // PHASE 5: Get real quotes via Railway proxy
     const recommendations: SwapRecommendation[] = [];
 
-    // Process quotes in parallel (same pattern as existing swap)
-    const quotePromises = tokensToQuote.map(async (token) => {
+    const quotePromises = candidates.map(async (candidate) => {
         try {
             const quote = await fetchQuote({
                 inputMint: tokenInMint,
-                outputMint: token.mint,
+                outputMint: candidate.token.address,
                 amount: amountInLamports,
-                slippageBps: 50 // 0.5%
+                slippageBps: 50
             });
 
             if (quote && quote.outAmount) {
-                const outAmount = Number(quote.outAmount) / Math.pow(10, token.decimals);
+                const outAmount = Number(quote.outAmount) / Math.pow(10, candidate.token.decimals);
                 const priceImpact = parseFloat(quote.priceImpactPct || '0') * 100;
+                const outputValueUsd = outAmount * candidate.price;
 
-                // Risk level based on price impact
+                // Risk level
                 let riskLevel: 'low' | 'medium' | 'high' = 'low';
                 if (Math.abs(priceImpact) > 2) riskLevel = 'high';
                 else if (Math.abs(priceImpact) > 0.5) riskLevel = 'medium';
 
-                // Score
                 const smartSwapScore = Math.round(100 - Math.abs(priceImpact) * 10);
-
-                console.log(`[Smart Swap] ${token.symbol}: ${outAmount.toFixed(4)}, impact: ${priceImpact.toFixed(2)}%`);
 
                 return {
                     tokenOut: {
-                        mint: token.mint,
-                        symbol: token.symbol,
-                        name: token.name,
-                        decimals: token.decimals,
+                        mint: candidate.token.address,
+                        symbol: candidate.token.symbol,
+                        name: candidate.token.name,
+                        decimals: candidate.token.decimals,
+                        logoURI: candidate.token.logoURI,
                     },
                     estimatedAmountOut: outAmount,
                     estimatedSlippage: Math.abs(priceImpact),
@@ -129,37 +292,40 @@ export async function generateRecommendations(
                     riskLevel,
                     riskScore: smartSwapScore,
                     smartSwapScore,
-                    explanation: `~${outAmount.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${token.symbol} • ${priceImpact.toFixed(2)}% impact • ${token.category}`,
+                    explanation: `~${outAmount.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${candidate.token.symbol} • $${outputValueUsd.toFixed(2)} • ${priceImpact.toFixed(2)}% impact`,
                     priceImpact,
-                } as SwapRecommendation;
+                    outputValueUsd, // NEW: Add USD value
+                    category: candidate.category, // NEW: Add category
+                } as SwapRecommendation & { outputValueUsd: number; category: string };
             }
             return null;
         } catch (error) {
-            console.log(`[Smart Swap] Quote failed for ${token.symbol}:`, error);
             return null;
         }
     });
 
     const results = await Promise.all(quotePromises);
 
-    // Filter out nulls and add to recommendations
     for (const result of results) {
         if (result) {
-            recommendations.push(result);
+            recommendations.push(result as any);
         }
     }
 
-    // Sort by score (lowest price impact first)
+    // Sort by score
     recommendations.sort((a, b) => b.smartSwapScore - a.smartSwapScore);
 
-    console.log(`[Smart Swap] Returning ${recommendations.length} recommendations`);
+    const elapsed = Date.now() - startTime;
+    console.log(`[Smart Swap] Done: ${recommendations.length} recommendations in ${elapsed}ms`);
 
     return {
         recommendations,
         timestamp: Date.now(),
         riskMode,
+        totalTokens: allTokens.length, // NEW: Tell UI how many tokens available
     };
 }
 
-// Re-export types
+// Export for UI
+export { TOKEN_CATEGORIES, categorizeToken, fetchTokenList };
 export * from './types';

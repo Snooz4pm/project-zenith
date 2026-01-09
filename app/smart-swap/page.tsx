@@ -13,10 +13,20 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, TrendingUp, Shield, Zap, AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
-import { RiskMode, RISK_MODE_CONFIG, SwapRecommendation, SmartSwapResponse } from '@/lib/smart-swap/types';
+import { Sparkles, TrendingUp, Shield, Zap, AlertTriangle, ArrowRight, Loader2, Search, Filter } from 'lucide-react';
+import { RiskMode, RISK_MODE_CONFIG, SwapRecommendation, SmartSwapResponse, SmartSwapFilters } from '@/lib/smart-swap/types';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
+
+const CATEGORIES = [
+    { id: 'stablecoin', label: 'Stablecoins', emoji: '💵' },
+    { id: 'lst', label: 'LST', emoji: '🥩' },
+    { id: 'defi', label: 'DeFi', emoji: '🏦' },
+    { id: 'meme', label: 'Meme', emoji: '🐕' },
+    { id: 'gaming', label: 'Gaming', emoji: '🎮' },
+    { id: 'ai', label: 'AI', emoji: '🤖' },
+    { id: 'utility', label: 'Utility', emoji: '🔧' },
+];
 
 export default function SmartSwapPage() {
     const router = useRouter();
@@ -24,11 +34,14 @@ export default function SmartSwapPage() {
     // Form state
     const [amountIn, setAmountIn] = useState<string>('1');
     const [riskMode, setRiskMode] = useState<RiskMode>('balanced');
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
     // Results state
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [recommendations, setRecommendations] = useState<SwapRecommendation[]>([]);
+    const [totalTokens, setTotalTokens] = useState<number>(0);
 
     const handleAnalyze = async () => {
         if (!amountIn || parseFloat(amountIn) <= 0) {
@@ -41,6 +54,10 @@ export default function SmartSwapPage() {
         setRecommendations([]);
 
         try {
+            const filters: SmartSwapFilters = {};
+            if (searchQuery) filters.search = searchQuery;
+            if (selectedCategories.length > 0) filters.categories = selectedCategories;
+
             const response = await fetch('/api/smart-swap/recommend', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -48,6 +65,7 @@ export default function SmartSwapPage() {
                     amountIn: parseFloat(amountIn),
                     tokenInMint: SOL_MINT,
                     riskMode,
+                    filters,
                 }),
             });
 
@@ -58,6 +76,7 @@ export default function SmartSwapPage() {
 
             const data: SmartSwapResponse = await response.json();
             setRecommendations(data.recommendations);
+            setTotalTokens(data.totalTokens || 0);
 
             if (data.recommendations.length === 0) {
                 setError('No suitable tokens found for the selected risk mode. Try a different mode.');
@@ -144,11 +163,10 @@ export default function SmartSwapPage() {
                                     <button
                                         key={mode}
                                         onClick={() => setRiskMode(mode)}
-                                        className={`px-4 py-3 rounded-lg font-mono text-sm font-medium transition-all border ${
-                                            riskMode === mode
+                                        className={`px-4 py-3 rounded-lg font-mono text-sm font-medium transition-all border ${riskMode === mode
                                                 ? 'bg-purple-600 text-white border-purple-500'
                                                 : 'bg-black/50 text-zinc-400 border-zinc-700 hover:border-zinc-600'
-                                        }`}
+                                            }`}
                                     >
                                         {RISK_MODE_CONFIG[mode].label}
                                     </button>
@@ -157,6 +175,56 @@ export default function SmartSwapPage() {
                             <p className="text-xs text-zinc-500 mt-2 font-mono">
                                 {RISK_MODE_CONFIG[riskMode].description}
                             </p>
+                        </div>
+                    </div>
+
+                    {/* Search & Filters */}
+                    <div className="mt-6 pt-6 border-t border-zinc-800">
+                        <label className="block text-sm font-mono text-zinc-400 mb-2">
+                            <Filter className="w-4 h-4 inline mr-2" />
+                            Filter Tokens
+                        </label>
+
+                        {/* Search Input */}
+                        <div className="relative mb-4">
+                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search tokens (e.g. BONK, Jupiter...)"
+                                className="w-full bg-black/50 border border-zinc-700 rounded-lg pl-10 pr-4 py-2 text-white font-mono text-sm focus:outline-none focus:border-purple-500 transition-colors"
+                            />
+                        </div>
+
+                        {/* Category Chips */}
+                        <div className="flex flex-wrap gap-2">
+                            {CATEGORIES.map((cat) => (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => {
+                                        setSelectedCategories(prev =>
+                                            prev.includes(cat.id)
+                                                ? prev.filter(c => c !== cat.id)
+                                                : [...prev, cat.id]
+                                        );
+                                    }}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-mono transition-all border ${selectedCategories.includes(cat.id)
+                                            ? 'bg-purple-600/20 text-purple-400 border-purple-500'
+                                            : 'bg-zinc-800/50 text-zinc-400 border-zinc-700 hover:border-zinc-600'
+                                        }`}
+                                >
+                                    {cat.emoji} {cat.label}
+                                </button>
+                            ))}
+                            {selectedCategories.length > 0 && (
+                                <button
+                                    onClick={() => setSelectedCategories([])}
+                                    className="px-3 py-1.5 rounded-full text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10"
+                                >
+                                    Clear
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -193,14 +261,21 @@ export default function SmartSwapPage() {
                 {/* Recommendations */}
                 {recommendations.length > 0 && (
                     <div className="space-y-4">
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
-                            <h2 className="text-xl font-bold text-white font-mono">
-                                TOP RECOMMENDATIONS
-                            </h2>
-                            <span className="text-sm text-zinc-500 font-mono">
-                                ({recommendations.length})
-                            </span>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
+                                <h2 className="text-xl font-bold text-white font-mono">
+                                    TOP RECOMMENDATIONS
+                                </h2>
+                                <span className="text-sm text-zinc-500 font-mono">
+                                    ({recommendations.length})
+                                </span>
+                            </div>
+                            {totalTokens > 0 && (
+                                <span className="text-xs text-zinc-500 font-mono">
+                                    Scanned {totalTokens.toLocaleString()} tokens
+                                </span>
+                            )}
                         </div>
 
                         {recommendations.map((rec, index) => (
