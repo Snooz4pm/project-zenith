@@ -13,7 +13,7 @@ let lastFetch = 0;
 const CACHE_DURATION = 30000; // 30 seconds
 
 interface TokenData {
-    id: string;
+    mint: string;
     name: string;
     symbol: string;
     logoURI?: string;
@@ -143,14 +143,13 @@ async function fetchNewTokens(): Promise<any[]> {
         if (!res.ok) return [];
         const data = await res.json();
 
-        // Filter Solana + recently created + has liquidity
+        // Filter Solana + has liquidity (relaxed filters to ensure results)
         const now = Date.now();
         return (data.pairs || [])
             .filter((p: any) =>
                 p.chainId === 'solana' &&
-                p.liquidity?.usd > 5000 &&
-                p.pairCreatedAt &&
-                (now - p.pairCreatedAt) < 7 * 24 * 60 * 60 * 1000 // 7 days
+                p.liquidity?.usd > 1000 && // Lowered from 5000
+                p.baseToken?.address
             )
             .slice(0, 50);
     } catch (err) {
@@ -186,7 +185,7 @@ export async function GET(req: Request) {
             const ageMs = pair.pairCreatedAt ? now - pair.pairCreatedAt : 0;
 
             coins.push({
-                id: pair.baseToken.address,
+                mint: pair.baseToken.address,
                 name: pair.baseToken.name || 'Unknown',
                 symbol: pair.baseToken.symbol || '???',
                 logoURI: pair.info?.imageUrl,
@@ -231,7 +230,7 @@ export async function GET(req: Request) {
 // Strip premium data for free users - they see basic info only
 function stripPremiumData(token: TokenData): Partial<TokenData> {
     return {
-        id: token.id,
+        mint: token.mint,
         name: token.name,
         symbol: token.symbol,
         logoURI: token.logoURI,
