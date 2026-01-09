@@ -1,13 +1,14 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, TrendingUp, Activity, Sparkles } from 'lucide-react';
+import { Home, Activity, Sparkles, Target } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const NAV_ITEMS = [
   { label: 'Swap', href: '/', icon: Home },
   { label: 'Signals', href: '/signals', icon: Activity },
   { label: 'Smart', href: '/smart-swap', icon: Sparkles },
+  { label: 'V1', href: '/smart-swap-v1', icon: Target },
 ] as const;
 
 export default function MobileBottomNavNew() {
