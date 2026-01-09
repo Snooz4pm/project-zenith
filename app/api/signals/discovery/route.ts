@@ -293,7 +293,6 @@ function stripPremiumData(token: TokenWithScore): Partial<TokenWithScore> {
         liquidity: token.liquidity,
         marketCap: token.marketCap,
         source: token.source,
-        dexUrl: token.dexUrl,
         // Trust data is premium - show only basic badge for free
         trustScore: undefined,
         trustBadge: token.trustBadge === 'VERIFIED' || token.trustBadge === 'TRUSTED' ? token.trustBadge : undefined,

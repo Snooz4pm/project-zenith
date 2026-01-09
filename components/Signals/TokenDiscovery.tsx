@@ -131,7 +131,7 @@ export default function TokenDiscovery({ isPremium, onSelectToken }: Props) {
                             <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">PREMIUM</span>
                         )}
                     </h3>
-                    <p className="text-zinc-500 text-sm">Real-time tokens from DEXScreener with trust scoring</p>
+                    <p className="text-zinc-500 text-sm">Real-time token discovery with Zenith Trust Score™</p>
                 </div>
                 <button
                     onClick={fetchTokens}
@@ -286,8 +286,8 @@ export default function TokenDiscovery({ isPremium, onSelectToken }: Props) {
                                     {/* Projection - Premium Only */}
                                     {isPremium && token.projection && (
                                         <div className={`mt-2 flex items-center justify-end gap-1 text-xs ${token.projection.trend === 'bullish' ? 'text-emerald-400' :
-                                                token.projection.trend === 'bearish' ? 'text-red-400' :
-                                                    'text-zinc-400'
+                                            token.projection.trend === 'bearish' ? 'text-red-400' :
+                                                'text-zinc-400'
                                             }`}>
                                             {token.projection.trend === 'bullish' && <TrendingUp className="w-3 h-3" />}
                                             {token.projection.trend === 'bearish' && <TrendingDown className="w-3 h-3" />}
@@ -298,22 +298,10 @@ export default function TokenDiscovery({ isPremium, onSelectToken }: Props) {
                                 </div>
                             </div>
 
-                            {/* DEX Link */}
-                            {token.dexUrl && (
-                                <div className="mt-3 pt-3 border-t border-zinc-700/50 flex items-center justify-between">
-                                    <span className="text-xs text-zinc-600 font-mono truncate">{token.address}</span>
-                                    <a
-                                        href={token.dexUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="flex items-center gap-1 text-xs text-zinc-400 hover:text-emerald-400 transition-colors"
-                                    >
-                                        <ExternalLink className="w-3 h-3" />
-                                        View on DEXScreener
-                                    </a>
-                                </div>
-                            )}
+                            {/* Token Address */}
+                            <div className="mt-3 pt-3 border-t border-zinc-700/50">
+                                <span className="text-xs text-zinc-600 font-mono">{token.address}</span>
+                            </div>
                         </div>
                     ))
                 )}
