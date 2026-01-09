@@ -159,26 +159,25 @@ function getProjection(token: any, score: number): { trend: 'bullish' | 'bearish
 
 async function fetchDexScreener(): Promise<any[]> {
     try {
-        // Get latest Solana pairs
-        const res = await fetch('https://api.dexscreener.com/latest/dex/tokens/solana', {
+        // Get latest Solana pairs using search
+        const res = await fetch('https://api.dexscreener.com/latest/dex/search?q=SOL', {
             headers: { 'Accept': 'application/json' },
+            next: { revalidate: 30 },
         });
 
-        if (!res.ok) return [];
-        const data = await res.json();
-
-        // Also get trending/boosted pairs
-        const trendingRes = await fetch('https://api.dexscreener.com/token-boosts/top/v1', {
-            headers: { 'Accept': 'application/json' },
-        });
-
-        let trending: any[] = [];
-        if (trendingRes.ok) {
-            const trendingData = await trendingRes.json();
-            trending = (trendingData || []).filter((t: any) => t.chainId === 'solana');
+        if (!res.ok) {
+            console.error('[Discovery] DEXScreener response not OK:', res.status);
+            return [];
         }
 
-        return [...(data.pairs || []), ...trending].slice(0, 50);
+        const data = await res.json();
+
+        // Filter for Solana chain only
+        const solanaPairs = (data.pairs || []).filter((p: any) => p.chainId === 'solana');
+
+        console.log(`[Discovery] Fetched ${solanaPairs.length} Solana pairs from DEXScreener`);
+
+        return solanaPairs.slice(0, 100);
     } catch (err) {
         console.error('[Discovery] DEXScreener error:', err);
         return [];
