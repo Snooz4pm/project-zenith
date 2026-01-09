@@ -49,13 +49,13 @@ export interface SmartSwapFilters {
 
 // Token categories based on tags/patterns
 const TOKEN_CATEGORIES: Record<string, string[]> = {
-    stablecoin: ['USDC', 'USDT', 'PYUSD', 'DAI', 'USDH', 'UXD'],
-    lst: ['mSOL', 'JitoSOL', 'bSOL', 'stSOL', 'JSOL', 'LST'],
-    defi: ['JUP', 'RAY', 'ORCA', 'MNGO', 'SRM', 'STEP'],
-    meme: ['BONK', 'WIF', 'MEW', 'WEN', 'POPCAT', 'SLERF', 'BOME', 'MYRO'],
-    gaming: ['ATLAS', 'POLIS', 'GST', 'GMT', 'DUST'],
-    ai: ['RNDR', 'TAO', 'ALEPH'],
-    utility: ['PYTH', 'HNT', 'MOBILE', 'IOT', 'HONEY'],
+    stablecoin: ['USDC', 'USDT', 'PYUSD', 'DAI', 'USDH', 'UXD', 'USDY'],
+    lst: ['mSOL', 'JitoSOL', 'bSOL', 'stSOL', 'JSOL', 'LST', 'INF'],
+    defi: ['JUP', 'RAY', 'ORCA', 'MNGO', 'SRM', 'STEP', 'FIDA', 'COPE', 'MAPS', 'OXY', 'SLND'],
+    meme: ['BONK', 'WIF', 'MEW', 'WEN', 'POPCAT', 'SLERF', 'BOME', 'MYRO', 'SAMO', 'GUMMY', 'ANALOS', 'PONKE', 'SMOLE', 'TRUMP', 'HOBBES'],
+    gaming: ['ATLAS', 'POLIS', 'GST', 'GMT', 'DUST', 'AURY', 'SFL'],
+    ai: ['RNDR', 'TAO', 'ALEPH', 'RENDER'],
+    utility: ['PYTH', 'HNT', 'MOBILE', 'IOT', 'HONEY', 'SHDW', 'TNSR', 'W'],
 };
 
 // ============================================================================
@@ -153,15 +153,28 @@ async function fetchTokenPrices(tokens: TokenInfo[]): Promise<Map<string, number
 // ============================================================================
 
 function categorizeToken(token: TokenInfo): string {
-    for (const [category, symbols] of Object.entries(TOKEN_CATEGORIES)) {
-        if (symbols.some(s => token.symbol.toUpperCase().includes(s.toUpperCase()))) {
-            return category;
+    const symbol = token.symbol.toUpperCase();
+    const name = (token.name || '').toUpperCase();
+
+    // Check against known category patterns
+    for (const [category, patterns] of Object.entries(TOKEN_CATEGORIES)) {
+        for (const pattern of patterns) {
+            const upperPattern = pattern.toUpperCase();
+            // Exact match or contains pattern
+            if (symbol === upperPattern || symbol.includes(upperPattern) || name.includes(upperPattern)) {
+                return category;
+            }
         }
     }
 
     // Check tags
     if (token.tags?.includes('stablecoin')) return 'stablecoin';
     if (token.tags?.includes('lp-token')) return 'lp';
+    if (token.tags?.includes('lst')) return 'lst';
+
+    // Check for common patterns
+    if (symbol.includes('USD') && symbol.length <= 6) return 'stablecoin';
+    if (symbol.includes('SOL') && symbol !== 'SOL') return 'lst';
 
     return 'other';
 }
@@ -173,22 +186,7 @@ function filterTokens(
 ): TokenInfo[] {
     let filtered = [...tokens];
 
-    // Risk mode filtering
-    if (riskMode === 'safe') {
-        // Only stablecoins, LST, and established DeFi
-        filtered = filtered.filter(t => {
-            const category = categorizeToken(t);
-            return ['stablecoin', 'lst', 'defi'].includes(category);
-        });
-    } else if (riskMode === 'degenerate') {
-        // Memes, gaming, AI, and unknown
-        filtered = filtered.filter(t => {
-            const category = categorizeToken(t);
-            return ['meme', 'gaming', 'ai', 'utility', 'other'].includes(category);
-        });
-    }
-
-    // Apply custom filters
+    // Apply search filter first
     if (filters?.search) {
         const search = filters.search.toLowerCase();
         filtered = filtered.filter(t =>
@@ -197,11 +195,28 @@ function filterTokens(
         );
     }
 
+    // Apply category filters if specified
     if (filters?.categories && filters.categories.length > 0) {
         filtered = filtered.filter(t => {
             const category = categorizeToken(t);
             return filters.categories!.includes(category);
         });
+    } else {
+        // Only apply risk mode filtering if NO categories are selected
+        if (riskMode === 'safe') {
+            // Only stablecoins, LST, and established DeFi
+            filtered = filtered.filter(t => {
+                const category = categorizeToken(t);
+                return ['stablecoin', 'lst', 'defi'].includes(category);
+            });
+        } else if (riskMode === 'degenerate') {
+            // Memes, gaming, AI, utility, and other
+            filtered = filtered.filter(t => {
+                const category = categorizeToken(t);
+                return ['meme', 'gaming', 'ai', 'utility', 'other'].includes(category);
+            });
+        }
+        // 'balanced' mode = no filtering, show all
     }
 
     return filtered;
@@ -227,7 +242,8 @@ export async function generateRecommendations(
 
     // PHASE 2: Filter tokens
     const filteredTokens = filterTokens(allTokens, riskMode, filters);
-    console.log(`[Smart Swap] Filtered to ${filteredTokens.length} tokens`);
+    console.log(`[Smart Swap] Filtered to ${filteredTokens.length} tokens (from ${allTokens.length} total)`);
+    console.log(`[Smart Swap] Filters: categories=${filters?.categories?.join(',') || 'none'}, search=${filters?.search || 'none'}, riskMode=${riskMode}`);
 
     // PHASE 3: Get prices for filtered tokens
     const prices = await fetchTokenPrices(filteredTokens);
@@ -250,8 +266,9 @@ export async function generateRecommendations(
             category: categorizeToken(t),
         }))
         .sort((a, b) => b.estimatedOut - a.estimatedOut)
-        .slice(0, 20); // Top 20 for quoting
+        .slice(0, 30); // Top 30 for quoting to ensure we get at least 3 results
 
+    console.log(`[Smart Swap] Found ${filteredTokens.length} tokens with ${prices.size} prices`);
     console.log(`[Smart Swap] Quoting top ${candidates.length} candidates`);
 
     // PHASE 5: Get real quotes via Railway proxy

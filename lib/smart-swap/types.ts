@@ -50,7 +50,7 @@ export interface SwapRecommendation {
 }
 
 export interface SmartSwapFilters {
-    categories?: string[];  // 'stablecoin', 'lst', 'defi', 'meme', 'gaming', 'ai'
+    categories?: string[];  // 'stablecoin', 'defi', 'meme', 'gaming', 'ai'
     search?: string;
 }
 
