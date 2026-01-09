@@ -520,7 +520,7 @@ export default function PremiumAlerts() {
 
                 {/* New Coins Tab */}
                 {activeTab === 'coins' && subscription.features.newCoins && (
-                    <NewCoinsTab onAlert={addAlert} />
+                    <NewCoinsTab onAlert={addAlert} isPremium={subscription.isActive} />
                 )}
 
                 {/* Rug Detector Tab */}
@@ -699,15 +699,19 @@ interface NewCoin {
     name: string;
     symbol: string;
     createdAt: number;
-    initialLiquidity: number;
-    currentPrice: number;
+    logoURI?: string;
+    price: number;
     priceChange24h: number;
     volume24h: number;
-    risk: 'low' | 'medium' | 'high';
-    logoURI?: string;
+    liquidity: number;
+    // Premium fields
+    apeScore?: number;
+    verdict?: 'STRONG_APE' | 'CAUTIOUS' | 'HIGH_RISK' | 'DEGEN_ONLY';
+    whaleInterest?: boolean;
+    similarTo?: string;
 }
 
-function NewCoinsTab({ onAlert }: { onAlert: (alert: Omit<Alert, 'id' | 'timestamp'>) => void }) {
+function NewCoinsTab({ onAlert, isPremium }: { onAlert: (alert: Omit<Alert, 'id' | 'timestamp'>) => void; isPremium: boolean }) {
     const [coins, setCoins] = useState<NewCoin[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -716,19 +720,21 @@ function NewCoinsTab({ onAlert }: { onAlert: (alert: Omit<Alert, 'id' | 'timesta
         const fetchCoins = async () => {
             try {
                 setLoading(true);
-                const res = await fetch('/api/signals/new-coins');
+                const res = await fetch(`/api/signals/new-coins?premium=${isPremium}`);
                 if (!res.ok) throw new Error('Failed to fetch');
                 const data = await res.json();
                 setCoins(data.coins || []);
 
-                // Alert on new coins
-                if (data.coins?.length > 0) {
-                    const newest = data.coins[0];
-                    onAlert({
-                        type: 'newCoin',
-                        title: '🆕 New Token Detected',
-                        message: `${newest.symbol} launched with $${newest.initialLiquidity.toLocaleString()} liquidity`,
-                    });
+                // Alert on high-score coins for premium users
+                if (isPremium && data.coins?.length > 0) {
+                    const topCoin = data.coins[0];
+                    if (topCoin.apeScore >= 70) {
+                        onAlert({
+                            type: 'newCoin',
+                            title: '🚀 Strong Ape Opportunity',
+                            message: `${topCoin.symbol} scored ${topCoin.apeScore}/100 - ${topCoin.verdict}`,
+                        });
+                    }
                 }
             } catch (err) {
                 setError('Failed to load new coins');
@@ -738,15 +744,15 @@ function NewCoinsTab({ onAlert }: { onAlert: (alert: Omit<Alert, 'id' | 'timesta
         };
 
         fetchCoins();
-        const interval = setInterval(fetchCoins, 60000); // Refresh every minute
+        const interval = setInterval(fetchCoins, 60000);
         return () => clearInterval(interval);
-    }, [onAlert]);
+    }, [onAlert, isPremium]);
 
     if (loading) {
         return (
             <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
-                    <div key={i} className="h-16 bg-zinc-800 rounded-lg animate-pulse" />
+                    <div key={i} className="h-20 bg-zinc-800 rounded-lg animate-pulse" />
                 ))}
             </div>
         );
@@ -756,38 +762,94 @@ function NewCoinsTab({ onAlert }: { onAlert: (alert: Omit<Alert, 'id' | 'timesta
         return <p className="text-red-400 text-center py-8">{error}</p>;
     }
 
+    const getVerdictStyle = (verdict?: string) => {
+        switch (verdict) {
+            case 'STRONG_APE': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+            case 'CAUTIOUS': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+            case 'HIGH_RISK': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+            case 'DEGEN_ONLY': return 'bg-red-500/20 text-red-400 border-red-500/30';
+            default: return 'bg-zinc-700 text-zinc-400';
+        }
+    };
+
     return (
         <div className="space-y-3">
-            <div className="text-sm text-zinc-500 mb-4">
-                🚀 Fresh tokens from the last 7 days with ≥$1K liquidity
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+                <div className="text-sm text-zinc-500">
+                    🚀 Fresh tokens from the last 7 days
+                </div>
+                {isPremium && (
+                    <div className="text-xs text-emerald-400 flex items-center gap-1">
+                        <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                        Ape Scores Active
+                    </div>
+                )}
             </div>
+
             {coins.length === 0 ? (
                 <p className="text-zinc-500 text-center py-8">No new coins detected</p>
             ) : (
                 coins.map((coin) => (
-                    <div key={coin.mint} className="flex items-center justify-between bg-zinc-800 p-4 rounded-lg">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-lg">
-                                {coin.logoURI ? (
-                                    <img src={coin.logoURI} alt={coin.symbol} className="w-full h-full rounded-full" />
+                    <div key={coin.mint} className="bg-zinc-800/50 rounded-xl border border-white/5 p-4 hover:border-emerald-500/20 transition-all">
+                        <div className="flex items-center justify-between">
+                            {/* Left: Token Info */}
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-full bg-zinc-700 flex items-center justify-center text-xl overflow-hidden">
+                                    {coin.logoURI ? (
+                                        <img src={coin.logoURI} alt={coin.symbol} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-white font-bold">{coin.symbol?.charAt(0) || '?'}</span>
+                                    )}
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-white font-bold">{coin.symbol || 'Unknown'}</span>
+                                        {coin.whaleInterest && (
+                                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">🐋</span>
+                                        )}
+                                        {coin.similarTo && (
+                                            <span className="text-xs text-zinc-500">Like {coin.similarTo}</span>
+                                        )}
+                                    </div>
+                                    <div className="text-zinc-500 text-sm">{coin.name}</div>
+                                    <div className="text-xs text-zinc-600 font-mono">
+                                        ${(coin.liquidity / 1000).toFixed(1)}K liq • ${(coin.volume24h / 1000).toFixed(1)}K vol
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Right: Score or Locked */}
+                            <div className="text-right">
+                                {isPremium && coin.apeScore !== undefined ? (
+                                    <>
+                                        {/* APE SCORE */}
+                                        <div className="flex items-center justify-end gap-2 mb-1">
+                                            <span className="text-zinc-500 text-xs">APE</span>
+                                            <div className={`text-2xl font-bold font-mono ${coin.apeScore >= 70 ? 'text-emerald-400' :
+                                                coin.apeScore >= 50 ? 'text-yellow-400' :
+                                                    'text-red-400'
+                                                }`}>
+                                                {coin.apeScore}
+                                            </div>
+                                        </div>
+                                        {/* Verdict Badge */}
+                                        <div className={`text-xs px-2 py-1 rounded-full border ${getVerdictStyle(coin.verdict)}`}>
+                                            {coin.verdict?.replace('_', ' ')}
+                                        </div>
+                                    </>
                                 ) : (
-                                    coin.symbol?.charAt(0) || '?'
+                                    <>
+                                        {/* BASIC: Just price change */}
+                                        <div className={`text-lg font-mono ${coin.priceChange24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                            {coin.priceChange24h >= 0 ? '+' : ''}{coin.priceChange24h.toFixed(1)}%
+                                        </div>
+                                        {/* Locked Ape Score */}
+                                        <div className="text-xs text-zinc-600 flex items-center gap-1 justify-end mt-1">
+                                            🔒 Ape Score
+                                        </div>
+                                    </>
                                 )}
-                            </div>
-                            <div>
-                                <div className="text-white font-medium">{coin.symbol || 'Unknown'}</div>
-                                <div className="text-zinc-500 text-sm">{coin.name}</div>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                            <div className={`text-sm font-mono ${coin.priceChange24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {coin.priceChange24h >= 0 ? '+' : ''}{coin.priceChange24h.toFixed(1)}%
-                            </div>
-                            <div className={`text-xs px-2 py-0.5 rounded ${coin.risk === 'low' ? 'bg-emerald-500/20 text-emerald-400' :
-                                coin.risk === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                    'bg-red-500/20 text-red-400'
-                                }`}>
-                                {coin.risk.toUpperCase()}
                             </div>
                         </div>
                     </div>
