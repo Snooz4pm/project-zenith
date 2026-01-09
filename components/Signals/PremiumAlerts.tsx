@@ -422,14 +422,107 @@ export default function PremiumAlerts() {
                                 />
                             </div>
                         ) : (
-                            <div className="text-center py-8 text-zinc-500">
-                                <p>No active subscription</p>
-                                <button
-                                    onClick={() => setShowSubscribeModal(true)}
-                                    className="mt-4 px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg"
-                                >
-                                    Get Premium Access
-                                </button>
+                            <div className="space-y-6">
+                                {/* FREE vs PREMIUM Comparison */}
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    {/* FREE Tier */}
+                                    <div className="border border-zinc-700 rounded-xl p-6 bg-zinc-800/50">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h4 className="text-lg font-bold text-white">FREE</h4>
+                                            <span className="text-2xl font-bold text-white">$0</span>
+                                        </div>
+                                        <ul className="space-y-3 text-sm">
+                                            <li className="flex items-center gap-2 text-zinc-300">
+                                                <span className="text-emerald-400">✓</span>
+                                                View new token listings
+                                            </li>
+                                            <li className="flex items-center gap-2 text-zinc-300">
+                                                <span className="text-emerald-400">✓</span>
+                                                Basic price & volume data
+                                            </li>
+                                            <li className="flex items-center gap-2 text-zinc-300">
+                                                <span className="text-emerald-400">✓</span>
+                                                Simple rug check (pass/fail)
+                                            </li>
+                                            <li className="flex items-center gap-2 text-zinc-500">
+                                                <span className="text-zinc-600">✗</span>
+                                                <span className="line-through">Ape Score algorithm</span>
+                                            </li>
+                                            <li className="flex items-center gap-2 text-zinc-500">
+                                                <span className="text-zinc-600">✗</span>
+                                                <span className="line-through">Rug Risk breakdown</span>
+                                            </li>
+                                            <li className="flex items-center gap-2 text-zinc-500">
+                                                <span className="text-zinc-600">✗</span>
+                                                <span className="line-through">Whale wallet tracking</span>
+                                            </li>
+                                            <li className="flex items-center gap-2 text-zinc-500">
+                                                <span className="text-zinc-600">✗</span>
+                                                <span className="line-through">Push notifications</span>
+                                            </li>
+                                        </ul>
+                                        <div className="mt-6">
+                                            <div className="w-full py-3 text-center text-zinc-500 text-sm border border-zinc-700 rounded-lg">
+                                                Current Plan
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* PREMIUM Tier */}
+                                    <div className="border-2 border-emerald-500/50 rounded-xl p-6 bg-gradient-to-b from-emerald-900/20 to-zinc-900 relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 bg-emerald-500 text-black text-xs font-bold px-3 py-1 rounded-bl-lg">
+                                            RECOMMENDED
+                                        </div>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h4 className="text-lg font-bold text-white">PREMIUM</h4>
+                                            <div className="text-right">
+                                                <span className="text-2xl font-bold text-emerald-400">0.05 SOL</span>
+                                                <span className="text-zinc-500 text-sm">/30 days</span>
+                                            </div>
+                                        </div>
+                                        <ul className="space-y-3 text-sm">
+                                            <li className="flex items-center gap-2 text-zinc-300">
+                                                <span className="text-emerald-400">✓</span>
+                                                Everything in FREE
+                                            </li>
+                                            <li className="flex items-center gap-2 text-white font-medium">
+                                                <span className="text-emerald-400">✓</span>
+                                                🦧 <strong>Ape Score</strong> - Token quality rating (0-100)
+                                            </li>
+                                            <li className="flex items-center gap-2 text-white font-medium">
+                                                <span className="text-emerald-400">✓</span>
+                                                🚨 <strong>Rug Risk Score</strong> - 20+ signal analysis
+                                            </li>
+                                            <li className="flex items-center gap-2 text-white font-medium">
+                                                <span className="text-emerald-400">✓</span>
+                                                🐋 <strong>Whale Tracker</strong> - Smart money alerts
+                                            </li>
+                                            <li className="flex items-center gap-2 text-white font-medium">
+                                                <span className="text-emerald-400">✓</span>
+                                                📱 <strong>Push Notifications</strong> - Real-time alerts
+                                            </li>
+                                            <li className="flex items-center gap-2 text-white font-medium">
+                                                <span className="text-emerald-400">✓</span>
+                                                💎 <strong>Verdict Badges</strong> - STRONG APE / HIGH RISK
+                                            </li>
+                                        </ul>
+                                        <div className="mt-6">
+                                            <button
+                                                onClick={() => setShowSubscribeModal(true)}
+                                                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition-all hover:shadow-lg hover:shadow-emerald-500/20"
+                                            >
+                                                🚀 Upgrade to Premium
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Value Proposition */}
+                                <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-4 text-center">
+                                    <p className="text-zinc-400 text-sm">
+                                        💡 <strong className="text-white">Save 2+ hours of research</strong> per trade with our proprietary scoring algorithms
+                                    </p>
+                                </div>
                             </div>
                         )}
 
