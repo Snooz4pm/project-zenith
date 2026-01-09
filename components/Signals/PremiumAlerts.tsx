@@ -11,6 +11,7 @@ import {
 } from '@solana/web3.js';
 import toast from 'react-hot-toast';
 import bs58 from 'bs58';
+import TokenDiscovery from './TokenDiscovery';
 
 // =============================================================================
 // CONSTANTS - CONFIGURE THESE
@@ -81,7 +82,7 @@ export default function PremiumAlerts() {
     });
 
     // UI state
-    const [activeTab, setActiveTab] = useState<'subscribe' | 'wallets' | 'coins' | 'rugs' | 'alerts'>('subscribe');
+    const [activeTab, setActiveTab] = useState<'discovery' | 'subscribe' | 'wallets' | 'coins' | 'rugs' | 'alerts'>('discovery');
     const [isLoading, setIsLoading] = useState(false);
     const [showSubscribeModal, setShowSubscribeModal] = useState(false);
 
@@ -372,19 +373,20 @@ export default function PremiumAlerts() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 bg-zinc-900 p-1 rounded-lg">
+            <div className="flex gap-1 bg-zinc-900 p-1 rounded-lg overflow-x-auto">
                 {[
-                    { id: 'subscribe', label: '📋 Overview' },
+                    { id: 'discovery', label: '🔥 Discovery' },
+                    { id: 'subscribe', label: '📋 Plans' },
                     { id: 'wallets', label: '🐋 Wallets', locked: !subscription.features.walletTracker },
                     { id: 'coins', label: '🆕 New Coins', locked: !subscription.features.newCoins },
-                    { id: 'rugs', label: '🚨 Rug Detector', locked: !subscription.features.rugPulls },
+                    { id: 'rugs', label: '🚨 Rug Check', locked: !subscription.features.rugPulls },
                     { id: 'alerts', label: `🔔 Alerts (${alerts.length})` },
                 ].map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
                         disabled={tab.locked}
-                        className={`flex-1 py-2 px-3 rounded text-sm font-medium transition-colors ${activeTab === tab.id
+                        className={`flex-1 py-2 px-3 rounded text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
                             ? 'bg-zinc-800 text-white'
                             : tab.locked
                                 ? 'text-zinc-600 cursor-not-allowed'
@@ -398,7 +400,12 @@ export default function PremiumAlerts() {
 
             {/* Tab Content */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-                {/* Overview Tab */}
+                {/* Discovery Tab - Live Token Feed */}
+                {activeTab === 'discovery' && (
+                    <TokenDiscovery isPremium={subscription.isActive} />
+                )}
+
+                {/* Plans Tab */}
                 {activeTab === 'subscribe' && (
                     <div className="space-y-6">
                         <h3 className="text-lg font-semibold text-white">Your Subscription</h3>

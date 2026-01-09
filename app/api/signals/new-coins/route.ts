@@ -41,7 +41,7 @@ interface TokenData {
 // APE SCORE ALGORITHM (0-100)
 // =============================================================================
 
-function calculateApeScore(token: any): { score: number; breakdown: any; verdict: string } {
+function calculateApeScore(token: any): { score: number; breakdown: any; verdict: 'STRONG_APE' | 'CAUTIOUS' | 'HIGH_RISK' | 'DEGEN_ONLY' } {
     let score = 0;
     const breakdown = {
         liquidityScore: 0,
@@ -105,7 +105,7 @@ function calculateApeScore(token: any): { score: number; breakdown: any; verdict
     score += breakdown.ageScore;
 
     // Determine verdict
-    let verdict: string;
+    let verdict: 'STRONG_APE' | 'CAUTIOUS' | 'HIGH_RISK' | 'DEGEN_ONLY';
     if (score >= 80) verdict = 'STRONG_APE';
     else if (score >= 60) verdict = 'CAUTIOUS';
     else if (score >= 40) verdict = 'HIGH_RISK';
