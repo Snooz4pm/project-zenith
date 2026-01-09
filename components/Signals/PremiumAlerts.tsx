@@ -630,7 +630,103 @@ export default function PremiumAlerts() {
 
                 {/* Alerts Tab */}
                 {activeTab === 'alerts' && (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
+                        {/* Notification Types Explained - Collapsible */}
+                        <details className="group">
+                            <summary className="flex items-center justify-between cursor-pointer p-3 bg-zinc-800/50 rounded-lg border border-zinc-700/50 hover:border-zinc-600/50 transition-all">
+                                <span className="text-sm font-medium text-zinc-300 flex items-center gap-2">
+                                    <span>📋</span> Notification Types Explained
+                                </span>
+                                <span className="text-zinc-500 text-xs group-open:rotate-180 transition-transform">▼</span>
+                            </summary>
+                            <div className="mt-3 p-4 bg-zinc-800/30 rounded-lg border border-zinc-700/30 space-y-4">
+                                {/* Severity Levels */}
+                                <div>
+                                    <h4 className="text-xs font-semibold text-zinc-400 mb-2">SEVERITY LEVELS</h4>
+                                    <div className="grid grid-cols-3 gap-2 text-xs">
+                                        <div className="p-2 bg-zinc-700/30 rounded">
+                                            <span className="text-zinc-500">INFO</span>
+                                            <p className="text-zinc-600 mt-1">In-app only</p>
+                                        </div>
+                                        <div className="p-2 bg-yellow-500/10 rounded border border-yellow-500/20">
+                                            <span className="text-yellow-400">SIGNAL</span>
+                                            <p className="text-zinc-500 mt-1">Worth noting</p>
+                                        </div>
+                                        <div className="p-2 bg-red-500/10 rounded border border-red-500/20">
+                                            <span className="text-red-400">CRITICAL</span>
+                                            <p className="text-zinc-500 mt-1">Push eligible</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Alert Types */}
+                                <div>
+                                    <h4 className="text-xs font-semibold text-zinc-400 mb-2">ALERT TYPES</h4>
+                                    <div className="space-y-2 text-xs">
+                                        <div className="flex items-start gap-3 p-2 rounded bg-blue-500/5 border-l-2 border-blue-500">
+                                            <span>🐋</span>
+                                            <div>
+                                                <span className="text-blue-400 font-medium">Whale Activity</span>
+                                                <p className="text-zinc-500">Large wallet bought/sold $100K+. Smart money signal.</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-3 p-2 rounded bg-emerald-500/5 border-l-2 border-emerald-500">
+                                            <span>🚀</span>
+                                            <div>
+                                                <span className="text-emerald-400 font-medium">Strong Ape Opportunity</span>
+                                                <p className="text-zinc-500">New token with Ape Score 70+. Potential gem to research.</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-3 p-2 rounded bg-red-500/5 border-l-2 border-red-500">
+                                            <span>🚨</span>
+                                            <div>
+                                                <span className="text-red-400 font-medium">Rug Risk Spike</span>
+                                                <p className="text-zinc-500">Token risk increased significantly. Consider exiting.</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-3 p-2 rounded bg-purple-500/5 border-l-2 border-purple-500">
+                                            <span>🎓</span>
+                                            <div>
+                                                <span className="text-purple-400 font-medium">Pump Graduation</span>
+                                                <p className="text-zinc-500">Pump.fun token at 90%+ bonding. May moon or dump.</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-3 p-2 rounded bg-yellow-500/5 border-l-2 border-yellow-500">
+                                            <span>📈</span>
+                                            <div>
+                                                <span className="text-yellow-400 font-medium">Volume Spike</span>
+                                                <p className="text-zinc-500">500%+ volume increase. Something happening.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Ape Score Breakdown */}
+                                <div>
+                                    <h4 className="text-xs font-semibold text-zinc-400 mb-2">APE SCORE VERDICTS</h4>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                        <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20">
+                                            <span className="text-emerald-400">STRONG_APE</span>
+                                            <span className="text-zinc-500 ml-2">75-100</span>
+                                        </div>
+                                        <div className="p-2 rounded bg-yellow-500/10 border border-yellow-500/20">
+                                            <span className="text-yellow-400">CAUTIOUS</span>
+                                            <span className="text-zinc-500 ml-2">55-74</span>
+                                        </div>
+                                        <div className="p-2 rounded bg-orange-500/10 border border-orange-500/20">
+                                            <span className="text-orange-400">HIGH_RISK</span>
+                                            <span className="text-zinc-500 ml-2">35-54</span>
+                                        </div>
+                                        <div className="p-2 rounded bg-red-500/10 border border-red-500/20">
+                                            <span className="text-red-400">DEGEN_ONLY</span>
+                                            <span className="text-zinc-500 ml-2">0-34</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+
+                        {/* Alerts List */}
                         {alerts.length === 0 ? (
                             <p className="text-zinc-500 text-center py-8">No alerts yet</p>
                         ) : (
