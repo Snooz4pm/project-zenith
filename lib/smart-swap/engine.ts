@@ -64,7 +64,8 @@ export async function getTokenCandidates(
                 mint: pair.baseToken.address,
                 symbol: pair.baseToken.symbol || 'UNKNOWN',
                 name: pair.baseToken.name || 'Unknown Token',
-                decimals: 9, // Default for SPL tokens
+                logoURI: pair.info?.imageUrl || undefined,
+                decimals: pair.baseToken.decimals || 6, // Use DEXScreener decimals or default to 6
             }))
             .slice(0, 20); // Top 20 candidates
 
@@ -228,6 +229,8 @@ export async function generateRecommendations(
     const recommendations: SwapRecommendation[] = [];
     const amountInLamports = Math.floor(amountIn * 1e9); // Convert SOL to lamports
 
+    console.log(`[Smart Swap] Amount in lamports: ${amountInLamports}`);
+
     for (const candidate of candidates) {
         try {
             // Get metrics
@@ -243,10 +246,24 @@ export async function generateRecommendations(
 
             // Get Jupiter quote
             const quote = await getJupiterQuote(tokenInMint, candidate.mint, amountInLamports);
-            if (!quote) continue;
+            if (!quote || !quote.outAmount) {
+                console.log(`[Smart Swap] ${candidate.symbol} - no quote available`);
+                continue;
+            }
 
-            const outAmount = parseInt(quote.outAmount) / Math.pow(10, candidate.decimals);
+            // Get decimals from the quote response if available, otherwise use token's decimals
+            const outputDecimals = quote.outputMint?.decimals || candidate.decimals || 6;
+            const outAmountRaw = BigInt(quote.outAmount);
+            const outAmount = Number(outAmountRaw) / Math.pow(10, outputDecimals);
             const priceImpactPct = parseFloat(quote.priceImpactPct || '0');
+
+            console.log(`[Smart Swap] ${candidate.symbol}: outAmount=${outAmount}, decimals=${outputDecimals}, raw=${quote.outAmount}`);
+
+            // Skip if output is 0 or invalid
+            if (outAmount <= 0 || !isFinite(outAmount)) {
+                console.log(`[Smart Swap] ${candidate.symbol} - invalid output amount`);
+                continue;
+            }
 
             // Calculate composite score
             const smartSwapScore = calculateSmartSwapScore(
