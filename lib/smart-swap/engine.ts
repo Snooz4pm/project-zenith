@@ -1,50 +1,188 @@
 /**
- * Smart Swap Engine V2
+ * Smart Swap Engine V3 - Production Architecture
  *
- * SIMPLIFIED APPROACH - ALWAYS RETURNS RESULTS:
- * 1. Get quotes from Jupiter for popular tokens
- * 2. If quotes fail, show tokens with estimated values
- * 3. Always return at least the popular tokens list
+ * 3-PHASE APPROACH:
+ * PHASE 1: Get Jupiter token list, filter locally (NO quotes)
+ * PHASE 2: Price-based estimation (covers 100s of tokens instantly)
+ * PHASE 3: Real Jupiter quotes (ONLY top 10-15 candidates)
+ *
+ * This is how real aggregators work.
  */
 
 import {
     RiskMode,
-    TokenCandidate,
     SwapRecommendation,
     SmartSwapRequest,
     SmartSwapResponse,
     RISK_MODE_CONFIG,
 } from './types';
 
-const JUPITER_QUOTE_API = 'https://quote-api.jup.ag/v6';
+const JUPITER_TOKEN_API = 'https://token.jup.ag/strict'; // Verified tokens only
+const JUPITER_PRICE_API = 'https://price.jup.ag/v6/price';
+const JUPITER_QUOTE_API = 'https://quote-api.jup.ag/v6/quote';
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
-// Popular tokens to scan (always shown)
-const POPULAR_TOKENS = [
-    { mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', symbol: 'USDC', name: 'USD Coin', decimals: 6, priceUsd: 1.0 },
-    { mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', symbol: 'USDT', name: 'Tether USD', decimals: 6, priceUsd: 1.0 },
-    { mint: 'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', symbol: 'mSOL', name: 'Marinade SOL', decimals: 9, priceUsd: 185 },
-    { mint: 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn', symbol: 'JitoSOL', name: 'Jito SOL', decimals: 9, priceUsd: 190 },
-    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', symbol: 'BONK', name: 'Bonk', decimals: 5, priceUsd: 0.00002 },
-    { mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', symbol: 'JUP', name: 'Jupiter', decimals: 6, priceUsd: 0.8 },
-];
+// Cache for token list (refresh every 5 minutes)
+let tokenListCache: any[] = [];
+let tokenListCacheTime = 0;
+const TOKEN_LIST_CACHE_DURATION = 5 * 60 * 1000;
 
-// Fallback SOL price
-const FALLBACK_SOL_PRICE = 180;
+// =============================================================================
+// PHASE 1: Get Token Universe (FAST, NO QUOTES)
+// =============================================================================
 
-/**
- * Get Jupiter quote - with timeout and error handling
- */
+interface TokenInfo {
+    address: string;
+    symbol: string;
+    name: string;
+    decimals: number;
+    logoURI?: string;
+    daily_volume?: number;
+    // Price will be fetched in Phase 2
+    price?: number;
+}
+
+async function getTokenUniverse(): Promise<TokenInfo[]> {
+    const now = Date.now();
+
+    // Use cache if fresh
+    if (tokenListCache.length > 0 && now - tokenListCacheTime < TOKEN_LIST_CACHE_DURATION) {
+        console.log(`[Smart Swap] Using cached token list (${tokenListCache.length} tokens)`);
+        return tokenListCache;
+    }
+
+    try {
+        console.log('[Smart Swap] Fetching Jupiter token list...');
+        const response = await fetch(JUPITER_TOKEN_API, {
+            headers: { 'Accept': 'application/json' },
+        });
+
+        if (!response.ok) {
+            console.error('[Smart Swap] Failed to fetch token list:', response.status);
+            return [];
+        }
+
+        const tokens = await response.json();
+        console.log(`[Smart Swap] Got ${tokens.length} tokens from Jupiter`);
+
+        // Filter to tradeable tokens (skip weird ones)
+        const filtered = tokens.filter((t: any) =>
+            t.address &&
+            t.symbol &&
+            t.decimals <= 18 &&
+            t.address !== SOL_MINT // Skip SOL itself
+        ).map((t: any) => ({
+            address: t.address,
+            symbol: t.symbol,
+            name: t.name || t.symbol,
+            decimals: t.decimals,
+            logoURI: t.logoURI,
+        }));
+
+        // Cache it
+        tokenListCache = filtered;
+        tokenListCacheTime = now;
+
+        console.log(`[Smart Swap] Filtered to ${filtered.length} tradeable tokens`);
+        return filtered;
+    } catch (error) {
+        console.error('[Smart Swap] Token list fetch error:', error);
+        return [];
+    }
+}
+
+// =============================================================================
+// PHASE 2: Price-Based Estimation (CHEAP, INSTANT)
+// =============================================================================
+
+interface EstimatedCandidate {
+    token: TokenInfo;
+    price: number;
+    estimatedOut: number;
+    estimatedUsd: number;
+}
+
+async function getTokenPrices(mints: string[]): Promise<Map<string, number>> {
+    const prices = new Map<string, number>();
+
+    try {
+        // Jupiter price API accepts comma-separated IDs
+        // Batch in chunks of 100
+        const chunks = [];
+        for (let i = 0; i < mints.length; i += 100) {
+            chunks.push(mints.slice(i, i + 100));
+        }
+
+        for (const chunk of chunks) {
+            const ids = chunk.join(',');
+            const response = await fetch(`${JUPITER_PRICE_API}?ids=${ids}`);
+
+            if (response.ok) {
+                const data = await response.json();
+                for (const [mint, info] of Object.entries(data.data || {})) {
+                    prices.set(mint, (info as any).price || 0);
+                }
+            }
+        }
+
+        console.log(`[Smart Swap] Got prices for ${prices.size} tokens`);
+    } catch (error) {
+        console.error('[Smart Swap] Price fetch error:', error);
+    }
+
+    return prices;
+}
+
+async function estimateCandidates(
+    tokens: TokenInfo[],
+    inputValueUsd: number,
+    riskMode: RiskMode
+): Promise<EstimatedCandidate[]> {
+    console.log(`[Smart Swap] Estimating ${tokens.length} tokens...`);
+
+    // Get prices for all tokens
+    const mints = tokens.map(t => t.address);
+    const prices = await getTokenPrices(mints);
+
+    const candidates: EstimatedCandidate[] = [];
+
+    for (const token of tokens) {
+        const price = prices.get(token.address);
+        if (!price || price <= 0) continue; // Skip tokens without price
+
+        // Estimate output
+        const estimatedOut = inputValueUsd / price;
+        const estimatedUsd = estimatedOut * price; // Should equal inputValueUsd
+
+        candidates.push({
+            token,
+            price,
+            estimatedOut,
+            estimatedUsd,
+        });
+    }
+
+    // Sort by estimated output (most tokens first - for memecoins etc)
+    candidates.sort((a, b) => b.estimatedOut - a.estimatedOut);
+
+    console.log(`[Smart Swap] ${candidates.length} tokens with valid prices`);
+    return candidates;
+}
+
+// =============================================================================
+// PHASE 3: Real Quotes (ONLY TOP CANDIDATES)
+// =============================================================================
+
 async function getJupiterQuote(
     inputMint: string,
     outputMint: string,
     amountInLamports: string
 ): Promise<any> {
     try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
+        const url = `${JUPITER_QUOTE_API}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountInLamports}&slippageBps=50`;
 
-        const url = `${JUPITER_QUOTE_API}/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountInLamports}&slippageBps=50`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3000); // 3s timeout
 
         const response = await fetch(url, {
             headers: { 'Accept': 'application/json' },
@@ -53,125 +191,146 @@ async function getJupiterQuote(
 
         clearTimeout(timeout);
 
-        if (!response.ok) {
-            console.log(`[Smart Swap] Quote API returned ${response.status} for ${outputMint}`);
-            return null;
-        }
-
-        const data = await response.json();
-        return data;
-    } catch (error: any) {
-        if (error.name === 'AbortError') {
-            console.log(`[Smart Swap] Quote timeout for ${outputMint}`);
-        } else {
-            console.log(`[Smart Swap] Quote error for ${outputMint}:`, error.message);
-        }
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (error) {
         return null;
     }
 }
 
-/**
- * Main: Generate Recommendations - ALWAYS returns results
- */
+async function quoteTopCandidates(
+    candidates: EstimatedCandidate[],
+    inputMint: string,
+    amountInLamports: string,
+    limit: number = 15
+): Promise<SwapRecommendation[]> {
+    const topCandidates = candidates.slice(0, limit);
+    console.log(`[Smart Swap] Quoting top ${topCandidates.length} candidates...`);
+
+    const recommendations: SwapRecommendation[] = [];
+
+    // Quote in parallel (Promise.allSettled to handle failures)
+    const quotePromises = topCandidates.map(async (candidate) => {
+        const quote = await getJupiterQuote(inputMint, candidate.token.address, amountInLamports);
+        return { candidate, quote };
+    });
+
+    const results = await Promise.allSettled(quotePromises);
+
+    for (const result of results) {
+        if (result.status !== 'fulfilled') continue;
+
+        const { candidate, quote } = result.value;
+
+        let outAmount: number;
+        let priceImpact: number;
+        let hasRealQuote: boolean;
+
+        if (quote && quote.outAmount) {
+            // Real quote
+            outAmount = Number(quote.outAmount) / Math.pow(10, candidate.token.decimals);
+            priceImpact = parseFloat(quote.priceImpactPct || '0');
+            hasRealQuote = true;
+        } else {
+            // Fallback to estimate
+            outAmount = candidate.estimatedOut;
+            priceImpact = 0.1;
+            hasRealQuote = false;
+        }
+
+        const outputValueUsd = outAmount * candidate.price;
+
+        // Risk level based on price impact
+        let riskLevel: 'low' | 'medium' | 'high' = 'low';
+        if (Math.abs(priceImpact) > 2) riskLevel = 'high';
+        else if (Math.abs(priceImpact) > 0.5) riskLevel = 'medium';
+
+        // Score: lower price impact = higher score
+        const smartSwapScore = Math.round(100 - Math.abs(priceImpact) * 15);
+
+        recommendations.push({
+            tokenOut: {
+                mint: candidate.token.address,
+                symbol: candidate.token.symbol,
+                name: candidate.token.name,
+                decimals: candidate.token.decimals,
+                logoURI: candidate.token.logoURI,
+            },
+            estimatedAmountOut: outAmount,
+            estimatedSlippage: Math.abs(priceImpact),
+            liquidityScore: hasRealQuote ? 90 : 70,
+            riskLevel,
+            riskScore: hasRealQuote ? (100 - Math.abs(priceImpact) * 10) : 75,
+            smartSwapScore: hasRealQuote ? smartSwapScore : 65,
+            explanation: hasRealQuote
+                ? `Receive ~${outAmount.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${candidate.token.symbol} ($${outputValueUsd.toFixed(2)}) • ${priceImpact.toFixed(2)}% impact`
+                : `Est. ~${outAmount.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${candidate.token.symbol} ($${outputValueUsd.toFixed(2)}) • final amount depends on liquidity`,
+            priceImpact,
+        });
+    }
+
+    // Sort by smart score (real quotes first, then by score)
+    recommendations.sort((a, b) => {
+        // Prioritize real quotes
+        const aReal = a.liquidityScore >= 90 ? 1 : 0;
+        const bReal = b.liquidityScore >= 90 ? 1 : 0;
+        if (aReal !== bReal) return bReal - aReal;
+        return b.smartSwapScore - a.smartSwapScore;
+    });
+
+    return recommendations;
+}
+
+// =============================================================================
+// MAIN: Generate Recommendations (3-Phase)
+// =============================================================================
+
 export async function generateRecommendations(
     request: SmartSwapRequest
 ): Promise<SmartSwapResponse> {
     const { amountIn, tokenInMint, riskMode } = request;
     const startTime = Date.now();
 
-    console.log(`[Smart Swap] Analyzing ${amountIn} SOL`);
+    console.log(`[Smart Swap V3] Starting 3-phase analysis for ${amountIn} SOL`);
 
     // Convert SOL to lamports
     const amountInLamports = Math.floor(amountIn * 1e9).toString();
-    const inputValueUsd = amountIn * FALLBACK_SOL_PRICE;
 
-    const recommendations: SwapRecommendation[] = [];
+    // Get SOL price first
+    const solPrices = await getTokenPrices([SOL_MINT]);
+    const solPrice = solPrices.get(SOL_MINT) || 180; // Fallback
+    const inputValueUsd = amountIn * solPrice;
 
-    // Process each token
-    for (const token of POPULAR_TOKENS) {
-        try {
-            // Skip SOL
-            if (token.mint === tokenInMint) continue;
+    console.log(`[Smart Swap V3] SOL price: $${solPrice}, Input: $${inputValueUsd.toFixed(2)}`);
 
-            // Try to get Jupiter quote
-            const quote = await getJupiterQuote(tokenInMint, token.mint, amountInLamports);
-
-            let outAmount: number;
-            let priceImpact: number;
-            let hasRealQuote: boolean;
-
-            if (quote && quote.outAmount) {
-                // Real quote data
-                outAmount = Number(quote.outAmount) / Math.pow(10, token.decimals);
-                priceImpact = parseFloat(quote.priceImpactPct || '0');
-                hasRealQuote = true;
-                console.log(`[Smart Swap] ${token.symbol}: Real quote = ${outAmount.toFixed(4)}`);
-            } else {
-                // Fallback: estimate based on prices
-                outAmount = inputValueUsd / token.priceUsd;
-                priceImpact = 0.1; // Assume minimal impact
-                hasRealQuote = false;
-                console.log(`[Smart Swap] ${token.symbol}: Estimated = ${outAmount.toFixed(4)}`);
-            }
-
-            const outputValueUsd = outAmount * token.priceUsd;
-
-            // Determine risk level
-            let riskLevel: 'low' | 'medium' | 'high' = 'low';
-            if (Math.abs(priceImpact) > 2) riskLevel = 'high';
-            else if (Math.abs(priceImpact) > 0.5) riskLevel = 'medium';
-
-            // Score based on price impact
-            const smartSwapScore = Math.round(100 - Math.abs(priceImpact) * 20);
-
-            recommendations.push({
-                tokenOut: {
-                    mint: token.mint,
-                    symbol: token.symbol,
-                    name: token.name,
-                    decimals: token.decimals,
-                },
-                estimatedAmountOut: outAmount,
-                estimatedSlippage: Math.abs(priceImpact),
-                liquidityScore: hasRealQuote ? smartSwapScore : 80,
-                riskLevel,
-                riskScore: hasRealQuote ? 100 - Math.abs(priceImpact) * 10 : 85,
-                smartSwapScore: hasRealQuote ? smartSwapScore : 75,
-                explanation: hasRealQuote
-                    ? `Receive ~${outAmount.toFixed(4)} ${token.symbol} ($${outputValueUsd.toFixed(2)}) with ${priceImpact.toFixed(3)}% impact`
-                    : `Estimated ~${outAmount.toFixed(4)} ${token.symbol} ($${outputValueUsd.toFixed(2)})`,
-                priceImpact,
-            });
-        } catch (error) {
-            console.warn(`[Smart Swap] Error for ${token.symbol}:`, error);
-            // Still add with fallback
-            const outAmount = inputValueUsd / token.priceUsd;
-            recommendations.push({
-                tokenOut: {
-                    mint: token.mint,
-                    symbol: token.symbol,
-                    name: token.name,
-                    decimals: token.decimals,
-                },
-                estimatedAmountOut: outAmount,
-                estimatedSlippage: 0.1,
-                liquidityScore: 70,
-                riskLevel: 'low',
-                riskScore: 80,
-                smartSwapScore: 70,
-                explanation: `Estimated ~${outAmount.toFixed(4)} ${token.symbol}`,
-                priceImpact: 0.1,
-            });
-        }
+    // PHASE 1: Get token universe
+    const allTokens = await getTokenUniverse();
+    if (allTokens.length === 0) {
+        console.error('[Smart Swap V3] No tokens available');
+        return { recommendations: [], timestamp: Date.now(), riskMode };
     }
 
-    // Sort by smart score
-    recommendations.sort((a, b) => b.smartSwapScore - a.smartSwapScore);
+    // PHASE 2: Estimate all tokens (fast)
+    const candidates = await estimateCandidates(allTokens, inputValueUsd, riskMode);
+    if (candidates.length === 0) {
+        console.error('[Smart Swap V3] No candidates with prices');
+        return { recommendations: [], timestamp: Date.now(), riskMode };
+    }
 
-    console.log(`[Smart Swap] Returning ${recommendations.length} recommendations in ${Date.now() - startTime}ms`);
+    // PHASE 3: Quote top candidates
+    const recommendations = await quoteTopCandidates(
+        candidates,
+        tokenInMint,
+        amountInLamports,
+        15 // Quote top 15
+    );
+
+    const elapsed = Date.now() - startTime;
+    console.log(`[Smart Swap V3] Complete: ${recommendations.length} recommendations in ${elapsed}ms`);
+    console.log(`[Smart Swap V3] Scanned ${allTokens.length} tokens, priced ${candidates.length}, quoted ${Math.min(15, candidates.length)}`);
 
     return {
-        recommendations,
+        recommendations: recommendations.slice(0, 6), // Show top 6
         timestamp: Date.now(),
         riskMode,
     };
