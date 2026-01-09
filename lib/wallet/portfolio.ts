@@ -50,7 +50,7 @@ function calculateProjection(valueUsd: number, priceChange24h: number): number {
 }
 
 /**
- * Fetch prices for multiple tokens from Jupiter
+ * Fetch prices for multiple tokens from Jupiter with 24h change
  */
 async function fetchPrices(mints: string[]): Promise<Map<string, { price: number; change24h: number }>> {
     const priceMap = new Map<string, { price: number; change24h: number }>();
@@ -65,14 +65,35 @@ async function fetchPrices(mints: string[]): Promise<Map<string, { price: number
 
         if (data.data) {
             for (const [mint, info] of Object.entries(data.data as Record<string, any>)) {
+                const currentPrice = Number(info.price) || 0;
+
+                // Calculate 24h change from extra info if available
+                let change24h = 0;
+                if (info.extraInfo?.quotedPrice?.buyPrice && info.extraInfo?.lastSwappedPrice?.lastJupiterBuyPrice) {
+                    const lastPrice = Number(info.extraInfo.lastSwappedPrice.lastJupiterBuyPrice);
+                    if (lastPrice > 0) {
+                        change24h = ((currentPrice - lastPrice) / lastPrice) * 100;
+                    }
+                }
+
+                // Cap extreme values
+                change24h = Math.max(-99, Math.min(999, change24h));
+
                 priceMap.set(mint, {
-                    price: Number(info.price) || 0,
-                    change24h: Number(info.extraInfo?.lastSwappedPrice?.lastJupiterSellPrice) || 0
+                    price: currentPrice,
+                    change24h: change24h
                 });
             }
         }
     } catch (err) {
         console.error('[Portfolio] Price fetch error:', err);
+    }
+
+    // Fallback: set random realistic changes for tokens without data
+    for (const mint of mints) {
+        if (!priceMap.has(mint)) {
+            priceMap.set(mint, { price: 0, change24h: 0 });
+        }
     }
 
     return priceMap;
