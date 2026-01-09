@@ -34,41 +34,48 @@ export async function getTokenCandidates(
 ): Promise<TokenCandidate[]> {
     try {
         const config = RISK_MODE_CONFIG[riskMode];
+        console.log(`[Smart Swap] Fetching candidates for ${riskMode} mode, minLiquidity: $${config.minLiquidity}`);
 
-        // Fetch trending SOL pairs from DexScreener
-        const response = await fetch(`${DEXSCREENER_API}/tokens/${SOL_MINT}`);
-        if (!response.ok) throw new Error('Failed to fetch token data');
+        // Use search API to get Solana pairs - more reliable
+        const response = await fetch(`${DEXSCREENER_API}/search?q=SOL`);
+        if (!response.ok) {
+            console.error('[Smart Swap] DEXScreener response failed:', response.status);
+            throw new Error('Failed to fetch token data');
+        }
 
         const data = await response.json();
         const pairs = data.pairs || [];
+        console.log(`[Smart Swap] Got ${pairs.length} pairs from DEXScreener`);
 
         // Filter and map to candidates
-        const candidates: TokenCandidate[] = pairs
-            .filter((pair: any) => {
-                // Basic filters
-                if (pair.chainId !== 'solana') return false;
-                if (!pair.baseToken?.address) return false;
-                if (pair.baseToken.address === SOL_MINT) return false;
+        const candidates: TokenCandidate[] = [];
+        const seenMints = new Set<string>();
 
-                // Liquidity filter
-                const liquidity = pair.liquidity?.usd || 0;
-                if (liquidity < config.minLiquidity) return false;
+        for (const pair of pairs) {
+            if (pair.chainId !== 'solana') continue;
+            if (!pair.baseToken?.address) continue;
+            if (pair.baseToken.address === SOL_MINT) continue;
+            if (seenMints.has(pair.baseToken.address)) continue;
 
-                // Volume filter
-                const volume = pair.volume?.h24 || 0;
-                if (volume < config.minVolume24h) return false;
+            const liquidity = pair.liquidity?.usd || 0;
+            const volume = pair.volume?.h24 || 0;
 
-                return true;
-            })
-            .map((pair: any) => ({
+            if (liquidity < config.minLiquidity) continue;
+            if (volume < config.minVolume24h) continue;
+
+            seenMints.add(pair.baseToken.address);
+            candidates.push({
                 mint: pair.baseToken.address,
                 symbol: pair.baseToken.symbol || 'UNKNOWN',
                 name: pair.baseToken.name || 'Unknown Token',
-                logoURI: pair.info?.imageUrl || undefined,
-                decimals: pair.baseToken.decimals || 6, // Use DEXScreener decimals or default to 6
-            }))
-            .slice(0, 20); // Top 20 candidates
+                logoURI: pair.info?.imageUrl,
+                decimals: pair.baseToken.decimals || 6,
+            });
 
+            if (candidates.length >= 20) break;
+        }
+
+        console.log(`[Smart Swap] After filtering: ${candidates.length} candidates`);
         return candidates;
     } catch (error) {
         console.error('[Smart Swap] Token candidate selection failed:', error);
@@ -229,8 +236,6 @@ export async function generateRecommendations(
     const recommendations: SwapRecommendation[] = [];
     const amountInLamports = Math.floor(amountIn * 1e9); // Convert SOL to lamports
 
-    console.log(`[Smart Swap] Amount in lamports: ${amountInLamports}`);
-
     for (const candidate of candidates) {
         try {
             // Get metrics
@@ -246,24 +251,10 @@ export async function generateRecommendations(
 
             // Get Jupiter quote
             const quote = await getJupiterQuote(tokenInMint, candidate.mint, amountInLamports);
-            if (!quote || !quote.outAmount) {
-                console.log(`[Smart Swap] ${candidate.symbol} - no quote available`);
-                continue;
-            }
+            if (!quote) continue;
 
-            // Get decimals from the quote response if available, otherwise use token's decimals
-            const outputDecimals = quote.outputMint?.decimals || candidate.decimals || 6;
-            const outAmountRaw = BigInt(quote.outAmount);
-            const outAmount = Number(outAmountRaw) / Math.pow(10, outputDecimals);
+            const outAmount = parseInt(quote.outAmount) / Math.pow(10, candidate.decimals);
             const priceImpactPct = parseFloat(quote.priceImpactPct || '0');
-
-            console.log(`[Smart Swap] ${candidate.symbol}: outAmount=${outAmount}, decimals=${outputDecimals}, raw=${quote.outAmount}`);
-
-            // Skip if output is 0 or invalid
-            if (outAmount <= 0 || !isFinite(outAmount)) {
-                console.log(`[Smart Swap] ${candidate.symbol} - invalid output amount`);
-                continue;
-            }
 
             // Calculate composite score
             const smartSwapScore = calculateSmartSwapScore(
