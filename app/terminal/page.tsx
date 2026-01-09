@@ -196,60 +196,64 @@ export default function TerminalPage() {
         </div>
       </div>
 
-      {/* Trade Modal */}
+      {/* Trade Modal - Embedded */}
       {selectedMarket && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-xl max-w-md w-full p-6 relative">
-            {/* Close Button */}
+        <div className="fixed inset-0 bg-black/95 z-50 flex flex-col">
+          {/* Header Bar */}
+          <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900">
+            <div className="flex items-center gap-4">
+              <h2 className="text-xl font-bold text-white font-mono">
+                {selectedMarket.pair}
+              </h2>
+              <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">PERP</span>
+              <span className={`text-sm font-mono ${selectedMarket.change24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                ${selectedMarket.price.toLocaleString()} ({selectedMarket.change24h >= 0 ? '+' : ''}{selectedMarket.change24h.toFixed(2)}%)
+              </span>
+            </div>
             <button
               onClick={() => setSelectedMarket(null)}
-              className="absolute top-4 right-4 text-zinc-400 hover:text-white"
+              className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-6 h-6 text-zinc-400 hover:text-white" />
             </button>
+          </div>
 
-            {/* Header */}
-            <div className="text-center mb-6">
-              <h2 className="text-xl font-bold text-white font-mono mb-2">
-                Trade {selectedMarket.pair}
-              </h2>
-              <p className="text-zinc-400 text-sm">
-                Open a perpetual position via Jupiter Perps
-              </p>
+          {/* Embedded Trading Interface */}
+          <div className="flex-1 relative">
+            <iframe
+              src={`https://jup.ag/perpetuals/${selectedMarket.baseSymbol}-PERP`}
+              className="w-full h-full border-0"
+              allow="clipboard-write; clipboard-read"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+              title={`Trade ${selectedMarket.pair}`}
+            />
+
+            {/* Loading overlay */}
+            <div className="absolute inset-0 bg-zinc-900 flex flex-col items-center justify-center pointer-events-none opacity-0 animate-fade-out">
+              <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-4" />
+              <p className="text-zinc-400 font-mono text-sm">Loading Jupiter Perps...</p>
             </div>
+          </div>
 
-            {/* Price */}
-            <div className="bg-zinc-800/50 rounded-lg p-4 mb-6 text-center">
-              <div className="text-zinc-500 text-xs font-mono mb-1">Current Price</div>
-              <div className="text-2xl font-bold text-white font-mono">
-                ${selectedMarket.price.toLocaleString()}
-              </div>
-              <div className={`text-sm font-mono ${selectedMarket.change24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {selectedMarket.change24h >= 0 ? '+' : ''}{selectedMarket.change24h.toFixed(2)}% (24h)
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <button
-                onClick={() => openExternalPerp('long')}
-                className="py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-mono font-bold transition-all flex items-center justify-center gap-2"
+          {/* Footer with info */}
+          <div className="p-3 border-t border-zinc-800 bg-zinc-900 flex items-center justify-between text-xs text-zinc-500">
+            <span>Trading powered by Jupiter Perps • Your keys, your assets</span>
+            <div className="flex items-center gap-4">
+              <a
+                href={`https://jup.ag/perpetuals/${selectedMarket.baseSymbol}-PERP`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-zinc-400 hover:text-white transition-colors"
               >
-                <TrendingUp className="w-5 h-5" />
-                LONG
-              </button>
+                <ExternalLink className="w-3 h-3" />
+                Open in new tab
+              </a>
               <button
-                onClick={() => openExternalPerp('short')}
-                className="py-4 bg-red-600 hover:bg-red-500 text-white rounded-lg font-mono font-bold transition-all flex items-center justify-center gap-2"
+                onClick={() => setSelectedMarket(null)}
+                className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
               >
-                <TrendingDown className="w-5 h-5" />
-                SHORT
+                Close
               </button>
-            </div>
-
-            <div className="text-center text-xs text-zinc-500 flex items-center justify-center gap-1">
-              <ExternalLink className="w-3 h-3" />
-              Opens in Jupiter Perps
             </div>
           </div>
         </div>
