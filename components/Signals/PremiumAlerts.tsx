@@ -8,18 +8,15 @@ import {
     Transaction,
     SystemProgram,
     LAMPORTS_PER_SOL,
-    TransactionInstruction,
 } from '@solana/web3.js';
-import { getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
-import { Buffer } from 'buffer';
 import toast from 'react-hot-toast';
+import bs58 from 'bs58';
 
 // =============================================================================
 // CONSTANTS - CONFIGURE THESE
 // =============================================================================
 
 const DEV_WALLET = new PublicKey('GRd3X2emDp2nmSXt1GrM9KA8EDeqW4ifgP3muwoTmzqb');
-const MEMBERSHIP_MINT = new PublicKey('11111111111111111111111111111111'); // TODO: Replace with actual NFT mint
 
 // Pricing in SOL
 const PRICES = {
@@ -37,9 +34,6 @@ const WALLET_SIZE_THRESHOLDS = {
     medium: 100000,   // $1K - $100K
     big: 100000,      // > $100K
 };
-
-// Memo program ID
-const MEMO_PROGRAM_ID = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
 
 // =============================================================================
 // TYPES
@@ -75,7 +69,7 @@ interface Alert {
 // =============================================================================
 
 export default function PremiumAlerts() {
-    const { publicKey, connected, sendTransaction } = useWallet();
+    const { publicKey, connected, sendTransaction, signMessage } = useWallet();
     const { setVisible } = useWalletModal();
     const { connection } = useConnection();
 
@@ -111,7 +105,7 @@ export default function PremiumAlerts() {
     const [memoOptIn, setMemoOptIn] = useState(false);
 
     // =============================================================================
-    // SUBSCRIPTION CHECK (NFT GATING)
+    // SUBSCRIPTION CHECK (DATABASE-BACKED)
     // =============================================================================
 
     const checkSubscription = useCallback(async () => {
@@ -125,43 +119,32 @@ export default function PremiumAlerts() {
         }
 
         try {
-            // Check for membership NFT
-            const ata = await getAssociatedTokenAddress(MEMBERSHIP_MINT, publicKey);
+            // Check subscription status from database
+            const res = await fetch(`/api/premium/subscribe?wallet=${publicKey.toBase58()}`);
+            const data = await res.json();
 
-            try {
-                const tokenAccount = await getAccount(connection, ata);
-                const balance = Number(tokenAccount.amount);
-
-                if (balance > 0) {
-                    // Load stored subscription from localStorage
-                    const stored = localStorage.getItem(`sub_${publicKey.toBase58()}`);
-                    if (stored) {
-                        const data = JSON.parse(stored);
-                        const expiresAt = new Date(data.expiresAt);
-
-                        if (expiresAt > new Date()) {
-                            setSubscription({
-                                isActive: true,
-                                expiresAt,
-                                features: data.features,
-                            });
-                            return;
-                        }
-                    }
-                }
-            } catch {
-                // Token account doesn't exist - no subscription
+            if (data.isActive && data.features) {
+                setSubscription({
+                    isActive: true,
+                    expiresAt: new Date(data.expiresAt),
+                    features: data.features,
+                });
+            } else {
+                setSubscription({
+                    isActive: false,
+                    expiresAt: null,
+                    features: { walletTracker: false, newCoins: false, rugPulls: false },
+                });
             }
-
+        } catch (error) {
+            console.error('Error checking subscription:', error);
             setSubscription({
                 isActive: false,
                 expiresAt: null,
                 features: { walletTracker: false, newCoins: false, rugPulls: false },
             });
-        } catch (error) {
-            console.error('Error checking subscription:', error);
         }
-    }, [publicKey, connected, connection]);
+    }, [publicKey, connected]);
 
     useEffect(() => {
         checkSubscription();
@@ -180,7 +163,7 @@ export default function PremiumAlerts() {
     };
 
     const handleSubscribe = async () => {
-        if (!publicKey || !sendTransaction) {
+        if (!publicKey || !sendTransaction || !signMessage) {
             setVisible(true);
             return;
         }
@@ -196,10 +179,10 @@ export default function PremiumAlerts() {
         try {
             const lamports = Math.ceil(price * LAMPORTS_PER_SOL);
 
-            // Build transaction
-            const tx = new Transaction();
+            // STEP 1: SOL Transfer to Dev Wallet
+            toast.loading('Step 1/3: Sending payment...', { id: 'sub' });
 
-            // 1. SOL transfer to dev wallet
+            const tx = new Transaction();
             tx.add(
                 SystemProgram.transfer({
                     fromPubkey: publicKey,
@@ -208,37 +191,38 @@ export default function PremiumAlerts() {
                 })
             );
 
-            // 2. Add memo with subscription details
+            const paymentTxHash = await sendTransaction(tx, connection);
+            await connection.confirmTransaction(paymentTxHash, 'confirmed');
+
+            toast.loading('Step 2/3: Sign to confirm subscription...', { id: 'sub' });
+
+            // STEP 2: Sign subscription message (FREE, no gas)
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + SUBSCRIPTION_DAYS);
 
-            const memoData = JSON.stringify({
-                action: 'subscribe',
-                features: selectedFeatures,
-                expires: expiresAt.toISOString(),
+            const subscriptionMessage = `I subscribe to Zenith Premium Alerts until ${expiresAt.toISOString()}`;
+            const messageBytes = new TextEncoder().encode(subscriptionMessage);
+            const signatureBytes = await signMessage(messageBytes);
+            const signatureBase58 = bs58.encode(signatureBytes);
+
+            toast.loading('Step 3/3: Saving subscription...', { id: 'sub' });
+
+            // STEP 3: Store in database
+            const res = await fetch('/api/premium/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    walletAddress: publicKey.toBase58(),
+                    paymentTxHash,
+                    signedMessage: subscriptionMessage,
+                    signature: signatureBase58,
+                    features: selectedFeatures,
+                    amountPaid: price,
+                }),
             });
 
-            tx.add(
-                new TransactionInstruction({
-                    keys: [],
-                    programId: MEMO_PROGRAM_ID,
-                    data: Buffer.from(memoData),
-                })
-            );
-
-            // Send transaction
-            const signature = await sendTransaction(tx, connection);
-
-            toast.loading('Confirming subscription...', { id: 'sub' });
-            await connection.confirmTransaction(signature, 'confirmed');
-
-            // Store subscription locally
-            const subData = {
-                expiresAt: expiresAt.toISOString(),
-                features: selectedFeatures,
-                txSignature: signature,
-            };
-            localStorage.setItem(`sub_${publicKey.toBase58()}`, JSON.stringify(subData));
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.error || 'Failed to save subscription');
 
             setSubscription({
                 isActive: true,
@@ -246,7 +230,7 @@ export default function PremiumAlerts() {
                 features: selectedFeatures,
             });
 
-            toast.success('Subscription activated!', { id: 'sub' });
+            toast.success('Subscription activated! ✓', { id: 'sub' });
             setShowSubscribeModal(false);
 
             // Request push notification permission
@@ -256,7 +240,11 @@ export default function PremiumAlerts() {
 
         } catch (error: any) {
             console.error('Subscription error:', error);
-            toast.error(error.message || 'Subscription failed', { id: 'sub' });
+            if (error.message?.includes('User rejected')) {
+                toast.error('Cancelled by user', { id: 'sub' });
+            } else {
+                toast.error(error.message || 'Subscription failed', { id: 'sub' });
+            }
         } finally {
             setIsLoading(false);
         }
@@ -796,8 +784,8 @@ function NewCoinsTab({ onAlert }: { onAlert: (alert: Omit<Alert, 'id' | 'timesta
                                 {coin.priceChange24h >= 0 ? '+' : ''}{coin.priceChange24h.toFixed(1)}%
                             </div>
                             <div className={`text-xs px-2 py-0.5 rounded ${coin.risk === 'low' ? 'bg-emerald-500/20 text-emerald-400' :
-                                    coin.risk === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                        'bg-red-500/20 text-red-400'
+                                coin.risk === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                    'bg-red-500/20 text-red-400'
                                 }`}>
                                 {coin.risk.toUpperCase()}
                             </div>
@@ -868,14 +856,14 @@ function RugDetectorTab({ onAlert }: { onAlert: (alert: Omit<Alert, 'id' | 'time
 
             {result && (
                 <div className={`p-6 rounded-xl border ${result.isRug ? 'bg-red-900/20 border-red-500/30' :
-                        result.score < 50 ? 'bg-yellow-900/20 border-yellow-500/30' :
-                            'bg-emerald-900/20 border-emerald-500/30'
+                    result.score < 50 ? 'bg-yellow-900/20 border-yellow-500/30' :
+                        'bg-emerald-900/20 border-emerald-500/30'
                     }`}>
                     <div className="flex items-center justify-between mb-4">
                         <div className="text-lg font-bold text-white">Safety Score</div>
                         <div className={`text-3xl font-bold font-mono ${result.score >= 70 ? 'text-emerald-400' :
-                                result.score >= 40 ? 'text-yellow-400' :
-                                    'text-red-400'
+                            result.score >= 40 ? 'text-yellow-400' :
+                                'text-red-400'
                             }`}>
                             {result.score}/100
                         </div>

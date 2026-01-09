@@ -273,3 +273,32 @@ model ArenaSwap {
   @@index([txStatus])
   @@index([createdAt(sort: Desc)])
 }
+
+// =============================================================================
+// PREMIUM SUBSCRIPTIONS (Signed Message + SOL Payment)
+// =============================================================================
+
+model PremiumSubscription {
+  id              String   @id @default(cuid())
+  walletAddress   String   @unique
+  
+  // Subscription details
+  expiresAt       DateTime
+  features        String   // JSON: {"walletTracker":true,"newCoins":true,"rugPulls":true}
+  amountPaid      Float    // SOL amount paid
+  
+  // Verification
+  paymentTxHash   String   // SOL transfer tx signature
+  signedMessage   String   // User-signed subscription message
+  signature       String   // Base58 signature
+  
+  // Status
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([walletAddress])
+  @@index([expiresAt])
+  @@index([isActive])
+}
+
