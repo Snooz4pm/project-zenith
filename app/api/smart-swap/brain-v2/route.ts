@@ -4,7 +4,7 @@
  * POST /api/smart-swap/brain-v2
  * Body: { goal: BrainGoal, tokens: SmartToken[] }
  *
- * Returns: BrainSearchResult
+ * Returns: BrainSearchResult + universeStats
  */
 
 import { NextResponse } from 'next/server';
@@ -21,7 +21,22 @@ function isStablecoin(symbol: string): boolean {
 }
 
 /**
- * Convert SmartToken to SearchableToken
+ * Determine if token is an alpha candidate (high-beta escape token)
+ */
+function isAlphaToken(token: SmartToken): boolean {
+    // Alpha tokens have:
+    // - High alpha score (>0.5)
+    // - Or RANKABLE tier with some alpha signal
+    // - Or high volatility indicators
+    if (token.alphaScore && token.alphaScore > 0.5) return true;
+    if (token.safeTier === 'RANKABLE' && token.alphaScore && token.alphaScore > 0.3) return true;
+    // High RTL can indicate volatile alpha opportunity
+    if (token.roundTripLoss && token.roundTripLoss > 5 && token.roundTripLoss < 15) return true;
+    return false;
+}
+
+/**
+ * Convert SmartToken to SearchableToken - NO PRE-FILTERING
  */
 function toSearchableToken(token: SmartToken): SearchableToken {
     return {
@@ -34,7 +49,9 @@ function toSearchableToken(token: SmartToken): SearchableToken {
         alphaScore: token.alphaScore,
         volatility: token.roundTripLoss ? token.roundTripLoss / 50 : 0, // rough estimate
         isStable: isStablecoin(token.symbol),
+        isAlpha: isAlphaToken(token),
         tier: token.safeTier ?? 'REJECTED',
+        source: undefined, // TODO: track token source when available
     };
 }
 
@@ -56,21 +73,37 @@ export async function POST(request: Request) {
         }
 
         console.log(`[Brain v2 API] Goal: ${goal.startAmountSOL} SOL → ${goal.targetAmountSOL} SOL`);
-        console.log(`[Brain v2 API] Universe: ${tokens.length} tokens`);
+        console.log(`[Brain v2 API] Raw universe: ${tokens.length} tokens`);
 
-        // Convert to searchable tokens
-        const universe: SearchableToken[] = tokens
-            .filter(t => t.safeTier === 'SAFE' || t.safeTier === 'RANKABLE')
-            .map(toSearchableToken);
+        // Convert ALL tokens to searchable tokens - NO PRE-FILTERING
+        const universe: SearchableToken[] = tokens.map(toSearchableToken);
 
-        console.log(`[Brain v2 API] Searchable universe: ${universe.length} tokens`);
+        // Calculate universe stats for transparency
+        const safeCount = universe.filter(t => t.tier === 'SAFE' && t.hasRoute).length;
+        const alphaCount = universe.filter(t => t.isAlpha && t.hasRoute).length;
+        const routableCount = universe.filter(t => t.hasRoute).length;
+        const rejectedCount = universe.filter(t => !t.hasRoute || t.tier === 'REJECTED').length;
 
-        // Run beam search
+        console.log(`[Brain v2 API] Universe breakdown:`);
+        console.log(`  • ${tokens.length} indexed tokens`);
+        console.log(`  • ${safeCount} SAFE fuel tokens`);
+        console.log(`  • ${alphaCount} ALPHA candidates`);
+        console.log(`  • ${routableCount} routable total`);
+        console.log(`  • ${rejectedCount} excluded`);
+
+        // Run beam search with FULL universe
         const result = searchForPath(universe, goal);
 
         return NextResponse.json({
             success: true,
             result,
+            universeStats: {
+                total: tokens.length,
+                safe: safeCount,
+                alpha: alphaCount,
+                routable: routableCount,
+                excluded: rejectedCount,
+            },
         });
     } catch (error: any) {
         console.error('[Brain v2 API] Error:', error);

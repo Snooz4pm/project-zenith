@@ -66,6 +66,7 @@ function calculateHeuristicScore(state: PathState, goal: BrainGoal, alphaScore: 
 
 /**
  * Check if expanding this path violates hard rules
+ * HOP-AWARE FILTERING: early hops = safe fuel, mid hops = alpha allowed
  */
 function violatesHardRules(
     currentState: PathState,
@@ -87,17 +88,28 @@ function violatesHardRules(
         }
     }
 
-    // 3. Per-hop RTL limit
-    if (candidateToken.roundTripLoss > goal.maxPerHopRTL) {
-        return { violated: true, reason: `Per-hop RTL ${candidateToken.roundTripLoss.toFixed(1)}% > ${goal.maxPerHopRTL}%` };
+    // === HOP-AWARE FILTERING ===
+
+    // 3. Early hops (0-1): Block REJECTED tokens - need safe fuel
+    if (currentState.hopsUsed < 2 && candidateToken.tier === 'REJECTED') {
+        return { violated: true, reason: 'Unsafe token too early (hop < 2)' };
     }
 
-    // 4. Liquidity too low
-    if (candidateToken.liquidityScore < SEARCH_CONFIG.MIN_LIQUIDITY_SCORE) {
+    // 4. Per-hop RTL limit - RELAXED for alpha after hop 2
+    const isAlphaEligible = candidateToken.isAlpha && currentState.hopsUsed >= 2;
+    const effectiveMaxRTL = isAlphaEligible ? 12 : goal.maxPerHopRTL; // 12% for alpha, normal for others
+
+    if (candidateToken.roundTripLoss > effectiveMaxRTL) {
+        return { violated: true, reason: `Per-hop RTL ${candidateToken.roundTripLoss.toFixed(1)}% > ${effectiveMaxRTL}%` };
+    }
+
+    // 5. Liquidity check - RELAXED for alpha tokens
+    const minLiquidity = isAlphaEligible ? 0.1 : SEARCH_CONFIG.MIN_LIQUIDITY_SCORE;
+    if (candidateToken.liquidityScore < minLiquidity) {
         return { violated: true, reason: 'Liquidity too low' };
     }
 
-    // 5. After hop 5, need some alpha (unless it's a stable router)
+    // 6. After hop 5, need some alpha (unless it's a stable router)
     if (currentState.hopsUsed >= 5) {
         if (!isStablecoin(candidateToken.symbol)) {
             if ((candidateToken.alphaScore ?? 0) < SEARCH_CONFIG.MIN_ALPHA_SCORE_AFTER_HOP_5) {
@@ -106,7 +118,7 @@ function violatesHardRules(
         }
     }
 
-    // 6. Cumulative RTL would exceed limit
+    // 7. Cumulative RTL would exceed limit
     const projectedRTL = currentState.cumulativeRTL + candidateToken.roundTripLoss;
     if (projectedRTL > goal.maxTotalRTL) {
         return { violated: true, reason: `Cumulative RTL ${projectedRTL.toFixed(1)}% > ${goal.maxTotalRTL}%` };

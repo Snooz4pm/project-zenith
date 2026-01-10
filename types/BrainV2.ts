@@ -117,5 +117,7 @@ export type SearchableToken = {
 
     // Classification
     isStable: boolean;
+    isAlpha: boolean; // High-beta escape token
     tier: 'SAFE' | 'RANKABLE' | 'REJECTED';
+    source?: 'jupiter' | 'alphascan' | 'pump'; // Token source for rule relaxation
 };

@@ -17,10 +17,17 @@ export default function BrainV2Page() {
     const [searchResult, setSearchResult] = useState<BrainSearchResult | null>(null);
     const [searching, setSearching] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
+    const [universeStats, setUniverseStats] = useState<{
+        total: number;
+        safe: number;
+        alpha: number;
+        routable: number;
+        excluded: number;
+    } | null>(null);
 
     // Goal state
     const [startAmountSOL, setStartAmountSOL] = useState(0.1);
-    const [targetAmountSOL, setTargetAmountSOL] = useState(0.2);
+    const [targetAmountSOL, setTargetAmountSOL] = useState(0.12);
     const [maxHops, setMaxHops] = useState(20);
     const [maxTotalRTL, setMaxTotalRTL] = useState(20);
     const [maxPerHopRTL, setMaxPerHopRTL] = useState(5);
@@ -53,6 +60,9 @@ export default function BrainV2Page() {
 
             const data = await response.json();
             setSearchResult(data.result);
+            if (data.universeStats) {
+                setUniverseStats(data.universeStats);
+            }
         } catch (err: any) {
             console.error('[Brain v2 Debug] Error:', err);
             setSearchError(err.message || 'Search failed');
@@ -96,9 +106,18 @@ export default function BrainV2Page() {
                             <h2 className="text-lg font-bold text-white font-mono mb-2">
                                 Search Goal
                             </h2>
-                            <p className="text-sm text-zinc-400 font-mono">
-                                Universe: {tokens.filter(t => t.safeTier === 'SAFE' || t.safeTier === 'RANKABLE').length} searchable tokens
-                            </p>
+                            <div className="text-sm text-zinc-400 font-mono space-y-1">
+                                {universeStats ? (
+                                    <>
+                                        <div>• <span className="text-white">{universeStats.total}</span> indexed tokens</div>
+                                        <div>• <span className="text-green-400">{universeStats.safe}</span> SAFE fuel tokens</div>
+                                        <div>• <span className="text-orange-400">{universeStats.alpha}</span> ALPHA candidates</div>
+                                        <div>• <span className="text-zinc-500">{universeStats.excluded}</span> excluded by constraints</div>
+                                    </>
+                                ) : (
+                                    <div>Universe: {tokens.length} tokens (run search to see breakdown)</div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 mb-6">
