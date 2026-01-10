@@ -314,11 +314,65 @@ export default function BrainV2Page() {
                         {/* Best Effort (if not found) */}
                         {!searchResult.found && searchResult.bestEffort && (
                             <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-6">
-                                <h3 className="text-lg font-bold text-white font-mono mb-4">
+                                <h3 className="text-lg font-bold text-white font-mono mb-4 flex items-center gap-2">
+                                    <Route className="w-5 h-5 text-yellow-400" />
                                     Best Effort Path
                                 </h3>
-                                <div className="text-sm text-zinc-400 font-mono mb-3">
-                                    Got to {searchResult.bestEffort.currentSymbol} with {searchResult.bestEffort.currentAmountSOL.toFixed(6)} SOL in {searchResult.bestEffort.hopsUsed} hops
+                                <div className="text-sm text-zinc-400 font-mono mb-4">
+                                    Got to <span className="text-yellow-400 font-bold">{searchResult.bestEffort.currentSymbol}</span> with{' '}
+                                    <span className="text-yellow-400 font-bold">{searchResult.bestEffort.currentAmountSOL.toFixed(6)} SOL</span>{' '}
+                                    in {searchResult.bestEffort.hopsUsed} hops
+                                    {searchResult.bestEffort.currentAmountSOL >= targetAmountSOL && (
+                                        <span className="ml-2 text-green-400">✓ Exceeded target!</span>
+                                    )}
+                                </div>
+
+                                {/* Hop Trace Visualization */}
+                                {searchResult.bestEffort.path.length > 0 && (
+                                    <div className="space-y-2">
+                                        {searchResult.bestEffort.path.map((hop, idx) => (
+                                            <div key={idx} className="flex items-center gap-3 bg-zinc-800/30 rounded-lg px-4 py-3">
+                                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-400 flex items-center justify-center font-mono text-sm font-bold">
+                                                    {idx + 1}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="text-white font-mono">
+                                                        {hop.fromSymbol} → {hop.toSymbol}
+                                                    </div>
+                                                    <div className="text-xs text-zinc-500 font-mono">
+                                                        {hop.estimatedInSOL.toFixed(6)} SOL → {hop.estimatedOutSOL.toFixed(6)} SOL
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className={`font-mono text-sm ${hop.hopRTL > 3 ? 'text-red-400' : hop.hopRTL > 1.5 ? 'text-yellow-400' : 'text-green-400'}`}>
+                                                        {hop.hopRTL.toFixed(2)}% RTL
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        {/* Final Summary */}
+                                        <div className="flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-3 mt-2">
+                                            <TrendingUp className="w-5 h-5 text-yellow-400" />
+                                            <div className="flex-1">
+                                                <div className="text-yellow-400 font-mono font-bold">
+                                                    Best Effort: {searchResult.bestEffort.currentAmountSOL.toFixed(6)} SOL
+                                                </div>
+                                                <div className="text-xs text-zinc-500 font-mono">
+                                                    {searchResult.bestEffort.currentAmountSOL >= startAmountSOL
+                                                        ? `+${((searchResult.bestEffort.currentAmountSOL / startAmountSOL - 1) * 100).toFixed(1)}% from start`
+                                                        : `${((searchResult.bestEffort.currentAmountSOL / startAmountSOL - 1) * 100).toFixed(1)}% from start`
+                                                    }
+                                                    {' '}| {((searchResult.bestEffort.currentAmountSOL / targetAmountSOL) * 100).toFixed(1)}% of target
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Why it failed hint */}
+                                <div className="mt-4 text-xs text-zinc-500 font-mono italic border-t border-zinc-700 pt-3">
+                                    ⚠ Path reached a profitable state but couldn't satisfy all constraints (e.g., no valid return to SOL).
                                 </div>
                             </div>
                         )}
