@@ -10,10 +10,12 @@
  * - "Swap" buttons are disabled with "Coming Soon"
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Target, TrendingUp, Droplets, Shield, Clock, Lock } from 'lucide-react';
 import { SmartMatchResult } from '@/lib/smart-swap-v1/intent-engine';
 import { getRankLabel } from '@/lib/smart-swap-v1/intent-engine';
+import { buildZenithTokenList, ZenithToken } from '@/lib/zenith';
+import { findSmartMatchesFromZenith } from '@/lib/smart-swap-v1/client-engine';
 
 export default function SmartSwapV1Page() {
     const [investmentAmount, setInvestmentAmount] = useState<string>('10');
@@ -22,8 +24,27 @@ export default function SmartSwapV1Page() {
     const [error, setError] = useState<string | null>(null);
     const [matches, setMatches] = useState<SmartMatchResult[]>([]);
     const [tokensAnalyzed, setTokensAnalyzed] = useState<number>(0);
+    const [zenithTokens, setZenithTokens] = useState<ZenithToken[]>([]);
+    const [tokensLoading, setTokensLoading] = useState(true);
 
-    const handleFindMatches = async () => {
+    // Load tokens on mount (same as /swap)
+    useEffect(() => {
+        buildZenithTokenList()
+            .then(tokens => {
+                setZenithTokens(tokens);
+                setTokensAnalyzed(tokens.length);
+                console.log(`[Smart Swap V1] Loaded ${tokens.length} tokens from Zenith (same source as /swap)`);
+            })
+            .catch(err => {
+                console.error('[Smart Swap V1] Failed to load tokens:', err);
+                setError('Failed to load token list. Please refresh the page.');
+            })
+            .finally(() => {
+                setTokensLoading(false);
+            });
+    }, []);
+
+    const handleFindMatches = () => {
         const investment = parseFloat(investmentAmount);
         const target = parseFloat(targetReturn);
 
@@ -37,32 +58,26 @@ export default function SmartSwapV1Page() {
             return;
         }
 
+        if (zenithTokens.length === 0) {
+            setError('Token data not loaded yet. Please wait...');
+            return;
+        }
+
         setLoading(true);
         setError(null);
         setMatches([]);
 
         try {
-            const response = await fetch('/api/smart-swap-v1/intent', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    investmentAmount: investment,
-                    targetReturn: target,
-                }),
+            // CLIENT-SIDE matching (no API call, reuses /swap tokens)
+            const results = findSmartMatchesFromZenith(zenithTokens, {
+                investmentAmount: investment,
+                targetReturn: target,
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to find matches');
-            }
-
-            const data = await response.json();
-
-            if (data.matches.length === 0) {
-                setError(data.message || 'No matches found. Try adjusting your target.');
+            if (results.length === 0) {
+                setError('No matches found. Try adjusting your target.');
             } else {
-                setMatches(data.matches);
-                setTokensAnalyzed(data.tokensAnalyzed || 0);
+                setMatches(results);
             }
         } catch (err: any) {
             console.error('[Smart Swap V1] Error:', err);
@@ -160,10 +175,10 @@ export default function SmartSwapV1Page() {
                     {/* Find Matches Button */}
                     <button
                         onClick={handleFindMatches}
-                        disabled={loading}
+                        disabled={loading || tokensLoading}
                         className="w-full px-6 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {loading ? 'Analyzing Tokens...' : 'Find Smart Matches'}
+                        {tokensLoading ? 'Loading Tokens...' : loading ? 'Analyzing Tokens...' : 'Find Smart Matches'}
                     </button>
                 </div>
 
