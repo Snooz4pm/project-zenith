@@ -28,6 +28,13 @@ function isStablecoin(symbol: string): boolean {
 }
 
 /**
+ * Count how many times a specific pair (from → to) appears in path
+ */
+function countPairOccurrences(path: PathHop[], fromMint: string, toMint: string): number {
+    return path.filter(h => h.fromToken === fromMint && h.toToken === toMint).length;
+}
+
+/**
  * Heuristic Score - THE NEURAL PART
  *
  * Decides which paths survive beam search.
@@ -46,7 +53,13 @@ function calculateHeuristicScore(state: PathState, goal: BrainGoal, alphaScore: 
     // Alpha momentum boost (rewards volatility at early hops)
     const alphaMomentumBoost = alphaScore * HEURISTIC_WEIGHTS.alphaMomentumBoost;
 
-    const score = growthScore - rtlPenalty - hopPenalty + alphaMomentumBoost;
+    // Alpha fuel boost after hop 2 (encourages breakout to alpha tokens)
+    let alphaFuelBoost = 0;
+    if (state.hopsUsed >= 2 && alphaScore > 0.3) {
+        alphaFuelBoost = 0.2 * alphaScore; // 20% boost scaled by alpha
+    }
+
+    const score = growthScore - rtlPenalty - hopPenalty + alphaMomentumBoost + alphaFuelBoost;
 
     return score;
 }
@@ -140,6 +153,20 @@ function expandPath(
             hopRTL: candidate.roundTripLoss,
         };
 
+        // === ESCAPE MECHANICS ===
+
+        // 1. Loop Penalty - check if this pair was used before
+        const pairCount = countPairOccurrences(currentState.path, currentState.currentToken, candidate.mint);
+        if (pairCount > 1) {
+            // HARD REJECT: pair used more than once
+            continue;
+        }
+
+        // 2. Novelty Pressure - check if token was visited before
+        const visitedSet = new Set(currentState.visitedTokens);
+        const isRevisit = visitedSet.has(candidate.mint);
+        visitedSet.add(candidate.mint);
+
         // Build new state
         const newState: PathState = {
             currentToken: candidate.mint,
@@ -148,12 +175,22 @@ function expandPath(
             hopsUsed: currentState.hopsUsed + 1,
             cumulativeRTL: currentState.cumulativeRTL + candidate.roundTripLoss,
             path: [...currentState.path, hop],
+            visitedTokens: Array.from(visitedSet),
             score: 0, // will be calculated below
         };
 
         // Calculate heuristic score
-        newState.score = calculateHeuristicScore(newState, goal, candidate.alphaScore ?? 0);
+        let score = calculateHeuristicScore(newState, goal, candidate.alphaScore ?? 0);
 
+        // Apply escape penalties
+        if (pairCount === 1) {
+            score *= 0.85; // Soft penalty: pair seen once before
+        }
+        if (isRevisit) {
+            score *= 0.9; // Novelty penalty: token revisited
+        }
+
+        newState.score = score;
         newStates.push(newState);
     }
 
@@ -220,6 +257,7 @@ export function searchForPath(
             hopsUsed: 0,
             cumulativeRTL: 0,
             path: [],
+            visitedTokens: [SOL_MINT], // Start with SOL visited
             score: 0,
         },
     ];

@@ -38,6 +38,7 @@ export type PathState = {
     cumulativeRTL: number; // %
 
     path: PathHop[]; // full journey so far
+    visitedTokens: string[]; // tokens visited (for novelty pressure)
 
     score: number; // heuristic score (higher = better)
 };
@@ -60,18 +61,18 @@ export type PathHop = {
 
 export type BrainSearchResult =
     | {
-          found: true;
-          path: PathState;
-          confidence: 'low' | 'medium' | 'high';
-          warnings: string[];
-          reachableAtHop: number;
-      }
+        found: true;
+        path: PathState;
+        confidence: 'low' | 'medium' | 'high';
+        warnings: string[];
+        reachableAtHop: number;
+    }
     | {
-          found: false;
-          reason: string;
-          bestEffort?: PathState; // closest we got
-          exploredPaths: number;
-      };
+        found: false;
+        reason: string;
+        bestEffort?: PathState; // closest we got
+        exploredPaths: number;
+    };
 
 // ============================================================================
 // SEARCH CONFIGURATION
