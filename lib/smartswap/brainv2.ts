@@ -16,6 +16,7 @@ import {
     SEARCH_CONFIG,
     HEURISTIC_WEIGHTS,
 } from '@/types/BrainV2';
+import { computeHoldCheckpoint, type HoldSignalInput } from './hold/holdSignals';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const STABLECOINS = ['USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'FRAX'];
@@ -245,6 +246,57 @@ function generateWarnings(state: PathState): string[] {
 }
 
 /**
+ * V1 HOLD OVERLAY (Read-only, optional)
+ *
+ * Computes hold suggestion for first non-SOL token in path.
+ * Returns null if:
+ * - No hops in path
+ * - Insufficient data
+ * - Signals don't meet confidence threshold
+ *
+ * Does NOT affect pathfinding - pure observer.
+ */
+function attachHoldCheckpoint(state: PathState, universe: SearchableToken[]): PathState {
+    // No hops? Nothing to hold
+    if (state.path.length === 0) {
+        return state;
+    }
+
+    // Get first hop (SOL → Token)
+    const firstHop = state.path[0];
+    if (!firstHop || firstHop.toToken === SOL_MINT) {
+        return state; // No token to hold
+    }
+
+    // Find token in universe
+    const token = universe.find(t => t.mint === firstHop.toToken);
+    if (!token) {
+        return state; // Token not found
+    }
+
+    // Build hold signal input using data we already have
+    const holdInput: HoldSignalInput = {
+        token: token.mint,
+        currentPriceSOL: firstHop.estimatedOutSOL,
+        rtlPercent: token.roundTripLoss,
+        priceImpactPct: firstHop.slippage,
+        poolLiquidityUSD: 100_000, // TODO: Extract from Jupiter route when available
+        // AlphaScan data (optional)
+        alphaVolume24h: undefined,
+        alphaVolumeChange24h: undefined,
+    };
+
+    // Compute checkpoint (pure function, may return null)
+    const checkpoint = computeHoldCheckpoint(holdInput);
+
+    // Attach to state (immutable)
+    return {
+        ...state,
+        holdCheckpoint: checkpoint,
+    };
+}
+
+/**
  * MAIN BEAM SEARCH FUNCTION
  *
  * Returns:
@@ -306,9 +358,12 @@ export function searchForPath(
                 console.log(`[Brain v2]   Final amount: ${path.currentAmountSOL.toFixed(6)} SOL`);
                 console.log(`[Brain v2]   Cumulative RTL: ${path.cumulativeRTL.toFixed(1)}%`);
 
+                // V1 HOLD OVERLAY: Attach hold checkpoint (read-only)
+                const pathWithHold = attachHoldCheckpoint(path, universe);
+
                 return {
                     found: true,
-                    path,
+                    path: pathWithHold,
                     confidence: calculateConfidence(path),
                     warnings: generateWarnings(path),
                     reachableAtHop: hop,
@@ -334,10 +389,13 @@ export function searchForPath(
     console.log(`[Brain v2] Target not reached after ${goal.maxHops} hops`);
     console.log(`[Brain v2] Best effort: ${bestEffort?.currentAmountSOL.toFixed(6)} SOL (${((bestEffort?.currentAmountSOL ?? 0) / goal.targetAmountSOL * 100).toFixed(1)}% of target)`);
 
+    // V1 HOLD OVERLAY: Attach hold checkpoint to best effort (if exists)
+    const bestEffortWithHold = bestEffort ? attachHoldCheckpoint(bestEffort, universe) : undefined;
+
     return {
         found: false,
         reason: `Target not reachable within ${goal.maxHops} hops under current market conditions`,
-        bestEffort,
+        bestEffort: bestEffortWithHold,
         exploredPaths,
     };
 }

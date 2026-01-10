@@ -286,6 +286,37 @@ export default function BrainV2Page() {
                             </div>
                         )}
 
+                        {/* V1 Hold Suggestion */}
+                        {searchResult.found && searchResult.path.holdCheckpoint && (
+                            <div className="bg-gradient-to-r from-orange-900/20 to-yellow-900/20 border border-orange-500/30 rounded-lg p-6">
+                                <h3 className="text-lg font-bold text-orange-400 font-mono mb-3 flex items-center gap-2">
+                                    ⏱️ Hold Suggestion (V1)
+                                </h3>
+                                <div className="grid grid-cols-2 gap-4 mb-4">
+                                    <div className="bg-zinc-900/50 rounded px-3 py-2">
+                                        <div className="text-xs text-zinc-500 font-mono mb-1">Suggested Duration</div>
+                                        <div className="text-white font-mono font-bold">
+                                            {searchResult.path.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} minutes
+                                        </div>
+                                    </div>
+                                    <div className="bg-zinc-900/50 rounded px-3 py-2">
+                                        <div className="text-xs text-zinc-500 font-mono mb-1">Confidence</div>
+                                        <div className="text-orange-400 font-mono font-bold">
+                                            {(searchResult.path.holdCheckpoint.confidence * 100).toFixed(0)}%
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="text-xs text-zinc-400 font-mono space-y-1">
+                                    <div>• Volatility score: {searchResult.path.holdCheckpoint.signals.momentum.score.toFixed(2)}</div>
+                                    <div>• Liquidity score: {searchResult.path.holdCheckpoint.signals.volume.score.toFixed(2)}</div>
+                                    <div>• Max drawdown: {searchResult.path.holdCheckpoint.maxDrawdownPct}%</div>
+                                </div>
+                                <div className="mt-4 text-xs text-zinc-500 font-mono italic border-t border-zinc-700 pt-3">
+                                    ℹ️ This is a READ-ONLY suggestion based on volatility + liquidity signals. Always monitor manually.
+                                </div>
+                            </div>
+                        )}
+
                         {/* Path Visualization */}
                         {searchResult.found && (
                             <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-6">
@@ -332,11 +363,43 @@ export default function BrainV2Page() {
 
                         {/* Best Effort (if not found) */}
                         {!searchResult.found && searchResult.bestEffort && (
-                            <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-6">
-                                <h3 className="text-lg font-bold text-white font-mono mb-4 flex items-center gap-2">
-                                    <Route className="w-5 h-5 text-yellow-400" />
-                                    Best Effort Path
-                                </h3>
+                            <>
+                                {/* V1 Hold Suggestion for Best Effort */}
+                                {searchResult.bestEffort.holdCheckpoint && (
+                                    <div className="bg-gradient-to-r from-orange-900/20 to-yellow-900/20 border border-orange-500/30 rounded-lg p-6">
+                                        <h3 className="text-lg font-bold text-orange-400 font-mono mb-3 flex items-center gap-2">
+                                            ⏱️ Hold Suggestion (V1)
+                                        </h3>
+                                        <div className="grid grid-cols-2 gap-4 mb-4">
+                                            <div className="bg-zinc-900/50 rounded px-3 py-2">
+                                                <div className="text-xs text-zinc-500 font-mono mb-1">Suggested Duration</div>
+                                                <div className="text-white font-mono font-bold">
+                                                    {searchResult.bestEffort.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} minutes
+                                                </div>
+                                            </div>
+                                            <div className="bg-zinc-900/50 rounded px-3 py-2">
+                                                <div className="text-xs text-zinc-500 font-mono mb-1">Confidence</div>
+                                                <div className="text-orange-400 font-mono font-bold">
+                                                    {(searchResult.bestEffort.holdCheckpoint.confidence * 100).toFixed(0)}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-xs text-zinc-400 font-mono space-y-1">
+                                            <div>• Volatility score: {searchResult.bestEffort.holdCheckpoint.signals.momentum.score.toFixed(2)}</div>
+                                            <div>• Liquidity score: {searchResult.bestEffort.holdCheckpoint.signals.volume.score.toFixed(2)}</div>
+                                            <div>• Max drawdown: {searchResult.bestEffort.holdCheckpoint.maxDrawdownPct}%</div>
+                                        </div>
+                                        <div className="mt-4 text-xs text-zinc-500 font-mono italic border-t border-zinc-700 pt-3">
+                                            ℹ️ This is a READ-ONLY suggestion based on volatility + liquidity signals. Always monitor manually.
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-6">
+                                    <h3 className="text-lg font-bold text-white font-mono mb-4 flex items-center gap-2">
+                                        <Route className="w-5 h-5 text-yellow-400" />
+                                        Best Effort Path
+                                    </h3>
                                 <div className="text-sm text-zinc-400 font-mono mb-4">
                                     Got to <span className="text-yellow-400 font-bold">{searchResult.bestEffort.currentSymbol}</span> with{' '}
                                     <span className="text-yellow-400 font-bold">{searchResult.bestEffort.currentAmountSOL.toFixed(6)} SOL</span>{' '}
@@ -389,11 +452,12 @@ export default function BrainV2Page() {
                                     </div>
                                 )}
 
-                                {/* Why it failed hint */}
-                                <div className="mt-4 text-xs text-zinc-500 font-mono italic border-t border-zinc-700 pt-3">
-                                    ⚠ Path reached a profitable state but couldn't satisfy all constraints (e.g., no valid return to SOL).
+                                    {/* Why it failed hint */}
+                                    <div className="mt-4 text-xs text-zinc-500 font-mono italic border-t border-zinc-700 pt-3">
+                                        ⚠ Path reached a profitable state but couldn't satisfy all constraints (e.g., no valid return to SOL).
+                                    </div>
                                 </div>
-                            </div>
+                            </>
                         )}
                     </div>
                 )}

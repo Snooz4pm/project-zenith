@@ -9,6 +9,7 @@
  */
 
 import { SmartToken } from './SmartToken';
+import { V1HoldCheckpoint } from '@/lib/smartswap/hold/V1Constants';
 
 // ============================================================================
 // SEARCH GOAL (USER INPUT)
@@ -41,6 +42,9 @@ export type PathState = {
     visitedTokens: string[]; // tokens visited (for novelty pressure)
 
     score: number; // heuristic score (higher = better)
+
+    // V1 Hold overlay (optional, read-only)
+    holdCheckpoint?: V1HoldCheckpoint | null;
 };
 
 export type PathHop = {
