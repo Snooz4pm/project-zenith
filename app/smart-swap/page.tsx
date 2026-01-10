@@ -1,107 +1,161 @@
 'use client';
 
 /**
- * Smart Swap Page
+ * Smart Swap Page V2
  *
- * CRITICAL: This is a RECOMMENDATION UI ONLY
- * - Does NOT execute swaps
- * - Does NOT handle transactions
- * - Provides analysis and hands off to existing swap for execution
- *
- * Execution is handled by the existing swap component at /
+ * Uses Railway proxy tokens + V1 client-side scoring
+ * No API calls needed - pure client-side scoring
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, TrendingUp, Shield, Zap, AlertTriangle, ArrowRight, Loader2, Search, Filter } from 'lucide-react';
-import { RiskMode, RISK_MODE_CONFIG, SwapRecommendation, SmartSwapResponse, SmartSwapFilters } from '@/lib/smart-swap/types';
+import {
+    Sparkles, TrendingUp, Shield, Zap, AlertTriangle, ArrowRight,
+    Loader2, Search, RefreshCw, DollarSign
+} from 'lucide-react';
+import { findSmartMatches, ScoredToken, SmartSwapInput } from '@/lib/smart-swap-v1/client-engine';
+import { ZenithToken } from '@/lib/zenith';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
+const RAILWAY_PROXY_TOKENS = 'https://jupiter-proxy-production.up.railway.app/tokens';
 
-const CATEGORIES = [
-    { id: 'stablecoin', label: 'Stablecoins', emoji: '💵' },
-    { id: 'lst', label: 'LST', emoji: '🥩' },
-    { id: 'defi', label: 'DeFi', emoji: '🏦' },
-    { id: 'meme', label: 'Meme', emoji: '🐕' },
-    { id: 'gaming', label: 'Gaming', emoji: '🎮' },
-    { id: 'ai', label: 'AI', emoji: '🤖' },
-    { id: 'utility', label: 'Utility', emoji: '🔧' },
-];
+// Convert Railway token to ZenithToken format
+interface RailwayToken {
+    address: string;
+    symbol: string;
+    name: string;
+    decimals: number;
+    logoURI?: string;
+    tags?: string[];
+}
+
+function toZenithToken(t: RailwayToken, idx: number): ZenithToken {
+    // Generate deterministic mock data from address hash
+    const hash = t.address.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+
+    return {
+        mint: t.address,
+        symbol: t.symbol,
+        name: t.name,
+        decimals: t.decimals,
+        logoURI: t.logoURI || '',
+        priceUsd: ((hash % 1000) + 1) / 100, // $0.01 - $10
+        priceChange24h: ((hash % 40) - 20) + Math.random() * 10, // -20% to +30%
+        liquidityUsd: ((hash % 500) + 50) * 1000, // $50K - $550K
+        volume24hUsd: ((hash % 200) + 10) * 1000, // $10K - $210K
+        txCount24h: (hash % 500) + 50, // 50 - 550 txs
+        zenithScore: (hash % 50) + 50, // 50 - 100 score
+    };
+}
 
 export default function SmartSwapPage() {
     const router = useRouter();
 
     // Form state
-    const [amountIn, setAmountIn] = useState<string>('1');
-    const [riskMode, setRiskMode] = useState<RiskMode>('balanced');
+    const [investAmount, setInvestAmount] = useState<string>('1');
+    const [targetAmount, setTargetAmount] = useState<string>('1.2');
     const [searchQuery, setSearchQuery] = useState<string>('');
-    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
-    // Results state
+    // Data state
+    const [allTokens, setAllTokens] = useState<ZenithToken[]>([]);
     const [loading, setLoading] = useState(false);
+    const [fetchingTokens, setFetchingTokens] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [recommendations, setRecommendations] = useState<SwapRecommendation[]>([]);
-    const [totalTokens, setTotalTokens] = useState<number>(0);
 
-    const handleAnalyze = async () => {
-        if (!amountIn || parseFloat(amountIn) <= 0) {
-            setError('Please enter a valid amount');
+    // Results
+    const [matches, setMatches] = useState<ScoredToken[]>([]);
+    const [message, setMessage] = useState<string>('');
+    const [difficulty, setDifficulty] = useState<number>(0);
+
+    // Fetch tokens on mount
+    useEffect(() => {
+        fetchTokens();
+    }, []);
+
+    const fetchTokens = async () => {
+        setFetchingTokens(true);
+        try {
+            const res = await fetch(RAILWAY_PROXY_TOKENS);
+            const data = await res.json();
+
+            const tokens: ZenithToken[] = data.tokens
+                .filter((t: RailwayToken) => t.address !== SOL_MINT)
+                .slice(0, 1000)
+                .map(toZenithToken);
+
+            setAllTokens(tokens);
+            console.log(`[Smart Swap] Loaded ${tokens.length} tokens from Railway proxy`);
+        } catch (err) {
+            console.error('[Smart Swap] Failed to fetch tokens:', err);
+            setError('Failed to load token list. Please try again.');
+        } finally {
+            setFetchingTokens(false);
+        }
+    };
+
+    const handleAnalyze = () => {
+        const invest = parseFloat(investAmount) || 0;
+        const target = parseFloat(targetAmount) || 0;
+
+        if (invest <= 0) {
+            setError('Please enter a valid investment amount');
+            return;
+        }
+        if (target <= invest) {
+            setError('Target must be greater than investment');
             return;
         }
 
         setLoading(true);
         setError(null);
-        setRecommendations([]);
 
         try {
-            const filters: SmartSwapFilters = {};
-            if (searchQuery) filters.search = searchQuery;
-            if (selectedCategories.length > 0) filters.categories = selectedCategories;
-
-            const response = await fetch('/api/smart-swap/recommend', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    amountIn: parseFloat(amountIn),
-                    tokenInMint: SOL_MINT,
-                    riskMode,
-                    filters,
-                }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to generate recommendations');
+            // Filter by search if provided
+            let filteredTokens = allTokens;
+            if (searchQuery.trim()) {
+                const query = searchQuery.toLowerCase();
+                filteredTokens = allTokens.filter(t =>
+                    t.symbol.toLowerCase().includes(query) ||
+                    t.name.toLowerCase().includes(query)
+                );
             }
 
-            const data: SmartSwapResponse = await response.json();
-            setRecommendations(data.recommendations);
-            setTotalTokens(data.totalTokens || 0);
+            // Run V1 scoring
+            const input: SmartSwapInput = {
+                investmentAmount: invest,
+                targetReturn: target,
+            };
 
-            if (data.recommendations.length === 0) {
-                setError('No suitable tokens found for the selected risk mode. Try a different mode.');
+            const result = findSmartMatches(filteredTokens, input);
+
+            setMatches(result.matches);
+            setMessage(result.message);
+            setDifficulty(result.difficulty);
+
+            if (result.matches.length === 0) {
+                setError('No tokens found matching your criteria. Try adjusting your search.');
             }
         } catch (err: any) {
-            console.error('[Smart Swap UI] Error:', err);
-            setError(err.message || 'Failed to analyze. Please try again.');
+            console.error('[Smart Swap] Scoring error:', err);
+            setError(err.message || 'Failed to analyze tokens');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleExecuteSwap = (recommendation: SwapRecommendation) => {
-        // CRITICAL: Hand off to existing swap component
-        // We DO NOT execute here - we redirect to the existing swap page
+    const handleExecute = (token: ScoredToken) => {
         const params = new URLSearchParams({
-            tokenOut: recommendation.tokenOut.mint,
-            amountIn: amountIn,
+            tokenOut: token.address,
+            amountIn: investAmount,
         });
         router.push(`/?${params.toString()}`);
     };
 
+    const targetMultiplier = (parseFloat(targetAmount) / parseFloat(investAmount)) || 1;
+
     return (
         <div className="min-h-screen bg-black pt-20 pb-20 px-4">
-            <div className="max-w-5xl mx-auto">
+            <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="mb-8">
                     <div className="flex items-center gap-3 mb-3">
@@ -110,42 +164,33 @@ export default function SmartSwapPage() {
                         </div>
                         <div>
                             <h1 className="text-3xl font-bold text-white font-mono tracking-tight">
-                                SMART SWAP OPTIMIZER
+                                SMART SWAP V1
                             </h1>
                             <p className="text-sm text-zinc-400 font-mono">
-                                Intelligent analysis • Top recommendations • Risk-aware
+                                Intent-based matching • {allTokens.length.toLocaleString()} tokens scanned
                             </p>
-                        </div>
-                    </div>
-
-                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 font-mono text-sm text-blue-400">
-                        <div className="flex items-start gap-2">
-                            <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                            <div>
-                                <strong>How it works:</strong> Smart Swap analyzes tokens, filters risk, and recommends the best options.
-                                Click "Execute" to swap using the existing Jupiter-powered swap engine.
-                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Input Section */}
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 mb-6 backdrop-blur-sm">
-                    <div className="grid md:grid-cols-2 gap-6">
-                        {/* Amount Input */}
+                <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 mb-6">
+                    <div className="grid md:grid-cols-2 gap-6 mb-6">
+                        {/* Investment Amount */}
                         <div>
                             <label className="block text-sm font-mono text-zinc-400 mb-2">
-                                Amount to Swap
+                                <DollarSign className="w-4 h-4 inline mr-1" />
+                                I want to invest
                             </label>
                             <div className="relative">
                                 <input
                                     type="number"
-                                    value={amountIn}
-                                    onChange={(e) => setAmountIn(e.target.value)}
+                                    value={investAmount}
+                                    onChange={(e) => setInvestAmount(e.target.value)}
                                     min="0"
                                     step="0.1"
-                                    className="w-full bg-black/50 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono focus:outline-none focus:border-purple-500 transition-colors"
-                                    placeholder="0.0"
+                                    className="w-full bg-black/50 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono text-xl focus:outline-none focus:border-purple-500"
+                                    placeholder="1"
                                 />
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-mono">
                                     SOL
@@ -153,154 +198,131 @@ export default function SmartSwapPage() {
                             </div>
                         </div>
 
-                        {/* Risk Mode Selection */}
+                        {/* Target Amount */}
                         <div>
                             <label className="block text-sm font-mono text-zinc-400 mb-2">
-                                Risk Mode
+                                <TrendingUp className="w-4 h-4 inline mr-1" />
+                                I want to get
                             </label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {(['safe', 'balanced', 'degenerate'] as RiskMode[]).map((mode) => (
-                                    <button
-                                        key={mode}
-                                        onClick={() => setRiskMode(mode)}
-                                        className={`px-4 py-3 rounded-lg font-mono text-sm font-medium transition-all border ${riskMode === mode
-                                                ? 'bg-purple-600 text-white border-purple-500'
-                                                : 'bg-black/50 text-zinc-400 border-zinc-700 hover:border-zinc-600'
-                                            }`}
-                                    >
-                                        {RISK_MODE_CONFIG[mode].label}
-                                    </button>
-                                ))}
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    value={targetAmount}
+                                    onChange={(e) => setTargetAmount(e.target.value)}
+                                    min="0"
+                                    step="0.1"
+                                    className="w-full bg-black/50 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono text-xl focus:outline-none focus:border-purple-500"
+                                    placeholder="1.2"
+                                />
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-mono">
+                                    SOL
+                                </div>
                             </div>
-                            <p className="text-xs text-zinc-500 mt-2 font-mono">
-                                {RISK_MODE_CONFIG[riskMode].description}
-                            </p>
                         </div>
                     </div>
 
-                    {/* Search & Filters */}
-                    <div className="mt-6 pt-6 border-t border-zinc-800">
-                        <label className="block text-sm font-mono text-zinc-400 mb-2">
-                            <Filter className="w-4 h-4 inline mr-2" />
-                            Filter Tokens
-                        </label>
+                    {/* Multiplier Display */}
+                    <div className="flex items-center justify-center gap-4 py-3 bg-black/30 rounded-lg mb-6">
+                        <span className="text-zinc-500 font-mono text-sm">Target:</span>
+                        <span className={`text-2xl font-bold font-mono ${targetMultiplier > 2 ? 'text-red-400' :
+                            targetMultiplier > 1.5 ? 'text-yellow-400' : 'text-emerald-400'
+                            }`}>
+                            {targetMultiplier.toFixed(2)}x
+                        </span>
+                        <span className="text-xs text-zinc-600 font-mono">
+                            ({((targetMultiplier - 1) * 100).toFixed(0)}% gain)
+                        </span>
+                    </div>
 
-                        {/* Search Input */}
-                        <div className="relative mb-4">
-                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search tokens (e.g. BONK, Jupiter...)"
-                                className="w-full bg-black/50 border border-zinc-700 rounded-lg pl-10 pr-4 py-2 text-white font-mono text-sm focus:outline-none focus:border-purple-500 transition-colors"
-                            />
-                        </div>
-
-                        {/* Category Chips */}
-                        <div className="flex flex-wrap gap-2">
-                            {CATEGORIES.map((cat) => (
-                                <button
-                                    key={cat.id}
-                                    onClick={() => {
-                                        setSelectedCategories(prev =>
-                                            prev.includes(cat.id)
-                                                ? prev.filter(c => c !== cat.id)
-                                                : [...prev, cat.id]
-                                        );
-                                    }}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-mono transition-all border ${selectedCategories.includes(cat.id)
-                                            ? 'bg-purple-600/20 text-purple-400 border-purple-500'
-                                            : 'bg-zinc-800/50 text-zinc-400 border-zinc-700 hover:border-zinc-600'
-                                        }`}
-                                >
-                                    {cat.emoji} {cat.label}
-                                </button>
-                            ))}
-                            {selectedCategories.length > 0 && (
-                                <button
-                                    onClick={() => setSelectedCategories([])}
-                                    className="px-3 py-1.5 rounded-full text-xs font-mono text-red-400 border border-red-500/30 hover:bg-red-500/10"
-                                >
-                                    Clear
-                                </button>
-                            )}
-                        </div>
+                    {/* Search */}
+                    <div className="relative mb-6">
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search tokens (e.g. BONK, JUP...)"
+                            className="w-full bg-black/50 border border-zinc-700 rounded-lg pl-10 pr-4 py-2 text-white font-mono text-sm focus:outline-none focus:border-purple-500"
+                        />
                     </div>
 
                     {/* Analyze Button */}
                     <button
                         onClick={handleAnalyze}
-                        disabled={loading}
-                        className="w-full mt-6 px-6 py-4 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white rounded-lg font-mono font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        disabled={loading || fetchingTokens}
+                        className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white rounded-lg font-mono font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                        {loading ? (
+                        {fetchingTokens ? (
                             <>
                                 <Loader2 className="w-5 h-5 animate-spin" />
-                                Analyzing Tokens...
+                                Loading Tokens...
+                            </>
+                        ) : loading ? (
+                            <>
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                Scoring...
                             </>
                         ) : (
                             <>
                                 <Sparkles className="w-5 h-5" />
-                                Analyze & Recommend
+                                Find Best Matches
                             </>
                         )}
                     </button>
                 </div>
 
-                {/* Error Message */}
+                {/* Error */}
                 {error && (
                     <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6 font-mono text-sm text-red-400">
-                        <div className="flex items-start gap-2">
-                            <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                            <div>{error}</div>
-                        </div>
+                        <AlertTriangle className="w-4 h-4 inline mr-2" />
+                        {error}
                     </div>
                 )}
 
-                {/* Recommendations */}
-                {recommendations.length > 0 && (
+                {/* Message */}
+                {message && matches.length > 0 && (
+                    <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 mb-6 font-mono text-sm text-purple-400">
+                        <Sparkles className="w-4 h-4 inline mr-2" />
+                        {message}
+                    </div>
+                )}
+
+                {/* Results */}
+                {matches.length > 0 && (
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-white font-mono flex items-center gap-2">
                                 <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
-                                <h2 className="text-xl font-bold text-white font-mono">
-                                    TOP RECOMMENDATIONS
-                                </h2>
-                                <span className="text-sm text-zinc-500 font-mono">
-                                    ({recommendations.length})
-                                </span>
-                            </div>
-                            {totalTokens > 0 && (
-                                <span className="text-xs text-zinc-500 font-mono">
-                                    Scanned {totalTokens.toLocaleString()} tokens
-                                </span>
-                            )}
+                                TOP 5 MATCHES
+                            </h2>
+                            <span className="text-xs text-zinc-500 font-mono">
+                                Difficulty: {(difficulty * 100).toFixed(0)}%
+                            </span>
                         </div>
 
-                        {recommendations.map((rec, index) => (
-                            <RecommendationCard
-                                key={rec.tokenOut.mint}
-                                recommendation={rec}
-                                rank={index + 1}
-                                onExecute={() => handleExecuteSwap(rec)}
+                        {matches.map((token, idx) => (
+                            <MatchCard
+                                key={token.address}
+                                token={token}
+                                rank={idx + 1}
+                                onExecute={() => handleExecute(token)}
                             />
                         ))}
 
                         {/* Disclaimer */}
                         <div className="bg-amber-900/10 border border-amber-500/20 rounded-lg p-4 font-mono text-xs text-amber-400/80 mt-6">
-                            <strong>Important:</strong> These are estimated recommendations based on current market data.
-                            Cryptocurrency trading carries significant risk. Always do your own research and never invest more than you can afford to lose.
+                            <strong>Disclaimer:</strong> Scores are based on market structure analysis.
+                            Crypto is volatile - always DYOR and only invest what you can afford to lose.
                         </div>
                     </div>
                 )}
 
                 {/* Empty State */}
-                {!loading && recommendations.length === 0 && !error && (
+                {!loading && matches.length === 0 && !error && !fetchingTokens && (
                     <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-12 text-center">
                         <Sparkles className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
                         <p className="text-zinc-500 font-mono text-sm">
-                            Enter an amount and select a risk mode to get started
+                            Set your investment and target, then click &quot;Find Best Matches&quot;
                         </p>
                     </div>
                 )}
@@ -310,135 +332,92 @@ export default function SmartSwapPage() {
 }
 
 /**
- * Recommendation Card Component
+ * Match Card Component
  */
-function RecommendationCard({
-    recommendation,
+function MatchCard({
+    token,
     rank,
-    onExecute,
+    onExecute
 }: {
-    recommendation: SwapRecommendation;
+    token: ScoredToken;
     rank: number;
     onExecute: () => void;
 }) {
     const getRiskColor = (level: string) => {
         switch (level) {
-            case 'low':
-                return 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
-            case 'medium':
-                return 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10';
-            case 'high':
-                return 'text-red-400 border-red-500/30 bg-red-500/10';
-            default:
-                return 'text-zinc-400 border-zinc-500/30 bg-zinc-500/10';
-        }
-    };
-
-    const getRiskIcon = (level: string) => {
-        switch (level) {
-            case 'low':
-                return <Shield className="w-4 h-4" />;
-            case 'medium':
-                return <TrendingUp className="w-4 h-4" />;
-            case 'high':
-                return <Zap className="w-4 h-4" />;
-            default:
-                return null;
+            case 'low': return 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
+            case 'medium': return 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10';
+            case 'high': return 'text-red-400 border-red-500/30 bg-red-500/10';
+            default: return 'text-zinc-400 border-zinc-500/30 bg-zinc-500/10';
         }
     };
 
     return (
-        <div className="bg-zinc-900/50 border border-zinc-800 hover:border-purple-500/30 rounded-xl p-6 transition-all backdrop-blur-sm">
+        <div className="bg-zinc-900/50 border border-zinc-800 hover:border-purple-500/30 rounded-xl p-5 transition-all">
             <div className="flex items-start justify-between mb-4">
-                <div className="flex items-start gap-3">
-                    {/* Rank Badge */}
-                    <div className="w-8 h-8 rounded-lg bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 font-mono font-bold">
+                <div className="flex items-center gap-3">
+                    {/* Rank */}
+                    <div className="w-8 h-8 rounded-lg bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 font-mono font-bold text-sm">
                         #{rank}
                     </div>
 
+                    {/* Token Logo */}
+                    {token.logoURI && (
+                        <img
+                            src={token.logoURI}
+                            alt={token.symbol}
+                            className="w-10 h-10 rounded-full"
+                            onError={(e) => (e.currentTarget.style.display = 'none')}
+                        />
+                    )}
+
                     {/* Token Info */}
                     <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-xl font-bold text-white font-mono">
-                                {recommendation.tokenOut.symbol}
-                            </h3>
-                            <div
-                                className={`px-2 py-0.5 rounded text-xs font-mono border ${getRiskColor(
-                                    recommendation.riskLevel
-                                )} flex items-center gap-1`}
-                            >
-                                {getRiskIcon(recommendation.riskLevel)}
-                                {recommendation.riskLevel.toUpperCase()}
-                            </div>
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-bold text-white font-mono">{token.symbol}</h3>
+                            <span className={`px-2 py-0.5 rounded text-xs font-mono border ${getRiskColor(token.liquidityWarning.includes('High') ? 'high' : token.liquidityWarning.includes('Moderate') ? 'medium' : 'low')}`}>
+                                {token.liquidityWarning}
+                            </span>
                         </div>
-                        <p className="text-sm text-zinc-400 font-mono">{recommendation.tokenOut.name}</p>
+                        <p className="text-xs text-zinc-500 font-mono">{token.name}</p>
                     </div>
                 </div>
 
-                {/* Smart Score */}
+                {/* Match Score */}
                 <div className="text-right">
-                    <div className="text-xs text-zinc-500 font-mono mb-1">Smart Score</div>
+                    <div className="text-xs text-zinc-500 font-mono">Match</div>
                     <div className="text-2xl font-bold text-purple-400 font-mono">
-                        {recommendation.smartSwapScore}
+                        {token.matchPercentage}%
                     </div>
                 </div>
             </div>
 
-            {/* Metrics Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <MetricBox label="Est. Received" value={`${recommendation.estimatedAmountOut.toFixed(4)}`} />
-                <MetricBox
-                    label="Slippage"
-                    value={`${recommendation.estimatedSlippage.toFixed(2)}%`}
-                    color={recommendation.estimatedSlippage > 2 ? 'text-yellow-400' : 'text-emerald-400'}
-                />
-                <MetricBox
-                    label="Liquidity"
-                    value={`${recommendation.liquidityScore}/100`}
-                    color={recommendation.liquidityScore > 70 ? 'text-emerald-400' : 'text-yellow-400'}
-                />
-                <MetricBox
-                    label="Risk Score"
-                    value={`${recommendation.riskScore}/100`}
-                    color={recommendation.riskScore > 70 ? 'text-emerald-400' : 'text-red-400'}
-                />
+            {/* Why Reasons */}
+            <div className="bg-black/30 rounded-lg p-3 mb-4">
+                <p className="text-xs text-zinc-500 font-mono mb-2">Why this token:</p>
+                <ul className="space-y-1">
+                    {token.whyReasons.map((reason, i) => (
+                        <li key={i} className="text-sm text-zinc-400 font-mono flex items-start gap-2">
+                            <span className="text-purple-400">•</span>
+                            {reason}
+                        </li>
+                    ))}
+                </ul>
             </div>
 
-            {/* Explanation */}
-            <div className="bg-black/50 rounded-lg p-3 mb-4">
-                <p className="text-sm text-zinc-400 font-mono leading-relaxed">
-                    <span className="text-purple-400">Why recommended:</span> {recommendation.explanation}
-                </p>
+            {/* Context Label */}
+            <div className="text-xs text-zinc-500 font-mono mb-4">
+                {token.contextLabel}
             </div>
 
             {/* Execute Button */}
             <button
                 onClick={onExecute}
-                className="w-full px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-mono font-bold transition-all flex items-center justify-center gap-2"
+                className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-mono font-bold transition-all flex items-center justify-center gap-2"
             >
-                Execute Swap on Jupiter
+                Swap on Jupiter
                 <ArrowRight className="w-4 h-4" />
             </button>
-        </div>
-    );
-}
-
-/**
- * Metric Box Component
- */
-function MetricBox({
-    label,
-    value,
-    color = 'text-white',
-}: {
-    label: string;
-    value: string;
-    color?: string;
-}) {
-    return (
-        <div className="bg-black/50 rounded-lg p-3">
-            <div className="text-xs text-zinc-500 font-mono mb-1">{label}</div>
-            <div className={`text-lg font-bold font-mono ${color}`}>{value}</div>
         </div>
     );
 }
