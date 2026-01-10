@@ -27,10 +27,10 @@ const PROBE_TIMEOUT = 800;
 const MAX_PRICE_IMPACT = 20; // Increased from 15% to 20%
 const BATCH_SIZE = 25;
 
-// TIERING: Two levels of safety
-const SAFE_ROUND_TRIP_LOSS = 12; // % - SAFE tier (conservative)
-const EXTENDED_SAFE_ROUND_TRIP_LOSS = 18; // % - SAFE-EXTENDED tier (permissive but honest)
-const MAX_ROUND_TRIP_LOSS = EXTENDED_SAFE_ROUND_TRIP_LOSS; // Hard reject above this
+// THREE-TIER SYSTEM: SAFE → RANKABLE → REJECTED
+const SAFE_ROUND_TRIP_LOSS = 15; // % - SAFE tier (executable, low risk)
+const RANKABLE_ROUND_TRIP_LOSS = 35; // % - RANKABLE tier (observable, high risk)
+// Above 35% = REJECTED (hard reject, trash)
 
 type TokenInput = {
     mint: string;
@@ -46,7 +46,9 @@ type ValuationResult = {
     canReverse?: boolean;
     roundTripLoss?: number;
     isSafe?: boolean;
-    safeTier?: 'SAFE' | 'SAFE-EXTENDED' | 'REJECTED'; // Tiering
+    safeTier?: 'SAFE' | 'RANKABLE' | 'REJECTED'; // Three-tier system
+    alphaScore?: number; // For RANKABLE tokens
+    riskReason?: string; // Why it's risky (for RANKABLE)
     error?: string;
 };
 
@@ -74,6 +76,63 @@ async function getQuote(
     }
 
     return response.json();
+}
+
+/**
+ * Calculate AlphaScore for RANKABLE tokens
+ *
+ * Score = LiquidityScore + RouteStabilityScore - ExitFriction - SlippagePenalty
+ *
+ * This is RELATIVE, not predictive.
+ * Answers: "Which risky tokens are less stupid than others?"
+ */
+function calculateAlphaScore(
+    valueInSOL: number,
+    priceImpactPct: number,
+    roundTripLoss: number,
+    canReverse: boolean
+): number {
+    // Liquidity score (higher SOL value = better)
+    const liquidityScore = Math.min(valueInSOL * 100, 50); // Cap at 50
+
+    // Route stability (lower price impact = better)
+    const routeStabilityScore = Math.max(20 - priceImpactPct, 0);
+
+    // Exit friction (can't reverse = huge penalty)
+    const exitFriction = canReverse ? 0 : 40;
+
+    // Slippage penalty (round-trip loss)
+    const slippagePenalty = roundTripLoss;
+
+    const score = liquidityScore + routeStabilityScore - exitFriction - slippagePenalty;
+
+    // Normalize to 0-100 range
+    return Math.max(0, Math.min(100, score));
+}
+
+/**
+ * Determine why a token is RANKABLE (not SAFE)
+ */
+function getRiskReason(
+    roundTripLoss: number,
+    priceImpactPct: number,
+    canReverse: boolean
+): string {
+    const reasons: string[] = [];
+
+    if (roundTripLoss > SAFE_ROUND_TRIP_LOSS) {
+        reasons.push(`High round-trip loss (${roundTripLoss.toFixed(1)}%)`);
+    }
+
+    if (priceImpactPct > 15) {
+        reasons.push(`High slippage (${priceImpactPct.toFixed(1)}%)`);
+    }
+
+    if (!canReverse) {
+        reasons.push('Exit route weak');
+    }
+
+    return reasons.join(', ') || 'Thin liquidity';
 }
 
 async function probeToken(mint: string, decimals: number = 6): Promise<ValuationResult> {
@@ -175,12 +234,16 @@ async function probeToken(mint: string, decimals: number = 6): Promise<Valuation
 
         clearTimeout(timeoutId);
 
-        // TIERING: Assign safety tier based on round-trip loss
-        let safeTier: 'SAFE' | 'SAFE-EXTENDED' | 'REJECTED';
-        let isSafe: boolean;
+        const valueInSOL = solOutLamports / Math.pow(10, 9);
 
-        if (roundTripLoss > MAX_ROUND_TRIP_LOSS) {
-            // REJECTED: Too much loss
+        // THREE-TIER CLASSIFICATION
+        let safeTier: 'SAFE' | 'RANKABLE' | 'REJECTED';
+        let isSafe: boolean;
+        let alphaScore: number | undefined;
+        let riskReason: string | undefined;
+
+        if (roundTripLoss > RANKABLE_ROUND_TRIP_LOSS) {
+            // TIER C: REJECTED - Hard reject, never touch
             safeTier = 'REJECTED';
             isSafe = false;
             return {
@@ -189,31 +252,35 @@ async function probeToken(mint: string, decimals: number = 6): Promise<Valuation
                 canReverse: true,
                 isSafe: false,
                 safeTier,
-                valueInSOL: solOutLamports / Math.pow(10, 9),
+                valueInSOL,
                 priceImpactPct: forwardImpact,
                 roundTripLoss,
-                error: `Round-trip loss ${roundTripLoss.toFixed(1)}%`,
+                error: `Round-trip loss too high (${roundTripLoss.toFixed(1)}%)`,
             };
-        } else if (roundTripLoss <= SAFE_ROUND_TRIP_LOSS) {
-            // SAFE: Conservative, high confidence
+        } else if (roundTripLoss <= SAFE_ROUND_TRIP_LOSS && forwardImpact <= 15) {
+            // TIER A: SAFE - Executable, auto-swappable
             safeTier = 'SAFE';
             isSafe = true;
         } else {
-            // SAFE-EXTENDED: Permissive but honest
-            safeTier = 'SAFE-EXTENDED';
-            isSafe = true;
+            // TIER B: RANKABLE - Observable, high risk, NOT executable
+            safeTier = 'RANKABLE';
+            isSafe = false;
+            alphaScore = calculateAlphaScore(valueInSOL, forwardImpact, roundTripLoss, true);
+            riskReason = getRiskReason(roundTripLoss, forwardImpact, true);
         }
 
-        // TOKEN PASSED SAFETY CHECKS
+        // Return result
         return {
             mint,
-            valueInSOL: solOutLamports / Math.pow(10, 9),
+            valueInSOL,
             priceImpactPct: forwardImpact,
             hasRoute: true,
             canReverse: true,
             roundTripLoss,
             isSafe,
             safeTier,
+            alphaScore,
+            riskReason,
             decimals,
         };
     } catch (error: any) {
@@ -262,30 +329,30 @@ export async function POST(request: Request) {
             }
         }
 
-        // Compute statistics with tiering
-        const safeTokens = results.filter(r => r.isSafe);
-        const safeTierTokens = results.filter(r => r.safeTier === 'SAFE');
-        const extendedSafeTokens = results.filter(r => r.safeTier === 'SAFE-EXTENDED');
-        const hasRoute = results.filter(r => r.hasRoute);
-        const canReverse = results.filter(r => r.canReverse);
+        // THREE-TIER STATISTICS
+        const safeTokens = results.filter(r => r.safeTier === 'SAFE');
+        const rankableTokens = results.filter(r => r.safeTier === 'RANKABLE');
+        const rejectedTokens = results.filter(r => r.safeTier === 'REJECTED');
 
-        console.log(`[Valuate] FINAL RESULTS:`);
+        // Rank RANKABLE tokens by alphaScore (descending)
+        const rankedTokens = rankableTokens
+            .filter(r => r.alphaScore !== undefined)
+            .sort((a, b) => (b.alphaScore || 0) - (a.alphaScore || 0));
+
+        console.log(`[Valuate] THREE-TIER RESULTS:`);
         console.log(`  Total probed: ${results.length}`);
-        console.log(`  Has forward route: ${hasRoute.length}`);
-        console.log(`  Can reverse: ${canReverse.length}`);
-        console.log(`  🟢 SAFE: ${safeTierTokens.length} (≤${SAFE_ROUND_TRIP_LOSS}% loss)`);
-        console.log(`  🟡 SAFE-EXTENDED: ${extendedSafeTokens.length} (${SAFE_ROUND_TRIP_LOSS}-${EXTENDED_SAFE_ROUND_TRIP_LOSS}% loss)`);
-        console.log(`  🔴 REJECTED: ${results.length - safeTokens.length}`);
-        console.log(`  Total SAFE universe: ${safeTokens.length}`);
+        console.log(`  🟢 TIER A - SAFE: ${safeTokens.length} (executable)`);
+        console.log(`  🟡 TIER B - RANKABLE: ${rankableTokens.length} (observable, risky)`);
+        console.log(`  🔴 TIER C - REJECTED: ${rejectedTokens.length} (hard reject)`);
+        if (rankedTokens.length > 0) {
+            console.log(`  Top RANKABLE alpha score: ${rankedTokens[0].alphaScore?.toFixed(1)}`);
+        }
 
         return NextResponse.json({
             total: results.length,
-            hasRoute: hasRoute.length,
-            canReverse: canReverse.length,
             safe: safeTokens.length,
-            safeTier: safeTierTokens.length,
-            safeExtended: extendedSafeTokens.length,
-            rejected: results.length - safeTokens.length,
+            rankable: rankableTokens.length,
+            rejected: rejectedTokens.length,
             results: results,
         });
     } catch (error: any) {

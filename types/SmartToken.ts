@@ -24,5 +24,9 @@ export type SmartToken = {
     canReverse?: boolean;     // Whether SOL → Token → SOL round-trip works
     roundTripLoss?: number;   // Loss percentage on round-trip (e.g., 8 = 8%)
     isSafe?: boolean;         // Passed all safety filters
-    safeTier?: 'SAFE' | 'SAFE-EXTENDED' | 'REJECTED'; // Tiering
+    safeTier?: 'SAFE' | 'RANKABLE' | 'REJECTED'; // Three-tier system
+    // Ranking data (only for RANKABLE tokens)
+    alphaRank?: number;       // Relative ranking within RANKABLE tier
+    alphaScore?: number;      // Composite score for ranking
+    riskReason?: string;      // Why token is risky (for RANKABLE)
 };

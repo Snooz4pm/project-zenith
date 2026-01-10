@@ -91,36 +91,47 @@ export function useSmartTokens(options: UseSmartTokensOptions = {}) {
                     roundTripLoss: valuation.roundTripLoss,
                     isSafe: valuation.isSafe,
                     safeTier: valuation.safeTier,
+                    alphaScore: valuation.alphaScore,
+                    riskReason: valuation.riskReason,
                     decimals: valuation.decimals || token.decimals,
                 };
             });
 
-            // Sort: SAFE tier first, then SAFE-EXTENDED, then unsafe
+            // Sort: SAFE first, then RANKABLE (by alphaScore), then REJECTED
             const sorted = valuatedTokens.sort((a, b) => {
-                // Tier priority: SAFE > SAFE-EXTENDED > others
-                const tierOrder = { 'SAFE': 0, 'SAFE-EXTENDED': 1, 'REJECTED': 2 };
+                // Tier priority: SAFE > RANKABLE > REJECTED
+                const tierOrder = { 'SAFE': 0, 'RANKABLE': 1, 'REJECTED': 2 };
                 const aTier = a.safeTier ? tierOrder[a.safeTier] : 3;
                 const bTier = b.safeTier ? tierOrder[b.safeTier] : 3;
 
                 if (aTier !== bTier) return aTier - bTier;
 
-                // Within same tier, sort by SOL value
-                if (a.valueInSOL && b.valueInSOL) {
-                    return b.valueInSOL - a.valueInSOL;
+                // Within SAFE tier, sort by SOL value
+                if (a.safeTier === 'SAFE' && b.safeTier === 'SAFE') {
+                    if (a.valueInSOL && b.valueInSOL) {
+                        return b.valueInSOL - a.valueInSOL;
+                    }
                 }
 
-                // Fallback to route/reverse status
-                if (a.hasRoute && !b.hasRoute) return -1;
-                if (!a.hasRoute && b.hasRoute) return 1;
-                if (a.canReverse && !b.canReverse) return -1;
-                if (!a.canReverse && b.canReverse) return 1;
+                // Within RANKABLE tier, sort by alphaScore
+                if (a.safeTier === 'RANKABLE' && b.safeTier === 'RANKABLE') {
+                    return (b.alphaScore || 0) - (a.alphaScore || 0);
+                }
 
                 return 0;
             });
 
+            // Assign alpha ranks to RANKABLE tokens
+            let rankCounter = 1;
+            sorted.forEach(token => {
+                if (token.safeTier === 'RANKABLE') {
+                    token.alphaRank = rankCounter++;
+                }
+            });
+
             setTokens(sorted);
             console.log(
-                `[useSmartTokens] Valuation complete: ${data.safeTier || 0} SAFE + ${data.safeExtended || 0} SAFE-EXTENDED = ${data.safe}/${data.total} total safe tokens`
+                `[useSmartTokens] THREE-TIER RESULTS: ${data.safe} SAFE + ${data.rankable} RANKABLE + ${data.rejected} REJECTED = ${data.total} total`
             );
         } catch (err) {
             console.error('[useSmartTokens] Valuation error:', err);

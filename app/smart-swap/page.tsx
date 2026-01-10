@@ -34,7 +34,7 @@ export default function SmartSwapPage() {
                                     ? 'Loading tokens...'
                                     : valuating
                                     ? `Probing ${tokens.length} tokens (bidirectional)...`
-                                    : `${tokens.filter(t => t.safeTier === 'SAFE').length} SAFE + ${tokens.filter(t => t.safeTier === 'SAFE-EXTENDED').length} SAFE-EXT = ${tokens.filter(t => t.isSafe).length} safe universe`}
+                                    : `🟢 ${tokens.filter(t => t.safeTier === 'SAFE').length} SAFE | 🟡 ${tokens.filter(t => t.safeTier === 'RANKABLE').length} RANKABLE | 🔴 ${tokens.filter(t => t.safeTier === 'REJECTED').length} REJECTED`}
                             </p>
                         </div>
                     </div>
@@ -67,13 +67,13 @@ export default function SmartSwapPage() {
                             {!valuating && (
                                 <div className="flex gap-4 text-xs">
                                     <span className="text-green-400">
-                                        🟢 {tokens.filter(t => t.safeTier === 'SAFE').length} SAFE
+                                        🟢 {tokens.filter(t => t.safeTier === 'SAFE').length} SAFE (executable)
                                     </span>
-                                    <span className="text-cyan-400">
-                                        🟡 {tokens.filter(t => t.safeTier === 'SAFE-EXTENDED').length} SAFE-EXTENDED
+                                    <span className="text-yellow-400">
+                                        🟡 {tokens.filter(t => t.safeTier === 'RANKABLE').length} RANKABLE (watch only)
                                     </span>
                                     <span className="text-red-400">
-                                        🔴 {tokens.filter(t => !t.isSafe).length} rejected
+                                        🔴 {tokens.filter(t => t.safeTier === 'REJECTED').length} REJECTED
                                     </span>
                                 </div>
                             )}
@@ -83,9 +83,7 @@ export default function SmartSwapPage() {
                             // Determine border color based on safety tier
                             const borderColor = t.safeTier === 'SAFE'
                                 ? 'border-green-500/30 hover:border-green-500/50'
-                                : t.safeTier === 'SAFE-EXTENDED'
-                                ? 'border-cyan-500/30 hover:border-cyan-500/50'
-                                : t.canReverse
+                                : t.safeTier === 'RANKABLE'
                                 ? 'border-yellow-500/30 hover:border-yellow-500/50'
                                 : 'border-red-500/20 hover:border-red-500/30';
 
@@ -104,25 +102,22 @@ export default function SmartSwapPage() {
                                                     <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400 font-mono">
                                                         🟢 SAFE
                                                     </span>
-                                                ) : t.safeTier === 'SAFE-EXTENDED' ? (
-                                                    <span className="text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-mono">
-                                                        🟡 SAFE-EXT
-                                                    </span>
-                                                ) : t.canReverse ? (
+                                                ) : t.safeTier === 'RANKABLE' ? (
                                                     <span className="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-mono">
-                                                        RISKY
-                                                    </span>
-                                                ) : t.hasRoute ? (
-                                                    <span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-mono">
-                                                        TRAP
+                                                        🟡 RANKABLE #{t.alphaRank}
                                                     </span>
                                                 ) : (
-                                                    <span className="text-xs px-2 py-0.5 rounded bg-zinc-700/20 text-zinc-500 font-mono">
-                                                        NO ROUTE
+                                                    <span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-mono">
+                                                        🔴 REJECTED
                                                     </span>
                                                 )}
                                             </div>
                                             <div className="text-zinc-500 font-mono text-sm">{t.name}</div>
+                                            {t.safeTier === 'RANKABLE' && t.riskReason && (
+                                                <div className="text-xs text-yellow-500 font-mono mt-1">
+                                                    ⚠ {t.riskReason}
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Safety Metrics Display */}
@@ -142,34 +137,24 @@ export default function SmartSwapPage() {
                                                         </div>
                                                     )}
                                                 </div>
-                                            ) : t.safeTier === 'SAFE-EXTENDED' ? (
+                                            ) : t.safeTier === 'RANKABLE' ? (
                                                 <div>
-                                                    <div className="text-cyan-400 font-mono font-bold">
+                                                    <div className="text-yellow-400 font-mono font-bold">
+                                                        Alpha: {t.alphaScore?.toFixed(1) || 'N/A'}
+                                                    </div>
+                                                    <div className="text-xs text-yellow-500 font-mono">
                                                         {t.valueInSOL ? `${t.valueInSOL.toFixed(6)} SOL` : 'N/A'}
                                                     </div>
                                                     {t.roundTripLoss !== undefined && (
-                                                        <div className="text-xs text-cyan-500 font-mono">
-                                                            {t.roundTripLoss.toFixed(1)}% loss
+                                                        <div className="text-xs text-yellow-600 font-mono">
+                                                            {t.roundTripLoss.toFixed(1)}% R/T loss
                                                         </div>
                                                     )}
                                                 </div>
-                                            ) : t.canReverse ? (
-                                                <div>
-                                                    <div className="text-yellow-400 font-mono font-bold">
-                                                        {t.valueInSOL ? `${t.valueInSOL.toFixed(6)} SOL` : 'N/A'}
-                                                    </div>
-                                                    <div className="text-xs text-yellow-500 font-mono">
-                                                        {t.roundTripLoss !== undefined
-                                                            ? `${t.roundTripLoss.toFixed(1)}% loss (rejected)`
-                                                            : 'High slippage'}
-                                                    </div>
-                                                </div>
-                                            ) : t.hasRoute ? (
-                                                <div className="text-red-400 font-mono text-sm">
-                                                    Cannot reverse
-                                                </div>
                                             ) : (
-                                                <div className="text-zinc-600 font-mono text-sm">No route</div>
+                                                <div className="text-red-400 font-mono text-sm">
+                                                    Rejected
+                                                </div>
                                             )}
                                         </div>
                                     </div>
