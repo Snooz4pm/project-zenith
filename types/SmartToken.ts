@@ -24,4 +24,5 @@ export type SmartToken = {
     canReverse?: boolean;     // Whether SOL → Token → SOL round-trip works
     roundTripLoss?: number;   // Loss percentage on round-trip (e.g., 8 = 8%)
     isSafe?: boolean;         // Passed all safety filters
+    safeTier?: 'SAFE' | 'SAFE-EXTENDED' | 'REJECTED'; // Tiering
 };

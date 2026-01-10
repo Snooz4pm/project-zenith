@@ -90,24 +90,26 @@ export function useSmartTokens(options: UseSmartTokensOptions = {}) {
                     canReverse: valuation.canReverse,
                     roundTripLoss: valuation.roundTripLoss,
                     isSafe: valuation.isSafe,
+                    safeTier: valuation.safeTier,
                     decimals: valuation.decimals || token.decimals,
                 };
             });
 
-            // Sort: SAFE tokens first (by SOL value), then unsafe tokens
+            // Sort: SAFE tier first, then SAFE-EXTENDED, then unsafe
             const sorted = valuatedTokens.sort((a, b) => {
-                // Safe tokens always come first
-                if (a.isSafe && !b.isSafe) return -1;
-                if (!a.isSafe && b.isSafe) return 1;
+                // Tier priority: SAFE > SAFE-EXTENDED > others
+                const tierOrder = { 'SAFE': 0, 'SAFE-EXTENDED': 1, 'REJECTED': 2 };
+                const aTier = a.safeTier ? tierOrder[a.safeTier] : 3;
+                const bTier = b.safeTier ? tierOrder[b.safeTier] : 3;
 
-                // Within safe tokens, sort by SOL value
-                if (a.isSafe && b.isSafe) {
-                    if (a.valueInSOL && b.valueInSOL) {
-                        return b.valueInSOL - a.valueInSOL;
-                    }
+                if (aTier !== bTier) return aTier - bTier;
+
+                // Within same tier, sort by SOL value
+                if (a.valueInSOL && b.valueInSOL) {
+                    return b.valueInSOL - a.valueInSOL;
                 }
 
-                // Within unsafe tokens, sort by hasRoute, then canReverse
+                // Fallback to route/reverse status
                 if (a.hasRoute && !b.hasRoute) return -1;
                 if (!a.hasRoute && b.hasRoute) return 1;
                 if (a.canReverse && !b.canReverse) return -1;
@@ -118,7 +120,7 @@ export function useSmartTokens(options: UseSmartTokensOptions = {}) {
 
             setTokens(sorted);
             console.log(
-                `[useSmartTokens] Valuation complete: ${data.safe}/${data.total} tokens are SAFE (${data.canReverse} reversible)`
+                `[useSmartTokens] Valuation complete: ${data.safeTier || 0} SAFE + ${data.safeExtended || 0} SAFE-EXTENDED = ${data.safe}/${data.total} total safe tokens`
             );
         } catch (err) {
             console.error('[useSmartTokens] Valuation error:', err);

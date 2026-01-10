@@ -22,10 +22,15 @@ const JUPITER_PROXY_QUOTE = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL
     ? `${process.env.NEXT_PUBLIC_JUPITER_PROXY_URL}/quote`
     : 'https://jupiter-proxy-production.up.railway.app/quote';
 
+// TUNED THRESHOLDS (safe but more permissive)
 const PROBE_TIMEOUT = 800;
-const MAX_PRICE_IMPACT = 15;
-const MAX_ROUND_TRIP_LOSS = 20; // % - tokens with >20% round-trip loss are unsafe
+const MAX_PRICE_IMPACT = 20; // Increased from 15% to 20%
 const BATCH_SIZE = 25;
+
+// TIERING: Two levels of safety
+const SAFE_ROUND_TRIP_LOSS = 12; // % - SAFE tier (conservative)
+const EXTENDED_SAFE_ROUND_TRIP_LOSS = 18; // % - SAFE-EXTENDED tier (permissive but honest)
+const MAX_ROUND_TRIP_LOSS = EXTENDED_SAFE_ROUND_TRIP_LOSS; // Hard reject above this
 
 type TokenInput = {
     mint: string;
@@ -41,6 +46,7 @@ type ValuationResult = {
     canReverse?: boolean;
     roundTripLoss?: number;
     isSafe?: boolean;
+    safeTier?: 'SAFE' | 'SAFE-EXTENDED' | 'REJECTED'; // Tiering
     error?: string;
 };
 
@@ -169,21 +175,36 @@ async function probeToken(mint: string, decimals: number = 6): Promise<Valuation
 
         clearTimeout(timeoutId);
 
-        // Hard filter: round-trip loss
+        // TIERING: Assign safety tier based on round-trip loss
+        let safeTier: 'SAFE' | 'SAFE-EXTENDED' | 'REJECTED';
+        let isSafe: boolean;
+
         if (roundTripLoss > MAX_ROUND_TRIP_LOSS) {
+            // REJECTED: Too much loss
+            safeTier = 'REJECTED';
+            isSafe = false;
             return {
                 mint,
                 hasRoute: true,
                 canReverse: true,
                 isSafe: false,
+                safeTier,
                 valueInSOL: solOutLamports / Math.pow(10, 9),
                 priceImpactPct: forwardImpact,
                 roundTripLoss,
                 error: `Round-trip loss ${roundTripLoss.toFixed(1)}%`,
             };
+        } else if (roundTripLoss <= SAFE_ROUND_TRIP_LOSS) {
+            // SAFE: Conservative, high confidence
+            safeTier = 'SAFE';
+            isSafe = true;
+        } else {
+            // SAFE-EXTENDED: Permissive but honest
+            safeTier = 'SAFE-EXTENDED';
+            isSafe = true;
         }
 
-        // TOKEN PASSED ALL SAFETY CHECKS
+        // TOKEN PASSED SAFETY CHECKS
         return {
             mint,
             valueInSOL: solOutLamports / Math.pow(10, 9),
@@ -191,7 +212,8 @@ async function probeToken(mint: string, decimals: number = 6): Promise<Valuation
             hasRoute: true,
             canReverse: true,
             roundTripLoss,
-            isSafe: true,
+            isSafe,
+            safeTier,
             decimals,
         };
     } catch (error: any) {
@@ -240,8 +262,10 @@ export async function POST(request: Request) {
             }
         }
 
-        // Compute statistics
+        // Compute statistics with tiering
         const safeTokens = results.filter(r => r.isSafe);
+        const safeTierTokens = results.filter(r => r.safeTier === 'SAFE');
+        const extendedSafeTokens = results.filter(r => r.safeTier === 'SAFE-EXTENDED');
         const hasRoute = results.filter(r => r.hasRoute);
         const canReverse = results.filter(r => r.canReverse);
 
@@ -249,14 +273,19 @@ export async function POST(request: Request) {
         console.log(`  Total probed: ${results.length}`);
         console.log(`  Has forward route: ${hasRoute.length}`);
         console.log(`  Can reverse: ${canReverse.length}`);
-        console.log(`  SAFE (passed all filters): ${safeTokens.length}`);
-        console.log(`  Rejection rate: ${(((results.length - safeTokens.length) / results.length) * 100).toFixed(1)}%`);
+        console.log(`  🟢 SAFE: ${safeTierTokens.length} (≤${SAFE_ROUND_TRIP_LOSS}% loss)`);
+        console.log(`  🟡 SAFE-EXTENDED: ${extendedSafeTokens.length} (${SAFE_ROUND_TRIP_LOSS}-${EXTENDED_SAFE_ROUND_TRIP_LOSS}% loss)`);
+        console.log(`  🔴 REJECTED: ${results.length - safeTokens.length}`);
+        console.log(`  Total SAFE universe: ${safeTokens.length}`);
 
         return NextResponse.json({
             total: results.length,
             hasRoute: hasRoute.length,
             canReverse: canReverse.length,
             safe: safeTokens.length,
+            safeTier: safeTierTokens.length,
+            safeExtended: extendedSafeTokens.length,
+            rejected: results.length - safeTokens.length,
             results: results,
         });
     } catch (error: any) {

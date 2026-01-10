@@ -34,7 +34,7 @@ export default function SmartSwapPage() {
                                     ? 'Loading tokens...'
                                     : valuating
                                     ? `Probing ${tokens.length} tokens (bidirectional)...`
-                                    : `${tokens.filter(t => t.isSafe).length} SAFE tokens (reversible, low-loss)`}
+                                    : `${tokens.filter(t => t.safeTier === 'SAFE').length} SAFE + ${tokens.filter(t => t.safeTier === 'SAFE-EXTENDED').length} SAFE-EXT = ${tokens.filter(t => t.isSafe).length} safe universe`}
                             </p>
                         </div>
                     </div>
@@ -65,24 +65,26 @@ export default function SmartSwapPage() {
                                 {valuating && ' (probing safety...)'}
                             </span>
                             {!valuating && (
-                                <div className="flex gap-4">
+                                <div className="flex gap-4 text-xs">
                                     <span className="text-green-400">
-                                        {tokens.filter(t => t.isSafe).length} SAFE
+                                        🟢 {tokens.filter(t => t.safeTier === 'SAFE').length} SAFE
                                     </span>
-                                    <span className="text-yellow-400">
-                                        {tokens.filter(t => t.canReverse && !t.isSafe).length} reversible but risky
+                                    <span className="text-cyan-400">
+                                        🟡 {tokens.filter(t => t.safeTier === 'SAFE-EXTENDED').length} SAFE-EXTENDED
                                     </span>
                                     <span className="text-red-400">
-                                        {tokens.filter(t => !t.canReverse).length} unsafe
+                                        🔴 {tokens.filter(t => !t.isSafe).length} rejected
                                     </span>
                                 </div>
                             )}
                         </div>
 
                         {tokens.slice(0, 50).map(t => {
-                            // Determine border color based on safety
-                            const borderColor = t.isSafe
+                            // Determine border color based on safety tier
+                            const borderColor = t.safeTier === 'SAFE'
                                 ? 'border-green-500/30 hover:border-green-500/50'
+                                : t.safeTier === 'SAFE-EXTENDED'
+                                ? 'border-cyan-500/30 hover:border-cyan-500/50'
                                 : t.canReverse
                                 ? 'border-yellow-500/30 hover:border-yellow-500/50'
                                 : 'border-red-500/20 hover:border-red-500/30';
@@ -98,9 +100,13 @@ export default function SmartSwapPage() {
                                                 <strong className="text-white font-mono text-lg">
                                                     {t.symbol}
                                                 </strong>
-                                                {t.isSafe ? (
+                                                {t.safeTier === 'SAFE' ? (
                                                     <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400 font-mono">
-                                                        SAFE
+                                                        🟢 SAFE
+                                                    </span>
+                                                ) : t.safeTier === 'SAFE-EXTENDED' ? (
+                                                    <span className="text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-mono">
+                                                        🟡 SAFE-EXT
                                                     </span>
                                                 ) : t.canReverse ? (
                                                     <span className="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-mono">
@@ -125,14 +131,25 @@ export default function SmartSwapPage() {
                                                 <div className="text-zinc-600 font-mono text-sm">
                                                     <Loader2 className="w-4 h-4 inline animate-spin" />
                                                 </div>
-                                            ) : t.isSafe ? (
+                                            ) : t.safeTier === 'SAFE' ? (
                                                 <div>
                                                     <div className="text-green-400 font-mono font-bold">
                                                         {t.valueInSOL ? `${t.valueInSOL.toFixed(6)} SOL` : 'N/A'}
                                                     </div>
                                                     {t.roundTripLoss !== undefined && (
                                                         <div className="text-xs text-green-500 font-mono">
-                                                            {t.roundTripLoss.toFixed(1)}% round-trip loss
+                                                            {t.roundTripLoss.toFixed(1)}% loss
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : t.safeTier === 'SAFE-EXTENDED' ? (
+                                                <div>
+                                                    <div className="text-cyan-400 font-mono font-bold">
+                                                        {t.valueInSOL ? `${t.valueInSOL.toFixed(6)} SOL` : 'N/A'}
+                                                    </div>
+                                                    {t.roundTripLoss !== undefined && (
+                                                        <div className="text-xs text-cyan-500 font-mono">
+                                                            {t.roundTripLoss.toFixed(1)}% loss
                                                         </div>
                                                     )}
                                                 </div>
@@ -143,7 +160,7 @@ export default function SmartSwapPage() {
                                                     </div>
                                                     <div className="text-xs text-yellow-500 font-mono">
                                                         {t.roundTripLoss !== undefined
-                                                            ? `${t.roundTripLoss.toFixed(1)}% loss (high)`
+                                                            ? `${t.roundTripLoss.toFixed(1)}% loss (rejected)`
                                                             : 'High slippage'}
                                                     </div>
                                                 </div>
