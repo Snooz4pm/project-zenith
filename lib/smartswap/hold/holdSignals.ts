@@ -30,54 +30,64 @@ export interface HoldSignalInput {
 }
 
 /**
- * VOLATILITY SIGNAL (V1)
+ * FRICTION ASYMMETRY DETECTOR (V1)
  *
- * Uses RTL% as volatility proxy.
- * High RTL = high volatility = potential momentum.
+ * V1 HOLD ≠ "Price will go up"
+ * V1 HOLD = "Market friction detected - execution is fragile"
+ *
+ * Uses market stress indicators:
+ * - High RTL = market charging premium
+ * - High price impact = shallow liquidity
+ *
+ * This is NOT a bullish signal.
+ * This is a SAFETY WARNING.
  *
  * RTL Range:
- * - < 5%: Low volatility (score ~0)
- * - 5-12%: Medium volatility (score 0.3-0.8)
- * - > 12%: High volatility (score ~1, but rejected by constraints)
+ * - < 3%: Low friction (no signal)
+ * - 3-8%: Medium friction (reassess)
+ * - 8-12%: High friction (pause recommended)
+ * - > 12%: Excessive friction (rejected by brain)
  *
- * Returns null if no signal.
+ * Returns null if no friction detected.
  */
-export function calculateVolatilitySignal(rtlPercent: number, priceImpactPct: number) {
-    // Too low volatility = no momentum
+export function calculateFrictionSignal(rtlPercent: number, priceImpactPct: number) {
+    // Too low friction = no signal
     if (rtlPercent < 3) return null;
 
     // Too high = rejected by brain anyway
     if (rtlPercent > 12) return null;
 
-    // Normalize RTL to 0-1 score
-    // 5% RTL → 0.3 score
-    // 8% RTL → 0.6 score
-    // 12% RTL → 1.0 score
-    const rtlScore = Math.min(1, Math.max(0, (rtlPercent - 3) / 9));
+    // Normalize RTL to 0-1 friction score
+    // 3% RTL → 0.0 friction
+    // 8% RTL → 0.55 friction
+    // 12% RTL → 1.0 friction
+    const rtlFriction = Math.min(1, Math.max(0, (rtlPercent - 3) / 9));
 
-    // Price impact penalty (high impact = less confidence)
-    const impactPenalty = Math.min(1, priceImpactPct / 20);
-
-    const score = rtlScore * (1 - impactPenalty * 0.3);
+    // Normalize price impact to 0-1 friction score
+    // 0% impact → 0.0 friction
+    // 5% impact → 0.25 friction
+    // 20% impact → 1.0 friction
+    const impactFriction = Math.min(1, priceImpactPct / 20);
 
     return {
         rtlPercent,
         priceImpactPct,
-        volatilityScore: rtlScore,
-        score: Math.max(0, score),
+        rtlFriction,
+        impactFriction,
     };
 }
 
 /**
- * LIQUIDITY SIGNAL (V1)
+ * LIQUIDITY PENALTY (V1)
  *
- * Uses pool liquidity + AlphaScan volume (if available).
+ * Low liquidity = higher risk = penalty to confidence.
  *
- * Good liquidity + volume growth = potential for hold.
+ * This is NOT a bonus system.
+ * This is a RISK GUARD.
  *
- * Returns null if insufficient liquidity.
+ * Returns penalty score (0 = max penalty, 1 = no penalty).
  */
-export function calculateLiquiditySignal(
+export function calculateLiquidityPenalty(
     poolLiquidityUSD: number,
     alphaVolume24h?: number,
     alphaVolumeChange24h?: number
@@ -87,37 +97,54 @@ export function calculateLiquiditySignal(
         return null;
     }
 
-    // Base liquidity score (50k → 0.3, 200k+ → 1.0)
-    const liquidityScore = Math.min(
+    // Base liquidity penalty (inverse score)
+    // 50k → 0.33 (33% confidence reduction)
+    // 100k → 0.66 (no penalty)
+    // 200k+ → 1.0 (no penalty)
+    const liquidityGuard = Math.min(
         1,
         (poolLiquidityUSD - V1_HOLD.MIN_EXIT_LIQUIDITY_USD) / 150_000
     );
 
-    // Volume growth bonus (if AlphaScan available)
-    let volumeBonus = 0;
+    // Volume stress indicator (if AlphaScan available)
+    // High volume change = market stress = additional penalty
+    let volumeStress = 0;
     if (alphaVolume24h && alphaVolume24h > 10_000) {
-        // Positive volume change = bonus
-        if (alphaVolumeChange24h && alphaVolumeChange24h > 50) {
-            volumeBonus = Math.min(0.3, alphaVolumeChange24h / 300);
+        if (alphaVolumeChange24h && Math.abs(alphaVolumeChange24h) > 100) {
+            // Large volume swings = stress
+            volumeStress = Math.min(0.2, Math.abs(alphaVolumeChange24h) / 500);
         }
     }
 
-    const score = Math.min(1, liquidityScore + volumeBonus);
+    const penalty = Math.max(0, liquidityGuard - volumeStress);
 
     return {
         poolLiquidityUSD,
-        liquidityScore,
-        volumeBonus,
-        score,
+        liquidityGuard,
+        volumeStress,
+        penalty,
     };
 }
 
 /**
  * MAIN FUNCTION: Compute Hold Checkpoint
  *
- * V1: Uses volatility + liquidity proxies instead of historical data.
+ * V1 HOLD = FRICTION-BASED RISK DETECTION
  *
- * Returns V1HoldCheckpoint if conditions met, null otherwise.
+ * NOT a prediction of upside.
+ * IS a warning that execution is fragile.
+ *
+ * Confidence formula (LOCKED for V1):
+ *   confidence = w1 * rtlFriction + w2 * impactFriction - w3 * liquidityPenalty
+ *
+ * Where:
+ *   w1 = 0.4 (RTL friction weight)
+ *   w2 = 0.4 (price impact weight)
+ *   w3 = 0.2 (liquidity penalty weight)
+ *
+ * Higher confidence = higher market stress = "HOLD and reassess"
+ *
+ * Returns V1HoldCheckpoint if friction detected, null otherwise.
  *
  * PURE FUNCTION - No side effects, no network calls.
  */
@@ -134,36 +161,49 @@ export function computeHoldCheckpoint(input: HoldSignalInput): V1HoldCheckpoint 
         return null;
     }
 
-    // === SIGNAL COMPUTATION ===
+    // === FRICTION DETECTION ===
 
-    const volatility = calculateVolatilitySignal(input.rtlPercent, input.priceImpactPct);
-    const liquidity = calculateLiquiditySignal(
+    const friction = calculateFrictionSignal(input.rtlPercent, input.priceImpactPct);
+    const liquidityRisk = calculateLiquidityPenalty(
         input.poolLiquidityUSD,
         input.alphaVolume24h,
         input.alphaVolumeChange24h
     );
 
     // Gate 3: Both signals must exist
-    if (!volatility || !liquidity) {
+    if (!friction || !liquidityRisk) {
         return null;
     }
 
-    // === CONFIDENCE CALCULATION ===
+    // === CONFIDENCE CALCULATION (FRICTION-BASED) ===
 
-    // Fixed weights (locked in v1)
-    // Volatility = 60% (primary signal)
-    // Liquidity = 40% (safety signal)
-    const confidence = 0.6 * volatility.score + 0.4 * liquidity.score;
+    // V1 weights (LOCKED):
+    const w1 = 0.4; // Price impact friction
+    const w2 = 0.4; // RTL friction
+    const w3 = 0.2; // Liquidity guard
+
+    // Confidence = weighted friction + liquidity safety
+    // Higher confidence = more friction + safer exit = "PAUSE and reassess"
+    //
+    // Why liquidity ADDS to confidence:
+    // - High friction + high liquidity = safe to wait
+    // - High friction + low liquidity = already filtered out by gate
+    const frictionScore = w1 * friction.impactFriction + w2 * friction.rtlFriction;
+    const confidence = Math.max(0, Math.min(1, frictionScore + w3 * liquidityRisk.penalty));
 
     // Gate 4: Minimum confidence threshold
+    // "Is there enough friction to warrant a warning?"
     if (confidence < V1_HOLD.CONFIDENCE_THRESHOLD) {
         return null;
     }
 
     // === DURATION CALCULATION ===
 
-    // Linear mapping: confidence 0.4 → 1.8min, confidence 1.0 → 2.5min
-    const suggestedDuration = Math.min(V1_HOLD.MAX_HOLD_MINUTES, 1 + confidence * 2);
+    // Higher friction = longer pause recommended
+    // confidence 0.4 → 1.0 min (quick reassess)
+    // confidence 0.7 → 1.6 min (moderate pause)
+    // confidence 1.0 → 2.5 min (strong pause signal)
+    const suggestedDuration = Math.min(V1_HOLD.MAX_HOLD_MINUTES, 0.5 + confidence * 2);
 
     // === BUILD CHECKPOINT ===
 
@@ -176,13 +216,13 @@ export function computeHoldCheckpoint(input: HoldSignalInput): V1HoldCheckpoint 
         maxDrawdownPct: V1_HOLD.MAX_DRAWDOWN_PCT,
         signals: {
             momentum: {
-                velocity: volatility.rtlPercent,
-                acceleration: volatility.volatilityScore,
-                score: volatility.score,
+                velocity: friction.rtlPercent,
+                acceleration: friction.rtlFriction,
+                score: frictionScore,
             },
             volume: {
-                spikeRatio: liquidity.liquidityScore,
-                score: liquidity.score,
+                spikeRatio: liquidityRisk.liquidityGuard,
+                score: liquidityRisk.penalty,
             },
         },
         timestamp: now,

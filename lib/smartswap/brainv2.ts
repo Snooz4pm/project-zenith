@@ -39,17 +39,40 @@ function countPairOccurrences(path: PathHop[], fromMint: string, toMint: string)
  * Heuristic Score - THE NEURAL PART
  *
  * Decides which paths survive beam search.
+ *
+ * V2 CRITICAL FIX: Target is now a GRADIENT, not a wall.
+ *
+ * Score components:
+ * 1. Capital preservation: log(current/start) - don't lose money
+ * 2. Target ambition: current/target - how close to goal?
+ * 3. Risk penalties: RTL, hops
+ * 4. Alpha momentum: rewards volatility exploration
+ *
+ * Higher target → more pressure to explore → more hops, more alpha, more holds
  */
 function calculateHeuristicScore(state: PathState, goal: BrainGoal, alphaScore: number = 0): number {
-    // Growth component (log scale to avoid explosion)
+    // === CORE OBJECTIVE (NEW: Target-Aware) ===
+
+    // 1. Capital preservation (log scale to prevent losses from dominating)
     const growthRatio = state.currentAmountSOL / goal.startAmountSOL;
-    const growthScore = Math.log(growthRatio) * HEURISTIC_WEIGHTS.growthMultiplier;
+    const preservationScore = Math.log(Math.max(0.01, growthRatio)) * 0.6; // α = 0.6
+
+    // 2. Target ambition (linear scale - direct progress measure)
+    const targetProgress = state.currentAmountSOL / goal.targetAmountSOL;
+    const ambitionScore = Math.min(2, targetProgress) * 0.4; // β = 0.4, capped at 200% to prevent runaway
+
+    // Combined objective: balance safety + ambition
+    const objectiveScore = preservationScore + ambitionScore;
+
+    // === PENALTIES ===
 
     // Risk penalty (cumulative RTL)
     const rtlPenalty = state.cumulativeRTL * HEURISTIC_WEIGHTS.rtlPenalty;
 
     // Hop penalty (prevents endless looping)
     const hopPenalty = state.hopsUsed * HEURISTIC_WEIGHTS.hopPenalty;
+
+    // === BONUSES ===
 
     // Alpha momentum boost (rewards volatility at early hops)
     const alphaMomentumBoost = alphaScore * HEURISTIC_WEIGHTS.alphaMomentumBoost;
@@ -60,7 +83,7 @@ function calculateHeuristicScore(state: PathState, goal: BrainGoal, alphaScore: 
         alphaFuelBoost = 0.2 * alphaScore; // 20% boost scaled by alpha
     }
 
-    const score = growthScore - rtlPenalty - hopPenalty + alphaMomentumBoost + alphaFuelBoost;
+    const score = objectiveScore - rtlPenalty - hopPenalty + alphaMomentumBoost + alphaFuelBoost;
 
     return score;
 }
@@ -352,11 +375,30 @@ export function searchForPath(
 
         // Check if any path reached target
         for (const path of allNewPaths) {
-            // Must return to SOL to count as "reached"
-            if (path.currentToken === SOL_MINT && path.currentAmountSOL >= goal.targetAmountSOL) {
+            // SUCCESS CONDITIONS (flexible):
+            // 1. Already on SOL with target amount, OR
+            // 2. On any swappable token with estimated SOL value >= target
+            //    (as long as token has route back to SOL)
+
+            const isOnSOL = path.currentToken === SOL_MINT;
+            const hasTargetValue = path.currentAmountSOL >= goal.targetAmountSOL;
+
+            // Find current token in universe to check if it has route to SOL
+            const currentTokenData = universe.find(t => t.mint === path.currentToken);
+            const canSwapToSOL = currentTokenData?.hasRoute ?? false;
+
+            // Success if:
+            // - We have target value AND
+            // - (We're on SOL OR we can swap to SOL)
+            if (hasTargetValue && (isOnSOL || canSwapToSOL)) {
                 console.log(`[Brain v2] ✓ Target reached at hop ${hop}!`);
-                console.log(`[Brain v2]   Final amount: ${path.currentAmountSOL.toFixed(6)} SOL`);
+                console.log(`[Brain v2]   Current token: ${path.currentSymbol}`);
+                console.log(`[Brain v2]   Estimated SOL value: ${path.currentAmountSOL.toFixed(6)} SOL`);
                 console.log(`[Brain v2]   Cumulative RTL: ${path.cumulativeRTL.toFixed(1)}%`);
+
+                if (!isOnSOL) {
+                    console.log(`[Brain v2]   ⚠ Final step required: ${path.currentSymbol} → SOL`);
+                }
 
                 // V1 HOLD OVERLAY: Attach hold checkpoint (read-only)
                 const pathWithHold = attachHoldCheckpoint(path, universe);

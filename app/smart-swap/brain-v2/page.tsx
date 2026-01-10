@@ -286,33 +286,44 @@ export default function BrainV2Page() {
                             </div>
                         )}
 
-                        {/* V1 Hold Suggestion */}
+                        {/* V1 Hold Suggestion - FRICTION WARNING */}
                         {searchResult.found && searchResult.path.holdCheckpoint && (
-                            <div className="bg-gradient-to-r from-orange-900/20 to-yellow-900/20 border border-orange-500/30 rounded-lg p-6">
-                                <h3 className="text-lg font-bold text-orange-400 font-mono mb-3 flex items-center gap-2">
-                                    ⏱️ Hold Suggestion (V1)
+                            <div className="bg-gradient-to-r from-orange-900/20 to-red-900/20 border border-orange-500/30 rounded-lg p-6">
+                                <h3 className="text-lg font-bold text-orange-400 font-mono mb-2 flex items-center gap-2">
+                                    ⚠️ Market Friction Detected
                                 </h3>
+                                <p className="text-sm text-zinc-400 font-mono mb-4">
+                                    Execution shows elevated market stress. Consider pausing to reassess.
+                                </p>
                                 <div className="grid grid-cols-2 gap-4 mb-4">
                                     <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                        <div className="text-xs text-zinc-500 font-mono mb-1">Suggested Duration</div>
+                                        <div className="text-xs text-zinc-500 font-mono mb-1">Suggested Pause</div>
                                         <div className="text-white font-mono font-bold">
-                                            {searchResult.path.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} minutes
+                                            {searchResult.path.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} min
                                         </div>
                                     </div>
                                     <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                        <div className="text-xs text-zinc-500 font-mono mb-1">Confidence</div>
+                                        <div className="text-xs text-zinc-500 font-mono mb-1">Friction Level</div>
                                         <div className="text-orange-400 font-mono font-bold">
                                             {(searchResult.path.holdCheckpoint.confidence * 100).toFixed(0)}%
                                         </div>
                                     </div>
                                 </div>
-                                <div className="text-xs text-zinc-400 font-mono space-y-1">
-                                    <div>• Volatility score: {searchResult.path.holdCheckpoint.signals.momentum.score.toFixed(2)}</div>
-                                    <div>• Liquidity score: {searchResult.path.holdCheckpoint.signals.volume.score.toFixed(2)}</div>
-                                    <div>• Max drawdown: {searchResult.path.holdCheckpoint.maxDrawdownPct}%</div>
+                                <div className="text-xs text-zinc-400 font-mono space-y-1 mb-4">
+                                    <div>• RTL spread: {searchResult.path.holdCheckpoint.signals.momentum.velocity.toFixed(2)}%</div>
+                                    <div>• Price impact: {searchResult.path.holdCheckpoint.signals.momentum.acceleration.toFixed(2)}</div>
+                                    <div>• Exit liquidity: ${(searchResult.path.holdCheckpoint.signals.volume.spikeRatio * 150_000 + 50_000).toFixed(0)}</div>
+                                </div>
+                                <div className="bg-zinc-900/30 border border-zinc-700 rounded p-3 space-y-2">
+                                    <div className="text-xs text-zinc-300 font-mono font-bold">Your options:</div>
+                                    <div className="text-xs text-zinc-400 font-mono space-y-1">
+                                        <div>• Continue now (accept current spread)</div>
+                                        <div>• Pause briefly to reassess ({searchResult.path.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} min)</div>
+                                        <div>• Exit to SOL (emergency escape always available)</div>
+                                    </div>
                                 </div>
                                 <div className="mt-4 text-xs text-zinc-500 font-mono italic border-t border-zinc-700 pt-3">
-                                    ℹ️ This is a READ-ONLY suggestion based on volatility + liquidity signals. Always monitor manually.
+                                    ⚠️ This is NOT a price prediction. This is a friction safety valve based on current market conditions.
                                 </div>
                             </div>
                         )}
@@ -364,33 +375,44 @@ export default function BrainV2Page() {
                         {/* Best Effort (if not found) */}
                         {!searchResult.found && searchResult.bestEffort && (
                             <>
-                                {/* V1 Hold Suggestion for Best Effort */}
+                                {/* V1 Hold Suggestion for Best Effort - FRICTION WARNING */}
                                 {searchResult.bestEffort.holdCheckpoint && (
-                                    <div className="bg-gradient-to-r from-orange-900/20 to-yellow-900/20 border border-orange-500/30 rounded-lg p-6">
-                                        <h3 className="text-lg font-bold text-orange-400 font-mono mb-3 flex items-center gap-2">
-                                            ⏱️ Hold Suggestion (V1)
+                                    <div className="bg-gradient-to-r from-orange-900/20 to-red-900/20 border border-orange-500/30 rounded-lg p-6">
+                                        <h3 className="text-lg font-bold text-orange-400 font-mono mb-2 flex items-center gap-2">
+                                            ⚠️ Market Friction Detected
                                         </h3>
+                                        <p className="text-sm text-zinc-400 font-mono mb-4">
+                                            Execution shows elevated market stress. Consider pausing to reassess.
+                                        </p>
                                         <div className="grid grid-cols-2 gap-4 mb-4">
                                             <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                                <div className="text-xs text-zinc-500 font-mono mb-1">Suggested Duration</div>
+                                                <div className="text-xs text-zinc-500 font-mono mb-1">Suggested Pause</div>
                                                 <div className="text-white font-mono font-bold">
-                                                    {searchResult.bestEffort.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} minutes
+                                                    {searchResult.bestEffort.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} min
                                                 </div>
                                             </div>
                                             <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                                <div className="text-xs text-zinc-500 font-mono mb-1">Confidence</div>
+                                                <div className="text-xs text-zinc-500 font-mono mb-1">Friction Level</div>
                                                 <div className="text-orange-400 font-mono font-bold">
                                                     {(searchResult.bestEffort.holdCheckpoint.confidence * 100).toFixed(0)}%
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="text-xs text-zinc-400 font-mono space-y-1">
-                                            <div>• Volatility score: {searchResult.bestEffort.holdCheckpoint.signals.momentum.score.toFixed(2)}</div>
-                                            <div>• Liquidity score: {searchResult.bestEffort.holdCheckpoint.signals.volume.score.toFixed(2)}</div>
-                                            <div>• Max drawdown: {searchResult.bestEffort.holdCheckpoint.maxDrawdownPct}%</div>
+                                        <div className="text-xs text-zinc-400 font-mono space-y-1 mb-4">
+                                            <div>• RTL spread: {searchResult.bestEffort.holdCheckpoint.signals.momentum.velocity.toFixed(2)}%</div>
+                                            <div>• Price impact: {searchResult.bestEffort.holdCheckpoint.signals.momentum.acceleration.toFixed(2)}</div>
+                                            <div>• Exit liquidity: ${(searchResult.bestEffort.holdCheckpoint.signals.volume.spikeRatio * 150_000 + 50_000).toFixed(0)}</div>
+                                        </div>
+                                        <div className="bg-zinc-900/30 border border-zinc-700 rounded p-3 space-y-2">
+                                            <div className="text-xs text-zinc-300 font-mono font-bold">Your options:</div>
+                                            <div className="text-xs text-zinc-400 font-mono space-y-1">
+                                                <div>• Continue now (accept current spread)</div>
+                                                <div>• Pause briefly to reassess ({searchResult.bestEffort.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} min)</div>
+                                                <div>• Exit to SOL (emergency escape always available)</div>
+                                            </div>
                                         </div>
                                         <div className="mt-4 text-xs text-zinc-500 font-mono italic border-t border-zinc-700 pt-3">
-                                            ℹ️ This is a READ-ONLY suggestion based on volatility + liquidity signals. Always monitor manually.
+                                            ⚠️ This is NOT a price prediction. This is a friction safety valve based on current market conditions.
                                         </div>
                                     </div>
                                 )}
