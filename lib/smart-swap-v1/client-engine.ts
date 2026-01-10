@@ -62,17 +62,35 @@ export interface SmartSwapResult {
 }
 
 // ============================================================================
-// STEP 1: NORMALIZATION (MANDATORY)
+// STEP 1: BULLETPROOF NORMALIZATION (NEVER CRASHES)
 // ============================================================================
 
-function normalizeToken(t: ZenithToken): NormalizedToken {
+function normalizeToken(t: any): NormalizedToken {
+    // SAFE: Handle any input - null, undefined, malformed
+    const mint = typeof t?.mint === 'string' ? t.mint : '';
+    if (!mint) {
+        // Return a placeholder that will score lowest
+        return {
+            address: 'INVALID',
+            symbol: 'INVALID',
+            name: 'Invalid Token',
+            logoURI: '',
+            marketCap: 0,
+            liquidity: 0,
+            volume24h: 0,
+            priceChange24h: 0,
+            priceChange7d: 0,
+            ageDays: 0,
+        };
+    }
+
     // Use address hash for deterministic fallback values
-    const hash = t.mint.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+    const hash = mint.split('').reduce((a: number, b: string) => a + b.charCodeAt(0), 0);
 
     // Use real data if available, otherwise generate synthetic
-    const liquidity = t.liquidityUsd > 0 ? t.liquidityUsd : ((hash % 500) + 50) * 1000;
-    const volume24h = t.volume24hUsd > 0 ? t.volume24hUsd : ((hash % 200) + 10) * 1000;
-    const priceChange24h = t.priceChange24h ?? ((hash % 40) - 20);
+    const liquidity = Number(t?.liquidityUsd) > 0 ? Number(t.liquidityUsd) : ((hash % 500) + 50) * 1000;
+    const volume24h = Number(t?.volume24hUsd) > 0 ? Number(t.volume24hUsd) : ((hash % 200) + 10) * 1000;
+    const priceChange24h = typeof t?.priceChange24h === 'number' ? t.priceChange24h : ((hash % 40) - 20);
 
     // Estimate market cap from liquidity
     const marketCap = liquidity * 20; // Assume ~5% of MC is liquidity
@@ -84,11 +102,10 @@ function normalizeToken(t: ZenithToken): NormalizedToken {
     const ageDays = (hash % 90) + 7; // 7-97 days
 
     return {
-        address: t.mint,
-        symbol: t.symbol,
-        name: t.name,
-        logoURI: t.logoURI,
-
+        address: mint,
+        symbol: typeof t?.symbol === 'string' ? t.symbol : 'UNKNOWN',
+        name: typeof t?.name === 'string' ? t.name : 'Unknown Token',
+        logoURI: typeof t?.logoURI === 'string' ? t.logoURI : '',
         marketCap,
         liquidity,
         volume24h,
@@ -270,9 +287,10 @@ export function findSmartMatches(
         };
     });
 
-    // Step 3: Rank and take top 5
-    scored.sort((a, b) => b.smartScore - a.smartScore);
-    const top5 = scored.slice(0, 5);
+    // Step 3: Rank and take top 5 (filter out any INVALID placeholders)
+    const validScored = scored.filter(t => t.address && t.address !== 'INVALID');
+    validScored.sort((a, b) => b.smartScore - a.smartScore);
+    const top5 = validScored.slice(0, 5);
 
     console.log(`[Smart Swap V1] Top 5: ${top5.map(t => `${t.symbol}(${t.matchPercentage}%)`).join(', ')}`);
 

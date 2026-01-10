@@ -29,18 +29,25 @@ interface RailwayToken {
     tags?: string[];
 }
 
-function toZenithToken(t: RailwayToken, idx: number): ZenithToken {
+// BULLETPROOF: Safe conversion with fallbacks for all fields
+function toZenithToken(t: any): ZenithToken {
+    // Safe address extraction
+    const address = typeof t?.address === 'string' ? t.address : '';
+    if (!address) {
+        throw new Error('Token missing address - should have been filtered');
+    }
+
     // Generate deterministic mock data from address hash
-    const hash = t.address.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+    const hash = address.split('').reduce((a: number, b: string) => a + b.charCodeAt(0), 0);
 
     return {
-        mint: t.address,
-        symbol: t.symbol,
-        name: t.name,
-        decimals: t.decimals,
-        logoURI: t.logoURI || '',
+        mint: address,
+        symbol: typeof t?.symbol === 'string' ? t.symbol : 'UNKNOWN',
+        name: typeof t?.name === 'string' ? t.name : 'Unknown Token',
+        decimals: Number(t?.decimals) || 9,
+        logoURI: typeof t?.logoURI === 'string' ? t.logoURI : '',
         priceUsd: ((hash % 1000) + 1) / 100, // $0.01 - $10
-        priceChange24h: ((hash % 40) - 20) + Math.random() * 10, // -20% to +30%
+        priceChange24h: ((hash % 40) - 20) + (hash % 10), // -20% to +30%
         liquidityUsd: ((hash % 500) + 50) * 1000, // $50K - $550K
         volume24hUsd: ((hash % 200) + 10) * 1000, // $10K - $210K
         txCount24h: (hash % 500) + 50, // 50 - 550 txs
@@ -78,15 +85,24 @@ export default function SmartSwapPage() {
             const res = await fetch(TOKENS_API);
             const data = await res.json();
 
-            // Add null safety - filter out any undefined/null tokens
-            const rawTokens = data.tokens || [];
-            const tokens: ZenithToken[] = rawTokens
-                .filter((t: RailwayToken | null | undefined) => t && t.address && t.address !== SOL_MINT)
+            // STEP 1: HARD FILTER - MANDATORY (Jupiter data has null/malformed entries)
+            const rawTokens: any[] = data.tokens || [];
+            const safeTokens = rawTokens.filter(
+                (t): t is RailwayToken =>
+                    t &&
+                    typeof t === 'object' &&
+                    typeof t.address === 'string' &&
+                    t.address.length > 0 &&
+                    t.address !== SOL_MINT
+            );
+
+            // STEP 2: Convert to ZenithToken with safe normalization
+            const tokens: ZenithToken[] = safeTokens
                 .slice(0, 1000)
                 .map(toZenithToken);
 
             setAllTokens(tokens);
-            console.log(`[Smart Swap] Loaded ${tokens.length} tokens from proxy`);
+            console.log(`[Smart Swap] Loaded ${tokens.length} safe tokens (filtered from ${rawTokens.length} raw)`);
         } catch (err) {
             console.error('[Smart Swap] Failed to fetch tokens:', err);
             setError('Failed to load token list. Please try again.');
