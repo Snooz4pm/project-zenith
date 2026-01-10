@@ -1,196 +1,117 @@
 'use client';
 
 /**
- * Smart Swap Page V2
- *
- * Uses Railway proxy tokens + V1 client-side scoring
- * No API calls needed - pure client-side scoring
+ * Smart Swap Page - STATE MACHINE VERSION
  * 
- * CACHE BUST: 2026-01-10-v3
+ * Crash-proof by construction:
+ * - Only render data that exists in current state
+ * - No .map() on raw arrays
+ * - No render during async transitions
+ * - No undefined tokens ever
  */
 
-import { useState, useEffect } from 'react';
+import { useReducer, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     Sparkles, TrendingUp, Shield, Zap, AlertTriangle, ArrowRight,
     Loader2, Search, RefreshCw, DollarSign
 } from 'lucide-react';
-import { findSmartMatches, ScoredToken, SmartSwapInput } from '@/lib/smart-swap-v1/client-engine';
-import { ZenithToken } from '@/lib/zenith';
+import {
+    SmartSwapState,
+    SmartSwapAction,
+    SmartMatchResult,
+    NormalizedToken,
+    smartSwapReducer,
+    initialState,
+    sanitizeAndNormalize,
+    smartMatch,
+} from '@/lib/smart-swap-v1/machine';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
-const TOKENS_API = '/api/smart-swap/tokens'; // Server-side proxy (avoids CORS)
-
-// Convert Railway token to ZenithToken format
-interface RailwayToken {
-    address: string;
-    symbol: string;
-    name: string;
-    decimals: number;
-    logoURI?: string;
-    tags?: string[];
-}
-
-// BULLETPROOF: Safe conversion with fallbacks for all fields
-function toZenithToken(t: any): ZenithToken {
-    // Safe address extraction
-    const address = typeof t?.address === 'string' ? t.address : '';
-    if (!address) {
-        throw new Error('Token missing address - should have been filtered');
-    }
-
-    // Generate deterministic mock data from address hash
-    const hash = address.split('').reduce((a: number, b: string) => a + b.charCodeAt(0), 0);
-
-    return {
-        mint: address,
-        symbol: typeof t?.symbol === 'string' ? t.symbol : 'UNKNOWN',
-        name: typeof t?.name === 'string' ? t.name : 'Unknown Token',
-        decimals: Number(t?.decimals) || 9,
-        logoURI: typeof t?.logoURI === 'string' ? t.logoURI : '',
-        priceUsd: ((hash % 1000) + 1) / 100, // $0.01 - $10
-        priceChange24h: ((hash % 40) - 20) + (hash % 10), // -20% to +30%
-        liquidityUsd: ((hash % 500) + 50) * 1000, // $50K - $550K
-        volume24hUsd: ((hash % 200) + 10) * 1000, // $10K - $210K
-        txCount24h: (hash % 500) + 50, // 50 - 550 txs
-        zenithScore: (hash % 50) + 50, // 50 - 100 score
-    };
-}
+const TOKENS_API = '/api/smart-swap/tokens';
 
 export default function SmartSwapPage() {
     const router = useRouter();
 
-    // Form state
+    // STATE MACHINE
+    const [state, dispatch] = useReducer(smartSwapReducer, initialState);
+
+    // Form inputs (separate from state machine)
     const [investAmount, setInvestAmount] = useState<string>('1');
-    const [targetAmount, setTargetAmount] = useState<string>('1.2');
+    const [targetAmount, setTargetAmount] = useState<string>('1.5');
     const [searchQuery, setSearchQuery] = useState<string>('');
 
-    // Data state
-    const [allTokens, setAllTokens] = useState<ZenithToken[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [fetchingTokens, setFetchingTokens] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    // Results
-    const [matches, setMatches] = useState<ScoredToken[]>([]);
-    const [message, setMessage] = useState<string>('');
-    const [difficulty, setDifficulty] = useState<number>(0);
-
-    // Fetch tokens on mount
+    // Load tokens on mount
     useEffect(() => {
-        fetchTokens();
+        loadTokens();
     }, []);
 
-    const fetchTokens = async () => {
-        setFetchingTokens(true);
+    const loadTokens = async () => {
+        dispatch({ type: 'LOAD_TOKENS' });
+
         try {
             const res = await fetch(TOKENS_API);
             const data = await res.json();
 
-            // STEP 1: HARD FILTER - MANDATORY (Jupiter data has null/malformed entries)
-            const rawTokens: any[] = data.tokens || [];
-            const safeTokens = rawTokens.filter(
-                (t): t is RailwayToken =>
-                    t &&
-                    typeof t === 'object' &&
-                    typeof t.address === 'string' &&
-                    t.address.length > 0 &&
-                    t.address !== SOL_MINT
+            // SANITIZE at the gate - bad tokens never enter
+            const rawTokens = data.tokens || [];
+            const clean = sanitizeAndNormalize(
+                rawTokens.filter((t: any) => t?.address !== SOL_MINT)
             );
 
-            // STEP 2: Convert to ZenithToken with safe normalization
-            const tokens: ZenithToken[] = safeTokens
-                .slice(0, 1000)
-                .map(toZenithToken);
+            console.log(`[Smart Swap] Loaded ${clean.length} clean tokens from ${rawTokens.length} raw`);
 
-            setAllTokens(tokens);
-            console.log(`[Smart Swap] Loaded ${tokens.length} safe tokens (filtered from ${rawTokens.length} raw)`);
-        } catch (err) {
-            console.error('[Smart Swap] Failed to fetch tokens:', err);
-            setError('Failed to load token list. Please try again.');
-        } finally {
-            setFetchingTokens(false);
+            dispatch({ type: 'TOKENS_LOADED', tokens: clean });
+        } catch (err: any) {
+            console.error('[Smart Swap] Failed to load tokens:', err);
+            dispatch({ type: 'ERROR', message: 'Failed to load tokens. Please refresh.' });
         }
     };
 
-    const handleAnalyze = () => {
+    const onFindMatch = () => {
+        if (state.status !== 'ready') return;
+
         const invest = parseFloat(investAmount) || 0;
         const target = parseFloat(targetAmount) || 0;
 
         if (invest <= 0) {
-            setError('Please enter a valid investment amount');
+            dispatch({ type: 'ERROR', message: 'Please enter a valid investment amount' });
             return;
         }
         if (target <= invest) {
-            setError('Target must be greater than investment');
+            dispatch({ type: 'ERROR', message: 'Target must be greater than investment' });
             return;
         }
 
-        setLoading(true);
-        setError(null);
+        dispatch({ type: 'FIND_MATCH' });
 
-        try {
-            // STEP 1: SANITIZE - Remove any undefined/malformed tokens FIRST
-            const sanitizedTokens = allTokens.filter(
-                (t): t is ZenithToken =>
-                    t != null &&
-                    typeof t === 'object' &&
-                    typeof t.mint === 'string' &&
-                    t.mint.length > 0
+        // Apply search filter (tokens are already sanitized)
+        let tokens = state.tokens;
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            tokens = state.tokens.filter(t =>
+                t.symbol.toLowerCase().includes(query) ||
+                t.name.toLowerCase().includes(query)
             );
-
-            console.log(`[Smart Swap] Sanitized: ${sanitizedTokens.length} tokens from ${allTokens.length}`);
-
-            if (sanitizedTokens.length === 0) {
-                setError('No tokens loaded. Please refresh the page.');
-                setLoading(false);
-                return;
-            }
-
-            // STEP 2: FILTER by search (with null safety)
-            let filteredTokens = sanitizedTokens;
-            if (searchQuery.trim()) {
-                const query = searchQuery.toLowerCase();
-                filteredTokens = sanitizedTokens.filter(t => {
-                    const symbol = (t.symbol ?? '').toLowerCase();
-                    const name = (t.name ?? '').toLowerCase();
-                    return symbol.includes(query) || name.includes(query);
-                });
-            }
-
-            console.log(`[Smart Swap] After filter: ${filteredTokens.length} tokens`);
-
-            // STEP 3: RUN SCORING on sanitized + filtered tokens
-            const input: SmartSwapInput = {
-                investmentAmount: invest,
-                targetReturn: target,
-            };
-
-            const result = findSmartMatches(filteredTokens, input);
-
-            // STEP 4: SANITIZE RESULTS before setting state
-            const safeMatches = (result.matches || []).filter(
-                (m): m is ScoredToken => m != null && typeof m.address === 'string'
-            );
-
-            console.log(`[Smart Swap] Safe matches: ${safeMatches.length}`);
-
-            setMatches(safeMatches);
-            setMessage(result.message);
-            setDifficulty(result.difficulty);
-
-            if (safeMatches.length === 0) {
-                setError('No tokens found matching your criteria. Try adjusting your search.');
-            }
-        } catch (err: any) {
-            console.error('[Smart Swap] Scoring error:', err);
-            setError(err.message || 'Failed to analyze tokens');
-        } finally {
-            setLoading(false);
         }
+
+        if (tokens.length === 0) {
+            dispatch({ type: 'ERROR', message: 'No tokens match your search' });
+            return;
+        }
+
+        // Run pure matching function
+        const { results, message, difficulty } = smartMatch(tokens, invest, target);
+
+        if (results.length === 0) {
+            dispatch({ type: 'ERROR', message: 'No matches found. Try different criteria.' });
+            return;
+        }
+
+        dispatch({ type: 'MATCH_SUCCESS', results, message, difficulty });
     };
 
-    const handleExecute = (token: ScoredToken) => {
+    const handleExecute = (token: SmartMatchResult) => {
         const params = new URLSearchParams({
             tokenOut: token.address,
             amountIn: investAmount,
@@ -199,6 +120,11 @@ export default function SmartSwapPage() {
     };
 
     const targetMultiplier = (parseFloat(targetAmount) / parseFloat(investAmount)) || 1;
+
+    // Get token count for display
+    const tokenCount = state.status === 'ready' || state.status === 'matching' || state.status === 'results'
+        ? state.tokens.length
+        : 0;
 
     return (
         <div className="min-h-screen bg-black pt-20 pb-20 px-4">
@@ -214,13 +140,13 @@ export default function SmartSwapPage() {
                                 SMART SWAP V1
                             </h1>
                             <p className="text-sm text-zinc-400 font-mono">
-                                Intent-based matching • {allTokens.length.toLocaleString()} tokens scanned
+                                Intent-based matching • {tokenCount.toLocaleString()} tokens loaded
                             </p>
                         </div>
                     </div>
                 </div>
 
-                {/* Input Section */}
+                {/* Input Section - Always visible */}
                 <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 mb-6">
                     <div className="grid md:grid-cols-2 gap-6 mb-6">
                         {/* Investment Amount */}
@@ -259,7 +185,7 @@ export default function SmartSwapPage() {
                                     min="0"
                                     step="0.1"
                                     className="w-full bg-black/50 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono text-xl focus:outline-none focus:border-purple-500"
-                                    placeholder="1.2"
+                                    placeholder="1.5"
                                 />
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-mono">
                                     SOL
@@ -272,7 +198,7 @@ export default function SmartSwapPage() {
                     <div className="flex items-center justify-center gap-4 py-3 bg-black/30 rounded-lg mb-6">
                         <span className="text-zinc-500 font-mono text-sm">Target:</span>
                         <span className={`text-2xl font-bold font-mono ${targetMultiplier > 2 ? 'text-red-400' :
-                            targetMultiplier > 1.5 ? 'text-yellow-400' : 'text-emerald-400'
+                                targetMultiplier > 1.5 ? 'text-yellow-400' : 'text-emerald-400'
                             }`}>
                             {targetMultiplier.toFixed(2)}x
                         </span>
@@ -293,113 +219,191 @@ export default function SmartSwapPage() {
                         />
                     </div>
 
-                    {/* Analyze Button */}
-                    <button
-                        onClick={handleAnalyze}
-                        disabled={loading || fetchingTokens}
-                        className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white rounded-lg font-mono font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                        {fetchingTokens ? (
-                            <>
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                                Loading Tokens...
-                            </>
-                        ) : loading ? (
-                            <>
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                                Scoring...
-                            </>
-                        ) : (
-                            <>
-                                <Sparkles className="w-5 h-5" />
-                                Find Best Matches
-                            </>
-                        )}
-                    </button>
+                    {/* Action Button - State Dependent */}
+                    {renderButton(state, onFindMatch, loadTokens)}
                 </div>
 
-                {/* Error */}
-                {error && (
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6 font-mono text-sm text-red-400">
-                        <AlertTriangle className="w-4 h-4 inline mr-2" />
-                        {error}
-                    </div>
-                )}
-
-                {/* Message */}
-                {message && matches.length > 0 && (
-                    <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 mb-6 font-mono text-sm text-purple-400">
-                        <Sparkles className="w-4 h-4 inline mr-2" />
-                        {message}
-                    </div>
-                )}
-
-                {/* Results */}
-                {matches.length > 0 && (
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-white font-mono flex items-center gap-2">
-                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
-                                TOP 5 MATCHES
-                            </h2>
-                            <span className="text-xs text-zinc-500 font-mono">
-                                Difficulty: {(difficulty * 100).toFixed(0)}%
-                            </span>
-                        </div>
-
-                        {/* DEFENSIVE: Filter before render - never trust upstream data */}
-                        {matches
-                            .filter(t => t && t.address)
-                            .map((token, idx) => (
-                                <MatchCard
-                                    key={token.address}
-                                    token={token}
-                                    rank={idx + 1}
-                                    onExecute={() => handleExecute(token)}
-                                />
-                            ))}
-
-                        {/* Disclaimer */}
-                        <div className="bg-amber-900/10 border border-amber-500/20 rounded-lg p-4 font-mono text-xs text-amber-400/80 mt-6">
-                            <strong>Disclaimer:</strong> Scores are based on market structure analysis.
-                            Crypto is volatile - always DYOR and only invest what you can afford to lose.
-                        </div>
-                    </div>
-                )}
-
-                {/* Empty State */}
-                {!loading && matches.length === 0 && !error && !fetchingTokens && (
-                    <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-12 text-center">
-                        <Sparkles className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-                        <p className="text-zinc-500 font-mono text-sm">
-                            Set your investment and target, then click &quot;Find Best Matches&quot;
-                        </p>
-                    </div>
-                )}
+                {/* STATE-BASED RENDERING - CRASH PROOF */}
+                {renderContent(state, handleExecute)}
             </div>
         </div>
     );
 }
 
-/**
- * Match Card Component
- */
+// ============================================================================
+// STATE-BASED BUTTON RENDERING
+// ============================================================================
+
+function renderButton(
+    state: SmartSwapState,
+    onFindMatch: () => void,
+    onRetry: () => void
+) {
+    switch (state.status) {
+        case 'idle':
+        case 'loading_tokens':
+            return (
+                <button
+                    disabled
+                    className="w-full px-6 py-4 bg-zinc-700 text-zinc-400 rounded-lg font-mono font-bold text-lg flex items-center justify-center gap-2"
+                >
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Loading Tokens...
+                </button>
+            );
+
+        case 'ready':
+            return (
+                <button
+                    onClick={onFindMatch}
+                    className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white rounded-lg font-mono font-bold text-lg transition-all flex items-center justify-center gap-2"
+                >
+                    <Sparkles className="w-5 h-5" />
+                    Find Best Matches
+                </button>
+            );
+
+        case 'matching':
+            return (
+                <button
+                    disabled
+                    className="w-full px-6 py-4 bg-purple-600/50 text-white rounded-lg font-mono font-bold text-lg flex items-center justify-center gap-2"
+                >
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Finding Best Matches...
+                </button>
+            );
+
+        case 'results':
+            return (
+                <button
+                    onClick={onFindMatch}
+                    className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white rounded-lg font-mono font-bold text-lg transition-all flex items-center justify-center gap-2"
+                >
+                    <RefreshCw className="w-5 h-5" />
+                    Find New Matches
+                </button>
+            );
+
+        case 'error':
+            return (
+                <button
+                    onClick={onRetry}
+                    className="w-full px-6 py-4 bg-red-600 hover:bg-red-500 text-white rounded-lg font-mono font-bold text-lg transition-all flex items-center justify-center gap-2"
+                >
+                    <RefreshCw className="w-5 h-5" />
+                    Retry
+                </button>
+            );
+    }
+}
+
+// ============================================================================
+// STATE-BASED CONTENT RENDERING (CRASH PROOF)
+// ============================================================================
+
+function renderContent(
+    state: SmartSwapState,
+    handleExecute: (token: SmartMatchResult) => void
+) {
+    switch (state.status) {
+        case 'idle':
+        case 'loading_tokens':
+            return (
+                <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-12 text-center">
+                    <Loader2 className="w-12 h-12 text-purple-400 mx-auto mb-4 animate-spin" />
+                    <p className="text-zinc-500 font-mono text-sm">
+                        Loading token universe...
+                    </p>
+                </div>
+            );
+
+        case 'ready':
+            return (
+                <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-12 text-center">
+                    <Sparkles className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
+                    <p className="text-zinc-500 font-mono text-sm">
+                        Set your investment goal and click &quot;Find Best Matches&quot;
+                    </p>
+                </div>
+            );
+
+        case 'matching':
+            return (
+                <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-12 text-center">
+                    <Loader2 className="w-12 h-12 text-purple-400 mx-auto mb-4 animate-spin" />
+                    <p className="text-zinc-500 font-mono text-sm">
+                        Analyzing {state.tokens.length} tokens...
+                    </p>
+                </div>
+            );
+
+        case 'error':
+            return (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 font-mono text-sm text-red-400">
+                    <AlertTriangle className="w-4 h-4 inline mr-2" />
+                    {state.message}
+                </div>
+            );
+
+        case 'results':
+            // SAFE: results are guaranteed valid in this state
+            return (
+                <div className="space-y-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-bold text-white font-mono flex items-center gap-2">
+                            <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
+                            TOP {state.results.length} MATCHES
+                        </h2>
+                        <span className="text-xs text-zinc-500 font-mono">
+                            Difficulty: {(state.difficulty * 100).toFixed(0)}%
+                        </span>
+                    </div>
+
+                    {/* Message */}
+                    <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 font-mono text-sm text-purple-400">
+                        <Sparkles className="w-4 h-4 inline mr-2" />
+                        {state.message}
+                    </div>
+
+                    {/* Results - SAFE: state.results is guaranteed array of valid tokens */}
+                    {state.results.map((token, idx) => (
+                        <MatchCard
+                            key={token.address}
+                            token={token}
+                            rank={idx + 1}
+                            onExecute={() => handleExecute(token)}
+                        />
+                    ))}
+
+                    {/* Disclaimer */}
+                    <div className="bg-amber-900/10 border border-amber-500/20 rounded-lg p-4 font-mono text-xs text-amber-400/80 mt-6">
+                        <strong>Disclaimer:</strong> Scores are based on market structure analysis.
+                        Crypto is volatile - always DYOR and only invest what you can afford to lose.
+                    </div>
+                </div>
+            );
+    }
+}
+
+// ============================================================================
+// MATCH CARD COMPONENT
+// ============================================================================
+
 function MatchCard({
     token,
     rank,
     onExecute
 }: {
-    token: ScoredToken;
+    token: SmartMatchResult;
     rank: number;
     onExecute: () => void;
 }) {
-    const getRiskColor = (level: string) => {
-        switch (level) {
-            case 'low': return 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
-            case 'medium': return 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10';
-            case 'high': return 'text-red-400 border-red-500/30 bg-red-500/10';
-            default: return 'text-zinc-400 border-zinc-500/30 bg-zinc-500/10';
-        }
+    const getRiskColor = (warning: string) => {
+        if (warning.includes('Low')) return 'text-red-400 border-red-500/30 bg-red-500/10';
+        if (warning.includes('Moderate')) return 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10';
+        return 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
     };
 
     return (
@@ -425,7 +429,7 @@ function MatchCard({
                     <div>
                         <div className="flex items-center gap-2">
                             <h3 className="text-lg font-bold text-white font-mono">{token.symbol}</h3>
-                            <span className={`px-2 py-0.5 rounded text-xs font-mono border ${getRiskColor(token.liquidityWarning.includes('High') ? 'high' : token.liquidityWarning.includes('Moderate') ? 'medium' : 'low')}`}>
+                            <span className={`px-2 py-0.5 rounded text-xs font-mono border ${getRiskColor(token.liquidityWarning)}`}>
                                 {token.liquidityWarning}
                             </span>
                         </div>
