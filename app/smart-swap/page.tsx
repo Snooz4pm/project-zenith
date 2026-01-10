@@ -130,17 +130,37 @@ export default function SmartSwapPage() {
         setError(null);
 
         try {
-            // Filter by search if provided
-            let filteredTokens = allTokens;
-            if (searchQuery.trim()) {
-                const query = searchQuery.toLowerCase();
-                filteredTokens = allTokens.filter(t =>
-                    t.symbol.toLowerCase().includes(query) ||
-                    t.name.toLowerCase().includes(query)
-                );
+            // STEP 1: SANITIZE - Remove any undefined/malformed tokens FIRST
+            const sanitizedTokens = allTokens.filter(
+                (t): t is ZenithToken =>
+                    t != null &&
+                    typeof t === 'object' &&
+                    typeof t.mint === 'string' &&
+                    t.mint.length > 0
+            );
+
+            console.log(`[Smart Swap] Sanitized: ${sanitizedTokens.length} tokens from ${allTokens.length}`);
+
+            if (sanitizedTokens.length === 0) {
+                setError('No tokens loaded. Please refresh the page.');
+                setLoading(false);
+                return;
             }
 
-            // Run V1 scoring
+            // STEP 2: FILTER by search (with null safety)
+            let filteredTokens = sanitizedTokens;
+            if (searchQuery.trim()) {
+                const query = searchQuery.toLowerCase();
+                filteredTokens = sanitizedTokens.filter(t => {
+                    const symbol = (t.symbol ?? '').toLowerCase();
+                    const name = (t.name ?? '').toLowerCase();
+                    return symbol.includes(query) || name.includes(query);
+                });
+            }
+
+            console.log(`[Smart Swap] After filter: ${filteredTokens.length} tokens`);
+
+            // STEP 3: RUN SCORING on sanitized + filtered tokens
             const input: SmartSwapInput = {
                 investmentAmount: invest,
                 targetReturn: target,
@@ -148,11 +168,18 @@ export default function SmartSwapPage() {
 
             const result = findSmartMatches(filteredTokens, input);
 
-            setMatches(result.matches);
+            // STEP 4: SANITIZE RESULTS before setting state
+            const safeMatches = (result.matches || []).filter(
+                (m): m is ScoredToken => m != null && typeof m.address === 'string'
+            );
+
+            console.log(`[Smart Swap] Safe matches: ${safeMatches.length}`);
+
+            setMatches(safeMatches);
             setMessage(result.message);
             setDifficulty(result.difficulty);
 
-            if (result.matches.length === 0) {
+            if (safeMatches.length === 0) {
                 setError('No tokens found matching your criteria. Try adjusting your search.');
             }
         } catch (err: any) {
