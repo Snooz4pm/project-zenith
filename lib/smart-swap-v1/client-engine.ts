@@ -243,9 +243,10 @@ export function findSmartMatches(
     console.log(`[Smart Swap V1] Investment: ${input.investmentAmount} SOL, Target: ${input.targetReturn} SOL`);
     console.log(`[Smart Swap V1] Difficulty: ${(difficulty * 100).toFixed(1)}%`);
 
-    // Step 1: Normalize all tokens (NO FILTERING - we rank everything)
+    // Step 1: Filter nulls and normalize all tokens (NO STRICT FILTERING - we rank everything)
     // Use fallback values if data is missing
-    const normalized = zenithTokens.map(normalizeToken);
+    const validTokens = zenithTokens.filter(t => t && t.mint);
+    const normalized = validTokens.map(normalizeToken);
 
     console.log(`[Smart Swap V1] Normalized ${normalized.length} tokens`);
 

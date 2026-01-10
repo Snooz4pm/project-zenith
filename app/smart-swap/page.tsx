@@ -78,13 +78,15 @@ export default function SmartSwapPage() {
             const res = await fetch(TOKENS_API);
             const data = await res.json();
 
-            const tokens: ZenithToken[] = data.tokens
-                .filter((t: RailwayToken) => t.address !== SOL_MINT)
+            // Add null safety - filter out any undefined/null tokens
+            const rawTokens = data.tokens || [];
+            const tokens: ZenithToken[] = rawTokens
+                .filter((t: RailwayToken | null | undefined) => t && t.address && t.address !== SOL_MINT)
                 .slice(0, 1000)
                 .map(toZenithToken);
 
             setAllTokens(tokens);
-            console.log(`[Smart Swap] Loaded ${tokens.length} tokens from Railway proxy`);
+            console.log(`[Smart Swap] Loaded ${tokens.length} tokens from proxy`);
         } catch (err) {
             console.error('[Smart Swap] Failed to fetch tokens:', err);
             setError('Failed to load token list. Please try again.');
