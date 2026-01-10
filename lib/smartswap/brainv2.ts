@@ -286,7 +286,33 @@ function expandPath(
             continue; // Skip hops with too much loss
         }
 
-        // Build hop WITH expected return
+        // === HOLD SUGGESTION LOGIC ===
+        // Compute hold suggestion based on token characteristics
+        let holdSuggestion: PathHop['hold'] = undefined;
+
+        // Conditions for hold suggestion:
+        // 1. Alpha token with momentum
+        // 2. Volatility > 5% (high movement expected)
+        // 3. Mid-path hops (not first or last)
+        const isAlphaWithMomentum = candidate.isAlpha && (candidate.alphaScore ?? 0) > 0.4;
+        const isVolatile = (candidate.volatility ?? 0) > 0.1;
+        const isMidPath = currentState.hopsUsed >= 1;
+
+        if ((isAlphaWithMomentum || isVolatile) && isMidPath) {
+            const confidence = Math.min(0.95, 0.5 + (candidate.alphaScore ?? 0) * 0.3 + (candidate.volatility ?? 0) * 0.2);
+            const suggestedMinutes = Math.min(5, 2 + Math.floor((candidate.volatility ?? 0) * 10));
+
+            holdSuggestion = {
+                suggestedMinutes,
+                confidence,
+                reason: isAlphaWithMomentum
+                    ? `Strong alpha signal (${((candidate.alphaScore ?? 0) * 100).toFixed(0)}%) on ${candidate.symbol}`
+                    : `High volatility expected on ${candidate.symbol}`,
+                source: isAlphaWithMomentum ? 'momentum' : 'volatility',
+            };
+        }
+
+        // Build hop WITH expected return and hold annotation
         const hop: PathHop = {
             fromToken: currentState.currentToken,
             fromSymbol: currentState.currentSymbol,
@@ -296,6 +322,7 @@ function expandPath(
             estimatedOutSOL: swap.estimatedOutSOL, // ✅ Can be HIGHER than input!
             slippage: swap.priceImpact,
             hopRTL: swap.hopRTL,
+            hold: holdSuggestion, // ✅ NEW: Hop-level hold annotation
         };
 
         // === ESCAPE MECHANICS ===

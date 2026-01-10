@@ -12,6 +12,7 @@ import { useSmartTokens } from '@/hooks/useSmartTokens';
 import { useState, useEffect } from 'react';
 import { Loader2, TrendingUp, Route, Shield, Zap, Flame, Crosshair, BarChart3, ArrowRight, Settings2, RefreshCw } from 'lucide-react';
 import { ScenarioComparison, ScenarioId } from '@/types/ScenarioRunner';
+import { PathHop } from '@/types/BrainV2';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
@@ -319,22 +320,36 @@ export default function SmartSwapPage() {
                                             </div>
                                         </div>
 
-                                        {/* Path Viz */}
-                                        <div className="flex items-center gap-2 text-xs font-mono text-zinc-600 ml-8">
+                                        {/* Path Viz with Hold Annotations */}
+                                        <div className="mt-2 ml-8 space-y-1">
                                             {(() => {
                                                 const pathResult = scenario.result.found ? scenario.result.path : scenario.result.bestEffort;
                                                 const hasPath = pathResult && pathResult.path && pathResult.path.length > 0;
+                                                const holdsCount = hasPath ? pathResult!.path.filter(h => h.hold).length : 0;
 
                                                 return hasPath ? (
-                                                    pathResult!.path.map((hop, i) => (
-                                                        <span key={i} className="flex items-center">
-                                                            {i > 0 && <span>→</span>}
-                                                            <span className={`mx-1 ${hop.hopRTL > 5 ? 'text-orange-900' : 'text-zinc-500'}`}>
-                                                                {hop.toSymbol}
-                                                            </span>
-                                                        </span>
-                                                    ))
-                                                ) : <span>No path found</span>;
+                                                    <>
+                                                        {/* Summary */}
+                                                        <div className="text-xs text-zinc-500 font-mono flex items-center gap-4">
+                                                            <span>{pathResult!.path.length} hops</span>
+                                                            {holdsCount > 0 && (
+                                                                <span className="text-purple-400">⏸ {holdsCount} hold{holdsCount > 1 ? 's' : ''}</span>
+                                                            )}
+                                                        </div>
+                                                        {/* Hop list */}
+                                                        <div className="flex flex-wrap items-center gap-1 text-xs font-mono text-zinc-600">
+                                                            {pathResult!.path.map((hop, i) => (
+                                                                <span key={i} className="flex items-center">
+                                                                    {i > 0 && <span className="mx-1">→</span>}
+                                                                    <span className={`${hop.hopRTL > 5 ? 'text-orange-400' : 'text-zinc-400'} ${hop.hold ? 'underline decoration-purple-500' : ''}`}>
+                                                                        {hop.toSymbol}
+                                                                        {hop.hold && <span className="text-purple-400 ml-0.5">⏸</span>}
+                                                                    </span>
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </>
+                                                ) : <span className="text-zinc-600 text-xs font-mono">No path found</span>;
                                             })()}
                                         </div>
                                     </div>

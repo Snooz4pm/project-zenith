@@ -58,6 +58,14 @@ export type PathHop = {
     estimatedOutSOL: number;
     slippage: number; // %
     hopRTL: number; // %
+
+    // Hold annotation (optional, computed at expansion time)
+    hold?: {
+        suggestedMinutes: number;
+        confidence: number; // 0-1
+        reason: string;
+        source: 'momentum' | 'volatility' | 'learning';
+    };
 };
 
 // ============================================================================
