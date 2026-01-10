@@ -16,14 +16,15 @@ import { V1HoldCheckpoint } from '@/lib/smartswap/hold/V1Constants';
 // ============================================================================
 
 export type BrainGoal = {
-    startToken: 'SOL';
-    startAmountSOL: number; // e.g. 0.1
+    startToken: string; // Mint address (e.g., SOL, BONK)
+    targetToken: string; // Mint address (e.g., MEMO, USDC)
 
-    targetAmountSOL: number; // e.g. 0.2 (CONSTRAINT, not promise)
-    maxHops: number; // e.g. 20
+    startAmountSOL: number; // Valuation in SOL
+    targetAmountSOL: number; // Valuation in SOL (CONSTRAINT)
 
-    maxTotalRTL: number; // e.g. 20%
-    maxPerHopRTL: number; // e.g. 5%
+    maxHops: number;
+    maxTotalRTL: number;
+    maxPerHopRTL: number;
 };
 
 // ============================================================================

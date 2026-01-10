@@ -133,16 +133,19 @@ export class ScenarioRunner {
         // 1. Filter Universe based on Strategy
         let scenarioUniverse = [...universe];
 
+        // helper to keep essential tokens (start, target, SOL, stables)
+        const isEssential = (t: SearchableToken) =>
+            t.mint === baseGoal.startToken ||
+            t.mint === baseGoal.targetToken ||
+            t.symbol === 'SOL' ||
+            t.isStable;
+
         if (config.allowAlphaTokens === false) {
-            // Remove alpha tokens
-            scenarioUniverse = scenarioUniverse.filter(t => !t.isAlpha);
+            // Remove alpha tokens (unless essential)
+            scenarioUniverse = scenarioUniverse.filter(t => !t.isAlpha || isEssential(t));
         } else if (config.allowAlphaTokens === 'only') {
-            // Keep ONLY alpha tokens (plus staples for routing if needed, but let's be strict for VOLATILITY)
-            // Note: Might need stables/SOL to route. 
-            // Let's keep IS_ALPHA OR IS_STABLE OR IS_MAJOR to ensure connectivity?
-            // "Volatility Hunter" usually implies finding alpha.
-            // Strict interpretation: isAlpha tokens only.
-            scenarioUniverse = scenarioUniverse.filter(t => t.isAlpha || t.symbol === 'SOL' || t.isStable);
+            // Keep ONLY alpha tokens + essentials
+            scenarioUniverse = scenarioUniverse.filter(t => t.isAlpha || isEssential(t));
         }
 
         // 2. Adapt Goal Constraints

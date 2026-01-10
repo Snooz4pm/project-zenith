@@ -72,6 +72,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Invalid tokens array' }, { status: 400 });
         }
 
+        const SOL_MINT = 'So11111111111111111111111111111111111111112';
+        if (!goal.startToken) goal.startToken = SOL_MINT;
+        if (!goal.targetToken) goal.targetToken = SOL_MINT;
+
         console.log(`[Brain v2 API] Goal: ${goal.startAmountSOL} SOL → ${goal.targetAmountSOL} SOL`);
         console.log(`[Brain v2 API] Raw universe: ${tokens.length} tokens`);
 

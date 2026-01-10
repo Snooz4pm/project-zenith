@@ -457,16 +457,20 @@ export function searchForPath(
 
     let exploredPaths = 0;
 
-    // Initialize with SOL starting state
+    // Initialize with user's starting token
+    // Find symbol in universe (fallback to mint if not found)
+    const startTokenObj = universe.find(t => t.mint === goal.startToken);
+    const startSymbol = startTokenObj ? startTokenObj.symbol : 'UNKNOWN';
+
     let activePaths: PathState[] = [
         {
-            currentToken: SOL_MINT,
-            currentSymbol: 'SOL',
+            currentToken: goal.startToken,
+            currentSymbol: startSymbol,
             currentAmountSOL: goal.startAmountSOL,
             hopsUsed: 0,
             cumulativeRTL: 0,
             path: [],
-            visitedTokens: [SOL_MINT], // Start with SOL visited
+            visitedTokens: [goal.startToken], // Start with user token visited
             score: 0,
         },
     ];
@@ -499,13 +503,16 @@ export function searchForPath(
 
         // Check if any path reached target
         for (const path of allNewPaths) {
-            // ✅ SUCCESS CONDITIONS (REQUIRE PROFITABILITY):
-            // Must have target value AND be profitable
+            // ✅ SUCCESS CONDITIONS (STRICT):
+            // 1. Must match target token (User Intent)
+            // 2. Must meet target value (Valuation Constraint)
+            // 3. Must be profitable (Efficiency)
+            const isTargetToken = path.currentToken === goal.targetToken;
             const isProfitable = path.currentAmountSOL > goal.startAmountSOL;
             const hasTargetValue = path.currentAmountSOL >= goal.targetAmountSOL;
 
-            // ✅ REQUIRE profitability for success
-            if (hasTargetValue && isProfitable) {
+            // ✅ REQUIRE exact target token match
+            if (isTargetToken && hasTargetValue && isProfitable) {
                 const totalProfit = path.currentAmountSOL - goal.startAmountSOL;
                 const profitPercentage = (totalProfit / goal.startAmountSOL) * 100;
 

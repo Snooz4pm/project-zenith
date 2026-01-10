@@ -47,7 +47,13 @@ function toSearchableToken(token: SmartToken): SearchableToken {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { startAmountSOL, tokens } = body as { startAmountSOL: number; tokens: SmartToken[] };
+        const { startAmountSOL, tokens, startTokenMint, targetTokenMint, desiredROI } = body as {
+            startAmountSOL: number;
+            tokens: SmartToken[];
+            startTokenMint?: string;
+            targetTokenMint?: string;
+            desiredROI?: number;
+        };
 
         if (!startAmountSOL || startAmountSOL <= 0) {
             return NextResponse.json({ error: 'Invalid startAmountSOL' }, { status: 400 });
@@ -57,7 +63,16 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Invalid tokens array' }, { status: 400 });
         }
 
-        console.log(`[Scenario API] Starting multiversal search for ${startAmountSOL} SOL`);
+        const SOL_MINT = 'So11111111111111111111111111111111111111112';
+        const startMint = startTokenMint || SOL_MINT;
+        const targetMint = targetTokenMint || SOL_MINT;
+
+        // Apply ROI logic (cap at 20%)
+        const effectiveROI = Math.min(Math.max(desiredROI || 0, 0), 0.2);
+        const targetAmountSOL = startAmountSOL * (1 + effectiveROI);
+
+        console.log(`[Scenario API] Starting multiversal search: ${startMint} -> ${targetMint}`);
+        console.log(`[Scenario API] Amount: ${startAmountSOL} SOL -> ${targetAmountSOL.toFixed(4)} SOL (ROI: ${effectiveROI * 100}%)`);
         console.log(`[Scenario API] Universe: ${tokens.length} tokens`);
 
         // Convert tokens
@@ -65,9 +80,10 @@ export async function POST(request: Request) {
 
         // Define Base Goal (will be adapted per scenario)
         const baseGoal: BrainGoal = {
-            startToken: 'SOL',
+            startToken: startMint,
+            targetToken: targetMint,
             startAmountSOL,
-            targetAmountSOL: startAmountSOL * 1.5, // Dummy target, scenarios define success by ROI
+            targetAmountSOL,
             maxHops: 5, // Default, overridden by scenario
             maxTotalRTL: 10,
             maxPerHopRTL: 4,
