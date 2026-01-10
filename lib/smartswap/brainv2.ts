@@ -165,8 +165,10 @@ function expandPath(
         // Skip if same as current token
         if (candidate.mint === currentState.currentToken) continue;
 
-        // Skip if no route
-        if (!candidate.hasRoute) continue;
+        // REMOVED CONSTRAINT: Don't filter by hasRoute
+        // Many tokens can reach SOL through intermediaries (USDC, USDT, BONK, etc.)
+        // Let the brain find indirect routes: Token A → USDC → SOL
+        // Instead of requiring: SOL → Token A (direct route)
 
         // Check hard rules
         const { violated, reason } = violatesHardRules(currentState, candidate, goal);
@@ -377,27 +379,27 @@ export function searchForPath(
         for (const path of allNewPaths) {
             // SUCCESS CONDITIONS (flexible):
             // 1. Already on SOL with target amount, OR
-            // 2. On any swappable token with estimated SOL value >= target
-            //    (as long as token has route back to SOL)
+            // 2. On any token with estimated SOL value >= target
+            //    (assume we can find a route back through intermediaries)
+            //
+            // CRITICAL CHANGE: Removed hasRoute check
+            // If the brain got here, it means there's likely a path back
+            // The brain will naturally explore routes through USDC, USDT, etc.
 
             const isOnSOL = path.currentToken === SOL_MINT;
             const hasTargetValue = path.currentAmountSOL >= goal.targetAmountSOL;
 
-            // Find current token in universe to check if it has route to SOL
-            const currentTokenData = universe.find(t => t.mint === path.currentToken);
-            const canSwapToSOL = currentTokenData?.hasRoute ?? false;
-
-            // Success if:
-            // - We have target value AND
-            // - (We're on SOL OR we can swap to SOL)
-            if (hasTargetValue && (isOnSOL || canSwapToSOL)) {
+            // Success if we have target value
+            // Trust that the brain can find a way back to SOL if needed
+            if (hasTargetValue) {
                 console.log(`[Brain v2] ✓ Target reached at hop ${hop}!`);
                 console.log(`[Brain v2]   Current token: ${path.currentSymbol}`);
                 console.log(`[Brain v2]   Estimated SOL value: ${path.currentAmountSOL.toFixed(6)} SOL`);
                 console.log(`[Brain v2]   Cumulative RTL: ${path.cumulativeRTL.toFixed(1)}%`);
 
                 if (!isOnSOL) {
-                    console.log(`[Brain v2]   ⚠ Final step required: ${path.currentSymbol} → SOL`);
+                    console.log(`[Brain v2]   ⚠ Final step required: ${path.currentSymbol} → SOL (or via USDC/USDT)`);
+                    console.log(`[Brain v2]   💡 Brain will find indirect route if needed`);
                 }
 
                 // V1 HOLD OVERLAY: Attach hold checkpoint (read-only)

@@ -251,22 +251,46 @@ export default function BrainV2Page() {
                             )}
 
                             {searchResult.found && (
-                                <div className="grid grid-cols-3 gap-4 mt-4 text-sm font-mono">
-                                    <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                        <span className="text-zinc-500">Confidence:</span>
-                                        <span className={`ml-2 font-bold ${searchResult.confidence === 'high' ? 'text-green-400' : searchResult.confidence === 'medium' ? 'text-yellow-400' : 'text-red-400'}`}>
-                                            {searchResult.confidence.toUpperCase()}
-                                        </span>
+                                <>
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4 text-sm font-mono">
+                                        <div className="bg-zinc-900/50 rounded px-3 py-2">
+                                            <div className="text-zinc-500 mb-1">Final Amount</div>
+                                            <div className="text-white font-bold">{searchResult.path.currentAmountSOL.toFixed(6)} SOL</div>
+                                        </div>
+                                        <div className="bg-zinc-900/50 rounded px-3 py-2">
+                                            <div className="text-zinc-500 mb-1">Estimated ROI</div>
+                                            <div className={`font-bold ${((searchResult.path.currentAmountSOL - startAmountSOL) / startAmountSOL * 100) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                {((searchResult.path.currentAmountSOL - startAmountSOL) / startAmountSOL * 100).toFixed(2)}%
+                                            </div>
+                                        </div>
+                                        <div className="bg-zinc-900/50 rounded px-3 py-2">
+                                            <div className="text-zinc-500 mb-1">Confidence</div>
+                                            <div className={`font-bold ${searchResult.confidence === 'high' ? 'text-green-400' : searchResult.confidence === 'medium' ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                {searchResult.confidence.toUpperCase()}
+                                            </div>
+                                        </div>
+                                        <div className="bg-zinc-900/50 rounded px-3 py-2">
+                                            <div className="text-zinc-500 mb-1">Hops</div>
+                                            <div className="text-white font-bold">{searchResult.path.hopsUsed}</div>
+                                        </div>
+                                        <div className="bg-zinc-900/50 rounded px-3 py-2">
+                                            <div className="text-zinc-500 mb-1">Cumulative RTL</div>
+                                            <div className="text-yellow-400 font-bold">{searchResult.path.cumulativeRTL.toFixed(1)}%</div>
+                                        </div>
                                     </div>
-                                    <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                        <span className="text-zinc-500">Hops:</span>
-                                        <span className="text-white ml-2 font-bold">{searchResult.path.hopsUsed}</span>
-                                    </div>
-                                    <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                        <span className="text-zinc-500">Cumulative RTL:</span>
-                                        <span className="text-yellow-400 ml-2 font-bold">{searchResult.path.cumulativeRTL.toFixed(1)}%</span>
-                                    </div>
-                                </div>
+
+                                    {/* Hold Time Quick Summary */}
+                                    {searchResult.path.holdCheckpoint && (
+                                        <div className="mt-4 bg-orange-900/20 border border-orange-500/30 rounded px-4 py-2">
+                                            <div className="text-sm font-mono font-bold text-orange-400">
+                                                ⏱️ Suggested Hold: {searchResult.path.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} minutes
+                                                <span className="ml-3 text-zinc-400">|</span>
+                                                <span className="ml-3">Friction: {(searchResult.path.holdCheckpoint.confidence * 100).toFixed(0)}%</span>
+                                                <span className="ml-3 text-zinc-500 font-normal italic">(see details below)</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
 
@@ -422,14 +446,42 @@ export default function BrainV2Page() {
                                         <Route className="w-5 h-5 text-yellow-400" />
                                         Best Effort Path
                                     </h3>
-                                <div className="text-sm text-zinc-400 font-mono mb-4">
-                                    Got to <span className="text-yellow-400 font-bold">{searchResult.bestEffort.currentSymbol}</span> with{' '}
-                                    <span className="text-yellow-400 font-bold">{searchResult.bestEffort.currentAmountSOL.toFixed(6)} SOL</span>{' '}
-                                    in {searchResult.bestEffort.hopsUsed} hops
-                                    {searchResult.bestEffort.currentAmountSOL >= targetAmountSOL && (
-                                        <span className="ml-2 text-green-400">✓ Exceeded target!</span>
+
+                                    {/* Best Effort Metrics */}
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4 text-sm font-mono">
+                                        <div className="bg-zinc-800/50 rounded px-3 py-2">
+                                            <div className="text-zinc-500 mb-1">Final Amount</div>
+                                            <div className="text-yellow-400 font-bold">{searchResult.bestEffort.currentAmountSOL.toFixed(6)} SOL</div>
+                                        </div>
+                                        <div className="bg-zinc-800/50 rounded px-3 py-2">
+                                            <div className="text-zinc-500 mb-1">Estimated ROI</div>
+                                            <div className={`font-bold ${((searchResult.bestEffort.currentAmountSOL - startAmountSOL) / startAmountSOL * 100) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                {((searchResult.bestEffort.currentAmountSOL - startAmountSOL) / startAmountSOL * 100).toFixed(2)}%
+                                            </div>
+                                        </div>
+                                        <div className="bg-zinc-800/50 rounded px-3 py-2">
+                                            <div className="text-zinc-500 mb-1">Target Progress</div>
+                                            <div className={`font-bold ${searchResult.bestEffort.currentAmountSOL >= targetAmountSOL ? 'text-green-400' : 'text-yellow-400'}`}>
+                                                {((searchResult.bestEffort.currentAmountSOL / targetAmountSOL) * 100).toFixed(1)}%
+                                            </div>
+                                        </div>
+                                        <div className="bg-zinc-800/50 rounded px-3 py-2">
+                                            <div className="text-zinc-500 mb-1">Hops</div>
+                                            <div className="text-white font-bold">{searchResult.bestEffort.hopsUsed}</div>
+                                        </div>
+                                        <div className="bg-zinc-800/50 rounded px-3 py-2">
+                                            <div className="text-zinc-500 mb-1">Cumulative RTL</div>
+                                            <div className="text-yellow-400 font-bold">{searchResult.bestEffort.cumulativeRTL.toFixed(1)}%</div>
+                                        </div>
+                                    </div>
+
+                                    {searchResult.bestEffort.holdCheckpoint && (
+                                        <div className="bg-orange-900/20 border border-orange-500/30 rounded px-3 py-2 mb-4">
+                                            <div className="text-xs text-orange-400 font-mono font-bold mb-1">
+                                                ⚠️ Hold Suggestion: {searchResult.bestEffort.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} min pause (Friction: {(searchResult.bestEffort.holdCheckpoint.confidence * 100).toFixed(0)}%)
+                                            </div>
+                                        </div>
                                     )}
-                                </div>
 
                                 {/* Hop Trace Visualization */}
                                 {searchResult.bestEffort.path.length > 0 && (
