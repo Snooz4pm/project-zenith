@@ -318,14 +318,17 @@ export default function SmartSwapPage() {
                             </span>
                         </div>
 
-                        {matches.map((token, idx) => (
-                            <MatchCard
-                                key={token.address}
-                                token={token}
-                                rank={idx + 1}
-                                onExecute={() => handleExecute(token)}
-                            />
-                        ))}
+                        {/* DEFENSIVE: Filter before render - never trust upstream data */}
+                        {matches
+                            .filter(t => t && t.address)
+                            .map((token, idx) => (
+                                <MatchCard
+                                    key={token.address}
+                                    token={token}
+                                    rank={idx + 1}
+                                    onExecute={() => handleExecute(token)}
+                                />
+                            ))}
 
                         {/* Disclaimer */}
                         <div className="bg-amber-900/10 border border-amber-500/20 rounded-lg p-4 font-mono text-xs text-amber-400/80 mt-6">
