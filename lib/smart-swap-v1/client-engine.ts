@@ -15,8 +15,7 @@ import { ZenithToken } from '@/lib/zenith';
 import {
     EnrichedToken,
     IntentInput,
-    SmartMatchResult,
-    calculateSmartScore
+    SmartMatchResult
 } from './intent-engine';
 
 /**
@@ -75,51 +74,55 @@ function getCapTier(marketCap: number): 'micro' | 'low' | 'mid' | 'large' | null
 }
 
 /**
- * STRUCTURAL matching based on REAL market data
- * Matches on: market cap tier, liquidity existence, momentum direction
- * NOT on investment amount (that's for display warnings only)
- * NOT on exact historical percentage moves (unreliable data)
+ * Calculate alignment score for a token given user intent
+ * SCORING FIRST - never returns empty
+ *
+ * Formula:
+ * AlignmentScore = (capScore * difficulty * 40) +
+ *                  (momentumScore * 30) +
+ *                  (liquidityScore * (1-difficulty) * 20) +
+ *                  (ageScore * 10) +
+ *                  riskPenalty
  */
-function structuralMatch(
-    tokens: EnrichedToken[],
-    targetMultiplier: number
-): EnrichedToken[] {
-    console.log(`[Structural Match] Target: ${targetMultiplier.toFixed(2)}x multiplier`);
+function calculateAlignmentScore(
+    token: EnrichedToken,
+    difficulty: number // 0-1 based on target multiplier
+): number {
+    // Helper functions
+    const logScale = (value: number) => Math.min(Math.log10(value + 1) / 6, 1);
+    const logScaleInverse = (value: number) => 1 - logScale(value);
+    const normalize = (x: number) => Math.max(Math.min(x / 100, 1), 0);
+    const bellCurve = (days: number) => {
+        if (days < 2) return 0.3;
+        if (days < 30) return 1;
+        if (days < 90) return 0.6;
+        return 0.3;
+    };
 
-    const matched = tokens.filter(t => {
-        // Base filters
-        if (t.rugRisk === 'high') return false;
-        if (!t.marketCap || t.marketCap <= 0) return false;
-        if (!t.liquidity || t.liquidity < 5_000) return false; // Absolute minimum only
+    // Feature scores (0-1)
+    const capScore = logScaleInverse(token.marketCap);
+    const liquidityScore = logScale(token.liquidity);
+    const momentumScore = normalize((token.priceChange24h ?? 0) + (token.priceChange7d ?? 0));
+    const ageScore = bellCurve(token.ageInDays);
+    const riskPenalty = token.rugRisk === 'high' ? -50 : token.rugRisk === 'medium' ? -15 : 0;
 
-        // Market cap tier suitability for target
-        const tier = getCapTier(t.marketCap);
-        if (!tier) return false;
+    // Alignment formula
+    // High target (difficulty ~1) → favors low cap + momentum
+    // Low target (difficulty ~0) → favors liquidity + stability
+    const alignmentScore =
+        (capScore * difficulty * 40) +
+        (momentumScore * 30) +
+        (liquidityScore * (1 - difficulty) * 20) +
+        (ageScore * 10) +
+        riskPenalty;
 
-        // Map target multiplier to suitable tiers
-        if (targetMultiplier <= 1.3) {
-            // Conservative targets: mid/large caps only
-            if (tier === 'micro') return false;
-        } else if (targetMultiplier > 1.7) {
-            // Aggressive targets: micro/low caps only
-            if (tier === 'mid' || tier === 'large') return false;
-        }
-        // Moderate targets (1.3-1.7x): all tiers
-
-        // Alive check - not crashed recently
-        if ((t.priceChange24h ?? 0) < -50) return false;
-
-        return true;
-    });
-
-    console.log(`[Structural Match] Found ${matched.length} structural matches`);
-    return matched;
+    return Math.max(0, alignmentScore);
 }
 
 /**
- * CLIENT-SIDE: Find smart matches from Zenith tokens using STRUCTURAL matching
+ * CLIENT-SIDE: Find smart matches using SCORING-FIRST approach
  * No API call needed - pure function
- * Uses real market data: market cap tier, liquidity, momentum direction
+ * NEVER returns empty - always ranks and returns top 5
  */
 export function findSmartMatchesFromZenith(
     zenithTokens: ZenithToken[],
@@ -127,47 +130,29 @@ export function findSmartMatchesFromZenith(
 ): { matches: SmartMatchResult[]; message?: string } {
     const targetMultiplier = intent.targetReturn / intent.investmentAmount;
 
-    // Convert to EnrichedTokens
+    // Calculate difficulty (how aggressive the target is)
+    // 0 = easy/conservative, 1 = hard/aggressive
+    const difficulty = Math.min(Math.max((targetMultiplier - 1) / 2, 0), 1);
+
+    // Convert to EnrichedTokens (minimal filtering - only remove broken data)
     const enrichedTokens = zenithTokens
         .filter(t => t.priceUsd > 0) // Must have price
+        .filter(t => t.liquidityUsd > 0) // Must have liquidity data
         .map(enrichZenithToken);
 
-    console.log(`[Smart Swap V1] Analyzing ${enrichedTokens.length} tokens for ${targetMultiplier.toFixed(2)}x target`);
-    console.log(`[Smart Swap V1] Investment amount: ${intent.investmentAmount} SOL (used for display warnings only)`);
+    console.log(`[Smart Swap V1] Analyzing ${enrichedTokens.length} tokens`);
+    console.log(`[Smart Swap V1] Target: ${targetMultiplier.toFixed(2)}x (difficulty: ${difficulty.toFixed(2)})`);
+    console.log(`[Smart Swap V1] Investment: ${intent.investmentAmount} SOL (display-only)`);
 
-    // Structural matching (market cap tier + liquidity existence + momentum)
-    // Investment amount does NOT filter - only used for display warnings
-    const filteredTokens = structuralMatch(enrichedTokens, targetMultiplier);
+    // SCORING FIRST - score ALL tokens, then rank
+    const scored = enrichedTokens.map((token: EnrichedToken) => {
+        const alignmentScore = calculateAlignmentScore(token, difficulty);
 
-    console.log({
-        total: enrichedTokens.length,
-        matched: filteredTokens.length,
-        message: filteredTokens.length > 0 ? 'Found matches' : 'No matches - check filters'
-    });
-
-    if (filteredTokens.length === 0) {
-        return {
-            matches: [],
-            message: 'No suitable tokens found for your criteria. Try adjusting your target or investment amount.'
-        };
-    }
-
-    // Score and rank
-    const scored = filteredTokens.map((token: EnrichedToken) => {
-        const smartScore = calculateSmartScore(token);
-
-        // Match percentage based on market cap tier alignment
-        const tier = getCapTier(token.marketCap);
-        let tierScore = 50;
-        if (targetMultiplier <= 1.3 && (tier === 'mid' || tier === 'large')) tierScore = 90;
-        else if (targetMultiplier > 1.6 && (tier === 'micro' || tier === 'low')) tierScore = 90;
-        else if (targetMultiplier > 1.3 && targetMultiplier <= 1.6) tierScore = 80;
-
-        // Boost for positive momentum
-        const momentumBoost = (token.priceChange24h > 0 || token.priceChange7d > 0) ? 10 : 0;
-        const matchPercentage = Math.min(100, tierScore + momentumBoost);
+        // Match percentage from alignment score
+        const matchPercentage = Math.min(100, alignmentScore);
 
         // Expected range based on market cap tier
+        const tier = getCapTier(token.marketCap);
         let expectedMin = 1.0;
         let expectedMax = 1.5;
         if (tier === 'micro') { expectedMin = 1.0; expectedMax = 3.0; }
@@ -182,7 +167,7 @@ export function findSmartMatchesFromZenith(
 
         return {
             token,
-            smartScore,
+            smartScore: alignmentScore, // Use alignment score as primary
             matchPercentage,
             expectedRange: { min: expectedMin, max: expectedMax },
             whyReasons,
@@ -191,18 +176,25 @@ export function findSmartMatchesFromZenith(
         };
     });
 
-    // Sort by smart score
+    // Sort by alignment score (highest first)
     scored.sort((a: any, b: any) => b.smartScore - a.smartScore);
+
+    // Take top 5 and assign ranks
     const top5 = scored.slice(0, 5).map((result: any, index: number) => ({
         ...result,
         rank: index + 1,
     }));
 
-    console.log(`[Smart Swap V1] Returning ${top5.length} structural matches`);
+    console.log(`[Smart Swap V1] Top 5 scores: ${top5.map(r => r.smartScore.toFixed(1)).join(', ')}`);
+
+    // Always show message explaining the approach
+    const message = difficulty > 0.5
+        ? 'Showing high-growth candidates based on market cap and momentum'
+        : 'Showing stable opportunities with good liquidity and track record';
 
     return {
         matches: top5,
-        message: 'Showing structural opportunities based on market cap, liquidity, and momentum'
+        message
     };
 }
 
