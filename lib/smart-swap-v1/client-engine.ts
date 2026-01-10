@@ -1,268 +1,282 @@
 /**
- * Smart Swap V1 - CLIENT-SIDE Intent Matching
+ * Smart Swap V1 - CLIENT-SIDE Scoring Engine
  *
- * Uses ZenithToken[] from /swap (no API needed)
- * Pure filtering + scoring + display
+ * Core Rule: Smart Swap is a RANKING ENGINE, not a validator
+ * - NO hard rejection
+ * - NO "no tokens found"
+ * - EVERY token gets a score
+ * - Always show TOP 5
  *
- * Uses PROGRESSIVE FILTERING:
- * - Pass 1: Strict match
- * - Pass 2: Relaxed match
- * - Pass 3: Momentum fallback
- * This guarantees we ALWAYS return results
+ * Flow: Jupiter tokens → normalize → score → rank → display
  */
 
 import { ZenithToken } from '@/lib/zenith';
-import {
-    EnrichedToken,
-    IntentInput,
-    SmartMatchResult
-} from './intent-engine';
 
-/**
- * Convert ZenithToken to EnrichedToken
- * Adds synthetic data for missing fields (deterministic)
- */
-function enrichZenithToken(token: ZenithToken): EnrichedToken {
-    // Deterministic synthetic data from token address hash
-    const hash = token.mint.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+// ============================================================================
+// TYPES
+// ============================================================================
 
-    // Price change 7d - use best available data
-    const priceChange7d = token.priceChange24h * 2.5;
+export interface NormalizedToken {
+    address: string;
+    symbol: string;
+    name: string;
+    logoURI?: string;
 
-    // Age estimate (7-97 days)
-    const ageInDays = (hash % 90) + 7;
+    // Normalized fields
+    marketCap: number;
+    liquidity: number;
+    volume24h: number;
+    priceChange24h: number;
+    priceChange7d: number;
+    ageDays: number | null;
+}
 
-    // Market cap estimate (based on liquidity)
-    const marketCap = token.liquidityUsd > 0
-        ? token.liquidityUsd * 20  // Assume 5% of MC is liquidity
-        : token.priceUsd > 100 ? 10_000_000 : token.priceUsd > 1 ? 1_000_000 : 100_000;
+export interface ScoredToken extends NormalizedToken {
+    // Feature scores (0-1)
+    capScore: number;
+    liquidityScore: number;
+    momentumScore: number;
+    volumeScore: number;
+    ageScore: number;
 
-    // Rug risk heuristic
-    let rugRisk: 'low' | 'medium' | 'high' = 'low';
-    if (token.liquidityUsd < 15_000 || ageInDays < 3) {
-        rugRisk = 'high';
-    } else if (token.liquidityUsd < 40_000 || ageInDays < 10) {
-        rugRisk = 'medium';
-    }
+    // Final score
+    smartScore: number;
+    matchPercentage: number;
+
+    // Display helpers
+    difficulty: number;
+    contextLabel: string;
+    liquidityWarning: string;
+    whyReasons: string[];
+}
+
+export interface SmartSwapInput {
+    investmentAmount: number;  // in SOL
+    targetReturn: number;      // in SOL
+}
+
+export interface SmartSwapResult {
+    matches: ScoredToken[];
+    message: string;
+    difficulty: number;
+}
+
+// ============================================================================
+// STEP 1: NORMALIZATION (MANDATORY)
+// ============================================================================
+
+function normalizeToken(t: ZenithToken): NormalizedToken {
+    // Estimate market cap from liquidity (if not available)
+    const marketCap = t.liquidityUsd > 0
+        ? t.liquidityUsd * 20  // Assume ~5% of MC is in liquidity
+        : t.priceUsd > 100 ? 10_000_000 : t.priceUsd > 1 ? 1_000_000 : 100_000;
+
+    // Estimate 7d change from 24h
+    const priceChange7d = t.priceChange24h * 2.5;
+
+    // Estimate age from address hash (deterministic)
+    const hash = t.mint.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+    const ageDays = (hash % 90) + 7; // 7-97 days
 
     return {
-        address: token.mint,
-        symbol: token.symbol,
-        name: token.name,
-        price: token.priceUsd,
+        address: t.mint,
+        symbol: t.symbol,
+        name: t.name,
+        logoURI: t.logoURI,
+
         marketCap,
-        liquidity: token.liquidityUsd,
-        volume24h: token.volume24hUsd,
-        priceChange24h: token.priceChange24h,
+        liquidity: t.liquidityUsd ?? 0,
+        volume24h: t.volume24hUsd ?? 0,
+        priceChange24h: t.priceChange24h ?? 0,
         priceChange7d,
-        ageInDays,
-        rugRisk,
-        logoURI: token.logoURI,
+        ageDays,
     };
 }
 
-/**
- * Market cap tier classification
- * This is the PRIMARY signal for matching potential
- */
-function getCapTier(marketCap: number): 'micro' | 'low' | 'mid' | 'large' | null {
-    if (!marketCap || marketCap <= 0) return null;
-    if (marketCap < 200_000) return 'micro';
-    if (marketCap < 1_000_000) return 'low';
-    if (marketCap < 5_000_000) return 'mid';
-    return 'large';
+// ============================================================================
+// STEP 2: DIFFICULTY FROM USER INTENT
+// ============================================================================
+
+function calculateDifficulty(investment: number, target: number): number {
+    const targetMultiplier = target / investment;
+    // difficulty = (multiplier - 1) / 10, clamped to 0-1
+    // 1→1.2 = 0.02, 1→2 = 0.1, 1→15 = 1.0
+    return Math.min(Math.max((targetMultiplier - 1) / 10, 0), 1);
 }
 
-/**
- * Calculate alignment score for a token given user intent
- * SCORING FIRST - never returns empty
- *
- * Formula:
- * AlignmentScore = (capScore * difficulty * 40) +
- *                  (momentumScore * 30) +
- *                  (liquidityScore * (1-difficulty) * 20) +
- *                  (ageScore * 10) +
- *                  riskPenalty
- */
-function calculateAlignmentScore(
-    token: EnrichedToken,
-    difficulty: number // 0-1 based on target multiplier
-): number {
-    // Helper functions
-    const logScale = (value: number) => Math.min(Math.log10(value + 1) / 6, 1);
-    const logScaleInverse = (value: number) => 1 - logScale(value);
-    const normalize = (x: number) => Math.max(Math.min(x / 100, 1), 0);
-    const bellCurve = (days: number) => {
-        if (days < 2) return 0.3;
-        if (days < 30) return 1;
-        if (days < 90) return 0.6;
-        return 0.3;
-    };
+// ============================================================================
+// STEP 3: FEATURE SCORES (0-1 range)
+// ============================================================================
 
-    // Feature scores (0-1)
-    const capScore = logScaleInverse(token.marketCap);
-    const liquidityScore = logScale(token.liquidity);
-    const momentumScore = normalize((token.priceChange24h ?? 0) + (token.priceChange7d ?? 0));
-    const ageScore = bellCurve(token.ageInDays);
-    const riskPenalty = token.rugRisk === 'high' ? -50 : token.rugRisk === 'medium' ? -15 : 0;
+// Market cap score (lower = more upside)
+function capScore(mc: number): number {
+    if (!mc || mc <= 0) return 0.2;
+    return 1 - Math.min(Math.log10(mc) / 9, 1);
+}
 
-    // Alignment formula
+// Liquidity score (log scaled)
+function liquidityScore(liq: number): number {
+    if (!liq || liq <= 0) return 0;
+    return Math.min(Math.log10(liq) / 6, 1);
+}
+
+// Momentum score (direction > magnitude)
+function momentumScore(p24: number, p7: number): number {
+    const m = (p24 ?? 0) + (p7 ?? 0);
+    return Math.min(Math.max(m / 100, 0), 1);
+}
+
+// Volume score (confirms interest)
+function volumeScore(v: number): number {
+    if (!v || v <= 0) return 0;
+    return Math.min(Math.log10(v) / 7, 1);
+}
+
+// Age score (sweet spot bias: 3-30 days ideal)
+function ageScore(days: number | null): number {
+    if (days === null) return 0.5;
+    if (days < 3) return 0.4;
+    if (days < 30) return 1.0;
+    if (days < 90) return 0.7;
+    return 0.4;
+}
+
+// ============================================================================
+// STEP 4: THE SMART SWAP FORMULA
+// ============================================================================
+
+function calculateSmartScore(token: NormalizedToken, difficulty: number): number {
+    const cap = capScore(token.marketCap);
+    const liq = liquidityScore(token.liquidity);
+    const mom = momentumScore(token.priceChange24h, token.priceChange7d);
+    const vol = volumeScore(token.volume24h);
+    const age = ageScore(token.ageDays);
+
+    // THE FORMULA:
     // High target (difficulty ~1) → favors low cap + momentum
     // Low target (difficulty ~0) → favors liquidity + stability
-    const alignmentScore =
-        (capScore * difficulty * 40) +
-        (momentumScore * 30) +
-        (liquidityScore * (1 - difficulty) * 20) +
-        (ageScore * 10) +
-        riskPenalty;
+    const smartScore =
+        cap * (0.4 + 0.4 * difficulty) +      // 0.4-0.8 weight
+        mom * 0.25 +                           // 0.25 fixed
+        vol * 0.15 +                           // 0.15 fixed
+        liq * (0.2 - 0.15 * difficulty) +     // 0.05-0.2 weight
+        age * 0.1;                             // 0.1 fixed
 
-    return Math.max(0, alignmentScore);
+    return smartScore;
 }
 
-/**
- * CLIENT-SIDE: Find smart matches using SCORING-FIRST approach
- * No API call needed - pure function
- * NEVER returns empty - always ranks and returns top 5
- */
-export function findSmartMatchesFromZenith(
+// ============================================================================
+// STEP 5: CONTEXT & DISPLAY HELPERS
+// ============================================================================
+
+function getContextLabel(difficulty: number): string {
+    if (difficulty > 0.7) return "High-growth candidate (high risk)";
+    if (difficulty > 0.3) return "Growth-oriented opportunity";
+    return "Balanced opportunity";
+}
+
+function getLiquidityWarning(liquidity: number, investmentUsd: number): string {
+    if (liquidity < investmentUsd * 3) return "High slippage risk";
+    if (liquidity < investmentUsd * 6) return "Moderate slippage";
+    return "Healthy liquidity";
+}
+
+function generateReasons(token: NormalizedToken, difficulty: number): string[] {
+    const reasons: string[] = [];
+
+    // Market cap reason
+    if (token.marketCap < 200_000) {
+        reasons.push(`Micro-cap ($${(token.marketCap / 1000).toFixed(0)}K) - highest upside`);
+    } else if (token.marketCap < 1_000_000) {
+        reasons.push(`Low cap ($${(token.marketCap / 1000).toFixed(0)}K) - strong potential`);
+    } else if (token.marketCap < 5_000_000) {
+        reasons.push(`Mid-cap ($${(token.marketCap / 1e6).toFixed(1)}M) - balanced`);
+    } else {
+        reasons.push(`Established ($${(token.marketCap / 1e6).toFixed(1)}M)`);
+    }
+
+    // Momentum
+    if (token.priceChange24h > 10) {
+        reasons.push(`Strong momentum (+${token.priceChange24h.toFixed(1)}% 24h)`);
+    } else if (token.priceChange24h > 0) {
+        reasons.push(`Positive trend (+${token.priceChange24h.toFixed(1)}%)`);
+    }
+
+    // Liquidity
+    if (token.liquidity > 100_000) {
+        reasons.push(`Deep liquidity ($${(token.liquidity / 1000).toFixed(0)}K)`);
+    } else if (token.liquidity > 30_000) {
+        reasons.push(`Good liquidity ($${(token.liquidity / 1000).toFixed(0)}K)`);
+    }
+
+    // Volume
+    if (token.volume24h > 50_000) {
+        reasons.push(`High trading activity`);
+    }
+
+    return reasons.slice(0, 3);
+}
+
+function getMessage(difficulty: number): string {
+    if (difficulty > 0.5) {
+        return "Showing high-growth candidates based on market structure and momentum";
+    }
+    return "Showing stable opportunities aligned with your goal";
+}
+
+// ============================================================================
+// MAIN: FIND SMART MATCHES (NEVER RETURNS EMPTY)
+// ============================================================================
+
+export function findSmartMatches(
     zenithTokens: ZenithToken[],
-    intent: IntentInput
-): { matches: SmartMatchResult[]; message?: string } {
-    const targetMultiplier = intent.targetReturn / intent.investmentAmount;
+    input: SmartSwapInput
+): SmartSwapResult {
+    const difficulty = calculateDifficulty(input.investmentAmount, input.targetReturn);
+    const investmentUsd = input.investmentAmount * 180; // Assume SOL = $180
 
-    // Calculate difficulty (how aggressive the target is)
-    // 0 = easy/conservative, 1 = hard/aggressive
-    const difficulty = Math.min(Math.max((targetMultiplier - 1) / 2, 0), 1);
+    console.log(`[Smart Swap V1] Investment: ${input.investmentAmount} SOL, Target: ${input.targetReturn} SOL`);
+    console.log(`[Smart Swap V1] Difficulty: ${(difficulty * 100).toFixed(1)}%`);
 
-    // Convert to EnrichedTokens (minimal filtering - only remove broken data)
-    const enrichedTokens = zenithTokens
-        .filter(t => t.priceUsd > 0) // Must have price
-        .filter(t => t.liquidityUsd > 0) // Must have liquidity data
-        .map(enrichZenithToken);
+    // Step 1: Normalize all tokens
+    const normalized = zenithTokens
+        .filter(t => t.priceUsd > 0 && t.liquidityUsd > 0)
+        .map(normalizeToken);
 
-    console.log(`[Smart Swap V1] Analyzing ${enrichedTokens.length} tokens`);
-    console.log(`[Smart Swap V1] Target: ${targetMultiplier.toFixed(2)}x (difficulty: ${difficulty.toFixed(2)})`);
-    console.log(`[Smart Swap V1] Investment: ${intent.investmentAmount} SOL (display-only)`);
+    console.log(`[Smart Swap V1] Normalized ${normalized.length} tokens`);
 
-    // SCORING FIRST - score ALL tokens, then rank
-    const scored = enrichedTokens.map((token: EnrichedToken) => {
-        const alignmentScore = calculateAlignmentScore(token, difficulty);
-
-        // Match percentage from alignment score
-        const matchPercentage = Math.min(100, alignmentScore);
-
-        // Expected range based on market cap tier
-        const tier = getCapTier(token.marketCap);
-        let expectedMin = 1.0;
-        let expectedMax = 1.5;
-        if (tier === 'micro') { expectedMin = 1.0; expectedMax = 3.0; }
-        else if (tier === 'low') { expectedMin = 1.0; expectedMax = 2.0; }
-        else if (tier === 'mid') { expectedMin = 1.0; expectedMax = 1.5; }
-
-        const volumeTrend: 'Rising' | 'Stable' | 'Declining' =
-            token.priceChange24h > 5 ? 'Rising' :
-            token.priceChange24h < -5 ? 'Declining' : 'Stable';
-
-        const whyReasons = generateReasons(token, targetMultiplier, tier || 'mid');
+    // Step 2: Score all tokens
+    const scored: ScoredToken[] = normalized.map(token => {
+        const smart = calculateSmartScore(token, difficulty);
 
         return {
-            token,
-            smartScore: alignmentScore, // Use alignment score as primary
-            matchPercentage,
-            expectedRange: { min: expectedMin, max: expectedMax },
-            whyReasons,
-            volumeTrend,
-            rank: 0,
+            ...token,
+            capScore: capScore(token.marketCap),
+            liquidityScore: liquidityScore(token.liquidity),
+            momentumScore: momentumScore(token.priceChange24h, token.priceChange7d),
+            volumeScore: volumeScore(token.volume24h),
+            ageScore: ageScore(token.ageDays),
+            smartScore: smart,
+            matchPercentage: Math.round(smart * 100),
+            difficulty,
+            contextLabel: getContextLabel(difficulty),
+            liquidityWarning: getLiquidityWarning(token.liquidity, investmentUsd),
+            whyReasons: generateReasons(token, difficulty),
         };
     });
 
-    // Sort by alignment score (highest first)
-    scored.sort((a: any, b: any) => b.smartScore - a.smartScore);
+    // Step 3: Rank and take top 5
+    scored.sort((a, b) => b.smartScore - a.smartScore);
+    const top5 = scored.slice(0, 5);
 
-    // Take top 5 and assign ranks
-    const top5 = scored.slice(0, 5).map((result: any, index: number) => ({
-        ...result,
-        rank: index + 1,
-    }));
-
-    console.log(`[Smart Swap V1] Top 5 scores: ${top5.map(r => r.smartScore.toFixed(1)).join(', ')}`);
-
-    // Always show message explaining the approach
-    const message = difficulty > 0.5
-        ? 'Showing high-growth candidates based on market cap and momentum'
-        : 'Showing stable opportunities with good liquidity and track record';
+    console.log(`[Smart Swap V1] Top 5: ${top5.map(t => `${t.symbol}(${t.matchPercentage}%)`).join(', ')}`);
 
     return {
         matches: top5,
-        message
+        message: getMessage(difficulty),
+        difficulty,
     };
 }
 
-/**
- * Calculate liquidity warning based on investment size
- * This is DISPLAY ONLY - does not affect matching
- */
-function getLiquidityWarning(liquidity: number, investmentAmount: number): string | null {
-    const liquidityRatio = liquidity / (investmentAmount * 180); // Assume SOL = $180
-
-    if (liquidityRatio < 3) return 'High slippage risk - low liquidity for this size';
-    if (liquidityRatio < 6) return 'Moderate slippage possible';
-    return null; // Healthy liquidity
-}
-
-/**
- * Generate reasons based on token characteristics and market cap tier
- */
-function generateReasons(
-    token: EnrichedToken,
-    targetMultiplier: number,
-    tier: 'micro' | 'low' | 'mid' | 'large'
-): string[] {
-    const reasons: string[] = [];
-
-    // Market cap tier reason (PRIMARY)
-    if (tier === 'micro') {
-        reasons.push(`Micro-cap ($${(token.marketCap / 1000).toFixed(0)}K) - highest growth potential`);
-    } else if (tier === 'low') {
-        reasons.push(`Low market cap ($${(token.marketCap / 1000).toFixed(0)}K) with strong upside`);
-    } else if (tier === 'mid') {
-        reasons.push(`Mid-cap ($${(token.marketCap / 1000000).toFixed(1)}M) - balanced risk/reward`);
-    } else {
-        reasons.push(`Established cap ($${(token.marketCap / 1000000).toFixed(1)}M) - lower volatility`);
-    }
-
-    // Liquidity reason
-    if (token.liquidity > 100_000) {
-        reasons.push(`Deep liquidity ($${(token.liquidity / 1000).toFixed(0)}K) for safe trades`);
-    } else if (token.liquidity > 40_000) {
-        reasons.push(`Adequate liquidity ($${(token.liquidity / 1000).toFixed(0)}K)`);
-    } else if (token.liquidity > 10_000) {
-        reasons.push(`Sufficient liquidity for entry/exit`);
-    }
-
-    // Momentum reason
-    if (token.priceChange24h > 10) {
-        reasons.push(`Strong 24h momentum (+${token.priceChange24h.toFixed(1)}%)`);
-    } else if (token.priceChange24h > 0) {
-        reasons.push(`Positive momentum (+${token.priceChange24h.toFixed(1)}% today)`);
-    } else if (token.priceChange7d > 10) {
-        reasons.push(`Weekly uptrend (+${token.priceChange7d.toFixed(1)}%)`);
-    }
-
-    // Activity check
-    if (token.volume24h > 0) {
-        reasons.push(`Active trading volume`);
-    }
-
-    // Risk reason
-    if (token.rugRisk === 'low') {
-        reasons.push('Low risk profile');
-    }
-
-    // Default reason if not enough
-    if (reasons.length < 2) {
-        reasons.push(`Structurally suited for ${targetMultiplier.toFixed(1)}x target`);
-    }
-
-    return reasons.slice(0, 3); // Max 3 reasons
-}
+// Legacy export for backward compatibility
+export { findSmartMatches as findSmartMatchesFromZenith };
