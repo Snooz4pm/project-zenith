@@ -26,6 +26,7 @@ export default function SmartSwapV1Page() {
     const [tokensAnalyzed, setTokensAnalyzed] = useState<number>(0);
     const [zenithTokens, setZenithTokens] = useState<ZenithToken[]>([]);
     const [tokensLoading, setTokensLoading] = useState(true);
+    const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
     // Load tokens on mount (same as /swap)
     useEffect(() => {
@@ -66,18 +67,23 @@ export default function SmartSwapV1Page() {
         setLoading(true);
         setError(null);
         setMatches([]);
+        setInfoMessage(null);
 
         try {
             // CLIENT-SIDE matching (no API call, reuses /swap tokens)
-            const results = findSmartMatchesFromZenith(zenithTokens, {
+            const { matches: results, message } = findSmartMatchesFromZenith(zenithTokens, {
                 investmentAmount: investment,
                 targetReturn: target,
             });
 
             if (results.length === 0) {
-                setError('No matches found. Try adjusting your target.');
+                setError(message || 'No matches found. Try adjusting your target.');
             } else {
                 setMatches(results);
+                // Show info message if relaxed/fallback pass was used
+                if (message) {
+                    setInfoMessage(message);
+                }
             }
         } catch (err: any) {
             console.error('[Smart Swap V1] Error:', err);
@@ -186,6 +192,13 @@ export default function SmartSwapV1Page() {
                 {error && (
                     <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6 text-sm text-red-400">
                         {error}
+                    </div>
+                )}
+
+                {/* Info Message (when relaxed/fallback pass is used) */}
+                {infoMessage && matches.length > 0 && (
+                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-6 text-sm text-blue-400">
+                        ℹ️ {infoMessage}
                     </div>
                 )}
 
