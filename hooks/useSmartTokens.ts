@@ -87,23 +87,38 @@ export function useSmartTokens(options: UseSmartTokensOptions = {}) {
                     valueInSOL: valuation.valueInSOL,
                     priceImpactPct: valuation.priceImpactPct,
                     hasRoute: valuation.hasRoute,
+                    canReverse: valuation.canReverse,
+                    roundTripLoss: valuation.roundTripLoss,
+                    isSafe: valuation.isSafe,
                     decimals: valuation.decimals || token.decimals,
                 };
             });
 
-            // Sort by SOL value (highest first), then by those with routes
+            // Sort: SAFE tokens first (by SOL value), then unsafe tokens
             const sorted = valuatedTokens.sort((a, b) => {
-                if (a.valueInSOL && b.valueInSOL) {
-                    return b.valueInSOL - a.valueInSOL;
+                // Safe tokens always come first
+                if (a.isSafe && !b.isSafe) return -1;
+                if (!a.isSafe && b.isSafe) return 1;
+
+                // Within safe tokens, sort by SOL value
+                if (a.isSafe && b.isSafe) {
+                    if (a.valueInSOL && b.valueInSOL) {
+                        return b.valueInSOL - a.valueInSOL;
+                    }
                 }
+
+                // Within unsafe tokens, sort by hasRoute, then canReverse
                 if (a.hasRoute && !b.hasRoute) return -1;
                 if (!a.hasRoute && b.hasRoute) return 1;
+                if (a.canReverse && !b.canReverse) return -1;
+                if (!a.canReverse && b.canReverse) return 1;
+
                 return 0;
             });
 
             setTokens(sorted);
             console.log(
-                `[useSmartTokens] Valuation complete: ${data.actionable}/${data.total} tokens have value`
+                `[useSmartTokens] Valuation complete: ${data.safe}/${data.total} tokens are SAFE (${data.canReverse} reversible)`
             );
         } catch (err) {
             console.error('[useSmartTokens] Valuation error:', err);

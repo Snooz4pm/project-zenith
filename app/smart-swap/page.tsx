@@ -27,14 +27,14 @@ export default function SmartSwapPage() {
                         </div>
                         <div>
                             <h1 className="text-3xl font-bold text-white font-mono tracking-tight">
-                                SMART SWAP V2 - EYES
+                                SMART SWAP V2 - SAFE UNIVERSE
                             </h1>
                             <p className="text-sm text-zinc-400 font-mono">
                                 {loading
                                     ? 'Loading tokens...'
                                     : valuating
-                                    ? `Valuating ${tokens.length} tokens...`
-                                    : `${tokens.filter(t => t.hasRoute).length} liquid tokens`}
+                                    ? `Probing ${tokens.length} tokens (bidirectional)...`
+                                    : `${tokens.filter(t => t.isSafe).length} SAFE tokens (reversible, low-loss)`}
                             </p>
                         </div>
                     </div>
@@ -62,63 +62,103 @@ export default function SmartSwapPage() {
                         <div className="text-sm text-zinc-500 font-mono mb-4 flex justify-between items-center">
                             <span>
                                 Showing first 50 of {tokens.length} tokens
-                                {valuating && ' (valuating...)'}
+                                {valuating && ' (probing safety...)'}
                             </span>
                             {!valuating && (
-                                <span className="text-green-400">
-                                    {tokens.filter(t => t.hasRoute).length} have SOL routes
-                                </span>
+                                <div className="flex gap-4">
+                                    <span className="text-green-400">
+                                        {tokens.filter(t => t.isSafe).length} SAFE
+                                    </span>
+                                    <span className="text-yellow-400">
+                                        {tokens.filter(t => t.canReverse && !t.isSafe).length} reversible but risky
+                                    </span>
+                                    <span className="text-red-400">
+                                        {tokens.filter(t => !t.canReverse).length} unsafe
+                                    </span>
+                                </div>
                             )}
                         </div>
 
-                        {tokens.slice(0, 50).map(t => (
-                            <div
-                                key={t.id}
-                                className={`bg-zinc-900/50 border rounded-lg p-4 transition-all ${
-                                    t.hasRoute
-                                        ? 'border-green-500/30 hover:border-green-500/50'
-                                        : 'border-zinc-800 hover:border-zinc-700'
-                                }`}
-                            >
-                                <div className="flex justify-between items-start">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <strong className="text-white font-mono text-lg">
-                                                {t.symbol}
-                                            </strong>
-                                            {t.hasRoute && (
-                                                <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400 font-mono">
-                                                    LIQUID
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="text-zinc-500 font-mono text-sm">{t.name}</div>
-                                    </div>
+                        {tokens.slice(0, 50).map(t => {
+                            // Determine border color based on safety
+                            const borderColor = t.isSafe
+                                ? 'border-green-500/30 hover:border-green-500/50'
+                                : t.canReverse
+                                ? 'border-yellow-500/30 hover:border-yellow-500/50'
+                                : 'border-red-500/20 hover:border-red-500/30';
 
-                                    {/* SOL Value Display */}
-                                    <div className="text-right">
-                                        {valuating ? (
-                                            <div className="text-zinc-600 font-mono text-sm">
-                                                <Loader2 className="w-4 h-4 inline animate-spin" />
-                                            </div>
-                                        ) : t.valueInSOL !== undefined ? (
-                                            <div>
-                                                <div className="text-green-400 font-mono font-bold">
-                                                    {t.valueInSOL.toFixed(6)} SOL
-                                                </div>
-                                                {t.priceImpactPct !== undefined && (
-                                                    <div className="text-xs text-zinc-500 font-mono">
-                                                        {t.priceImpactPct.toFixed(2)}% impact
-                                                    </div>
+                            return (
+                                <div
+                                    key={t.id}
+                                    className={`bg-zinc-900/50 border rounded-lg p-4 transition-all ${borderColor}`}
+                                >
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <strong className="text-white font-mono text-lg">
+                                                    {t.symbol}
+                                                </strong>
+                                                {t.isSafe ? (
+                                                    <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400 font-mono">
+                                                        SAFE
+                                                    </span>
+                                                ) : t.canReverse ? (
+                                                    <span className="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-mono">
+                                                        RISKY
+                                                    </span>
+                                                ) : t.hasRoute ? (
+                                                    <span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-mono">
+                                                        TRAP
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs px-2 py-0.5 rounded bg-zinc-700/20 text-zinc-500 font-mono">
+                                                        NO ROUTE
+                                                    </span>
                                                 )}
                                             </div>
-                                        ) : t.hasRoute === false ? (
-                                            <div className="text-zinc-600 font-mono text-sm">No route</div>
-                                        ) : null}
+                                            <div className="text-zinc-500 font-mono text-sm">{t.name}</div>
+                                        </div>
+
+                                        {/* Safety Metrics Display */}
+                                        <div className="text-right">
+                                            {valuating ? (
+                                                <div className="text-zinc-600 font-mono text-sm">
+                                                    <Loader2 className="w-4 h-4 inline animate-spin" />
+                                                </div>
+                                            ) : t.isSafe ? (
+                                                <div>
+                                                    <div className="text-green-400 font-mono font-bold">
+                                                        {t.valueInSOL ? `${t.valueInSOL.toFixed(6)} SOL` : 'N/A'}
+                                                    </div>
+                                                    {t.roundTripLoss !== undefined && (
+                                                        <div className="text-xs text-green-500 font-mono">
+                                                            {t.roundTripLoss.toFixed(1)}% round-trip loss
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : t.canReverse ? (
+                                                <div>
+                                                    <div className="text-yellow-400 font-mono font-bold">
+                                                        {t.valueInSOL ? `${t.valueInSOL.toFixed(6)} SOL` : 'N/A'}
+                                                    </div>
+                                                    <div className="text-xs text-yellow-500 font-mono">
+                                                        {t.roundTripLoss !== undefined
+                                                            ? `${t.roundTripLoss.toFixed(1)}% loss (high)`
+                                                            : 'High slippage'}
+                                                    </div>
+                                                </div>
+                                            ) : t.hasRoute ? (
+                                                <div className="text-red-400 font-mono text-sm">
+                                                    Cannot reverse
+                                                </div>
+                                            ) : (
+                                                <div className="text-zinc-600 font-mono text-sm">No route</div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
 
                         {tokens.length > 50 && (
                             <div className="text-center text-zinc-500 font-mono text-sm py-4">
