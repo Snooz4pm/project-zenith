@@ -1,50 +1,20 @@
 'use client';
 
 /**
- * Smart Swap Page - ULTRA SIMPLE VERSION
+ * Smart Swap Page V1 - Display Only
  * 
- * RULES:
- * ❌ No token.address in JSX
- * ❌ No logoURI / IPFS
- * ❌ No map() on raw API data
- * ❌ No execution logic
- * ✅ Only ONE component renders tokens
+ * No logic. No filters. No roadmap.
+ * Just prove access works.
+ * 
+ * Architecture:
+ * Proxy → Adapter → Hook → UI
  */
 
-import { useState, useEffect } from 'react';
+import { useSmartTokens } from '@/hooks/useSmartTokens';
 import { Sparkles, Loader2, AlertTriangle } from 'lucide-react';
-import { TokenUI } from '@/lib/tokenUI';
-import { normalizeTokens } from '@/lib/normalizeTokens';
-
-const TOKENS_API = '/api/smart-swap/tokens';
 
 export default function SmartSwapPage() {
-    const [tokens, setTokens] = useState<TokenUI[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    // Fetch tokens on mount
-    useEffect(() => {
-        setLoading(true);
-        setError(null);
-
-        fetch(TOKENS_API)
-            .then(res => res.json())
-            .then(data => {
-                // NORMALIZE - no inline .map(), no assumptions
-                const normalized = normalizeTokens(data.tokens ?? data);
-                console.log(`[Smart Swap] Normalized ${normalized.length} tokens`);
-                setTokens(normalized);
-            })
-            .catch(err => {
-                console.error('[Smart Swap] Fetch error:', err);
-                setError('Failed to load tokens');
-                setTokens([]);
-            })
-            .finally(() => {
-                setLoading(false);
-            });
-    }, []);
+    const { tokens, loading, error } = useSmartTokens();
 
     return (
         <div className="min-h-screen bg-black pt-20 pb-20 px-4">
@@ -78,61 +48,43 @@ export default function SmartSwapPage() {
                 {loading && (
                     <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-12 text-center">
                         <Loader2 className="w-12 h-12 text-purple-400 mx-auto mb-4 animate-spin" />
-                        <p className="text-zinc-500 font-mono text-sm">Loading tokens...</p>
+                        <p className="text-zinc-500 font-mono text-sm">Loading smart tokens...</p>
                     </div>
                 )}
 
-                {/* Token List - DUMB COMPONENT */}
-                {!loading && <TokenList tokens={tokens} />}
-            </div>
-        </div>
-    );
-}
-
-/**
- * TokenList - DUMB RENDER COMPONENT
- * 
- * Cannot crash
- * Cannot dereference undefined
- * Does not depend on network
- * Does not care about IPFS
- */
-function TokenList({ tokens }: { tokens: TokenUI[] }) {
-    if (!tokens.length) {
-        return (
-            <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-12 text-center">
-                <Sparkles className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-                <p className="text-zinc-500 font-mono text-sm">No tokens available</p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-2">
-            <div className="text-sm text-zinc-500 font-mono mb-4">
-                Showing {tokens.length} tokens
-            </div>
-
-            {/* SAFE: tokens is TokenUI[], id is index-based */}
-            {tokens.slice(0, 50).map(t => (
-                <div
-                    key={t.id}
-                    className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-purple-500/30 transition-all"
-                >
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <strong className="text-white font-mono text-lg">{t.symbol}</strong>
-                            <div className="text-zinc-500 font-mono text-sm">{t.name}</div>
+                {/* Token List - DISPLAY ONLY */}
+                {!loading && tokens.length > 0 && (
+                    <div className="space-y-2">
+                        <div className="text-sm text-zinc-500 font-mono mb-4">
+                            Showing first 50 of {tokens.length} tokens
                         </div>
-                    </div>
-                </div>
-            ))}
 
-            {tokens.length > 50 && (
-                <div className="text-center text-zinc-500 font-mono text-sm py-4">
-                    + {tokens.length - 50} more tokens
-                </div>
-            )}
+                        {tokens.slice(0, 50).map(t => (
+                            <div
+                                key={t.id}
+                                className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-purple-500/30 transition-all"
+                            >
+                                <strong className="text-white font-mono text-lg">{t.symbol}</strong>
+                                <div className="text-zinc-500 font-mono text-sm">{t.name}</div>
+                            </div>
+                        ))}
+
+                        {tokens.length > 50 && (
+                            <div className="text-center text-zinc-500 font-mono text-sm py-4">
+                                + {tokens.length - 50} more tokens
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Empty state */}
+                {!loading && tokens.length === 0 && !error && (
+                    <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-12 text-center">
+                        <Sparkles className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
+                        <p className="text-zinc-500 font-mono text-sm">No tokens available</p>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
