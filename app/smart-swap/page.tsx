@@ -6,7 +6,7 @@
  * Uses Railway proxy tokens + V1 client-side scoring
  * No API calls needed - pure client-side scoring
  * 
- * CACHE BUST: 2026-01-10-v2
+ * CACHE BUST: 2026-01-10-v3
  */
 
 import { useState, useEffect } from 'react';
