@@ -1,553 +1,216 @@
 'use client';
 
 /**
- * Smart Swap Brain v2 - Path Search Debug View
- *
- * Shows graph search results with full path visualization.
- * Honest about when target is NOT reachable.
+ * Smart Swap Scenario Tester
+ * 
+ * Runs 5 independent searches (Conservative → Best-Effort) and compares results.
+ * Simple, transparent UI for testing the new engine.
  */
 
 import { useSmartTokens } from '@/hooks/useSmartTokens';
 import { useState } from 'react';
-import { Loader2, AlertTriangle, Brain, CheckCircle2, XCircle, TrendingUp, Route } from 'lucide-react';
-import { BrainGoal, BrainSearchResult } from '@/types/BrainV2';
+import { Loader2, AlertTriangle, Brain, CheckCircle2, XCircle, TrendingUp, Route, Shield, Zap, Flame, Crosshair, BarChart3 } from 'lucide-react';
+import { ScenarioComparison, ScenarioResult, ScenarioId } from '@/types/ScenarioRunner';
 
-export default function BrainV2Page() {
+export default function ScenarioTesterPage() {
     const { tokens, loading, valuating, error } = useSmartTokens({ enableValuation: true });
-    const [searchResult, setSearchResult] = useState<BrainSearchResult | null>(null);
+    const [comparison, setComparison] = useState<ScenarioComparison | null>(null);
     const [searching, setSearching] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
-    const [universeStats, setUniverseStats] = useState<{
-        total: number;
-        safe: number;
-        alpha: number;
-        routable: number;
-        excluded: number;
-    } | null>(null);
-
-    // Goal state
     const [startAmountSOL, setStartAmountSOL] = useState(0.1);
-    const [targetAmountSOL, setTargetAmountSOL] = useState(0.12);
-    const [maxHops, setMaxHops] = useState(20);
-    const [maxTotalRTL, setMaxTotalRTL] = useState(20);
-    const [maxPerHopRTL, setMaxPerHopRTL] = useState(5);
 
-    async function runSearch() {
+    async function runScenarios() {
         if (tokens.length === 0) return;
 
         setSearching(true);
         setSearchError(null);
+        setComparison(null);
 
         try {
-            const goal: BrainGoal = {
-                startToken: 'SOL',
-                startAmountSOL,
-                targetAmountSOL,
-                maxHops,
-                maxTotalRTL,
-                maxPerHopRTL,
-            };
-
-            const response = await fetch('/api/smart-swap/brain-v2', {
+            const response = await fetch('/api/smart-swap/scenarios', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ goal, tokens }),
+                body: JSON.stringify({ startAmountSOL, tokens }),
             });
 
-            if (!response.ok) {
-                throw new Error(`Brain v2 API failed: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`Scenario API failed: ${response.status}`);
 
             const data = await response.json();
-            setSearchResult(data.result);
-            if (data.universeStats) {
-                setUniverseStats(data.universeStats);
-            }
+            setComparison(data.comparison);
         } catch (err: any) {
-            console.error('[Brain v2 Debug] Error:', err);
+            console.error('[Scenario Tester] Error:', err);
             setSearchError(err.message || 'Search failed');
         } finally {
             setSearching(false);
         }
     }
 
+    const getScenarioIcon = (id: ScenarioId) => {
+        switch (id) {
+            case ScenarioId.CONSERVATIVE: return <Shield className="w-5 h-5 text-blue-400" />;
+            case ScenarioId.BALANCED: return <Brain className="w-5 h-5 text-purple-400" />;
+            case ScenarioId.AGGRESSIVE: return <Zap className="w-5 h-5 text-yellow-400" />;
+            case ScenarioId.VOLATILITY: return <Flame className="w-5 h-5 text-orange-500" />;
+            case ScenarioId.BEST_EFFORT: return <Crosshair className="w-5 h-5 text-zinc-400" />;
+        }
+    };
+
     return (
         <div className="min-h-screen bg-black pt-20 pb-20 px-4">
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-6xl mx-auto">
                 {/* Header */}
-                <div className="mb-8">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 flex items-center justify-center">
-                            <Brain className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-3xl font-bold text-white font-mono tracking-tight">
-                                BRAIN v2 - GRAPH SEARCH ENGINE
-                            </h1>
-                            <p className="text-sm text-zinc-400 font-mono">
-                                Beam search pathfinder. Target is a constraint, not a promise.
-                            </p>
-                        </div>
-                    </div>
+                <div className="mb-8 border-b border-zinc-800 pb-6">
+                    <h1 className="text-3xl font-bold text-white font-mono tracking-tight mb-2 flex items-center gap-3">
+                        <BarChart3 className="w-8 h-8 text-purple-500" />
+                        SCENARIO RUNNER
+                    </h1>
+                    <p className="text-zinc-400 font-mono">
+                        Running 5 parallel realities to find the optimal path.
+                    </p>
                 </div>
 
-                {/* Error */}
-                {(error || searchError) && (
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6 font-mono text-sm text-red-400">
-                        <AlertTriangle className="w-4 h-4 inline mr-2" />
-                        {error || searchError}
-                    </div>
-                )}
-
-                {/* Search Configuration */}
-                {!loading && !valuating && tokens.length > 0 && (
-                    <div className="mb-8 bg-gradient-to-r from-purple-900/20 via-pink-900/20 to-red-900/20 border border-purple-500/30 rounded-xl p-6">
-                        <div className="mb-6">
-                            <h2 className="text-lg font-bold text-white font-mono mb-2">
-                                Search Goal
-                            </h2>
-                            <div className="text-sm text-zinc-400 font-mono space-y-1">
-                                {universeStats ? (
-                                    <>
-                                        <div>• <span className="text-white">{universeStats.total}</span> indexed tokens</div>
-                                        <div>• <span className="text-green-400">{universeStats.safe}</span> SAFE fuel tokens</div>
-                                        <div>• <span className="text-orange-400">{universeStats.alpha}</span> ALPHA candidates</div>
-                                        <div>• <span className="text-zinc-500">{universeStats.excluded}</span> excluded by constraints</div>
-                                    </>
-                                ) : (
-                                    <div>Universe: {tokens.length} tokens (run search to see breakdown)</div>
-                                )}
-                            </div>
+                {/* Input Section */}
+                {!loading && !valuating && (
+                    <div className="mb-8 flex gap-4 items-end bg-zinc-900/50 p-6 rounded-xl border border-zinc-800">
+                        <div className="flex-1 max-w-xs">
+                            <label className="block text-sm text-zinc-400 font-mono mb-2">
+                                Start Amount (SOL)
+                            </label>
+                            <input
+                                type="number"
+                                min="0.01" step="0.01" value={startAmountSOL}
+                                onChange={(e) => setStartAmountSOL(parseFloat(e.target.value) || 0.1)}
+                                className="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono focus:outline-none focus:border-purple-500"
+                            />
                         </div>
-
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div>
-                                <label className="block text-sm text-zinc-400 font-mono mb-2">
-                                    Start Amount (SOL)
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0.01"
-                                    max="10"
-                                    step="0.01"
-                                    value={startAmountSOL}
-                                    onChange={(e) => setStartAmountSOL(parseFloat(e.target.value) || 0.1)}
-                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono focus:outline-none focus:border-purple-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-zinc-400 font-mono mb-2">
-                                    Target Amount (SOL) - CONSTRAINT
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0.01"
-                                    max="10"
-                                    step="0.01"
-                                    value={targetAmountSOL}
-                                    onChange={(e) => setTargetAmountSOL(parseFloat(e.target.value) || 0.2)}
-                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono focus:outline-none focus:border-purple-500"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4 mb-6">
-                            <div>
-                                <label className="block text-sm text-zinc-400 font-mono mb-2">
-                                    Max Hops
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="30"
-                                    step="1"
-                                    value={maxHops}
-                                    onChange={(e) => setMaxHops(parseInt(e.target.value) || 20)}
-                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono focus:outline-none focus:border-purple-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-zinc-400 font-mono mb-2">
-                                    Max Total RTL (%)
-                                </label>
-                                <input
-                                    type="number"
-                                    min="5"
-                                    max="50"
-                                    step="1"
-                                    value={maxTotalRTL}
-                                    onChange={(e) => setMaxTotalRTL(parseInt(e.target.value) || 20)}
-                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono focus:outline-none focus:border-purple-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-zinc-400 font-mono mb-2">
-                                    Max Per-Hop RTL (%)
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="20"
-                                    step="1"
-                                    value={maxPerHopRTL}
-                                    onChange={(e) => setMaxPerHopRTL(parseInt(e.target.value) || 5)}
-                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-white font-mono focus:outline-none focus:border-purple-500"
-                                />
-                            </div>
-                        </div>
-
                         <button
-                            onClick={runSearch}
+                            onClick={runScenarios}
                             disabled={searching}
-                            className="w-full px-6 py-3 bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white font-mono font-bold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="px-8 py-3 bg-white text-black font-mono font-bold rounded-lg hover:bg-zinc-200 disabled:opacity-50 flex items-center gap-2"
                         >
-                            {searching ? (
-                                <>
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                    Searching graph...
-                                </>
-                            ) : (
-                                <>
-                                    <Route className="w-5 h-5" />
-                                    Run Beam Search
-                                </>
-                            )}
+                            {searching ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Run 5 Scenarios'}
                         </button>
                     </div>
                 )}
 
-                {/* Search Results */}
-                {searchResult && (
-                    <div className="space-y-6">
-                        {/* Result Status */}
-                        <div className={`border rounded-lg p-6 ${searchResult.found ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                            <div className="flex items-center gap-3 mb-4">
-                                {searchResult.found ? (
-                                    <CheckCircle2 className="w-8 h-8 text-green-400" />
-                                ) : (
-                                    <XCircle className="w-8 h-8 text-red-400" />
-                                )}
-                                <div>
-                                    <h2 className={`text-2xl font-bold font-mono ${searchResult.found ? 'text-green-400' : 'text-red-400'}`}>
-                                        {searchResult.found ? 'PATH FOUND' : 'PATH NOT FOUND'}
-                                    </h2>
-                                    <p className="text-sm text-zinc-400 font-mono">
-                                        {searchResult.found
-                                            ? `Target reachable in ${searchResult.reachableAtHop} hops`
-                                            : searchResult.reason}
-                                    </p>
-                                </div>
+                {/* Loading State */}
+                {searching && (
+                    <div className="text-center py-20">
+                        <Loader2 className="w-12 h-12 text-purple-500 mx-auto mb-4 animate-spin" />
+                        <p className="text-zinc-500 font-mono">Exploring 5 parallel universes...</p>
+                    </div>
+                )}
+
+                {/* Results Grid */}
+                {comparison && (
+                    <div className="space-y-8">
+                        {/* Winner Banner */}
+                        <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-xl p-6 flex items-start gap-4">
+                            <div className="p-3 bg-green-500/20 rounded-lg">
+                                <TrendingUp className="w-8 h-8 text-green-400" />
                             </div>
-
-                            {!searchResult.found && (
-                                <div className="text-sm text-zinc-400 font-mono">
-                                    Explored {searchResult.exploredPaths} paths
-                                    {searchResult.bestEffort && (
-                                        <span className="ml-2">
-                                            • Best effort: {searchResult.bestEffort.currentAmountSOL.toFixed(6)} SOL ({((searchResult.bestEffort.currentAmountSOL / targetAmountSOL) * 100).toFixed(1)}% of target)
-                                        </span>
-                                    )}
-                                </div>
-                            )}
-
-                            {searchResult.found && (
-                                <>
-                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4 text-sm font-mono">
-                                        <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                            <div className="text-zinc-500 mb-1">Final Amount</div>
-                                            <div className="text-white font-bold">{searchResult.path.currentAmountSOL.toFixed(6)} SOL</div>
-                                        </div>
-                                        <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                            <div className="text-zinc-500 mb-1">Estimated ROI</div>
-                                            <div className={`font-bold ${((searchResult.path.currentAmountSOL - startAmountSOL) / startAmountSOL * 100) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                {((searchResult.path.currentAmountSOL - startAmountSOL) / startAmountSOL * 100).toFixed(2)}%
-                                            </div>
-                                        </div>
-                                        <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                            <div className="text-zinc-500 mb-1">Confidence</div>
-                                            <div className={`font-bold ${searchResult.confidence === 'high' ? 'text-green-400' : searchResult.confidence === 'medium' ? 'text-yellow-400' : 'text-red-400'}`}>
-                                                {searchResult.confidence.toUpperCase()}
-                                            </div>
-                                        </div>
-                                        <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                            <div className="text-zinc-500 mb-1">Hops</div>
-                                            <div className="text-white font-bold">{searchResult.path.hopsUsed}</div>
-                                        </div>
-                                        <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                            <div className="text-zinc-500 mb-1">Cumulative RTL</div>
-                                            <div className="text-yellow-400 font-bold">{searchResult.path.cumulativeRTL.toFixed(1)}%</div>
+                            <div>
+                                <h2 className="text-xl font-bold text-white font-mono mb-1">
+                                    Recommended: {comparison.best.config.name}
+                                </h2>
+                                <p className="text-green-400 font-mono text-sm mb-4">
+                                    {comparison.winnerReason}
+                                </p>
+                                <div className="flex gap-6 text-sm font-mono">
+                                    <div>
+                                        <div className="text-zinc-500">Return</div>
+                                        <div className={`text-xl font-bold ${comparison.best.roiPct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            {comparison.best.roiPct > 0 ? '+' : ''}{comparison.best.roiPct.toFixed(2)}%
                                         </div>
                                     </div>
-
-                                    {/* Hold Time Quick Summary */}
-                                    {searchResult.path.holdCheckpoint && (
-                                        <div className="mt-4 bg-orange-900/20 border border-orange-500/30 rounded px-4 py-2">
-                                            <div className="text-sm font-mono font-bold text-orange-400">
-                                                ⏱️ Suggested Hold: {searchResult.path.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} minutes
-                                                <span className="ml-3 text-zinc-400">|</span>
-                                                <span className="ml-3">Friction: {(searchResult.path.holdCheckpoint.confidence * 100).toFixed(0)}%</span>
-                                                <span className="ml-3 text-zinc-500 font-normal italic">(see details below)</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
-                            )}
+                                    <div>
+                                        <div className="text-zinc-500">Final SOL</div>
+                                        <div className="text-xl text-white font-bold">{comparison.best.finalAmountSOL.toFixed(4)}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-zinc-500">Hops</div>
+                                        <div className="text-xl text-white font-bold">{comparison.best.hops}</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Warnings */}
-                        {searchResult.found && searchResult.warnings.length > 0 && (
-                            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                                <div className="flex items-start gap-2">
-                                    <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                                    <div className="space-y-1">
-                                        {searchResult.warnings.map((warning, idx) => (
-                                            <p key={idx} className="text-sm text-yellow-400 font-mono">
-                                                {warning}
-                                            </p>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                        {/* All Scenarios List */}
+                        <div className="grid gap-4">
+                            {comparison.all.map((scenario) => {
+                                const isWinner = scenario.scenarioId === comparison.best.scenarioId;
+                                const isProfitable = scenario.roiPct > 0;
 
-                        {/* V1 Hold Suggestion - FRICTION WARNING */}
-                        {searchResult.found && searchResult.path.holdCheckpoint && (
-                            <div className="bg-gradient-to-r from-orange-900/20 to-red-900/20 border border-orange-500/30 rounded-lg p-6">
-                                <h3 className="text-lg font-bold text-orange-400 font-mono mb-2 flex items-center gap-2">
-                                    ⚠️ Market Friction Detected
-                                </h3>
-                                <p className="text-sm text-zinc-400 font-mono mb-4">
-                                    Execution shows elevated market stress. Consider pausing to reassess.
-                                </p>
-                                <div className="grid grid-cols-2 gap-4 mb-4">
-                                    <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                        <div className="text-xs text-zinc-500 font-mono mb-1">Suggested Pause</div>
-                                        <div className="text-white font-mono font-bold">
-                                            {searchResult.path.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} min
-                                        </div>
-                                    </div>
-                                    <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                        <div className="text-xs text-zinc-500 font-mono mb-1">Friction Level</div>
-                                        <div className="text-orange-400 font-mono font-bold">
-                                            {(searchResult.path.holdCheckpoint.confidence * 100).toFixed(0)}%
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="text-xs text-zinc-400 font-mono space-y-1 mb-4">
-                                    <div>• RTL spread: {searchResult.path.holdCheckpoint.signals.momentum.velocity.toFixed(2)}%</div>
-                                    <div>• Price impact: {searchResult.path.holdCheckpoint.signals.momentum.acceleration.toFixed(2)}</div>
-                                    <div>• Exit liquidity: ${(searchResult.path.holdCheckpoint.signals.volume.spikeRatio * 150_000 + 50_000).toFixed(0)}</div>
-                                </div>
-                                <div className="bg-zinc-900/30 border border-zinc-700 rounded p-3 space-y-2">
-                                    <div className="text-xs text-zinc-300 font-mono font-bold">Your options:</div>
-                                    <div className="text-xs text-zinc-400 font-mono space-y-1">
-                                        <div>• Continue now (accept current spread)</div>
-                                        <div>• Pause briefly to reassess ({searchResult.path.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} min)</div>
-                                        <div>• Exit to SOL (emergency escape always available)</div>
-                                    </div>
-                                </div>
-                                <div className="mt-4 text-xs text-zinc-500 font-mono italic border-t border-zinc-700 pt-3">
-                                    ⚠️ This is NOT a price prediction. This is a friction safety valve based on current market conditions.
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Path Visualization */}
-                        {searchResult.found && (
-                            <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-6">
-                                <h3 className="text-lg font-bold text-white font-mono mb-4 flex items-center gap-2">
-                                    <Route className="w-5 h-5" />
-                                    Path Breakdown
-                                </h3>
-                                <div className="space-y-2">
-                                    {searchResult.path.path.map((hop, idx) => (
-                                        <div key={idx} className="flex items-center gap-3 bg-zinc-800/30 rounded-lg px-4 py-3">
-                                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center font-mono text-sm font-bold">
-                                                {idx + 1}
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="text-white font-mono">
-                                                    {hop.fromSymbol} → {hop.toSymbol}
+                                return (
+                                    <div
+                                        key={scenario.scenarioId}
+                                        className={`
+                                            relative overflow-hidden rounded-xl border p-5 transition-all
+                                            ${isWinner ? 'bg-zinc-900 border-green-500/50 shadow-lg shadow-green-900/20' : 'bg-zinc-950 border-zinc-800 opacity-80 hover:opacity-100'}
+                                        `}
+                                    >
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 bg-zinc-900 rounded-lg border border-zinc-800">
+                                                    {getScenarioIcon(scenario.scenarioId)}
                                                 </div>
-                                                <div className="text-xs text-zinc-500 font-mono">
-                                                    {hop.estimatedInSOL.toFixed(6)} SOL → {hop.estimatedOutSOL.toFixed(6)} SOL
+                                                <div>
+                                                    <h3 className="font-bold text-white font-mono">{scenario.config.name}</h3>
+                                                    <p className="text-xs text-zinc-500 font-mono">{scenario.config.description}</p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="text-yellow-400 font-mono text-sm">
-                                                    {hop.hopRTL.toFixed(2)}% RTL
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {/* Final result */}
-                                    <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/30 rounded-lg px-4 py-3">
-                                        <TrendingUp className="w-5 h-5 text-green-400" />
-                                        <div className="flex-1">
-                                            <div className="text-green-400 font-mono font-bold">
-                                                Final: {searchResult.path.currentAmountSOL.toFixed(6)} SOL
-                                            </div>
-                                            <div className="text-xs text-zinc-500 font-mono">
-                                                {((searchResult.path.currentAmountSOL / startAmountSOL - 1) * 100).toFixed(1)}% gain
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Best Effort (if not found) */}
-                        {!searchResult.found && searchResult.bestEffort && (
-                            <>
-                                {/* V1 Hold Suggestion for Best Effort - FRICTION WARNING */}
-                                {searchResult.bestEffort.holdCheckpoint && (
-                                    <div className="bg-gradient-to-r from-orange-900/20 to-red-900/20 border border-orange-500/30 rounded-lg p-6">
-                                        <h3 className="text-lg font-bold text-orange-400 font-mono mb-2 flex items-center gap-2">
-                                            ⚠️ Market Friction Detected
-                                        </h3>
-                                        <p className="text-sm text-zinc-400 font-mono mb-4">
-                                            Execution shows elevated market stress. Consider pausing to reassess.
-                                        </p>
-                                        <div className="grid grid-cols-2 gap-4 mb-4">
-                                            <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                                <div className="text-xs text-zinc-500 font-mono mb-1">Suggested Pause</div>
-                                                <div className="text-white font-mono font-bold">
-                                                    {searchResult.bestEffort.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} min
-                                                </div>
-                                            </div>
-                                            <div className="bg-zinc-900/50 rounded px-3 py-2">
-                                                <div className="text-xs text-zinc-500 font-mono mb-1">Friction Level</div>
-                                                <div className="text-orange-400 font-mono font-bold">
-                                                    {(searchResult.bestEffort.holdCheckpoint.confidence * 100).toFixed(0)}%
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="text-xs text-zinc-400 font-mono space-y-1 mb-4">
-                                            <div>• RTL spread: {searchResult.bestEffort.holdCheckpoint.signals.momentum.velocity.toFixed(2)}%</div>
-                                            <div>• Price impact: {searchResult.bestEffort.holdCheckpoint.signals.momentum.acceleration.toFixed(2)}</div>
-                                            <div>• Exit liquidity: ${(searchResult.bestEffort.holdCheckpoint.signals.volume.spikeRatio * 150_000 + 50_000).toFixed(0)}</div>
-                                        </div>
-                                        <div className="bg-zinc-900/30 border border-zinc-700 rounded p-3 space-y-2">
-                                            <div className="text-xs text-zinc-300 font-mono font-bold">Your options:</div>
-                                            <div className="text-xs text-zinc-400 font-mono space-y-1">
-                                                <div>• Continue now (accept current spread)</div>
-                                                <div>• Pause briefly to reassess ({searchResult.bestEffort.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} min)</div>
-                                                <div>• Exit to SOL (emergency escape always available)</div>
-                                            </div>
-                                        </div>
-                                        <div className="mt-4 text-xs text-zinc-500 font-mono italic border-t border-zinc-700 pt-3">
-                                            ⚠️ This is NOT a price prediction. This is a friction safety valve based on current market conditions.
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-6">
-                                    <h3 className="text-lg font-bold text-white font-mono mb-4 flex items-center gap-2">
-                                        <Route className="w-5 h-5 text-yellow-400" />
-                                        Best Effort Path
-                                    </h3>
-
-                                    {/* Best Effort Metrics */}
-                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4 text-sm font-mono">
-                                        <div className="bg-zinc-800/50 rounded px-3 py-2">
-                                            <div className="text-zinc-500 mb-1">Final Amount</div>
-                                            <div className="text-yellow-400 font-bold">{searchResult.bestEffort.currentAmountSOL.toFixed(6)} SOL</div>
-                                        </div>
-                                        <div className="bg-zinc-800/50 rounded px-3 py-2">
-                                            <div className="text-zinc-500 mb-1">Estimated ROI</div>
-                                            <div className={`font-bold ${((searchResult.bestEffort.currentAmountSOL - startAmountSOL) / startAmountSOL * 100) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                {((searchResult.bestEffort.currentAmountSOL - startAmountSOL) / startAmountSOL * 100).toFixed(2)}%
-                                            </div>
-                                        </div>
-                                        <div className="bg-zinc-800/50 rounded px-3 py-2">
-                                            <div className="text-zinc-500 mb-1">Target Progress</div>
-                                            <div className={`font-bold ${searchResult.bestEffort.currentAmountSOL >= targetAmountSOL ? 'text-green-400' : 'text-yellow-400'}`}>
-                                                {((searchResult.bestEffort.currentAmountSOL / targetAmountSOL) * 100).toFixed(1)}%
-                                            </div>
-                                        </div>
-                                        <div className="bg-zinc-800/50 rounded px-3 py-2">
-                                            <div className="text-zinc-500 mb-1">Hops</div>
-                                            <div className="text-white font-bold">{searchResult.bestEffort.hopsUsed}</div>
-                                        </div>
-                                        <div className="bg-zinc-800/50 rounded px-3 py-2">
-                                            <div className="text-zinc-500 mb-1">Cumulative RTL</div>
-                                            <div className="text-yellow-400 font-bold">{searchResult.bestEffort.cumulativeRTL.toFixed(1)}%</div>
-                                        </div>
-                                    </div>
-
-                                    {searchResult.bestEffort.holdCheckpoint && (
-                                        <div className="bg-orange-900/20 border border-orange-500/30 rounded px-3 py-2 mb-4">
-                                            <div className="text-xs text-orange-400 font-mono font-bold mb-1">
-                                                ⚠️ Hold Suggestion: {searchResult.bestEffort.holdCheckpoint.suggestedDurationMinutes.toFixed(1)} min pause (Friction: {(searchResult.bestEffort.holdCheckpoint.confidence * 100).toFixed(0)}%)
-                                            </div>
-                                        </div>
-                                    )}
-
-                                {/* Hop Trace Visualization */}
-                                {searchResult.bestEffort.path.length > 0 && (
-                                    <div className="space-y-2">
-                                        {searchResult.bestEffort.path.map((hop, idx) => (
-                                            <div key={idx} className="flex items-center gap-3 bg-zinc-800/30 rounded-lg px-4 py-3">
-                                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-400 flex items-center justify-center font-mono text-sm font-bold">
-                                                    {idx + 1}
-                                                </div>
-                                                <div className="flex-1">
-                                                    <div className="text-white font-mono">
-                                                        {hop.fromSymbol} → {hop.toSymbol}
-                                                    </div>
-                                                    <div className="text-xs text-zinc-500 font-mono">
-                                                        {hop.estimatedInSOL.toFixed(6)} SOL → {hop.estimatedOutSOL.toFixed(6)} SOL
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className={`font-mono text-sm ${hop.hopRTL > 3 ? 'text-red-400' : hop.hopRTL > 1.5 ? 'text-yellow-400' : 'text-green-400'}`}>
-                                                        {hop.hopRTL.toFixed(2)}% RTL
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-
-                                        {/* Final Summary */}
-                                        <div className="flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-3 mt-2">
-                                            <TrendingUp className="w-5 h-5 text-yellow-400" />
-                                            <div className="flex-1">
-                                                <div className="text-yellow-400 font-mono font-bold">
-                                                    Best Effort: {searchResult.bestEffort.currentAmountSOL.toFixed(6)} SOL
+                                                <div className={`text-xl font-bold font-mono ${isProfitable ? 'text-green-400' : 'text-zinc-500'}`}>
+                                                    {scenario.roiPct > 0 ? '+' : ''}{scenario.roiPct.toFixed(2)}%
                                                 </div>
                                                 <div className="text-xs text-zinc-500 font-mono">
-                                                    {searchResult.bestEffort.currentAmountSOL >= startAmountSOL
-                                                        ? `+${((searchResult.bestEffort.currentAmountSOL / startAmountSOL - 1) * 100).toFixed(1)}% from start`
-                                                        : `${((searchResult.bestEffort.currentAmountSOL / startAmountSOL - 1) * 100).toFixed(1)}% from start`
-                                                    }
-                                                    {' '}| {((searchResult.bestEffort.currentAmountSOL / targetAmountSOL) * 100).toFixed(1)}% of target
+                                                    {scenario.finalAmountSOL.toFixed(4)} SOL
                                                 </div>
                                             </div>
                                         </div>
+
+                                        {/* Result Details */}
+                                        <div className="grid grid-cols-4 gap-4 text-xs font-mono text-zinc-400 bg-zinc-900/50 p-3 rounded-lg">
+                                            <div>
+                                                <span className="text-zinc-600 block">Result</span>
+                                                {scenario.found ? <span className="text-green-400">PATH FOUND</span> : <span className="text-zinc-500">BEST EFFORT</span>}
+                                            </div>
+                                            <div>
+                                                <span className="text-zinc-600 block">Hops</span>
+                                                {scenario.hops}
+                                            </div>
+                                            <div>
+                                                <span className="text-zinc-600 block">RTL</span>
+                                                {scenario.cumulativeRTL.toFixed(1)}%
+                                            </div>
+                                            <div>
+                                                <span className="text-zinc-600 block">Constraints</span>
+                                                {scenario.config.maxHops} hops / {scenario.config.maxTotalRTL}% RTL
+                                            </div>
+                                        </div>
+
+                                        {/* Path Snippet */}
+                                        {(scenario.result.found ? scenario.result.path : scenario.result.bestEffort)?.path?.length ? (
+                                            <div className="mt-3 flex flex-wrap gap-2 items-center text-xs font-mono text-zinc-500">
+                                                <Route className="w-3 h-3" />
+                                                {(scenario.result.found ? scenario.result.path : scenario.result.bestEffort)?.path.map((hop, i) => (
+                                                    <span key={i} className="flex items-center">
+                                                        {i > 0 && <span className="mx-1">→</span>}
+                                                        <span className={hop.hopRTL > 3 ? 'text-red-400' : 'text-zinc-300'}>
+                                                            {hop.toSymbol}
+                                                        </span>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="mt-3 text-xs text-zinc-600 font-mono italic">
+                                                No path components found
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-
-                                    {/* Why it failed hint */}
-                                    <div className="mt-4 text-xs text-zinc-500 font-mono italic border-t border-zinc-700 pt-3">
-                                        ⚠ Path reached a profitable state but couldn't satisfy all constraints (e.g., no valid return to SOL).
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                )}
-
-                {/* Loading/Valuating States */}
-                {loading && (
-                    <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-12 text-center">
-                        <Loader2 className="w-12 h-12 text-purple-400 mx-auto mb-4 animate-spin" />
-                        <p className="text-zinc-500 font-mono text-sm">Loading token universe...</p>
-                    </div>
-                )}
-
-                {valuating && (
-                    <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-12 text-center">
-                        <Loader2 className="w-12 h-12 text-purple-400 mx-auto mb-4 animate-spin" />
-                        <p className="text-zinc-500 font-mono text-sm">Probing {tokens.length} tokens for safety...</p>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
             </div>

@@ -60,6 +60,27 @@ export type PathHop = {
 };
 
 // ============================================================================
+// PATH EXPLANATION (Reality-Aware Reporting)
+// ============================================================================
+
+export interface PathExplanation {
+    summary: string;
+    explanations: string[];
+    recommendation: string;
+    marketContext: {
+        profitablePathsExist: boolean;
+        typicalMaxROI: number;
+        timeOfDayFactor: number;
+    };
+    alternatives: {
+        lowerTarget?: number;
+        differentStrategy?: string;
+        waitSuggestion?: string;
+    };
+    insights: string[];
+}
+
+// ============================================================================
 // SEARCH RESULT (BRAIN OUTPUT)
 // ============================================================================
 
@@ -70,12 +91,14 @@ export type BrainSearchResult =
         confidence: 'low' | 'medium' | 'high';
         warnings: string[];
         reachableAtHop: number;
+        explanation: PathExplanation; // NEW: Reality-aware context
     }
     | {
         found: false;
         reason: string;
         bestEffort?: PathState; // closest we got
         exploredPaths: number;
+        explanation: PathExplanation; // NEW: Why it failed + alternatives
     };
 
 // ============================================================================

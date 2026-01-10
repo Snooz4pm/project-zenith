@@ -16,10 +16,53 @@ import {
     SEARCH_CONFIG,
     HEURISTIC_WEIGHTS,
 } from '@/types/BrainV2';
+import { pathExplainer } from './context/PathExplainer';
 import { computeHoldCheckpoint, type HoldSignalInput } from './hold/holdSignals';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const STABLECOINS = ['USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'FRAX'];
+
+/**
+ * ADAPTIVE CONSTRAINTS - Loosen limits based on target ambition
+ *
+ * If user wants 10x return (0.1 → 1.0 SOL), the brain MUST take more risk.
+ * Otherwise it will never find profitable paths.
+ *
+ * Returns effective constraints based on target/start ratio.
+ */
+function calculateAdaptiveConstraints(goal: BrainGoal) {
+    const ambitionRatio = goal.targetAmountSOL / goal.startAmountSOL;
+
+    // Logarithmic scaling factor
+    // 1.2x target → 0.0 adjustment (conservative)
+    // 2x target → ~0.3 adjustment
+    // 5x target → ~0.7 adjustment
+    // 10x target → ~1.0 adjustment (maximum loosening)
+    const ambitionFactor = Math.min(1.0, Math.max(0, Math.log(ambitionRatio) / Math.log(10)));
+
+    // Base constraints (from goal)
+    const baseMaxHops = goal.maxHops || 20;
+    const baseMaxTotalRTL = goal.maxTotalRTL || 20;
+    const baseMaxPerHopRTL = goal.maxPerHopRTL || 5;
+
+    // Adaptive increases (up to 50% more for ambitious targets)
+    const effectiveMaxHops = Math.floor(baseMaxHops * (1 + ambitionFactor * 0.5));
+    const effectiveMaxTotalRTL = baseMaxTotalRTL * (1 + ambitionFactor * 0.5);
+    const effectiveMaxPerHopRTL = baseMaxPerHopRTL * (1 + ambitionFactor * 0.3);
+
+    console.log(`[Adaptive Constraints]`);
+    console.log(`  Ambition: ${ambitionRatio.toFixed(2)}x (factor: ${ambitionFactor.toFixed(2)})`);
+    console.log(`  Max Hops: ${baseMaxHops} → ${effectiveMaxHops}`);
+    console.log(`  Max Total RTL: ${baseMaxTotalRTL}% → ${effectiveMaxTotalRTL.toFixed(1)}%`);
+    console.log(`  Max Per-Hop RTL: ${baseMaxPerHopRTL}% → ${effectiveMaxPerHopRTL.toFixed(1)}%`);
+
+    return {
+        maxHops: effectiveMaxHops,
+        maxTotalRTL: effectiveMaxTotalRTL,
+        maxPerHopRTL: effectiveMaxPerHopRTL,
+        ambitionFactor, // Can be used for other adjustments
+    };
+}
 
 /**
  * Check if token is a stablecoin
@@ -33,6 +76,53 @@ function isStablecoin(symbol: string): boolean {
  */
 function countPairOccurrences(path: PathHop[], fromMint: string, toMint: string): number {
     return path.filter(h => h.fromToken === fromMint && h.toToken === toMint).length;
+}
+
+/**
+ * CORRECTED: Estimate actual swap outcome with potential gains
+ *
+ * Key insight: RTL is what you lose if you swap back immediately
+ * Actual swap can be profitable based on token momentum
+ */
+interface SwapEstimate {
+    estimatedOutSOL: number;
+    priceImpact: number; // % price impact for this swap
+    hopRTL: number; // RTL if you immediately swapped back
+    expectedReturn: number; // % gain/loss
+}
+
+function estimateSwapOutcome(
+    currentState: PathState,
+    candidate: SearchableToken
+): SwapEstimate {
+    // Get current amount in SOL
+    const currentAmount = currentState.currentAmountSOL;
+
+    // Base price impact based on liquidity
+    // High liquidity = low impact (0.5-2%)
+    // Low liquidity = high impact (2-8%)
+    const liquidityFactor = Math.max(0.1, 1 - candidate.liquidityScore);
+    const baseImpact = 0.5 + (liquidityFactor * 7.5); // 0.5% to 8%
+
+    // Alpha momentum can overcome price impact
+    const alphaBoost = (candidate.alphaScore || 0) * 0.08; // Up to 8% boost
+
+    // Calculate expected return
+    // Can be positive (gain) or negative (loss)
+    const expectedReturnPercent = alphaBoost - (baseImpact / 100);
+
+    // Calculate new amount (can be higher or lower)
+    const newAmountSOL = currentAmount * (1 + expectedReturnPercent);
+
+    // RTL is informational - what you'd lose if swapping back immediately
+    const hopRTL = candidate.roundTripLoss;
+
+    return {
+        estimatedOutSOL: newAmountSOL,
+        priceImpact: baseImpact,
+        hopRTL,
+        expectedReturn: expectedReturnPercent * 100, // as percentage
+    };
 }
 
 /**
@@ -74,6 +164,17 @@ function calculateHeuristicScore(state: PathState, goal: BrainGoal, alphaScore: 
 
     // === BONUSES ===
 
+    // ✅ NEW: Reward profitable hops
+    let profitBonus = 0;
+    if (state.path.length > 0) {
+        const lastHop = state.path[state.path.length - 1];
+        // Check if last hop was profitable
+        if (lastHop.estimatedOutSOL > lastHop.estimatedInSOL) {
+            const hopProfit = ((lastHop.estimatedOutSOL / lastHop.estimatedInSOL) - 1) * 100;
+            profitBonus = hopProfit * 0.15; // 15% of profit as bonus
+        }
+    }
+
     // Alpha momentum boost (rewards volatility at early hops)
     const alphaMomentumBoost = alphaScore * HEURISTIC_WEIGHTS.alphaMomentumBoost;
 
@@ -83,7 +184,9 @@ function calculateHeuristicScore(state: PathState, goal: BrainGoal, alphaScore: 
         alphaFuelBoost = 0.2 * alphaScore; // 20% boost scaled by alpha
     }
 
-    const score = objectiveScore - rtlPenalty - hopPenalty + alphaMomentumBoost + alphaFuelBoost;
+    // ✅ FIXED SCORE: Includes profit bonus
+    const score = objectiveScore - rtlPenalty - hopPenalty +
+        profitBonus + alphaMomentumBoost + alphaFuelBoost;
 
     return score;
 }
@@ -174,21 +277,25 @@ function expandPath(
         const { violated, reason } = violatesHardRules(currentState, candidate, goal);
         if (violated) continue;
 
-        // Estimate new amount (simplified - real implementation would use Jupiter quotes)
-        // For now: assume we lose RTL% on this hop
-        const lossMultiplier = 1 - candidate.roundTripLoss / 100;
-        const newAmountSOL = currentState.currentAmountSOL * lossMultiplier;
+        // ✅ CORRECTED: Use proper swap estimation
+        const swap = estimateSwapOutcome(currentState, candidate);
 
-        // Build hop
+        // ✅ FIX: Check if this swap would be profitable enough
+        const minAcceptableReturn = -2; // Allow up to 2% loss per hop
+        if (swap.expectedReturn < minAcceptableReturn) {
+            continue; // Skip hops with too much loss
+        }
+
+        // Build hop WITH expected return
         const hop: PathHop = {
             fromToken: currentState.currentToken,
             fromSymbol: currentState.currentSymbol,
             toToken: candidate.mint,
             toSymbol: candidate.symbol,
             estimatedInSOL: currentState.currentAmountSOL,
-            estimatedOutSOL: newAmountSOL,
-            slippage: candidate.roundTripLoss, // simplified
-            hopRTL: candidate.roundTripLoss,
+            estimatedOutSOL: swap.estimatedOutSOL, // ✅ Can be HIGHER than input!
+            slippage: swap.priceImpact,
+            hopRTL: swap.hopRTL,
         };
 
         // === ESCAPE MECHANICS ===
@@ -205,13 +312,16 @@ function expandPath(
         const isRevisit = visitedSet.has(candidate.mint);
         visitedSet.add(candidate.mint);
 
+        // ✅ FIX: Track cumulative price impact, not RTL
+        const cumulativeImpact = currentState.cumulativeRTL + swap.priceImpact;
+
         // Build new state
         const newState: PathState = {
             currentToken: candidate.mint,
             currentSymbol: candidate.symbol,
-            currentAmountSOL: newAmountSOL,
+            currentAmountSOL: swap.estimatedOutSOL, // ✅ Can be profitable!
             hopsUsed: currentState.hopsUsed + 1,
-            cumulativeRTL: currentState.cumulativeRTL + candidate.roundTripLoss,
+            cumulativeRTL: cumulativeImpact, // Actually cumulative price impact
             path: [...currentState.path, hop],
             visitedTokens: Array.from(visitedSet),
             score: 0, // will be calculated below
@@ -333,7 +443,17 @@ export function searchForPath(
     goal: BrainGoal
 ): BrainSearchResult {
     console.log(`[Brain v2] Starting beam search: ${goal.startAmountSOL} SOL → ${goal.targetAmountSOL} SOL`);
-    console.log(`[Brain v2] Max hops: ${goal.maxHops}, Max RTL: ${goal.maxTotalRTL}%`);
+
+    // CRITICAL: Calculate adaptive constraints based on target ambition
+    const adaptiveConstraints = calculateAdaptiveConstraints(goal);
+
+    // Create effective goal with adaptive constraints
+    const effectiveGoal: BrainGoal = {
+        ...goal,
+        maxHops: adaptiveConstraints.maxHops,
+        maxTotalRTL: adaptiveConstraints.maxTotalRTL,
+        maxPerHopRTL: adaptiveConstraints.maxPerHopRTL,
+    };
 
     let exploredPaths = 0;
 
@@ -367,43 +487,45 @@ export function searchForPath(
         // No new paths? Dead end
         if (allNewPaths.length === 0) {
             console.log(`[Brain v2] Dead end at hop ${hop}`);
+            const explanation = pathExplainer.explainFailure(bestEffort, goal, universe);
             return {
                 found: false,
                 reason: 'No viable paths found under current constraints',
                 bestEffort,
                 exploredPaths,
+                explanation,
             };
         }
 
         // Check if any path reached target
         for (const path of allNewPaths) {
-            // SUCCESS CONDITIONS (flexible):
-            // 1. Already on SOL with target amount, OR
-            // 2. On any token with estimated SOL value >= target
-            //    (assume we can find a route back through intermediaries)
-            //
-            // CRITICAL CHANGE: Removed hasRoute check
-            // If the brain got here, it means there's likely a path back
-            // The brain will naturally explore routes through USDC, USDT, etc.
-
-            const isOnSOL = path.currentToken === SOL_MINT;
+            // ✅ SUCCESS CONDITIONS (REQUIRE PROFITABILITY):
+            // Must have target value AND be profitable
+            const isProfitable = path.currentAmountSOL > goal.startAmountSOL;
             const hasTargetValue = path.currentAmountSOL >= goal.targetAmountSOL;
 
-            // Success if we have target value
-            // Trust that the brain can find a way back to SOL if needed
-            if (hasTargetValue) {
-                console.log(`[Brain v2] ✓ Target reached at hop ${hop}!`);
-                console.log(`[Brain v2]   Current token: ${path.currentSymbol}`);
-                console.log(`[Brain v2]   Estimated SOL value: ${path.currentAmountSOL.toFixed(6)} SOL`);
-                console.log(`[Brain v2]   Cumulative RTL: ${path.cumulativeRTL.toFixed(1)}%`);
+            // ✅ REQUIRE profitability for success
+            if (hasTargetValue && isProfitable) {
+                const totalProfit = path.currentAmountSOL - goal.startAmountSOL;
+                const profitPercentage = (totalProfit / goal.startAmountSOL) * 100;
 
+                console.log(`[Brain v2] ✓ TARGET REACHED at hop ${hop}!`);
+                console.log(`[Brain v2]   Start: ${goal.startAmountSOL.toFixed(6)} SOL`);
+                console.log(`[Brain v2]   Current: ${path.currentAmountSOL.toFixed(6)} SOL`);
+                console.log(`[Brain v2]   Profit: +${profitPercentage.toFixed(1)}% (+${totalProfit.toFixed(6)} SOL)`);
+                console.log(`[Brain v2]   Token: ${path.currentSymbol}`);
+                console.log(`[Brain v2]   Cumulative Impact: ${path.cumulativeRTL.toFixed(1)}%`);
+
+                const isOnSOL = path.currentToken === SOL_MINT;
                 if (!isOnSOL) {
-                    console.log(`[Brain v2]   ⚠ Final step required: ${path.currentSymbol} → SOL (or via USDC/USDT)`);
-                    console.log(`[Brain v2]   💡 Brain will find indirect route if needed`);
+                    console.log(`[Brain v2]   ⚠ Final step: ${path.currentSymbol} → SOL (via USDC/USDT if needed)`);
                 }
 
                 // V1 HOLD OVERLAY: Attach hold checkpoint (read-only)
                 const pathWithHold = attachHoldCheckpoint(path, universe);
+
+                // Generate explanation
+                const explanation = pathExplainer.explainPath(pathWithHold, goal, universe, allNewPaths);
 
                 return {
                     found: true,
@@ -411,6 +533,7 @@ export function searchForPath(
                     confidence: calculateConfidence(path),
                     warnings: generateWarnings(path),
                     reachableAtHop: hop,
+                    explanation,
                 };
             }
         }
@@ -436,10 +559,12 @@ export function searchForPath(
     // V1 HOLD OVERLAY: Attach hold checkpoint to best effort (if exists)
     const bestEffortWithHold = bestEffort ? attachHoldCheckpoint(bestEffort, universe) : undefined;
 
+    const explanation = pathExplainer.explainFailure(bestEffortWithHold, goal, universe);
     return {
         found: false,
         reason: `Target not reachable within ${goal.maxHops} hops under current market conditions`,
         bestEffort: bestEffortWithHold,
         exploredPaths,
+        explanation,
     };
 }

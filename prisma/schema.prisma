@@ -360,3 +360,63 @@ model Alert {
   @@index([walletAddress])
   @@index([createdAt(sort: Desc)])
 }
+
+// =============================================================================
+// PREDICTIVE MEMORY (Brain Learning System)
+// =============================================================================
+
+// Token Learning Data - Directional accuracy tracking
+model TokenLearning {
+  id                      String   @id @default(cuid())
+  mint                    String   @unique
+  symbol                  String
+  
+  // Directional accuracy (not numeric predictions)
+  directionAccuracy       Float    @default(0.5)  // 0-1, % times got direction right
+  magnitudeBucketAccuracy Float    @default(0.5)  // 0-1, % times got magnitude bucket right
+  confidenceScore         Float    @default(0.3)  // 0-1, trust in learnings
+  
+  // Behavior patterns
+  typicalHoldMinutes      Float?   // Observed optimal hold time
+  volatilityProfile       String   @default("MEDIUM") // LOW | MEDIUM | HIGH
+  
+  // Metadata
+  learningCount           Int      @default(0)  // Number of sessions learned from
+  lastUpdated             DateTime @updatedAt
+  createdAt               DateTime @default(now())
+  
+  @@index([mint])
+  @@index([directionAccuracy])
+  @@index([lastUpdated(sort: Desc)])
+}
+
+// Session Comparison - Learning feedback loop
+model SessionComparison {
+  id                   String   @id @default(cuid())
+  tokenMint            String
+  tokenSymbol          String
+  
+  // Actual outcome
+  actualDirection      String   // UP | DOWN | FLAT
+  actualBucket         Int      // 0: <2%, 1: 2-5%, 2: >5%
+  actualPercentChange  Float    // For analytics
+  
+  // Predicted (what brain suggested)
+  predictedDirection   String   // UP | DOWN | FLAT
+  predictedBucket      Int      // 0-2
+  
+  // Context
+  timeBetweenSessions  Int      // minutes
+  marketRegime         String   // BULL | BEAR | SIDEWAYS | VOLATILE
+  
+  // Outcome
+  wasDirectionCorrect  Boolean
+  wasBucketCorrect     Boolean
+  
+  createdAt            DateTime @default(now())
+  
+  @@index([tokenMint])
+  @@index([createdAt(sort: Desc)])
+  @@index([wasDirectionCorrect])
+}
+
