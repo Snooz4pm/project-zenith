@@ -17,7 +17,7 @@ import { findSmartMatches, ScoredToken, SmartSwapInput } from '@/lib/smart-swap-
 import { ZenithToken } from '@/lib/zenith';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
-const RAILWAY_PROXY_TOKENS = 'https://jupiter-proxy-production.up.railway.app/tokens';
+const TOKENS_API = '/api/smart-swap/tokens'; // Server-side proxy (avoids CORS)
 
 // Convert Railway token to ZenithToken format
 interface RailwayToken {
@@ -75,7 +75,7 @@ export default function SmartSwapPage() {
     const fetchTokens = async () => {
         setFetchingTokens(true);
         try {
-            const res = await fetch(RAILWAY_PROXY_TOKENS);
+            const res = await fetch(TOKENS_API);
             const data = await res.json();
 
             const tokens: ZenithToken[] = data.tokens
