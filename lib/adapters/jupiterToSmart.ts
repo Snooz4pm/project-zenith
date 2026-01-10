@@ -25,11 +25,18 @@ export function jupiterToSmart(raw: any, index: number): SmartToken | null {
 
     if (!mint) return null;
 
+    // Get decimals - essential for valuation
+    const decimals =
+        typeof raw.decimals === 'number'
+            ? raw.decimals
+            : 6; // Default to 6 if not provided
+
     return {
         id: mint, // stable, no index keys
         symbol: typeof raw.symbol === 'string' ? raw.symbol : 'UNKNOWN',
         name: typeof raw.name === 'string' ? raw.name : 'Unknown token',
         mint,
+        decimals,
     };
 }
 
