@@ -76,24 +76,21 @@ function getCapTier(marketCap: number): 'micro' | 'low' | 'mid' | 'large' | null
 
 /**
  * STRUCTURAL matching based on REAL market data
- * Matches on: market cap tier, liquidity health, momentum direction
+ * Matches on: market cap tier, liquidity existence, momentum direction
+ * NOT on investment amount (that's for display warnings only)
  * NOT on exact historical percentage moves (unreliable data)
  */
 function structuralMatch(
     tokens: EnrichedToken[],
-    targetMultiplier: number,
-    investmentAmount: number
+    targetMultiplier: number
 ): EnrichedToken[] {
-    console.log(`[Structural Match] Target: ${targetMultiplier.toFixed(2)}x, Investment: ${investmentAmount} SOL`);
-
-    // Required liquidity (10x investment amount minimum)
-    const minLiquidity = investmentAmount * 10;
+    console.log(`[Structural Match] Target: ${targetMultiplier.toFixed(2)}x multiplier`);
 
     const matched = tokens.filter(t => {
         // Base filters
         if (t.rugRisk === 'high') return false;
         if (!t.marketCap || t.marketCap <= 0) return false;
-        if (t.liquidity < minLiquidity) return false;
+        if (!t.liquidity || t.liquidity < 5_000) return false; // Absolute minimum only
 
         // Market cap tier suitability for target
         const tier = getCapTier(t.marketCap);
@@ -103,17 +100,14 @@ function structuralMatch(
         if (targetMultiplier <= 1.3) {
             // Conservative targets: mid/large caps only
             if (tier === 'micro') return false;
-        } else if (targetMultiplier > 1.6) {
+        } else if (targetMultiplier > 1.7) {
             // Aggressive targets: micro/low caps only
             if (tier === 'mid' || tier === 'large') return false;
         }
-        // Moderate targets (1.3-1.6x): all tiers except extreme crashes
+        // Moderate targets (1.3-1.7x): all tiers
 
         // Alive check - not crashed recently
-        if ((t.priceChange24h ?? 0) < -40) return false;
-
-        // Basic momentum check - has activity
-        if (t.volume24h <= 0) return false;
+        if ((t.priceChange24h ?? 0) < -50) return false;
 
         return true;
     });
@@ -139,9 +133,17 @@ export function findSmartMatchesFromZenith(
         .map(enrichZenithToken);
 
     console.log(`[Smart Swap V1] Analyzing ${enrichedTokens.length} tokens for ${targetMultiplier.toFixed(2)}x target`);
+    console.log(`[Smart Swap V1] Investment amount: ${intent.investmentAmount} SOL (used for display warnings only)`);
 
-    // Structural matching (market cap tier + liquidity + momentum)
-    const filteredTokens = structuralMatch(enrichedTokens, targetMultiplier, intent.investmentAmount);
+    // Structural matching (market cap tier + liquidity existence + momentum)
+    // Investment amount does NOT filter - only used for display warnings
+    const filteredTokens = structuralMatch(enrichedTokens, targetMultiplier);
+
+    console.log({
+        total: enrichedTokens.length,
+        matched: filteredTokens.length,
+        message: filteredTokens.length > 0 ? 'Found matches' : 'No matches - check filters'
+    });
 
     if (filteredTokens.length === 0) {
         return {
@@ -202,6 +204,18 @@ export function findSmartMatchesFromZenith(
         matches: top5,
         message: 'Showing structural opportunities based on market cap, liquidity, and momentum'
     };
+}
+
+/**
+ * Calculate liquidity warning based on investment size
+ * This is DISPLAY ONLY - does not affect matching
+ */
+function getLiquidityWarning(liquidity: number, investmentAmount: number): string | null {
+    const liquidityRatio = liquidity / (investmentAmount * 180); // Assume SOL = $180
+
+    if (liquidityRatio < 3) return 'High slippage risk - low liquidity for this size';
+    if (liquidityRatio < 6) return 'Moderate slippage possible';
+    return null; // Healthy liquidity
 }
 
 /**
