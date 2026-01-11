@@ -5,7 +5,7 @@
  * Uses actual Brain v2 search logic with live token universe
  */
 
-import { BrutalBrainSimulation } from '@/lib/smartswap/simulation/BrutalSimulation';
+import { PortfolioSimulation, PortfolioAction } from '@/lib/smartswap/simulation/PortfolioSimulation';
 import { DecisionIntent } from '@/lib/smartswap/simulation/types';
 import { SearchableToken } from '@/types/BrainV2';
 import { SmartToken } from '@/types/SmartToken';
@@ -193,154 +193,181 @@ async function getUniverse(): Promise<SearchableToken[]> {
 }
 
 // ============================================================================
-// REAL BRAIN V2 DECISION FUNCTION
+// PORTFOLIO BRAIN V2 - MULTI-ASSET STRATEGY
 // ============================================================================
 
 /**
- * ✅ REAL Brain v2 Integration - SYNCHRONOUS
- * Uses actual searchForPath with real token universe
+ * ✅ Portfolio Brain v2 - Can hold multiple tokens simultaneously
+ * Returns array of actions to execute in parallel
  */
-function realBrainV2(state: any): DecisionIntent & { action: any; toToken?: string } {
-    // Get cached universe (must be pre-loaded)
+function portfolioBrainV2(state: any): PortfolioAction[] {
     if (!cachedUniverse) {
-        throw new Error('Universe not loaded - ensure getUniverse() was called before simulation');
+        throw new Error('Universe not loaded');
     }
     const universe = cachedUniverse;
+    const actions: PortfolioAction[] = [];
 
-    const isHoldingSOL = state.token === 'SOL';
+    const { liquidSOL, positions, positionCount } = state;
 
     // ============================================
-    // SMART TRADING STRATEGY
+    // PORTFOLIO STRATEGY
     // ============================================
-    // 1. If holding SOL: Find high-alpha, low-RTL entry opportunities
-    // 2. If holding token: Smart exit based on profit/loss and RTL conditions
+    // 1. Diversification: Hold 2-4 positions simultaneously
+    // 2. Smart allocation: Split capital across opportunities
+    // 3. Hold to accumulate: Let positions appreciate
+    // 4. Exit winners: Take profits on good exits
 
-    if (isHoldingSOL) {
-        // SMART OPPORTUNITY SCANNING: Find high-alpha, low-RTL targets
+    const MAX_POSITIONS = 4;
+    const MIN_HOLD_COUNT = 3; // Min holds before considering exit
+    const MAX_HOLD_COUNT = 8; // Force exit after this many holds
+
+    // ===== MANAGE EXISTING POSITIONS =====
+    for (const pos of positions) {
+        const tokenData = universe.find(t => t.symbol === pos.token);
+        if (!tokenData) continue;
+
+        const rtl = tokenData.roundTripLoss;
+        const holdCount = pos.holdCount;
+        const unrealizedPnL = pos.unrealizedPnL;
+
+        // EMERGENCY EXIT: High RTL or big loss
+        if (rtl > 15 || unrealizedPnL < -0.01) {
+            actions.push({
+                type: 'SELL',
+                token: pos.token,
+                mint: pos.mint,
+                allocationPct: 100,
+                intent: {
+                    thesis: `EMERGENCY EXIT ${pos.token}: RTL ${rtl.toFixed(1)}% or loss ${unrealizedPnL.toFixed(6)} SOL`,
+                    signals: { momentum: 0.2, volatility: 0.8 },
+                    expectedDirection: 'NEUTRAL',
+                    confidence: 0.9,
+                    invalidationRules: ['Stop loss'],
+                },
+            });
+            continue;
+        }
+
+        // PROFIT TAKING: Good gains and clean exit
+        if (unrealizedPnL > 0.005 && rtl < 8 && holdCount >= MIN_HOLD_COUNT) {
+            actions.push({
+                type: 'SELL',
+                token: pos.token,
+                mint: pos.mint,
+                allocationPct: 100,
+                intent: {
+                    thesis: `PROFIT TAKE ${pos.token}: +${unrealizedPnL.toFixed(6)} SOL after ${holdCount} holds, RTL ${rtl.toFixed(1)}%`,
+                    signals: { momentum: 0.7, volatility: 0.3 },
+                    expectedDirection: 'NEUTRAL',
+                    confidence: 0.8,
+                    invalidationRules: ['Lock in profits'],
+                },
+            });
+            continue;
+        }
+
+        // FORCED EXIT: Held too long
+        if (holdCount >= MAX_HOLD_COUNT) {
+            actions.push({
+                type: 'SELL',
+                token: pos.token,
+                mint: pos.mint,
+                allocationPct: 100,
+                intent: {
+                    thesis: `TIME EXIT ${pos.token}: ${holdCount} holds reached, PnL ${unrealizedPnL.toFixed(6)} SOL`,
+                    signals: { momentum: 0.5, volatility: 0.4 },
+                    expectedDirection: 'NEUTRAL',
+                    confidence: 0.6,
+                    invalidationRules: ['Max hold time'],
+                },
+            });
+            continue;
+        }
+
+        // Otherwise, HOLD to accumulate gains
+        // (No explicit HOLD action needed - happens by default)
+    }
+
+    // ===== OPEN NEW POSITIONS =====
+    if (positionCount < MAX_POSITIONS && liquidSOL > 0.02) {
+        // Find alpha opportunities
         const alphaTargets = universe.filter(t =>
             t.tier === 'SAFE' &&
             t.mint !== SOL_MINT &&
             t.hasRoute &&
             t.valueInSOL > 0 &&
-            t.roundTripLoss < 8 && // Low friction
-            (t.alphaScore || 0) > 0.3 && // Has alpha potential
-            !t.isStable // Avoid stablecoins (no upside)
+            t.roundTripLoss < 8 &&
+            (t.alphaScore || 0) > 0.3 &&
+            !t.isStable &&
+            !positions.some((p: any) => p.token === t.symbol) // Don't buy what we already have
         );
 
-        if (alphaTargets.length === 0) {
-            return {
-                action: 'HESITATE',
-                thesis: 'No high-alpha opportunities found. Waiting for better entry (RTL < 8%, alphaScore > 0.3)',
+        if (alphaTargets.length > 0) {
+            // Sort by alpha score
+            alphaTargets.sort((a, b) => (b.alphaScore || 0) - (a.alphaScore || 0));
+
+            // How many new positions can we open?
+            const slotsAvailable = MAX_POSITIONS - positionCount;
+            const positionsToOpen = Math.min(slotsAvailable, 2); // Open max 2 at once
+
+            for (let i = 0; i < positionsToOpen && i < alphaTargets.length; i++) {
+                const target = alphaTargets[i];
+
+                // Allocate capital: split available SOL across new positions
+                const allocSOL = liquidSOL / (positionsToOpen - i);
+                const actualAlloc = Math.min(allocSOL * 0.4, liquidSOL * 0.9); // Use 40% of share, max 90% total
+
+                if (actualAlloc < 0.01) break; // Too small
+
+                const expectedEdge = (target.alphaScore || 0) * 10 - target.roundTripLoss;
+
+                actions.push({
+                    type: 'BUY',
+                    token: target.symbol,
+                    mint: target.mint,
+                    allocationSOL: actualAlloc,
+                    intent: {
+                        thesis: `BUY ${target.symbol}: Alpha ${((target.alphaScore || 0) * 100).toFixed(0)}%, RTL ${target.roundTripLoss.toFixed(1)}%, Edge ${expectedEdge.toFixed(1)}%`,
+                        signals: { momentum: target.alphaScore || 0.5, volatility: target.volatility || 0.3 },
+                        expectedDirection: 'UP',
+                        expectedEdgePct: expectedEdge,
+                        confidence: 0.7,
+                        invalidationRules: ['RTL exceeds 15%'],
+                    },
+                });
+            }
+        }
+    }
+
+    // ===== HOLD ALL POSITIONS (if no sells) =====
+    if (actions.length === 0 && positionCount > 0) {
+        actions.push({
+            type: 'HOLD_ALL',
+            intent: {
+                thesis: `HOLD ALL: ${positionCount} positions accumulating gains`,
+                signals: { momentum: 0.6, volatility: 0.3 },
+                expectedDirection: 'UP',
+                confidence: 0.7,
+                invalidationRules: ['Exit conditions met'],
+            },
+        });
+    }
+
+    // ===== HESITATE (no opportunities) =====
+    if (actions.length === 0) {
+        actions.push({
+            type: 'HESITATE',
+            intent: {
+                thesis: 'No opportunities: waiting for alpha setups',
                 signals: {},
                 expectedDirection: 'NEUTRAL',
                 confidence: 0.3,
-                invalidationRules: ['No alpha opportunities'],
-            };
-        }
-
-        // Sort by alpha score (best opportunities first)
-        alphaTargets.sort((a, b) => (b.alphaScore || 0) - (a.alphaScore || 0));
-
-        // Pick top 3 and randomly choose one (adds variety while staying smart)
-        const topTargets = alphaTargets.slice(0, Math.min(3, alphaTargets.length));
-        const selectedTarget = topTargets[Math.floor(Math.random() * topTargets.length)];
-
-        // Calculate expected edge based on alpha and RTL
-        const expectedEdge = (selectedTarget.alphaScore || 0) * 10 - selectedTarget.roundTripLoss;
-
-        // Smart allocation: higher alpha = more allocation
-        const baseAllocation = 50;
-        const alphaBonus = (selectedTarget.alphaScore || 0) * 30;
-        const allocationPct = Math.min(80, Math.floor(baseAllocation + alphaBonus));
-
-        return {
-            action: 'SWAP',
-            toToken: selectedTarget.symbol,
-            thesis: `ALPHA ENTRY: SOL → ${selectedTarget.symbol}. Alpha: ${((selectedTarget.alphaScore || 0) * 100).toFixed(0)}%, RTL: ${selectedTarget.roundTripLoss.toFixed(1)}%, Edge: ${expectedEdge.toFixed(1)}%`,
-            signals: {
-                momentum: selectedTarget.alphaScore || 0.5,
-                volatility: selectedTarget.volatility || 0.3,
+                invalidationRules: ['New opportunities appear'],
             },
-            expectedDirection: 'UP',
-            expectedEdgePct: expectedEdge,
-            allocationPct: allocationPct,
-            confidence: 0.7,
-            invalidationRules: ['RTL exceeds 15%', 'Alpha signal fades', 'Position moves -5%'],
-        };
-    } else {
-        // SMART EXIT STRATEGY: Exit back to SOL with intelligent decision-making
-        const currentTokenData = universe.find(t => t.symbol === state.token);
-
-        if (!currentTokenData) {
-            return {
-                action: 'HESITATE',
-                thesis: `Cannot find ${state.token} in universe`,
-                signals: {},
-                expectedDirection: 'NEUTRAL',
-                confidence: 0,
-                invalidationRules: ['Token not in universe'],
-            };
-        }
-
-        if (!currentTokenData.hasRoute) {
-            return {
-                action: 'HESITATE',
-                thesis: `No route available for ${state.token} → SOL exit`,
-                signals: {},
-                expectedDirection: 'NEUTRAL',
-                confidence: 0,
-                invalidationRules: ['No route to SOL'],
-            };
-        }
-
-        // FRICTION DETECTION: Hold if RTL is increasing or too high
-        const rtl = currentTokenData.roundTripLoss;
-        const highFriction = rtl > 12; // RTL too high, wait for it to drop
-        const volatilityRisk = (currentTokenData.volatility || 0) > 0.5; // High volatility, be cautious
-
-        // HOLD if friction is detected (20% base chance + friction conditions)
-        const frictionScore = (rtl / 20) + (volatilityRisk ? 0.3 : 0);
-        const shouldHold = Math.random() < (0.15 + frictionScore * 0.2);
-
-        if (shouldHold && highFriction) {
-            return {
-                action: 'HOLD',
-                thesis: `HIGH FRICTION on ${state.token}. RTL: ${rtl.toFixed(1)}% (target <10%). Waiting for better exit window.`,
-                signals: {
-                    momentum: 0.3,
-                    volatility: currentTokenData.volatility || 0.3,
-                },
-                expectedDirection: 'NEUTRAL',
-                confidence: 0.65,
-                invalidationRules: ['RTL drops below 10%', 'Position held too long'],
-            };
-        }
-
-        // SMART EXIT: Calculate expected outcome
-        // In paper trading, we don't have actual P&L, but we can estimate based on RTL
-        const expectedLoss = rtl;
-        const profitPct = -expectedLoss; // RTL is a cost
-
-        // Exit immediately if RTL is reasonable
-        const exitThesis = rtl < 8
-            ? `CLEAN EXIT: ${state.token} → SOL. Low friction (RTL: ${rtl.toFixed(1)}%)`
-            : `EXIT: ${state.token} → SOL. RTL: ${rtl.toFixed(1)}%, locking in position`;
-
-        return {
-            action: 'SWAP',
-            toToken: 'SOL',
-            thesis: exitThesis,
-            signals: {
-                momentum: rtl < 8 ? 0.6 : 0.4,
-                volatility: currentTokenData.volatility || 0.3,
-            },
-            expectedDirection: 'NEUTRAL',
-            expectedEdgePct: profitPct,
-            allocationPct: 100, // Exit entire position
-            confidence: rtl < 8 ? 0.8 : 0.6,
-            invalidationRules: ['Route becomes unavailable', 'Slippage exceeds limit'],
-        };
+        });
     }
+
+    return actions;
 }
 
 // ============================================================================
@@ -349,27 +376,30 @@ function realBrainV2(state: any): DecisionIntent & { action: any; toToken?: stri
 
 export async function POST(_request: Request) {
     const encoder = new TextEncoder();
-    const sim = new BrutalBrainSimulation();
+    const sim = new PortfolioSimulation();
 
     const stream = new ReadableStream({
         async start(controller) {
-            console.log('[Brutal Simulation] Starting 30-minute REAL Brain v2 Paper Trading...');
-            console.log('[Brutal Simulation] Starting Capital: 0.2 SOL (paper money)');
-            console.log('[Brutal Simulation] Using REAL Jupiter quotes for all swaps');
+            console.log('[Portfolio Simulation] Starting 30-minute Portfolio Brain v2...');
+            console.log('[Portfolio Simulation] Starting Capital: 0.2 SOL');
+            console.log('[Portfolio Simulation] Multi-asset support: Can hold up to 4 positions');
+            console.log('[Portfolio Simulation] Fees deducted from wallet, penalties only for losses');
 
             try {
                 // ✅ PRE-LOAD universe before simulation starts
-                console.log('[Brutal Simulation] Pre-loading token universe...');
+                console.log('[Portfolio Simulation] Pre-loading token universe...');
                 await getUniverse();
-                console.log('[Brutal Simulation] Universe loaded successfully');
+                console.log('[Portfolio Simulation] Universe loaded successfully');
 
-                // ✅ Use REAL Brain v2 with paper trading
-                const report = await sim.run(realBrainV2, (log, state) => {
-                    // Send log chunk with enhanced state info
+                // ✅ Use Portfolio Brain v2
+                const report = await sim.run(portfolioBrainV2, (log: any, state: any) => {
+                    // Send log chunk with portfolio state
                     const enhancedLog = {
                         ...log,
-                        paperBalance: state.balanceSOL,
-                        currentToken: state.token,
+                        liquidSOL: state.liquidSOL,
+                        positions: state.positions,
+                        positionCount: state.positionCount,
+                        totalFeesSOL: state.totalFeesSOL,
                         timestamp: Date.now(),
                     };
 
@@ -391,10 +421,11 @@ export async function POST(_request: Request) {
                 controller.enqueue(encoder.encode(finalChunk));
                 controller.close();
 
-                console.log('[Brutal Simulation] Completed successfully');
-                console.log(`[Brutal Simulation] Final: ${report.endSOL.toFixed(6)} SOL`);
+                console.log('[Portfolio Simulation] Completed successfully');
+                console.log(`[Portfolio Simulation] Final: ${report.endSOL.toFixed(6)} SOL`);
+                console.log(`[Portfolio Simulation] ${report.verdictReason}`);
             } catch (error: any) {
-                console.error('[Brutal Simulation] Error:', error);
+                console.error('[Portfolio Simulation] Error:', error);
                 const errorChunk = JSON.stringify({ type: 'ERROR', error: error.message }) + '\n';
                 controller.enqueue(encoder.encode(errorChunk));
                 controller.close();
