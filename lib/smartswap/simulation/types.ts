@@ -4,7 +4,7 @@
  * Logs every decision with intent → execution → outcome → evaluation
  */
 
-export type ActionType = 'SWAP' | 'HOLD' | 'HESITATE';
+export type ActionType = 'SWAP' | 'HOLD' | 'HESITATE' | 'EXIT';
 
 export interface DecisionIntent {
     thesis: string;
@@ -17,6 +17,14 @@ export interface DecisionIntent {
     expectedEdgePct?: number;
     confidence: number;
     invalidationRules: string[];
+}
+
+export interface Position {
+    token: string;
+    entryValueSOL: number;
+    entryPrice: number;
+    tokenAmount: number;
+    openedAt: number;
 }
 
 export interface DecisionLog {
@@ -33,7 +41,12 @@ export interface DecisionLog {
     expectedEdgePct?: number;
     realizedEdgePct?: number;
 
-    pnlSOL: number;
+    // Financials
+    entryCostSOL?: number;      // Fees + Slippage at entry
+    pnlSOL: number;             // Legacy - keeping for compat
+    realizedPnlSOL: number;     // Profit banked on exit
+    unrealizedPnlSOL: number;   // Mark-to-market while holding
+    portfolioValueSOL: number;
 
     evaluation?: DecisionEvaluation;
 }
@@ -45,7 +58,9 @@ export interface DecisionEvaluation {
     | 'BAD_DECISION_GOOD_OUTCOME'
     | 'BAD_DECISION_BAD_OUTCOME'
     | 'HESITATION_CORRECT'
-    | 'HESITATION_COSTLY';
+    | 'HESITATION_COSTLY'
+    | 'POSITION_OPENED'
+    | 'POSITION_CLOSED';
 
     penaltyScore: number;
     explanation: string;
