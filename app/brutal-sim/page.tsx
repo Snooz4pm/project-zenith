@@ -26,12 +26,39 @@ export default function BrutalSimulationPage() {
                 method: 'POST',
             });
 
-            const data = await response.json();
+            if (!response.body) return;
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
 
-            if (data.success) {
-                setReport(data.report);
-                setLogs(data.report.logs);
-                setCurrentBalance(data.report.endSOL);
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    try {
+                        const chunk = JSON.parse(line);
+                        if (chunk.type === 'LOG') {
+                            setLogs(prev => [...prev, chunk.data]);
+                            if (chunk.state) {
+                                setCurrentBalance(chunk.state.balanceSOL);
+                            }
+                        } else if (chunk.type === 'REPORT') {
+                            setReport(chunk.data);
+                            setLogs(chunk.data.logs);
+                            setCurrentBalance(chunk.data.endSOL);
+                        } else if (chunk.type === 'ERROR') {
+                            console.error('Simulation Error:', chunk.error);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing chunk:', e);
+                    }
+                }
             }
         } catch (error) {
             console.error('Simulation error:', error);

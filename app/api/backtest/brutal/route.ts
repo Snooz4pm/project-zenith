@@ -38,33 +38,38 @@ function exampleBrain(state: any): DecisionIntent & { action: any; toToken?: str
 }
 
 export async function POST(request: Request) {
-    try {
-        console.log('[Brutal Simulation] Starting 30-minute run...');
+    const encoder = new TextEncoder();
+    const sim = new BrutalBrainSimulation();
 
-        const sim = new BrutalBrainSimulation();
+    const stream = new ReadableStream({
+        async start(controller) {
+            console.log('[Brutal Simulation] Starting 30-minute streaming run...');
 
-        const result = await sim.run(exampleBrain, (log, state) => {
-            // Real-time progress logging
-            console.log(`[${new Date(log.timestamp).toISOString()}] ${log.action} | ${log.intent.thesis}`);
-            if (log.evaluation) {
-                console.log(`  → ${log.evaluation.outcomeClass} (penalty: ${log.evaluation.penaltyScore})`);
+            try {
+                const report = await sim.run(exampleBrain, (log, state) => {
+                    // Send log chunk
+                    const chunk = JSON.stringify({ type: 'LOG', data: log, state }) + '\n';
+                    controller.enqueue(encoder.encode(chunk));
+                });
+
+                // Send final report
+                const finalChunk = JSON.stringify({ type: 'REPORT', data: report }) + '\n';
+                controller.enqueue(encoder.encode(finalChunk));
+                controller.close();
+            } catch (error: any) {
+                console.error('[Brutal Simulation Streaming Error]:', error);
+                const errorChunk = JSON.stringify({ type: 'ERROR', error: error.message }) + '\n';
+                controller.enqueue(encoder.encode(errorChunk));
+                controller.close();
             }
-        });
+        },
+    });
 
-        console.log('[Brutal Simulation] Complete!');
-        console.log(`Final: ${result.startSOL} SOL → ${result.endSOL.toFixed(4)} SOL (${result.pnlPct.toFixed(2)}%)`);
-        console.log(`Verdict: ${result.verdict} - ${result.verdictReason}`);
-
-        return NextResponse.json({
-            success: true,
-            report: result,
-        });
-
-    } catch (error: any) {
-        console.error('[Brutal Simulation] Error:', error);
-        return NextResponse.json(
-            { error: error.message || 'Simulation failed' },
-            { status: 500 }
-        );
-    }
+    return new Response(stream, {
+        headers: {
+            'Content-Type': 'application/x-ndjson',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+        },
+    });
 }
