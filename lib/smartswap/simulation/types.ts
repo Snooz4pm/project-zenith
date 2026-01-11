@@ -43,6 +43,7 @@ export interface DecisionLog {
 
     // Financials
     entryCostSOL?: number;      // Fees + Slippage at entry
+    tradeValueSOL?: number;     // Amount swapped/exited
     pnlSOL: number;             // Legacy - keeping for compat
     realizedPnlSOL: number;     // Profit banked on exit
     unrealizedPnlSOL: number;   // Mark-to-market while holding

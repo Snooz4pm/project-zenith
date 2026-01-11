@@ -9,7 +9,7 @@ import { DecisionLog, DecisionIntent, SimulationReport, Position } from './types
 import { evaluateDecision } from './evaluateDecision';
 
 export class BrutalBrainSimulation {
-    private readonly START_SOL = 0.1;
+    private readonly START_SOL = 0.2;
     private readonly DURATION_MS = 30 * 60 * 1000; // 30 minutes
     private readonly MIN_INTERVAL_MS = 12_000; // 12 seconds
 
@@ -130,15 +130,25 @@ export class BrutalBrainSimulation {
                         log.executed = true;
                         log.realizedPnlSOL = totalRealizedPnl;
                         log.pnlSOL = totalRealizedPnl;
+                        log.tradeValueSOL = exitValue; // Log exit size
                     }
                 } else {
                     // OPENING OR FLIPPING POSITION
                     const entryCost = 0.0005; // Fees + Slippage
 
+                    // HANDLE FLIP: If already in position, close it first
                     if (this.position) {
-                        // For simplicity in Brutal Sim V1, we enforce Exit -> Open.
-                        // But if brain flips, we can simulate an instant exit + open.
-                        // Let's just allow the override for now but warn.
+                        const exitValue = this.position.tokenAmount;
+                        const exitFee = 0.0003;
+                        const netExitValue = exitValue - exitFee;
+                        const totalRealizedPnl = netExitValue - this.position.entryValueSOL;
+
+                        this.realizedPnlSOL += totalRealizedPnl;
+                        this.balanceSOL = netExitValue;
+                        this.position = null;
+                        this.currentToken = 'SOL';
+                        // Implicit close - we don't log a separate EXIT event, 
+                        // as the SWAP action from A -> B implies selling A.
                     }
 
                     this.openPosition(toToken, entryCost, now);
@@ -146,6 +156,7 @@ export class BrutalBrainSimulation {
                     log.executed = true;
                     log.entryCostSOL = entryCost;
                     log.unrealizedPnlSOL = -entryCost; // Start at loss
+                    log.tradeValueSOL = this.position!.entryValueSOL; // Log purchase size
                     this.currentToken = toToken;
                 }
             } else if (intentDecision.action === 'HOLD') {
@@ -192,7 +203,6 @@ export class BrutalBrainSimulation {
 
         if (netValue <= 0) {
             // Safety check: if fees eat everything, we can't open.
-            // In a real sim we might allow bankruptcy, but here we throw or clamp.
             throw new Error(`Insufficient funds to open position. Needed > ${fees}, had ${solToSpend}`);
         }
 
@@ -216,7 +226,6 @@ export class BrutalBrainSimulation {
     // SINGLE SOURCE OF TRUTH
     private getPortfolioValueSOL(): number {
         if (this.position) {
-            // Balance should be 0, but we sum just in case (e.g. partial fills in future)
             return this.balanceSOL + this.position.tokenAmount;
         }
         return this.balanceSOL;

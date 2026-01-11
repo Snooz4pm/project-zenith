@@ -158,6 +158,12 @@ export default function BrutalSimulationPage() {
 
                                 {log.executed && (
                                     <div className="grid grid-cols-3 gap-4 text-[10px] font-mono border-t border-zinc-800 pt-2 mt-2">
+                                        <div className="col-span-3 pb-1 border-b border-zinc-900 mb-1">
+                                            <span className="text-zinc-500">TRADE VALUE:</span>{' '}
+                                            <span className="text-zinc-300">
+                                                {log.tradeValueSOL ? `${log.tradeValueSOL.toFixed(6)} SOL` : '—'}
+                                            </span>
+                                        </div>
                                         <div>
                                             <span className="text-zinc-500">ENTRY COST:</span> {log.entryCostSOL ? `-${log.entryCostSOL.toFixed(5)} SOL` : '0'}
                                         </div>
