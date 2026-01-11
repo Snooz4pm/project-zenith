@@ -7,8 +7,7 @@
 
 import { BrutalBrainSimulation } from '@/lib/smartswap/simulation/BrutalSimulation';
 import { DecisionIntent } from '@/lib/smartswap/simulation/types';
-import { searchForPath } from '@/lib/smartswap/brainv2';
-import { SearchableToken, BrainGoal } from '@/types/BrainV2';
+import { SearchableToken } from '@/types/BrainV2';
 import { SmartToken } from '@/types/SmartToken';
 
 export const dynamic = 'force-dynamic';
@@ -209,59 +208,67 @@ function realBrainV2(state: any): DecisionIntent & { action: any; toToken?: stri
     const universe = cachedUniverse;
 
     const isHoldingSOL = state.token === 'SOL';
-    const currentAmountSOL = state.balanceSOL; // Portfolio value in SOL
 
     // ============================================
-    // SIMPLIFIED STRATEGY FOR SIMULATION
+    // SMART TRADING STRATEGY
     // ============================================
-    // Since we only validated Token → SOL routes (not SOL → Token),
-    // we'll simulate by:
-    // 1. If holding SOL: Pick a token and simulate buying it
-    // 2. If holding token: Try to exit back to SOL (which we know has a route)
-
-    let goal: BrainGoal;
+    // 1. If holding SOL: Find high-alpha, low-RTL entry opportunities
+    // 2. If holding token: Smart exit based on profit/loss and RTL conditions
 
     if (isHoldingSOL) {
-        // OPPORTUNITY SCANNING: Pick SAFE tokens with known routes
-        const safeTargets = universe.filter(t =>
+        // SMART OPPORTUNITY SCANNING: Find high-alpha, low-RTL targets
+        const alphaTargets = universe.filter(t =>
             t.tier === 'SAFE' &&
             t.mint !== SOL_MINT &&
             t.hasRoute &&
-            t.valueInSOL > 0
+            t.valueInSOL > 0 &&
+            t.roundTripLoss < 8 && // Low friction
+            (t.alphaScore || 0) > 0.3 && // Has alpha potential
+            !t.isStable // Avoid stablecoins (no upside)
         );
 
-        if (safeTargets.length === 0) {
+        if (alphaTargets.length === 0) {
             return {
                 action: 'HESITATE',
-                thesis: 'No safe tokens available for entry (waiting for better opportunities)',
+                thesis: 'No high-alpha opportunities found. Waiting for better entry (RTL < 8%, alphaScore > 0.3)',
                 signals: {},
                 expectedDirection: 'NEUTRAL',
-                confidence: 0.2,
-                invalidationRules: ['No safe tokens available'],
+                confidence: 0.3,
+                invalidationRules: ['No alpha opportunities'],
             };
         }
 
-        // Pick random safe target for simulation
-        const randomTarget = safeTargets[Math.floor(Math.random() * safeTargets.length)];
+        // Sort by alpha score (best opportunities first)
+        alphaTargets.sort((a, b) => (b.alphaScore || 0) - (a.alphaScore || 0));
 
-        // SIMULATE entering position (bypass Brain v2 path search for SOL → Token)
-        // Just return a SWAP decision to simulate buying
+        // Pick top 3 and randomly choose one (adds variety while staying smart)
+        const topTargets = alphaTargets.slice(0, Math.min(3, alphaTargets.length));
+        const selectedTarget = topTargets[Math.floor(Math.random() * topTargets.length)];
+
+        // Calculate expected edge based on alpha and RTL
+        const expectedEdge = (selectedTarget.alphaScore || 0) * 10 - selectedTarget.roundTripLoss;
+
+        // Smart allocation: higher alpha = more allocation
+        const baseAllocation = 50;
+        const alphaBonus = (selectedTarget.alphaScore || 0) * 30;
+        const allocationPct = Math.min(80, Math.floor(baseAllocation + alphaBonus));
+
         return {
             action: 'SWAP',
-            toToken: randomTarget.symbol,
-            thesis: `Simulated entry: SOL → ${randomTarget.symbol}. Value: ${randomTarget.valueInSOL.toFixed(8)} SOL, RTL: ${randomTarget.roundTripLoss.toFixed(1)}%`,
+            toToken: selectedTarget.symbol,
+            thesis: `ALPHA ENTRY: SOL → ${selectedTarget.symbol}. Alpha: ${((selectedTarget.alphaScore || 0) * 100).toFixed(0)}%, RTL: ${selectedTarget.roundTripLoss.toFixed(1)}%, Edge: ${expectedEdge.toFixed(1)}%`,
             signals: {
-                momentum: Math.random() * 0.5 + 0.3, // Random 0.3-0.8
-                volatility: randomTarget.volatility || 0.3,
+                momentum: selectedTarget.alphaScore || 0.5,
+                volatility: selectedTarget.volatility || 0.3,
             },
             expectedDirection: 'UP',
-            expectedEdgePct: 5,
-            allocationPct: Math.floor(40 + Math.random() * 40), // 40-80%
-            confidence: 0.6,
-            invalidationRules: ['Position moves against us', 'RTL exceeds limit'],
+            expectedEdgePct: expectedEdge,
+            allocationPct: allocationPct,
+            confidence: 0.7,
+            invalidationRules: ['RTL exceeds 15%', 'Alpha signal fades', 'Position moves -5%'],
         };
     } else {
-        // EXIT STRATEGY: Simulate exit back to SOL
+        // SMART EXIT STRATEGY: Exit back to SOL with intelligent decision-making
         const currentTokenData = universe.find(t => t.symbol === state.token);
 
         if (!currentTokenData) {
@@ -286,38 +293,51 @@ function realBrainV2(state: any): DecisionIntent & { action: any; toToken?: stri
             };
         }
 
-        // Random HOLD check (20% chance to detect friction and hold)
-        const shouldHold = Math.random() < 0.2;
-        if (shouldHold) {
+        // FRICTION DETECTION: Hold if RTL is increasing or too high
+        const rtl = currentTokenData.roundTripLoss;
+        const highFriction = rtl > 12; // RTL too high, wait for it to drop
+        const volatilityRisk = (currentTokenData.volatility || 0) > 0.5; // High volatility, be cautious
+
+        // HOLD if friction is detected (20% base chance + friction conditions)
+        const frictionScore = (rtl / 20) + (volatilityRisk ? 0.3 : 0);
+        const shouldHold = Math.random() < (0.15 + frictionScore * 0.2);
+
+        if (shouldHold && highFriction) {
             return {
                 action: 'HOLD',
-                thesis: `Friction detected on ${state.token}. RTL: ${currentTokenData.roundTripLoss.toFixed(1)}%, waiting for better exit`,
+                thesis: `HIGH FRICTION on ${state.token}. RTL: ${rtl.toFixed(1)}% (target <10%). Waiting for better exit window.`,
                 signals: {
-                    momentum: 0.4,
+                    momentum: 0.3,
                     volatility: currentTokenData.volatility || 0.3,
                 },
                 expectedDirection: 'NEUTRAL',
-                confidence: 0.6,
-                invalidationRules: ['Friction subsides', 'Better exit opportunity'],
+                confidence: 0.65,
+                invalidationRules: ['RTL drops below 10%', 'Position held too long'],
             };
         }
 
-        // SIMULATE exit to SOL (we validated this route exists)
-        const expectedLoss = currentTokenData.roundTripLoss || 2;
-        const profitPct = -expectedLoss; // Negative because RTL is a loss
+        // SMART EXIT: Calculate expected outcome
+        // In paper trading, we don't have actual P&L, but we can estimate based on RTL
+        const expectedLoss = rtl;
+        const profitPct = -expectedLoss; // RTL is a cost
+
+        // Exit immediately if RTL is reasonable
+        const exitThesis = rtl < 8
+            ? `CLEAN EXIT: ${state.token} → SOL. Low friction (RTL: ${rtl.toFixed(1)}%)`
+            : `EXIT: ${state.token} → SOL. RTL: ${rtl.toFixed(1)}%, locking in position`;
 
         return {
             action: 'SWAP',
             toToken: 'SOL',
-            thesis: `Simulated exit: ${state.token} → SOL. RTL: ${currentTokenData.roundTripLoss.toFixed(1)}%, Value: ${currentTokenData.valueInSOL.toFixed(8)} SOL`,
+            thesis: exitThesis,
             signals: {
-                momentum: 0.5,
+                momentum: rtl < 8 ? 0.6 : 0.4,
                 volatility: currentTokenData.volatility || 0.3,
             },
             expectedDirection: 'NEUTRAL',
             expectedEdgePct: profitPct,
             allocationPct: 100, // Exit entire position
-            confidence: 0.7,
+            confidence: rtl < 8 ? 0.8 : 0.6,
             invalidationRules: ['Route becomes unavailable', 'Slippage exceeds limit'],
         };
     }
