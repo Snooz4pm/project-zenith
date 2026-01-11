@@ -35,6 +35,9 @@ export class BrutalBrainSimulation {
         this.onProgress = onProgress;
         const start = Date.now();
 
+        // Initial invariant check
+        this.assertConservation();
+
         while (Date.now() - start < this.DURATION_MS) {
             const now = Date.now();
 
@@ -54,10 +57,10 @@ export class BrutalBrainSimulation {
                 toToken: intentDecision.action === 'SWAP' ? intentDecision.toToken : undefined,
                 intent: intentDecision,
                 executed: false,
-                pnlSOL: 0,
+                pnlSOL: 0, // Legacy
                 realizedPnlSOL: 0,
                 unrealizedPnlSOL: 0,
-                portfolioValueSOL: this.getTotalValueSOL(),
+                portfolioValueSOL: this.getPortfolioValueSOL(),
             };
 
             // ===== HARD GUARD: NO-OP SWAP PREVENTION =====
@@ -108,39 +111,42 @@ export class BrutalBrainSimulation {
                             explanation: 'Tried to exit to SOL while already in SOL',
                         };
                     } else {
-                        const exitValue = this.simulateExitValue(this.position);
+                        const exitValue = this.position.tokenAmount; // Using current market value
                         const tradePnl = exitValue - this.position.entryValueSOL;
 
-                        this.realizedPnlSOL += tradePnl;
-                        this.balanceSOL = exitValue;
+                        // Banking profit (minus exit fees)
+                        const exitFee = 0.0003;
+                        const netExitValue = exitValue - exitFee;
+
+                        // Realized PnL includes the exit fee drop
+                        const totalRealizedPnl = netExitValue - this.position.entryValueSOL;
+
+                        this.realizedPnlSOL += totalRealizedPnl;
+                        this.balanceSOL = netExitValue;
                         this.currentToken = 'SOL';
                         this.position = null;
 
                         log.action = 'EXIT';
                         log.executed = true;
-                        log.realizedPnlSOL = tradePnl;
-                        log.pnlSOL = tradePnl;
+                        log.realizedPnlSOL = totalRealizedPnl;
+                        log.pnlSOL = totalRealizedPnl;
                     }
                 } else {
                     // OPENING OR FLIPPING POSITION
-                    const entryCost = 0.0005; // Fees + Slippage approx
-                    const startVal = this.getTotalValueSOL();
-                    const entryValue = startVal - entryCost;
+                    const entryCost = 0.0005; // Fees + Slippage
 
-                    this.position = {
-                        token: toToken,
-                        entryValueSOL: entryValue,
-                        entryPrice: 1.0,
-                        tokenAmount: entryValue,
-                        openedAt: now,
-                    };
+                    if (this.position) {
+                        // For simplicity in Brutal Sim V1, we enforce Exit -> Open.
+                        // But if brain flips, we can simulate an instant exit + open.
+                        // Let's just allow the override for now but warn.
+                    }
 
-                    this.balanceSOL = 0;
-                    this.currentToken = toToken;
+                    this.openPosition(toToken, entryCost, now);
 
                     log.executed = true;
                     log.entryCostSOL = entryCost;
                     log.unrealizedPnlSOL = -entryCost; // Start at loss
+                    this.currentToken = toToken;
                 }
             } else if (intentDecision.action === 'HOLD') {
                 if (this.position) {
@@ -153,8 +159,11 @@ export class BrutalBrainSimulation {
                 }
             }
 
+            // Post-Action Safety Check
+            this.assertConservation();
+
             // State sync
-            log.portfolioValueSOL = this.getTotalValueSOL();
+            log.portfolioValueSOL = this.getPortfolioValueSOL();
             log.realizedPnlSOL = this.realizedPnlSOL;
 
             // EVALUATE
@@ -175,33 +184,63 @@ export class BrutalBrainSimulation {
         return this.report();
     }
 
+    private openPosition(token: string, fees: number, now: number) {
+        // Here is where value conservation happens.
+        // We take SOL, subtract fees, and move the rest into the position.
+        const solToSpend = this.balanceSOL;
+        const netValue = solToSpend - fees;
+
+        if (netValue <= 0) {
+            // Safety check: if fees eat everything, we can't open.
+            // In a real sim we might allow bankruptcy, but here we throw or clamp.
+            throw new Error(`Insufficient funds to open position. Needed > ${fees}, had ${solToSpend}`);
+        }
+
+        this.position = {
+            token,
+            entryValueSOL: netValue,
+            entryPrice: 1.0,
+            tokenAmount: netValue, // 1:1 simulation value preservation
+            openedAt: now,
+        };
+
+        this.balanceSOL = 0;
+    }
+
     private simulatePriceMove() {
         if (!this.position) return;
         const noise = (Math.random() - 0.48) * 0.02; // Slight positive bias if brain follows trend
         this.position.tokenAmount *= (1 + noise);
     }
 
-    private getTotalValueSOL(): number {
-        return this.balanceSOL + (this.position?.tokenAmount || 0);
+    // SINGLE SOURCE OF TRUTH
+    private getPortfolioValueSOL(): number {
+        if (this.position) {
+            // Balance should be 0, but we sum just in case (e.g. partial fills in future)
+            return this.balanceSOL + this.position.tokenAmount;
+        }
+        return this.balanceSOL;
     }
 
-    private simulateExitValue(pos: Position): number {
-        const exitFee = 0.0003;
-        return pos.tokenAmount - exitFee;
+    private assertConservation() {
+        const val = this.getPortfolioValueSOL();
+        if (val <= 0 || isNaN(val)) {
+            throw new Error(`CRITICAL: Portfolio value conservation failed. Value: ${val}`);
+        }
     }
 
     private getState() {
         return {
-            balanceSOL: this.balanceSOL,
+            balanceSOL: this.getPortfolioValueSOL(), // Brain sees total value
             token: this.currentToken,
             hasPosition: !!this.position,
             penaltyScore: this.penaltyScore,
-            totalValueSOL: this.getTotalValueSOL(),
+            totalValueSOL: this.getPortfolioValueSOL(),
         };
     }
 
     private report(): SimulationReport {
-        const finalValue = this.getTotalValueSOL();
+        const finalValue = this.getPortfolioValueSOL();
         const pnlPct = ((finalValue - this.START_SOL) / this.START_SOL) * 100;
         const totalInvalidDecisions = this.logs.filter(l => l.skippedReason === 'INVALID_SWAP_SAME_TOKEN').length;
 

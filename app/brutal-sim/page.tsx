@@ -74,6 +74,8 @@ export default function BrutalSimulationPage() {
         if (outcomeClass.includes('BAD_DECISION_GOOD')) return 'text-orange-400';
         if (outcomeClass.includes('BAD_DECISION_BAD')) return 'text-red-400';
         if (outcomeClass.includes('HESITATION_CORRECT')) return 'text-blue-400';
+        if (outcomeClass.includes('POSITION_OPENED')) return 'text-sky-400';
+        if (outcomeClass.includes('POSITION_CLOSED')) return 'text-cyan-400';
         return 'text-gray-400';
     };
 
