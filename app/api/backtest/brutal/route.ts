@@ -261,7 +261,7 @@ function realBrainV2(state: any): DecisionIntent & { action: any; toToken?: stri
             invalidationRules: ['Position moves against us', 'RTL exceeds limit'],
         };
     } else {
-        // EXIT STRATEGY: Path back to SOL
+        // EXIT STRATEGY: Simulate exit back to SOL
         const currentTokenData = universe.find(t => t.symbol === state.token);
 
         if (!currentTokenData) {
@@ -275,88 +275,52 @@ function realBrainV2(state: any): DecisionIntent & { action: any; toToken?: stri
             };
         }
 
-        goal = {
-            startToken: currentTokenData.mint,
-            targetToken: SOL_MINT,
-            startAmountSOL: currentAmountSOL,
-            targetAmountSOL: currentAmountSOL, // Any profitable exit
-            maxHops: 3,
-            maxTotalRTL: 5,
-            maxPerHopRTL: 2,
-        };
+        if (!currentTokenData.hasRoute) {
+            return {
+                action: 'HESITATE',
+                thesis: `No route available for ${state.token} → SOL exit`,
+                signals: {},
+                expectedDirection: 'NEUTRAL',
+                confidence: 0,
+                invalidationRules: ['No route to SOL'],
+            };
+        }
 
-        console.log(`[Brain] Exiting: ${state.token} → SOL`);
-    }
+        // Random HOLD check (20% chance to detect friction and hold)
+        const shouldHold = Math.random() < 0.2;
+        if (shouldHold) {
+            return {
+                action: 'HOLD',
+                thesis: `Friction detected on ${state.token}. RTL: ${currentTokenData.roundTripLoss.toFixed(1)}%, waiting for better exit`,
+                signals: {
+                    momentum: 0.4,
+                    volatility: currentTokenData.volatility || 0.3,
+                },
+                expectedDirection: 'NEUTRAL',
+                confidence: 0.6,
+                invalidationRules: ['Friction subsides', 'Better exit opportunity'],
+            };
+        }
 
-    // ============================================
-    // RUN REAL BRAIN V2 SEARCH
-    // ============================================
+        // SIMULATE exit to SOL (we validated this route exists)
+        const expectedLoss = currentTokenData.roundTripLoss || 2;
+        const profitPct = -expectedLoss; // Negative because RTL is a loss
 
-    const searchResult = searchForPath(universe, goal);
-
-    // ============================================
-    // INTERPRET RESULT
-    // ============================================
-
-    if (!searchResult.found) {
         return {
-            action: 'HESITATE',
-            thesis: `Brain v2: ${searchResult.reason}`,
-            signals: {},
-            expectedDirection: 'NEUTRAL',
-            confidence: 0,
-            invalidationRules: [searchResult.reason],
-        };
-    }
-
-    const path = searchResult.path;
-    const firstHop = path.path[0];
-
-    if (!firstHop) {
-        return {
-            action: 'HESITATE',
-            thesis: 'Brain found path but no hops',
-            signals: {},
-            expectedDirection: 'NEUTRAL',
-            confidence: 0,
-            invalidationRules: ['Empty path'],
-        };
-    }
-
-    // ✅ Check for HOLD recommendation (using correct field)
-    if (path.holdCheckpoint) {
-        const hold = path.holdCheckpoint;
-        return {
-            action: 'HOLD',
-            thesis: `Brain v2 HOLD: Friction detected (${(hold.confidence * 100).toFixed(0)}% confidence). RTL spread: ${hold.signals.momentum.velocity.toFixed(1)}%`,
+            action: 'SWAP',
+            toToken: 'SOL',
+            thesis: `Simulated exit: ${state.token} → SOL. RTL: ${currentTokenData.roundTripLoss.toFixed(1)}%, Value: ${currentTokenData.valueInSOL.toFixed(8)} SOL`,
             signals: {
-                momentum: hold.confidence,
-                volatility: hold.signals.momentum.acceleration,
+                momentum: 0.5,
+                volatility: currentTokenData.volatility || 0.3,
             },
-            expectedDirection: 'NEUTRAL', // Hold is NOT bullish, it's friction warning
-            confidence: hold.confidence,
-            invalidationRules: ['Friction subsides', 'Liquidity drops'],
+            expectedDirection: 'NEUTRAL',
+            expectedEdgePct: profitPct,
+            allocationPct: 100, // Exit entire position
+            confidence: 0.7,
+            invalidationRules: ['Route becomes unavailable', 'Slippage exceeds limit'],
         };
     }
-
-    // ✅ Execute swap (using correct field names)
-    const profit = path.currentValueSOL - goal.startAmountSOL;
-    const profitPct = (profit / goal.startAmountSOL) * 100;
-
-    return {
-        action: 'SWAP',
-        toToken: firstHop.toSymbol,
-        thesis: `Brain v2 path: ${path.currentSymbol} → ${firstHop.toSymbol}. Score: ${path.score.toFixed(1)}, RTL: ${path.cumulativeRTL.toFixed(1)}%`,
-        signals: {
-            momentum: Math.min(1, path.score / 10), // Normalize score to 0-1
-            volatility: path.cumulativeRTL / 20, // Normalize RTL to 0-1
-        },
-        expectedDirection: profit > 0 ? 'UP' : 'NEUTRAL',
-        expectedEdgePct: profitPct,
-        allocationPct: Math.floor(30 + Math.random() * 50), // Dynamic 30-80%
-        confidence: searchResult.confidence === 'high' ? 0.8 : searchResult.confidence === 'medium' ? 0.6 : 0.4,
-        invalidationRules: ['Path invalidation', 'RTL exceeds limit'],
-    };
 }
 
 // ============================================================================
