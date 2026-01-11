@@ -197,45 +197,54 @@ function realBrainV2(state: any): DecisionIntent & { action: any; toToken?: stri
     const currentAmountSOL = state.balanceSOL; // Portfolio value in SOL
 
     // ============================================
-    // DETERMINE GOAL
+    // SIMPLIFIED STRATEGY FOR SIMULATION
     // ============================================
+    // Since we only validated Token → SOL routes (not SOL → Token),
+    // we'll simulate by:
+    // 1. If holding SOL: Pick a token and simulate buying it
+    // 2. If holding token: Try to exit back to SOL (which we know has a route)
 
     let goal: BrainGoal;
 
     if (isHoldingSOL) {
-        // OPPORTUNITY SCANNING: Pick high-alpha targets
-        const alphaTargets = universe.filter(t =>
-            t.isAlpha &&
+        // OPPORTUNITY SCANNING: Pick SAFE tokens with known routes
+        const safeTargets = universe.filter(t =>
+            t.tier === 'SAFE' &&
             t.mint !== SOL_MINT &&
             t.hasRoute &&
-            t.tier !== 'REJECTED'
+            t.valueInSOL > 0
         );
 
-        if (alphaTargets.length === 0) {
+        if (safeTargets.length === 0) {
             return {
                 action: 'HESITATE',
-                thesis: 'No viable alpha targets in current universe',
+                thesis: 'No safe tokens available for entry (waiting for better opportunities)',
                 signals: {},
                 expectedDirection: 'NEUTRAL',
                 confidence: 0.2,
-                invalidationRules: ['No alpha tokens available'],
+                invalidationRules: ['No safe tokens available'],
             };
         }
 
-        // Pick random alpha target (simulate opportunity scanning)
-        const randomTarget = alphaTargets[Math.floor(Math.random() * alphaTargets.length)];
+        // Pick random safe target for simulation
+        const randomTarget = safeTargets[Math.floor(Math.random() * safeTargets.length)];
 
-        goal = {
-            startToken: SOL_MINT,
-            targetToken: randomTarget.mint,
-            startAmountSOL: currentAmountSOL,
-            targetAmountSOL: currentAmountSOL * 1.05, // Aim for 5% gain
-            maxHops: 3,
-            maxTotalRTL: 5,
-            maxPerHopRTL: 2,
+        // SIMULATE entering position (bypass Brain v2 path search for SOL → Token)
+        // Just return a SWAP decision to simulate buying
+        return {
+            action: 'SWAP',
+            toToken: randomTarget.symbol,
+            thesis: `Simulated entry: SOL → ${randomTarget.symbol}. Value: ${randomTarget.valueInSOL.toFixed(8)} SOL, RTL: ${randomTarget.roundTripLoss.toFixed(1)}%`,
+            signals: {
+                momentum: Math.random() * 0.5 + 0.3, // Random 0.3-0.8
+                volatility: randomTarget.volatility || 0.3,
+            },
+            expectedDirection: 'UP',
+            expectedEdgePct: 5,
+            allocationPct: Math.floor(40 + Math.random() * 40), // 40-80%
+            confidence: 0.6,
+            invalidationRules: ['Position moves against us', 'RTL exceeds limit'],
         };
-
-        console.log(`[Brain] Scanning: SOL → ${randomTarget.symbol} (target +5%)`);
     } else {
         // EXIT STRATEGY: Path back to SOL
         const currentTokenData = universe.find(t => t.symbol === state.token);
