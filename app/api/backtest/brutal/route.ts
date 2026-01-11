@@ -25,13 +25,21 @@ const SOL_MINT = 'So11111111111111111111111111111111111111112';
  */
 async function fetchRealUniverse(): Promise<SearchableToken[]> {
     try {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        // Determine base URL for server-side fetch
+        // In production, use the deployment URL; in dev, construct from host
+        const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+        const host = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_APP_URL || 'localhost:3000';
+        const baseUrl = host.startsWith('http') ? host : `${protocol}://${host}`;
 
         // Step 1: Fetch token list
-        console.log('[Backtest] Step 1: Fetching token list...');
-        const tokensResponse = await fetch(`${baseUrl}/api/smart-swap/tokens`);
+        console.log('[Backtest] Step 1: Fetching token list from', baseUrl);
+        const tokensResponse = await fetch(`${baseUrl}/api/smart-swap/tokens`, {
+            headers: { 'Accept': 'application/json' },
+        });
 
         if (!tokensResponse.ok) {
+            const errorText = await tokensResponse.text();
+            console.error('[Backtest] Token fetch failed:', tokensResponse.status, errorText);
             throw new Error(`Failed to fetch tokens: ${tokensResponse.status}`);
         }
 
@@ -39,18 +47,18 @@ async function fetchRealUniverse(): Promise<SearchableToken[]> {
         const rawTokens = tokensData.tokens || [];
 
         if (rawTokens.length === 0) {
-            throw new Error('No tokens available');
+            throw new Error('No tokens available from proxy');
         }
 
         console.log(`[Backtest] Loaded ${rawTokens.length} raw tokens`);
 
         // Step 2: Valuate tokens (get SOL values and routes)
-        console.log('[Backtest] Step 2: Valuating tokens...');
+        console.log('[Backtest] Step 2: Valuating top 50 tokens...');
         const valuateResponse = await fetch(`${baseUrl}/api/smart-swap/valuate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                tokens: rawTokens.slice(0, 100).map((t: any) => ({
+                tokens: rawTokens.slice(0, 50).map((t: any) => ({
                     mint: t.address,
                     decimals: t.decimals || 6,
                 })),
@@ -58,11 +66,19 @@ async function fetchRealUniverse(): Promise<SearchableToken[]> {
         });
 
         if (!valuateResponse.ok) {
+            const errorText = await valuateResponse.text();
+            console.error('[Backtest] Valuation failed:', valuateResponse.status, errorText);
             throw new Error(`Failed to valuate tokens: ${valuateResponse.status}`);
         }
 
         const valuateData = await valuateResponse.json();
         const results = valuateData.results || [];
+
+        console.log(`[Backtest] Valuation complete: ${results.length} results`);
+
+        if (results.length === 0) {
+            throw new Error('No tokens passed valuation');
+        }
 
         // Step 3: Merge valuation results with token data
         const tokens: SmartToken[] = results.map((valuation: any) => {
@@ -134,15 +150,6 @@ async function getUniverse(): Promise<SearchableToken[]> {
 // REAL BRAIN V2 DECISION FUNCTION
 // ============================================================================
 
-// Pre-load universe cache
-let universePromise: Promise<SearchableToken[]> | null = null;
-
-function ensureUniverseLoaded() {
-    if (!universePromise) {
-        universePromise = getUniverse();
-    }
-}
-
 /**
  * ✅ REAL Brain v2 Integration - SYNCHRONOUS
  * Uses actual searchForPath with real token universe
@@ -150,7 +157,7 @@ function ensureUniverseLoaded() {
 function realBrainV2(state: any): DecisionIntent & { action: any; toToken?: string } {
     // Get cached universe (must be pre-loaded)
     if (!cachedUniverse) {
-        throw new Error('Universe not loaded - call ensureUniverseLoaded() first');
+        throw new Error('Universe not loaded - ensure getUniverse() was called before simulation');
     }
     const universe = cachedUniverse;
 
@@ -300,7 +307,7 @@ function realBrainV2(state: any): DecisionIntent & { action: any; toToken?: stri
 // API ENDPOINT
 // ============================================================================
 
-export async function POST(request: Request) {
+export async function POST(_request: Request) {
     const encoder = new TextEncoder();
     const sim = new BrutalBrainSimulation();
 
