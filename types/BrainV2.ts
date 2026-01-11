@@ -19,12 +19,19 @@ export type BrainGoal = {
     startToken: string; // Mint address (e.g., SOL, BONK)
     targetToken: string; // Mint address (e.g., MEMO, USDC)
 
+    startAmount?: number; // Real token units (e.g., 500000 BONK)
     startAmountSOL: number; // Valuation in SOL
     targetAmountSOL: number; // Valuation in SOL (CONSTRAINT)
 
     maxHops: number;
     maxTotalRTL: number;
     maxPerHopRTL: number;
+
+    // Safety Layer (Phase 2)
+    preservation?: {
+        enabled: boolean;
+        maxAllowedDrawdownPct: number; // e.g., 0.7 for 0.7% max loss
+    };
 };
 
 // ============================================================================
@@ -34,7 +41,10 @@ export type BrainGoal = {
 export type PathState = {
     currentToken: string; // mint address
     currentSymbol: string; // for display
-    currentAmountSOL: number; // estimated SOL value
+
+    // CRITICAL: Separate actual amount from valuation
+    currentTokenAmount: number; // REAL units (e.g., 500000 BONK)
+    currentValueSOL: number; // SOL-equivalent valuation (measurement only)
 
     hopsUsed: number;
     cumulativeRTL: number; // %
@@ -65,6 +75,10 @@ export type PathHop = {
         confidence: number; // 0-1
         reason: string;
         source: 'momentum' | 'volatility' | 'learning';
+
+        // UX-critical: where does the path go after hold?
+        nextHopToken: string; // Symbol of next token after hold
+        exitToken: string;    // Safe exit option (usually SOL)
     };
 };
 
@@ -157,3 +171,101 @@ export type SearchableToken = {
     tier: 'SAFE' | 'RANKABLE' | 'REJECTED';
     source?: 'jupiter' | 'alphascan' | 'pump'; // Token source for rule relaxation
 };
+
+// ============================================================================
+// BRAIN ROADMAP (INTENT-BASED OUTPUT)
+// Brain outputs PLANNING, not quotes. Execution fetches fresh quotes.
+// ============================================================================
+
+export type ScenarioType = 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE' | 'VOLATILITY' | 'BEST_EFFORT';
+export type ConfidenceLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+export type ImpactLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
+
+// SAFETY LAYER TYPES
+export type ProtectionClass = 'SAFE' | 'MEDIUM' | 'JITO_ONLY' | 'HIGH_RISK';
+
+export interface ExitEnvelope {
+    token: string;
+    symbol: string;
+    worstCaseExitPct: number; // % of start value preserved (e.g., 98.1)
+}
+
+export interface RoadmapStep {
+    index: number;
+    action: 'SWAP' | 'HOLD';
+
+    // SWAP intent (NEVER amounts - intent only)
+    fromToken?: string;
+    fromSymbol?: string;
+    toToken?: string;
+    toSymbol?: string;
+
+    // HARD constraints (enforced at execution)
+    maxSlippagePct?: number;
+
+    // HOLD metadata
+    holdMinutes?: number;
+    holdReason?: string;
+
+    // Meta - confidence ONLY, no amounts
+    confidence: ConfidenceLevel;
+    mandatory: boolean; // if false, step can be skipped if quote fails
+
+    // SAFETY LAYER
+    protection: ProtectionClass;
+    exitEnvelope: ExitEnvelope; // Exit-anywhere guarantee
+}
+
+export interface BrainRoadmap {
+    scenario: ScenarioType;
+
+    summary: {
+        hops: number;
+        holds: number;
+        confidence: ConfidenceLevel;
+        // NO ROI - never show numeric expectations
+    };
+
+    steps: RoadmapStep[];
+
+    estimates: {
+        durationMinutesRange: [number, number]; // Range, not exact
+        feesImpact: ImpactLevel; // LOW/MEDIUM/HIGH, not numeric
+    };
+
+    explanation: {
+        whyChosen: string[];
+        mainRisks: string[];
+    };
+
+    warnings: string[];
+
+    // Safety Blockers
+    blocked?: boolean; // If true, this path violates safety constraints
+    blockedReason?: string;
+
+    // Source data (internal debugging only - never shown)
+    _sourcePathState?: PathState;
+}
+
+// ============================================================================
+// EXECUTION STATE MACHINE
+// ============================================================================
+
+export type StepStatus =
+    | 'PLANNED'
+    | 'AWAITING_QUOTE'
+    | 'QUOTE_FOUND'
+    | 'QUOTE_CHANGED'
+    | 'QUOTE_NOT_FOUND'
+    | 'USER_REJECTED'
+    | 'SIGNED'
+    | 'CONFIRMED'
+    | 'SKIPPED'
+    | 'CANCELLED';
+
+// Drift thresholds for quote comparison
+export const DRIFT_THRESHOLDS = {
+    SOFT: 0.05, // 5% - warn
+    HARD: 0.12, // 12% - block without explicit consent
+} as const;

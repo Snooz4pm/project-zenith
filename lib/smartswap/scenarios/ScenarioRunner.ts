@@ -15,9 +15,10 @@ import {
     BrainGoal,
     SearchableToken,
     BrainSearchResult,
-    PathState
+    PathState,
+    ScenarioType
 } from '@/types/BrainV2';
-import { searchForPath } from '@/lib/smartswap/brainv2';
+import { searchForPath, convertPathToRoadmap } from '@/lib/smartswap/brainv2';
 
 // ============================================================================
 // 1. SCENARIO CONFIGURATIONS (Hardcoded Strategies)
@@ -178,7 +179,7 @@ export class ScenarioRunner {
 
         if (brainResult.found) {
             found = true;
-            finalAmountSOL = brainResult.path.currentAmountSOL;
+            finalAmountSOL = brainResult.path.currentValueSOL;
             roiPct = ((finalAmountSOL - baseGoal.startAmountSOL) / baseGoal.startAmountSOL) * 100;
             hops = brainResult.path.hopsUsed;
             cumulativeRTL = brainResult.path.cumulativeRTL;
@@ -194,7 +195,7 @@ export class ScenarioRunner {
         } else {
             // If failed, use best effort for metrics if available
             if (brainResult.bestEffort) {
-                finalAmountSOL = brainResult.bestEffort.currentAmountSOL;
+                finalAmountSOL = brainResult.bestEffort.currentValueSOL;
                 roiPct = ((finalAmountSOL - baseGoal.startAmountSOL) / baseGoal.startAmountSOL) * 100;
                 hops = brainResult.bestEffort.hopsUsed;
                 cumulativeRTL = brainResult.bestEffort.cumulativeRTL;
@@ -208,6 +209,20 @@ export class ScenarioRunner {
             explanation.push(`Failed to find path. Best effort ROI: ${roiPct.toFixed(2)}%`);
         }
 
+        // Generate intent-based roadmap
+        // Type narrowing: brainResult.path exists when found=true, bestEffort when found=false
+        const pathState = brainResult.found
+            ? brainResult.path
+            : ('bestEffort' in brainResult ? brainResult.bestEffort : undefined);
+        const roadmap = pathState
+            ? convertPathToRoadmap(pathState, baseGoal, config.id as ScenarioType)
+            : undefined;
+
+        // Count holds from roadmap
+        if (roadmap) {
+            hasHold = roadmap.summary.holds > 0;
+        }
+
         return {
             scenarioId: config.id,
             config,
@@ -217,7 +232,8 @@ export class ScenarioRunner {
             roiPct,
             hops,
             cumulativeRTL,
-            hasHold, // Placeholder
+            hasHold,
+            roadmap, // NEW: Intent-based roadmap
             explanation
         };
     }

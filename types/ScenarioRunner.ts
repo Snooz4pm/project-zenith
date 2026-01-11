@@ -3,7 +3,7 @@
  * Defines the 5 key scenarios and their configurations.
  */
 
-import { BrainSearchResult, PathState, SearchableToken } from '@/types/BrainV2';
+import { BrainSearchResult, PathState, SearchableToken, BrainRoadmap } from '@/types/BrainV2';
 
 export enum ScenarioId {
     CONSERVATIVE = 'CONSERVATIVE',
@@ -44,6 +44,9 @@ export interface ScenarioResult {
     hops: number;
     cumulativeRTL: number;
     hasHold: boolean;
+
+    // Intent-based roadmap (NEW)
+    roadmap?: BrainRoadmap;
 
     // Why this result?
     explanation: string[];

@@ -15,7 +15,14 @@ import {
     SearchableToken,
     SEARCH_CONFIG,
     HEURISTIC_WEIGHTS,
+    BrainRoadmap,
+    RoadmapStep,
+    ConfidenceLevel,
+    ScenarioType,
+    ProtectionClass,
 } from '@/types/BrainV2';
+import { estimateTokenTax } from './tax';
+import { SmartToken } from '@/types/SmartToken';
 import { pathExplainer } from './context/PathExplainer';
 import { computeHoldCheckpoint, type HoldSignalInput } from './hold/holdSignals';
 
@@ -96,7 +103,7 @@ function estimateSwapOutcome(
     candidate: SearchableToken
 ): SwapEstimate {
     // Get current amount in SOL
-    const currentAmount = currentState.currentAmountSOL;
+    const currentAmount = currentState.currentValueSOL;
 
     // Base price impact based on liquidity
     // High liquidity = low impact (0.5-2%)
@@ -144,11 +151,11 @@ function calculateHeuristicScore(state: PathState, goal: BrainGoal, alphaScore: 
     // === CORE OBJECTIVE (NEW: Target-Aware) ===
 
     // 1. Capital preservation (log scale to prevent losses from dominating)
-    const growthRatio = state.currentAmountSOL / goal.startAmountSOL;
+    const growthRatio = state.currentValueSOL / goal.startAmountSOL;
     const preservationScore = Math.log(Math.max(0.01, growthRatio)) * 0.6; // α = 0.6
 
     // 2. Target ambition (linear scale - direct progress measure)
-    const targetProgress = state.currentAmountSOL / goal.targetAmountSOL;
+    const targetProgress = state.currentValueSOL / goal.targetAmountSOL;
     const ambitionScore = Math.min(2, targetProgress) * 0.4; // β = 0.4, capped at 200% to prevent runaway
 
     // Combined objective: balance safety + ambition
@@ -309,6 +316,8 @@ function expandPath(
                     ? `Strong alpha signal (${((candidate.alphaScore ?? 0) * 100).toFixed(0)}%) on ${candidate.symbol}`
                     : `High volatility expected on ${candidate.symbol}`,
                 source: isAlphaWithMomentum ? 'momentum' : 'volatility',
+                nextHopToken: candidate.symbol, // Continue to this token after hold
+                exitToken: 'SOL', // Safe exit v1
             };
         }
 
@@ -318,7 +327,7 @@ function expandPath(
             fromSymbol: currentState.currentSymbol,
             toToken: candidate.mint,
             toSymbol: candidate.symbol,
-            estimatedInSOL: currentState.currentAmountSOL,
+            estimatedInSOL: currentState.currentValueSOL,
             estimatedOutSOL: swap.estimatedOutSOL, // ✅ Can be HIGHER than input!
             slippage: swap.priceImpact,
             hopRTL: swap.hopRTL,
@@ -346,7 +355,10 @@ function expandPath(
         const newState: PathState = {
             currentToken: candidate.mint,
             currentSymbol: candidate.symbol,
-            currentAmountSOL: swap.estimatedOutSOL, // ✅ Can be profitable!
+            // NOTE: currentTokenAmount is simplified - in production, use real Jupiter quote amounts
+            // Estimate output units based on SOL value ratio (approximation)
+            currentTokenAmount: currentState.currentTokenAmount * (swap.estimatedOutSOL / currentState.currentValueSOL),
+            currentValueSOL: swap.estimatedOutSOL, // SOL valuation only
             hopsUsed: currentState.hopsUsed + 1,
             cumulativeRTL: cumulativeImpact, // Actually cumulative price impact
             path: [...currentState.path, hop],
@@ -493,7 +505,8 @@ export function searchForPath(
         {
             currentToken: goal.startToken,
             currentSymbol: startSymbol,
-            currentAmountSOL: goal.startAmountSOL,
+            currentTokenAmount: goal.startAmount ?? 1, // Real token units (e.g., 500000 BONK)
+            currentValueSOL: goal.startAmountSOL, // SOL valuation only
             hopsUsed: 0,
             cumulativeRTL: 0,
             path: [],
@@ -535,17 +548,17 @@ export function searchForPath(
             // 2. Must meet target value (Valuation Constraint)
             // 3. Must be profitable (Efficiency)
             const isTargetToken = path.currentToken === goal.targetToken;
-            const isProfitable = path.currentAmountSOL > goal.startAmountSOL;
-            const hasTargetValue = path.currentAmountSOL >= goal.targetAmountSOL;
+            const isProfitable = path.currentValueSOL > goal.startAmountSOL;
+            const hasTargetValue = path.currentValueSOL >= goal.targetAmountSOL;
 
             // ✅ REQUIRE exact target token match
             if (isTargetToken && hasTargetValue && isProfitable) {
-                const totalProfit = path.currentAmountSOL - goal.startAmountSOL;
+                const totalProfit = path.currentValueSOL - goal.startAmountSOL;
                 const profitPercentage = (totalProfit / goal.startAmountSOL) * 100;
 
                 console.log(`[Brain v2] ✓ TARGET REACHED at hop ${hop}!`);
                 console.log(`[Brain v2]   Start: ${goal.startAmountSOL.toFixed(6)} SOL`);
-                console.log(`[Brain v2]   Current: ${path.currentAmountSOL.toFixed(6)} SOL`);
+                console.log(`[Brain v2]   Current: ${path.currentValueSOL.toFixed(6)} SOL`);
                 console.log(`[Brain v2]   Profit: +${profitPercentage.toFixed(1)}% (+${totalProfit.toFixed(6)} SOL)`);
                 console.log(`[Brain v2]   Token: ${path.currentSymbol}`);
                 console.log(`[Brain v2]   Cumulative Impact: ${path.cumulativeRTL.toFixed(1)}%`);
@@ -578,17 +591,17 @@ export function searchForPath(
 
         // Track best effort (closest to target)
         const closest = activePaths[0];
-        if (!bestEffort || closest.currentAmountSOL > bestEffort.currentAmountSOL) {
+        if (!bestEffort || closest.currentValueSOL > bestEffort.currentValueSOL) {
             bestEffort = closest;
         }
 
         console.log(`[Brain v2] Hop ${hop}: ${allNewPaths.length} expansions, kept top ${activePaths.length}`);
-        console.log(`[Brain v2]   Best: ${activePaths[0].currentSymbol} @ ${activePaths[0].currentAmountSOL.toFixed(6)} SOL (score: ${activePaths[0].score.toFixed(2)})`);
+        console.log(`[Brain v2]   Best: ${activePaths[0].currentSymbol} @ ${activePaths[0].currentValueSOL.toFixed(6)} SOL (score: ${activePaths[0].score.toFixed(2)})`);
     }
 
     // Exhausted max hops without reaching target
     console.log(`[Brain v2] Target not reached after ${goal.maxHops} hops`);
-    console.log(`[Brain v2] Best effort: ${bestEffort?.currentAmountSOL.toFixed(6)} SOL (${((bestEffort?.currentAmountSOL ?? 0) / goal.targetAmountSOL * 100).toFixed(1)}% of target)`);
+    console.log(`[Brain v2] Best effort: ${bestEffort?.currentValueSOL.toFixed(6)} SOL (${((bestEffort?.currentValueSOL ?? 0) / goal.targetAmountSOL * 100).toFixed(1)}% of target)`);
 
     // V1 HOLD OVERLAY: Attach hold checkpoint to best effort (if exists)
     const bestEffortWithHold = bestEffort ? attachHoldCheckpoint(bestEffort, universe) : undefined;
@@ -602,3 +615,245 @@ export function searchForPath(
         explanation,
     };
 }
+
+// ============================================================================
+// ROADMAP CONVERTER (INTENT-BASED OUTPUT)
+// Transforms PathState into BrainRoadmap for execution layer
+// ============================================================================
+
+const AVG_SWAP_TIME_SECONDS = 15;
+const AVG_NETWORK_FEE_SOL = 0.0006;
+
+/**
+ * Convert a PathState into an intent-based BrainRoadmap
+ * 
+ * Brain outputs PLANNING, not quotes.
+ * Amounts are estimated targets, not guarantees.
+ */
+export function convertPathToRoadmap(
+    pathState: PathState,
+    goal: BrainGoal,
+    scenario: ScenarioType = 'BEST_EFFORT'
+): BrainRoadmap {
+    const steps: RoadmapStep[] = [];
+    const warnings: string[] = []; // Initialize logic warnings
+    let stepIndex = 0;
+    let cumulativeRiskPct = 0; // Track cumulative risk for exit envelope
+
+    for (const hop of pathState.path) {
+        // Tax Detection (Phase 3)
+        const tax = estimateTokenTax(hop.hopRTL, 2.0);
+        if (tax.hasTax) {
+            warnings.push(`⚠️ ${hop.toSymbol}: Estimated ${tax.totalTaxBps / 100}% Transfer Tax`);
+        }
+
+        // Calculate protection class based on hop characteristics
+        const protection = getProtectionClass(hop.hopRTL, scenario);
+
+        // Calculate cumulative worst-case (conservative estimate)
+        cumulativeRiskPct += hop.hopRTL;
+        const worstCaseExitPct = Math.max(90, 100 - cumulativeRiskPct);
+
+        // SWAP step - NO amounts, just intent
+        const swapStep: RoadmapStep = {
+            index: stepIndex++,
+            action: 'SWAP',
+            fromToken: hop.fromToken,
+            fromSymbol: hop.fromSymbol,
+            toToken: hop.toToken,
+            toSymbol: hop.toSymbol,
+            maxSlippagePct: Math.max(hop.hopRTL, 2), // At least 2% slippage tolerance
+            confidence: getConfidenceFromRTL(hop.hopRTL),
+            mandatory: stepIndex <= 2, // First 2 hops are mandatory
+            protection,
+            exitEnvelope: {
+                token: hop.toToken,
+                symbol: hop.toSymbol,
+                worstCaseExitPct, // e.g., 98.1 means preserve 98.1% of start
+            },
+        };
+        steps.push(swapStep);
+
+        // HOLD step (if hold annotation exists)
+        if (hop.hold) {
+            const holdStep: RoadmapStep = {
+                index: stepIndex++,
+                action: 'HOLD',
+                holdMinutes: hop.hold.suggestedMinutes,
+                holdReason: hop.hold.reason,
+                confidence: getConfidenceFromScore(hop.hold.confidence),
+                mandatory: false, // Holds are always optional
+                protection: 'SAFE', // Holds are always safe (no execution)
+                exitEnvelope: {
+                    token: hop.toToken,
+                    symbol: hop.toSymbol,
+                    worstCaseExitPct, // Same as previous hop
+                },
+            };
+            steps.push(holdStep);
+        }
+    }
+
+    // Calculate estimates - duration as RANGE
+    const swapSteps = steps.filter(s => s.action === 'SWAP').length;
+    const holdSteps = steps.filter(s => s.action === 'HOLD');
+    const totalHoldMinutes = holdSteps.reduce((sum, s) => sum + (s.holdMinutes || 0), 0);
+
+    const baseDuration = (swapSteps * AVG_SWAP_TIME_SECONDS / 60) + totalHoldMinutes;
+    const durationMinutesRange: [number, number] = [
+        Math.max(1, baseDuration * 0.7), // Min: 30% faster
+        baseDuration * 1.5 // Max: 50% slower
+    ];
+
+    // Fees impact - classify instead of showing exact number
+    const feesImpact = getFeesImpact(swapSteps);
+
+    // Generate warnings - NO numeric predictions
+    // warnings array already initialized
+    if (pathState.cumulativeRTL > 10) {
+        warnings.push('High cumulative slippage risk');
+    }
+    if (steps.length > 8) {
+        warnings.push('Long path increases execution risk');
+    }
+    if (holdSteps.length > 2) {
+        warnings.push('Multiple holds increase timing uncertainty');
+    }
+
+    // Explanation - why this path, what risks
+    const explanation = generateExplanation(scenario, steps, pathState);
+
+    // SAFETY CHECK: Preservation Mode
+    let blocked = false;
+    let blockedReason: string | undefined;
+
+    if (goal.preservation?.enabled) {
+        // Find worst case exit across all steps
+        const lowestExitPct = Math.min(...steps.map(s => s.exitEnvelope.worstCaseExitPct));
+        const requiredRetention = 100 - goal.preservation.maxAllowedDrawdownPct; // e.g., 99.3%
+
+        if (lowestExitPct < requiredRetention) {
+            blocked = true;
+            blockedReason = `Preservation Mode: Worst-case exit (${lowestExitPct.toFixed(1)}%) violates limit (${requiredRetention}%)`;
+            warnings.push(`Blocked by Preservation Limit (${requiredRetention}% required)`);
+        }
+    }
+
+    return {
+        scenario,
+        summary: {
+            hops: swapSteps,
+            holds: holdSteps.length,
+            confidence: blocked ? 'LOW' : getOverallConfidence(steps),
+            // NO ROI - never show numeric expectations
+        },
+        steps,
+        estimates: {
+            durationMinutesRange,
+            feesImpact,
+        },
+        explanation,
+        warnings,
+        blocked,
+        blockedReason,
+        _sourcePathState: pathState, // Internal only, never shown to user
+    };
+}
+
+function getFeesImpact(hops: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH' {
+    if (hops <= 2) return 'LOW';
+    if (hops <= 4) return 'MEDIUM';
+    if (hops <= 6) return 'HIGH';
+    return 'VERY_HIGH';
+}
+
+function generateExplanation(
+    scenario: ScenarioType,
+    steps: RoadmapStep[],
+    path: PathState
+): { whyChosen: string[]; mainRisks: string[] } {
+    const whyChosen: string[] = [];
+    const mainRisks: string[] = [];
+
+    // Why chosen
+    const highConfSteps = steps.filter(s => s.confidence === 'HIGH').length;
+    if (highConfSteps > steps.length / 2) {
+        whyChosen.push('Majority high-confidence steps');
+    }
+
+    switch (scenario) {
+        case 'CONSERVATIVE':
+            whyChosen.push('Prioritizes liquid, stable routing');
+            break;
+        case 'BALANCED':
+            whyChosen.push('Balances opportunity with safety');
+            break;
+        case 'AGGRESSIVE':
+            whyChosen.push('Explores higher-volatility paths');
+            break;
+        case 'VOLATILITY':
+            whyChosen.push('Optimized for volatile market conditions');
+            break;
+        case 'BEST_EFFORT':
+            whyChosen.push('Best available path given constraints');
+            break;
+    }
+
+    // Main risks
+    if (path.cumulativeRTL > 5) {
+        mainRisks.push('Potential slippage in thin pools');
+    }
+    if (steps.some(s => s.action === 'HOLD')) {
+        mainRisks.push('Holds expose to short-term reversals');
+    }
+    if (steps.length > 5) {
+        mainRisks.push('More hops = more execution points');
+    }
+    mainRisks.push('Markets can change instantly');
+
+    return { whyChosen, mainRisks };
+}
+
+function getConfidenceFromRTL(rtl: number): ConfidenceLevel {
+    if (rtl <= 2) return 'HIGH';
+    if (rtl <= 5) return 'MEDIUM';
+    return 'LOW';
+}
+
+function getConfidenceFromScore(score: number): ConfidenceLevel {
+    if (score >= 0.7) return 'HIGH';
+    if (score >= 0.4) return 'MEDIUM';
+    return 'LOW';
+}
+
+function getOverallConfidence(steps: RoadmapStep[]): ConfidenceLevel {
+    const confidenceScores = steps.map(s =>
+        s.confidence === 'HIGH' ? 3 : s.confidence === 'MEDIUM' ? 2 : 1
+    );
+    const avg = confidenceScores.reduce((a, b) => a + b, 0) / confidenceScores.length;
+    if (avg >= 2.5) return 'HIGH';
+    if (avg >= 1.5) return 'MEDIUM';
+    return 'LOW';
+}
+
+/**
+ * Determine protection class based on hop risk and scenario
+ * Execution layer uses this to decide MEV protection level
+ */
+function getProtectionClass(hopRTL: number, scenario: ScenarioType): ProtectionClass {
+    // Conservative always gets SAFE
+    if (scenario === 'CONSERVATIVE') return 'SAFE';
+
+    // Low risk hops are SAFE
+    if (hopRTL <= 2) return 'SAFE';
+
+    // Medium risk
+    if (hopRTL <= 5) return 'MEDIUM';
+
+    // High risk hops need Jito bundles
+    if (hopRTL <= 10) return 'JITO_ONLY';
+
+    // Extreme risk
+    return 'HIGH_RISK';
+}
+

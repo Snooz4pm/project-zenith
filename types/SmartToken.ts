@@ -29,4 +29,7 @@ export type SmartToken = {
     alphaRank?: number;       // Relative ranking within RANKABLE tier
     alphaScore?: number;      // Composite score for ranking
     riskReason?: string;      // Why token is risky (for RANKABLE)
+    // Phase 3: Tax Detection
+    buyTaxBps?: number;       // Estimated buy tax in Basis Points
+    sellTaxBps?: number;      // Estimated sell tax in Basis Points
 };

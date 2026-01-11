@@ -420,3 +420,64 @@ model SessionComparison {
   @@index([wasDirectionCorrect])
 }
 
+// =============================================================================
+// SMART SWAP EXECUTION (Brain-Guided Mission Control)
+// =============================================================================
+
+model SmartSwap {
+  id               String   @id @default(uuid())
+  userId           String   // Wallet Address or User ID
+
+  status           String   // PLANNED | IN_PROGRESS | ABORTED | COMPLETED
+  abortReason      String?
+
+  fromToken        String
+  toToken          String
+  startValueSOL    Float
+  targetValueSOL   Float?
+
+  currentStepIndex Int      @default(0)
+  scenario         String   @default("BALANCED")
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  abortedAt        DateTime?
+
+  steps            SmartSwapStep[]
+  
+  @@index([userId])
+  @@index([status])
+}
+
+model SmartSwapStep {
+  id              String   @id @default(uuid())
+  swapId          String
+  index           Int
+
+  status          String   
+  // PLANNED | QUOTE_READY | SIGNED | CONFIRMED | ABORTED
+
+  fromToken       String
+  toToken         String
+
+  expectedValueSOL Float
+  minValueSOL      Float     // Timeout Logic
+  quoteFetchedAt        DateTime?
+  quoteExpiresAt      DateTime?
+  quoteFreshnessMaxMs Int?       // Scenario specific tolerance
+
+  // Deviation Protection
+  expectedOutAmount      String? // Base units from initial quote
+  maxAllowedDeviationPct Float?  // e.g. 0.8% - 5.0%
+
+  // Outcome
+  txSignature     String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  swap            SmartSwap @relation(fields: [swapId], references: [id])
+  
+  @@index([swapId])
+  @@index([status])
+}

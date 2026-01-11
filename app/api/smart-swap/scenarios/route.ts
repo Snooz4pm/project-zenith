@@ -47,12 +47,13 @@ function toSearchableToken(token: SmartToken): SearchableToken {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { startAmountSOL, tokens, startTokenMint, targetTokenMint, desiredROI } = body as {
+        const { startAmountSOL, tokens, startTokenMint, targetTokenMint, desiredROI, preservationMode } = body as {
             startAmountSOL: number;
             tokens: SmartToken[];
             startTokenMint?: string;
             targetTokenMint?: string;
             desiredROI?: number;
+            preservationMode?: boolean; // New Phase 2 toggle
         };
 
         if (!startAmountSOL || startAmountSOL <= 0) {
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
 
         console.log(`[Scenario API] Starting multiversal search: ${startMint} -> ${targetMint}`);
         console.log(`[Scenario API] Amount: ${startAmountSOL} SOL -> ${targetAmountSOL.toFixed(4)} SOL (ROI: ${effectiveROI * 100}%)`);
+        console.log(`[Scenario API] Preservation Mode: ${preservationMode}`);
         console.log(`[Scenario API] Universe: ${tokens.length} tokens`);
 
         // Convert tokens
@@ -87,6 +89,10 @@ export async function POST(request: Request) {
             maxHops: 5, // Default, overridden by scenario
             maxTotalRTL: 10,
             maxPerHopRTL: 4,
+            preservation: preservationMode !== false ? { // Default ON if undefined
+                enabled: true,
+                maxAllowedDrawdownPct: 0.7 // 0.7% Hard Safety Limit
+            } : undefined
         };
 
         // Run Scenarios

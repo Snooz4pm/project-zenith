@@ -38,7 +38,7 @@ export class PathExplainer {
         const insights: string[] = [];
 
         // Calculate profit
-        const profit = path.currentAmountSOL - goal.startAmountSOL;
+        const profit = path.currentValueSOL - goal.startAmountSOL;
         const profitPct = (profit / goal.startAmountSOL) * 100;
         const targetProfitPct = ((goal.targetAmountSOL - goal.startAmountSOL) / goal.startAmountSOL) * 100;
 
@@ -79,7 +79,7 @@ export class PathExplainer {
 
         // 4. Market context
         const bestProfitPct = allPaths ? Math.max(...allPaths.map(p =>
-            ((p.currentAmountSOL - goal.startAmountSOL) / goal.startAmountSOL) * 100
+            ((p.currentValueSOL - goal.startAmountSOL) / goal.startAmountSOL) * 100
         )) : profitPct;
 
         const marketContext = {
@@ -152,7 +152,7 @@ export class PathExplainer {
         }
 
         const bestEffortProfit = bestEffort
-            ? ((bestEffort.currentAmountSOL - goal.startAmountSOL) / goal.startAmountSOL) * 100
+            ? ((bestEffort.currentValueSOL - goal.startAmountSOL) / goal.startAmountSOL) * 100
             : -100;
 
         return {
@@ -167,7 +167,7 @@ export class PathExplainer {
                 timeOfDayFactor: this.getTimeOfDayFactor(),
             },
             alternatives: {
-                lowerTarget: bestEffort ? bestEffort.currentAmountSOL : undefined,
+                lowerTarget: bestEffort ? bestEffort.currentValueSOL : undefined,
                 differentStrategy: goal.maxPerHopRTL < 8 ? 'Increase max per-hop RTL to 8-12%' : undefined,
                 waitSuggestion: this.getTimeOfDayFactor() < 0.7 ? 'Try during peak volatility hours (2-8PM UTC)' : undefined,
             },

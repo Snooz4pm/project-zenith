@@ -26,6 +26,9 @@ export default function SmartSwapPage() {
     const [fromTokenMint, setFromTokenMint] = useState<string>('');
     const [toTokenMint, setToTokenMint] = useState<string>('');
 
+    // Safety Settings
+    const [preservationMode, setPreservationMode] = useState(true); // Default ON
+
     // Execution State
     const [executing, setExecuting] = useState(false);
     const [executionLog, setExecutionLog] = useState<string | null>(null);
@@ -73,7 +76,8 @@ export default function SmartSwapPage() {
                         tokens,
                         startTokenMint: fromTokenMint,
                         targetTokenMint: toTokenMint,
-                        desiredROI
+                        desiredROI,
+                        preservationMode // Pass safety toggle
                     }),
                 });
 
@@ -191,30 +195,49 @@ export default function SmartSwapPage() {
 
                         {/* SMART CONTROLS */}
                         {swapMode === 'SMART' && (
-                            <div className="bg-zinc-950/50 rounded-xl p-4 border border-zinc-800 space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <div className="flex items-center gap-2 text-zinc-300 font-mono text-sm">
-                                        <Settings2 className="w-4 h-4 text-purple-400" />
-                                        <span>Target ROI</span>
-                                    </div>
-                                    <div className={`font-mono font-bold ${roiTarget > 0 ? 'text-green-400' : 'text-zinc-500'}`}>
-                                        +{roiTarget}%
-                                    </div>
+                            <div className="bg-black/40 rounded-xl p-4 border border-purple-900/20">
+                                <div className="flex justify-between text-xs font-mono text-zinc-400 mb-2">
+                                    <span className="flex items-center gap-2">
+                                        <Crosshair className="w-3 h-3" />
+                                        TARGET AMBITION (ROI)
+                                    </span>
+                                    <span className={roiTarget > 10 ? 'text-purple-400 font-bold' : 'text-zinc-500'}>{roiTarget}%</span>
                                 </div>
-
                                 <input
                                     type="range"
-                                    min="0" max="20" step="1"
+                                    min="0"
+                                    max="20"
+                                    step="1"
                                     value={roiTarget}
-                                    onChange={(e) => setRoiTarget(parseInt(e.target.value))}
-                                    className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                    onChange={(e) => setRoiTarget(Number(e.target.value))}
+                                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-purple-500 hover:accent-purple-400"
                                 />
-
-                                <div className="flex justify-between text-[10px] text-zinc-600 font-mono uppercase">
+                                <div className="flex justify-between text-[10px] text-zinc-600 mt-2 font-mono">
                                     <span>Safe (0%)</span>
-                                    <span>Aggressive (20%)</span>
+                                    <span>Balanced (5%)</span>
+                                    <span>Moonshot (20%)</span>
                                 </div>
 
+                                {/* Preservation Mode Toggle */}
+                                <div className="mt-4 pt-4 border-t border-zinc-800/50 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Shield className={`w-3 h-3 ${preservationMode ? 'text-green-500' : 'text-zinc-600'}`} />
+                                        <span className={`text-xs font-mono ${preservationMode ? 'text-green-400' : 'text-zinc-500'}`}>
+                                            PRESERVATION MODE
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={() => setPreservationMode(!preservationMode)}
+                                        className={`relative w-8 h-4 rounded-full transition-colors ${preservationMode ? 'bg-green-900/50' : 'bg-zinc-800'}`}
+                                    >
+                                        <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform ${preservationMode ? 'translate-x-4' : 'translate-x-0'}`} />
+                                    </button>
+                                </div>
+                                {preservationMode && (
+                                    <div className="text-[10px] text-green-600/70 mt-1 font-mono ml-5">
+                                        Max drawdown limited to 0.7% (Hides risky paths)
+                                    </div>
+                                )}
                                 {roiTarget > 15 && (
                                     <div className="text-xs text-orange-400 bg-orange-950/30 p-2 rounded border border-orange-900/50 flex items-center gap-2">
                                         <AlertTriangleIcon className="w-3 h-3" />
@@ -305,52 +328,138 @@ export default function SmartSwapPage() {
                         {/* Scenario Table */}
                         <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
                             {comparison.all.map((scenario) => {
-                                const isWinner = scenario.scenarioId === comparison.best.scenarioId;
+                                const isWinner = comparison.best.scenarioId === scenario.scenarioId;
+                                const isBlocked = scenario.roadmap?.blocked;
+
                                 return (
-                                    <div key={scenario.scenarioId} className={`p-4 border-b border-zinc-800 last:border-0 ${isWinner ? 'bg-green-950/10' : ''}`}>
+                                    <div key={scenario.scenarioId} className={`p-4 border-b border-zinc-800 last:border-0 ${isWinner ? 'bg-green-950/10' : ''
+                                        } ${isBlocked ? 'opacity-50 grayscale' : ''}`}>
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="flex items-center gap-3">
                                                 {getScenarioIcon(scenario.scenarioId)}
                                                 <span className={`font-mono text-sm font-bold ${isWinner ? 'text-white' : 'text-zinc-400'}`}>
                                                     {scenario.config.name}
                                                 </span>
+                                                {isBlocked && (
+                                                    <span className="text-[10px] bg-red-900/40 text-red-500 px-1.5 py-0.5 rounded uppercase font-bold border border-red-900/50">
+                                                        Blocked
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className={`font-mono font-bold ${scenario.roiPct > 0 ? 'text-green-400' : 'text-zinc-500'}`}>
                                                 {scenario.roiPct > 0 ? '+' : ''}{scenario.roiPct.toFixed(2)}%
                                             </div>
                                         </div>
 
-                                        {/* Path Viz with Hold Annotations */}
-                                        <div className="mt-2 ml-8 space-y-1">
-                                            {(() => {
-                                                const pathResult = scenario.result.found ? scenario.result.path : scenario.result.bestEffort;
-                                                const hasPath = pathResult && pathResult.path && pathResult.path.length > 0;
-                                                const holdsCount = hasPath ? pathResult!.path.filter(h => h.hold).length : 0;
-
-                                                return hasPath ? (
-                                                    <>
-                                                        {/* Summary */}
-                                                        <div className="text-xs text-zinc-500 font-mono flex items-center gap-4">
-                                                            <span>{pathResult!.path.length} hops</span>
-                                                            {holdsCount > 0 && (
-                                                                <span className="text-purple-400">⏸ {holdsCount} hold{holdsCount > 1 ? 's' : ''}</span>
-                                                            )}
+                                        {/* Roadmap-Based Display */}
+                                        <div className="mt-2 ml-8 space-y-2">
+                                            {scenario.roadmap ? (
+                                                <>
+                                                    {isBlocked ? (
+                                                        <div className="text-xs text-red-400/80 font-mono italic flex items-center gap-2">
+                                                            <Shield className="w-3 h-3" />
+                                                            {scenario.roadmap.blockedReason || 'Violates safety constraints'}
                                                         </div>
-                                                        {/* Hop list */}
-                                                        <div className="flex flex-wrap items-center gap-1 text-xs font-mono text-zinc-600">
-                                                            {pathResult!.path.map((hop, i) => (
-                                                                <span key={i} className="flex items-center">
-                                                                    {i > 0 && <span className="mx-1">→</span>}
-                                                                    <span className={`${hop.hopRTL > 5 ? 'text-orange-400' : 'text-zinc-400'} ${hop.hold ? 'underline decoration-purple-500' : ''}`}>
-                                                                        {hop.toSymbol}
-                                                                        {hop.hold && <span className="text-purple-400 ml-0.5">⏸</span>}
-                                                                    </span>
+                                                    ) : (
+                                                        <>
+                                                            {/* Summary */}
+                                                            <div className="text-xs text-zinc-500 font-mono flex items-center gap-4">
+                                                                <span>{scenario.roadmap.summary.hops} hops</span>
+                                                                {scenario.roadmap.summary.holds > 0 && (
+                                                                    <span className="text-purple-400">⏸ {scenario.roadmap.summary.holds} hold(s)</span>
+                                                                )}
+                                                                <span className={`px-1.5 py-0.5 rounded text-[10px] ${scenario.roadmap.summary.confidence === 'HIGH' ? 'bg-green-900/40 text-green-400' :
+                                                                    scenario.roadmap.summary.confidence === 'MEDIUM' ? 'bg-yellow-900/40 text-yellow-400' :
+                                                                        'bg-red-900/40 text-red-400'
+                                                                    }`}>
+                                                                    {scenario.roadmap.summary.confidence}
                                                                 </span>
-                                                            ))}
-                                                        </div>
-                                                    </>
-                                                ) : <span className="text-zinc-600 text-xs font-mono">No path found</span>;
-                                            })()}
+                                                            </div>
+
+                                                            {/* Estimates - NO SOL amounts */}
+                                                            <div className="text-xs text-zinc-600 font-mono flex items-center gap-3">
+                                                                <span>~{scenario.roadmap.estimates.durationMinutesRange[0].toFixed(0)}–{scenario.roadmap.estimates.durationMinutesRange[1].toFixed(0)} min</span>
+                                                                <span className={`px-1 rounded ${scenario.roadmap.estimates.feesImpact === 'LOW' ? 'bg-green-900/30 text-green-500' :
+                                                                        scenario.roadmap.estimates.feesImpact === 'MEDIUM' ? 'bg-yellow-900/30 text-yellow-500' :
+                                                                            'bg-red-900/30 text-red-500'
+                                                                    }`}>
+                                                                    Fees: {scenario.roadmap.estimates.feesImpact}
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Why Chosen */}
+                                                            <div className="text-xs text-zinc-500">
+                                                                {scenario.roadmap.explanation.whyChosen.map((reason, i) => (
+                                                                    <span key={i} className="mr-2">• {reason}</span>
+                                                                ))}
+                                                            </div>
+
+                                                            {/* Steps - NO amounts, just routing */}
+                                                            <div className="space-y-1">
+                                                                {scenario.roadmap.steps.map((step, i) => (
+                                                                    <div key={i} className={`text-xs font-mono flex flex-col gap-1 ${step.mandatory ? 'text-zinc-300' : 'text-zinc-500'
+                                                                        }`}>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-zinc-600 w-4">{step.index + 1}.</span>
+                                                                            {step.action === 'SWAP' ? (
+                                                                                <>
+                                                                                    <span>{step.fromSymbol} → {step.toSymbol}</span>
+                                                                                    <span className={`text-[10px] uppercase px-1 rounded ${step.confidence === 'HIGH' ? 'text-green-500 bg-green-900/20' :
+                                                                                        step.confidence === 'MEDIUM' ? 'text-yellow-500 bg-yellow-900/20' : 'text-red-500 bg-red-900/20'
+                                                                                        }`}>
+                                                                                        {step.confidence}
+                                                                                    </span>
+                                                                                    {/* Protection Badge */}
+                                                                                    {step.protection && step.protection !== 'SAFE' && (
+                                                                                        <span className={`text-[9px] uppercase px-1 rounded border ${step.protection === 'JITO_ONLY' ? 'border-purple-500 text-purple-400' :
+                                                                                                'border-red-500 text-red-400'
+                                                                                            }`}>
+                                                                                            {step.protection === 'JITO_ONLY' ? '🛡️ MEV' : '⚠️ RISK'}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </>
+                                                                            ) : (
+                                                                                <span className="text-purple-400">⏸ Hold {step.holdMinutes}min — {step.holdReason?.substring(0, 30)}...</span>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {/* Exit Guard UI - The "Trust Anchor" */}
+                                                                        {step.exitEnvelope && (
+                                                                            <div className="ml-6 flex items-center gap-2 text-[10px] text-zinc-600">
+                                                                                <Shield className="w-3 h-3 text-zinc-700" />
+                                                                                <span>Exit here → worse case </span>
+                                                                                <span className="text-zinc-400 font-bold">
+                                                                                    {step.exitEnvelope.worstCaseExitPct.toFixed(1)}%
+                                                                                </span>
+                                                                                <span> preserved</span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+
+                                                            {/* Main Risks */}
+                                                            {scenario.roadmap.explanation.mainRisks.length > 0 && (
+                                                                <div className="text-xs text-zinc-600 italic">
+                                                                    Risks: {scenario.roadmap.explanation.mainRisks.slice(0, 2).join('; ')}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Warnings */}
+                                                            {scenario.roadmap.warnings.length > 0 && (
+                                                                <div className="text-xs text-orange-400 mt-1">
+                                                                    {scenario.roadmap.warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Disclaimer - CRITICAL */}
+                                                            <div className="text-[10px] text-zinc-600 italic mt-2 border-t border-zinc-800 pt-2">
+                                                                Based on current signals. Final amounts determined by live quotes. Markets can change instantly.
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </>
+                                            ) : <span className="text-zinc-600 text-xs font-mono">No roadmap generated</span>}
                                         </div>
                                     </div>
                                 );
