@@ -46,7 +46,7 @@ export default function BrutalSimulationPage() {
                         if (chunk.type === 'LOG') {
                             setLogs(prev => [...prev, chunk.data]);
                             if (chunk.state) {
-                                setCurrentBalance(chunk.state.balanceSOL);
+                                setCurrentBalance(chunk.state.totalValueSOL);
                             }
                         } else if (chunk.type === 'REPORT') {
                             setReport(chunk.data);
@@ -96,25 +96,27 @@ export default function BrutalSimulationPage() {
                 {/* Live Stats */}
                 <div className="grid grid-cols-4 gap-4 mb-8">
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <div className="text-zinc-500 text-sm">Balance</div>
-                        <div className="text-2xl font-bold">{currentBalance.toFixed(4)} SOL</div>
+                        <div className="text-zinc-500 text-sm">Portfolio Value</div>
+                        <div className="text-2xl font-bold font-mono">{currentBalance.toFixed(4)} SOL</div>
                     </div>
 
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <div className="text-zinc-500 text-sm">Decisions</div>
-                        <div className="text-2xl font-bold">{logs.length}</div>
-                    </div>
-
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <div className="text-zinc-500 text-sm">Penalty Score</div>
-                        <div className="text-2xl font-bold text-red-400">
-                            {logs.reduce((sum, l) => sum + (l.evaluation?.penaltyScore || 0), 0)}
+                        <div className="text-zinc-500 text-sm">Decisions / Penalty</div>
+                        <div className="text-2xl font-bold">
+                            {logs.length} <span className="text-zinc-500 text-sm ml-2">({logs.reduce((sum, l) => sum + (l.evaluation?.penaltyScore || 0), 0)} pts)</span>
                         </div>
                     </div>
 
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <div className="text-zinc-500 text-sm">PnL</div>
-                        <div className={`text-2xl font-bold ${report && report.pnlPct > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        <div className="text-zinc-500 text-sm">Realized PnL</div>
+                        <div className={`text-2xl font-bold font-mono ${(logs[logs.length - 1]?.realizedPnlSOL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {(logs[logs.length - 1]?.realizedPnlSOL || 0).toFixed(6)} SOL
+                        </div>
+                    </div>
+
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                        <div className="text-zinc-500 text-sm">PnL %</div>
+                        <div className={`text-2xl font-bold font-mono ${(report?.pnlPct || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {report ? `${report.pnlPct > 0 ? '+' : ''}${report.pnlPct.toFixed(2)}%` : '—'}
                         </div>
                     </div>
@@ -130,10 +132,15 @@ export default function BrutalSimulationPage() {
                                 <div className="flex items-start justify-between mb-2">
                                     <div className="flex items-center gap-3">
                                         <span className="text-zinc-500 font-mono text-sm">#{i + 1}</span>
-                                        <span className="font-bold">{log.action}</span>
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${log.action === 'SWAP' ? 'bg-blue-600' :
+                                            log.action === 'EXIT' ? 'bg-emerald-600' :
+                                                log.action === 'HOLD' ? 'bg-zinc-800' : 'bg-red-900'
+                                            }`}>
+                                            {log.action}
+                                        </span>
                                         {log.toToken && (
                                             <span className="text-zinc-400">
-                                                {log.fromToken} → {log.toToken}
+                                                {log.fromToken === 'SOL' ? 'SOL' : log.fromToken} → {log.toToken}
                                             </span>
                                         )}
                                     </div>
@@ -148,18 +155,28 @@ export default function BrutalSimulationPage() {
                                 </div>
 
                                 {log.executed && (
-                                    <div className="flex gap-4 text-xs font-mono">
-                                        <span>Expected: {log.expectedEdgePct?.toFixed(2)}%</span>
-                                        <span>Realized: {log.realizedEdgePct?.toFixed(2)}%</span>
-                                        <span className={log.pnlSOL > 0 ? 'text-emerald-400' : 'text-red-400'}>
-                                            PnL: {log.pnlSOL > 0 ? '+' : ''}{log.pnlSOL.toFixed(6)} SOL
-                                        </span>
+                                    <div className="grid grid-cols-3 gap-4 text-[10px] font-mono border-t border-zinc-800 pt-2 mt-2">
+                                        <div>
+                                            <span className="text-zinc-500">ENTRY COST:</span> {log.entryCostSOL ? `-${log.entryCostSOL.toFixed(5)} SOL` : '0'}
+                                        </div>
+                                        <div>
+                                            <span className="text-zinc-500">UNREALIZED:</span>{' '}
+                                            <span className={(log.unrealizedPnlSOL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                                                {(log.unrealizedPnlSOL || 0).toFixed(6)} SOL
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span className="text-zinc-500">REALIZED:</span>{' '}
+                                            <span className={(log.realizedPnlSOL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                                                {(log.realizedPnlSOL || 0).toFixed(6)} SOL
+                                            </span>
+                                        </div>
                                     </div>
                                 )}
 
                                 {log.evaluation && (
-                                    <div className="mt-2 text-xs text-zinc-500">
-                                        {log.evaluation.explanation} (Penalty: {log.evaluation.penaltyScore})
+                                    <div className="mt-2 text-xs text-zinc-500 italic">
+                                        ↳ {log.evaluation.explanation} {log.evaluation.penaltyScore > 0 && `(Penalty: +${log.evaluation.penaltyScore})`}
                                     </div>
                                 )}
                             </div>
