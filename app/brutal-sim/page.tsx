@@ -98,26 +98,33 @@ export default function BrutalSimulationPage() {
                 {/* Live Stats */}
                 <div className="grid grid-cols-4 gap-4 mb-8">
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <div className="text-zinc-500 text-sm">Portfolio Value</div>
+                        <div className="text-zinc-500 text-sm mb-1">Portfolio Value</div>
                         <div className="text-2xl font-bold font-mono">{currentBalance.toFixed(4)} SOL</div>
+                        <div className="text-sm text-zinc-500 mt-1 font-mono">
+                            ≈ ${(logs[logs.length - 1]?.portfolioValueUSD || (currentBalance * (report?.solPriceUSD || 0))).toFixed(2)}
+                            {report?.solPriceUSD && <span className="text-zinc-600 text-xs ml-1">(@ ${report.solPriceUSD.toFixed(1)})</span>}
+                        </div>
                     </div>
 
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <div className="text-zinc-500 text-sm">Decisions / Penalty</div>
+                        <div className="text-zinc-500 text-sm mb-1">Decisions / Penalty</div>
                         <div className="text-2xl font-bold">
                             {logs.length} <span className="text-zinc-500 text-sm ml-2">({logs.reduce((sum, l) => sum + (l.evaluation?.penaltyScore || 0), 0)} pts)</span>
                         </div>
                     </div>
 
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <div className="text-zinc-500 text-sm">Realized PnL</div>
+                        <div className="text-zinc-500 text-sm mb-1">Realized PnL</div>
                         <div className={`text-2xl font-bold font-mono ${(logs[logs.length - 1]?.realizedPnlSOL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {(logs[logs.length - 1]?.realizedPnlSOL || 0).toFixed(6)} SOL
+                        </div>
+                        <div className={`text-sm font-mono mt-1 ${(logs[logs.length - 1]?.realizedPnlUSD || 0) >= 0 ? 'text-emerald-900' : 'text-red-900'}`}>
+                            ≈ ${(logs[logs.length - 1]?.realizedPnlUSD || 0).toFixed(2)}
                         </div>
                     </div>
 
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <div className="text-zinc-500 text-sm">PnL %</div>
+                        <div className="text-zinc-500 text-sm mb-1">PnL %</div>
                         <div className={`text-2xl font-bold font-mono ${(report?.pnlPct || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {report ? `${report.pnlPct > 0 ? '+' : ''}${report.pnlPct.toFixed(2)}%` : '—'}
                         </div>
@@ -135,8 +142,8 @@ export default function BrutalSimulationPage() {
                                     <div className="flex items-center gap-3">
                                         <span className="text-zinc-500 font-mono text-sm">#{i + 1}</span>
                                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${log.action === 'SWAP' ? 'bg-blue-600' :
-                                            log.action === 'EXIT' ? 'bg-emerald-600' :
-                                                log.action === 'HOLD' ? 'bg-zinc-800' : 'bg-red-900'
+                                                log.action === 'EXIT' ? 'bg-emerald-600' :
+                                                    log.action === 'HOLD' ? 'bg-zinc-800' : 'bg-red-900'
                                             }`}>
                                             {log.action}
                                         </span>
@@ -158,11 +165,18 @@ export default function BrutalSimulationPage() {
 
                                 {log.executed && (
                                     <div className="grid grid-cols-3 gap-4 text-[10px] font-mono border-t border-zinc-800 pt-2 mt-2">
-                                        <div className="col-span-3 pb-1 border-b border-zinc-900 mb-1">
-                                            <span className="text-zinc-500">TRADE VALUE:</span>{' '}
-                                            <span className="text-zinc-300">
-                                                {log.tradeValueSOL ? `${log.tradeValueSOL.toFixed(6)} SOL` : '—'}
+                                        <div className="col-span-3 pb-1 border-b border-zinc-900 mb-1 flex justify-between">
+                                            <span>
+                                                <span className="text-zinc-500">TRADE VALUE:</span>{' '}
+                                                <span className="text-zinc-300">
+                                                    {log.tradeValueSOL ? `${log.tradeValueSOL.toFixed(4)} SOL` : '—'}
+                                                </span>
                                             </span>
+                                            {log.tradeValueUSD && (
+                                                <span className="text-zinc-500">
+                                                    ≈ ${log.tradeValueUSD.toFixed(2)}
+                                                </span>
+                                            )}
                                         </div>
                                         <div>
                                             <span className="text-zinc-500">ENTRY COST:</span> {log.entryCostSOL ? `-${log.entryCostSOL.toFixed(5)} SOL` : '0'}
@@ -170,14 +184,24 @@ export default function BrutalSimulationPage() {
                                         <div>
                                             <span className="text-zinc-500">UNREALIZED:</span>{' '}
                                             <span className={(log.unrealizedPnlSOL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                                                {(log.unrealizedPnlSOL || 0).toFixed(6)} SOL
+                                                {(log.unrealizedPnlSOL || 0).toFixed(5)} SOL
                                             </span>
+                                            {log.unrealizedPnlUSD !== undefined && (
+                                                <div className={(log.unrealizedPnlUSD || 0) >= 0 ? 'text-emerald-700' : 'text-red-900'}>
+                                                    ${(log.unrealizedPnlUSD || 0).toFixed(2)}
+                                                </div>
+                                            )}
                                         </div>
                                         <div>
                                             <span className="text-zinc-500">REALIZED:</span>{' '}
                                             <span className={(log.realizedPnlSOL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                                                {(log.realizedPnlSOL || 0).toFixed(6)} SOL
+                                                {(log.realizedPnlSOL || 0).toFixed(5)} SOL
                                             </span>
+                                            {log.realizedPnlUSD !== undefined && (
+                                                <div className={(log.realizedPnlUSD || 0) >= 0 ? 'text-emerald-700' : 'text-red-900'}>
+                                                    ${(log.realizedPnlUSD || 0).toFixed(2)}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}

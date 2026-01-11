@@ -17,6 +17,7 @@ export class BrutalBrainSimulation {
     private currentToken = 'SOL';
     private position: Position | null = null;
     private realizedPnlSOL = 0;
+    private solPriceUSD = 0; // Startup price
 
     private logs: DecisionLog[] = [];
     private penaltyScore = 0;
@@ -35,6 +36,9 @@ export class BrutalBrainSimulation {
         this.onProgress = onProgress;
         const start = Date.now();
 
+        // 0. Fetch initial SOL price for valuation
+        await this.fetchSolPrice();
+
         // Initial invariant check
         this.assertConservation();
 
@@ -50,6 +54,8 @@ export class BrutalBrainSimulation {
             // Brain makes decision
             const intentDecision = brain(this.getState());
 
+            const currentValSOL = this.getPortfolioValueSOL();
+
             const log: DecisionLog = {
                 timestamp: now,
                 action: intentDecision.action as any,
@@ -57,10 +63,14 @@ export class BrutalBrainSimulation {
                 toToken: intentDecision.action === 'SWAP' ? intentDecision.toToken : undefined,
                 intent: intentDecision,
                 executed: false,
-                pnlSOL: 0, // Legacy
+
+                // Financials
+                pnlSOL: 0,
                 realizedPnlSOL: 0,
                 unrealizedPnlSOL: 0,
-                portfolioValueSOL: this.getPortfolioValueSOL(),
+
+                portfolioValueSOL: currentValSOL,
+                portfolioValueUSD: currentValSOL * this.solPriceUSD,
             };
 
             // ===== HARD GUARD: NO-OP SWAP PREVENTION =====
@@ -96,6 +106,7 @@ export class BrutalBrainSimulation {
                 if (this.position) {
                     this.simulatePriceMove();
                     log.unrealizedPnlSOL = this.position.tokenAmount - this.position.entryValueSOL;
+                    log.unrealizedPnlUSD = log.unrealizedPnlSOL * this.solPriceUSD;
                 }
             } else if (intentDecision.action === 'SWAP' || intentDecision.action === 'EXIT') {
                 const toToken = intentDecision.toToken || 'SOL';
@@ -122,15 +133,19 @@ export class BrutalBrainSimulation {
                         const totalRealizedPnl = netExitValue - this.position.entryValueSOL;
 
                         this.realizedPnlSOL += totalRealizedPnl;
-                        this.balanceSOL = netExitValue;
+                        this.balanceSOL += netExitValue; // Add back to balance
                         this.currentToken = 'SOL';
                         this.position = null;
 
                         log.action = 'EXIT';
                         log.executed = true;
+
                         log.realizedPnlSOL = totalRealizedPnl;
                         log.pnlSOL = totalRealizedPnl;
-                        log.tradeValueSOL = exitValue; // Log exit size
+                        log.realizedPnlUSD = totalRealizedPnl * this.solPriceUSD;
+
+                        log.tradeValueSOL = exitValue;
+                        log.tradeValueUSD = exitValue * this.solPriceUSD;
                     }
                 } else {
                     // OPENING OR FLIPPING POSITION
@@ -144,25 +159,31 @@ export class BrutalBrainSimulation {
                         const totalRealizedPnl = netExitValue - this.position.entryValueSOL;
 
                         this.realizedPnlSOL += totalRealizedPnl;
-                        this.balanceSOL = netExitValue;
+                        this.balanceSOL += netExitValue; // Add back to balance
                         this.position = null;
                         this.currentToken = 'SOL';
-                        // Implicit close - we don't log a separate EXIT event, 
-                        // as the SWAP action from A -> B implies selling A.
                     }
 
-                    this.openPosition(toToken, entryCost, now);
+                    // Use allocation from intent, default to 100%
+                    const allocPct = intentDecision.allocationPct || 100;
+
+                    this.openPosition(toToken, entryCost, now, allocPct);
 
                     log.executed = true;
                     log.entryCostSOL = entryCost;
                     log.unrealizedPnlSOL = -entryCost; // Start at loss
+                    log.unrealizedPnlUSD = -entryCost * this.solPriceUSD;
+
                     log.tradeValueSOL = this.position!.entryValueSOL; // Log purchase size
+                    log.tradeValueUSD = this.position!.entryValueSOL * this.solPriceUSD;
+
                     this.currentToken = toToken;
                 }
             } else if (intentDecision.action === 'HOLD') {
                 if (this.position) {
                     this.simulatePriceMove();
                     log.unrealizedPnlSOL = this.position.tokenAmount - this.position.entryValueSOL;
+                    log.unrealizedPnlUSD = log.unrealizedPnlSOL * this.solPriceUSD;
                     log.executed = true;
                 } else {
                     log.executed = false;
@@ -175,7 +196,9 @@ export class BrutalBrainSimulation {
 
             // State sync
             log.portfolioValueSOL = this.getPortfolioValueSOL();
+            log.portfolioValueUSD = log.portfolioValueSOL * this.solPriceUSD;
             log.realizedPnlSOL = this.realizedPnlSOL;
+            log.realizedPnlUSD = this.realizedPnlSOL * this.solPriceUSD;
 
             // EVALUATE
             const evaluation = evaluateDecision(log);
@@ -195,15 +218,34 @@ export class BrutalBrainSimulation {
         return this.report();
     }
 
-    private openPosition(token: string, fees: number, now: number) {
-        // Here is where value conservation happens.
-        // We take SOL, subtract fees, and move the rest into the position.
-        const solToSpend = this.balanceSOL;
+    private async fetchSolPrice() {
+        try {
+            const response = await fetch('https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112');
+            const data = await response.json();
+            this.solPriceUSD = parseFloat(data.data['So11111111111111111111111111111111111111112']?.price || '0');
+            if (!this.solPriceUSD) {
+                console.warn('Failed to fetch SOL price, default to 150');
+                this.solPriceUSD = 150;
+            }
+        } catch (e) {
+            console.error('Error fetching SOL price:', e);
+            this.solPriceUSD = 150; // Fallback
+        }
+    }
+
+    private openPosition(token: string, fees: number, now: number, allocationPct: number) {
+        // Value conservation logic
+        const solAvailable = this.balanceSOL;
+
+        // Calculate spend based on allocation
+        // Cap at 100% to prevent errors. Cap at 5% min to make it meaningful? No, let brain decide.
+        const effectivePct = Math.min(Math.max(allocationPct, 1), 100);
+        const solToSpend = solAvailable * (effectivePct / 100);
+
         const netValue = solToSpend - fees;
 
         if (netValue <= 0) {
-            // Safety check: if fees eat everything, we can't open.
-            throw new Error(`Insufficient funds to open position. Needed > ${fees}, had ${solToSpend}`);
+            throw new Error(`Insufficient allocated funds. Available: ${solAvailable}, Alloc: ${effectivePct}%, Needed > ${fees}`);
         }
 
         this.position = {
@@ -214,7 +256,8 @@ export class BrutalBrainSimulation {
             openedAt: now,
         };
 
-        this.balanceSOL = 0;
+        // Subtract spent amount from balance (remaining SOL stays as cash)
+        this.balanceSOL -= solToSpend;
     }
 
     private simulatePriceMove() {
@@ -239,12 +282,19 @@ export class BrutalBrainSimulation {
     }
 
     private getState() {
+        const currentVal = this.getPortfolioValueSOL();
         return {
-            balanceSOL: this.getPortfolioValueSOL(), // Brain sees total value
+            balanceSOL: currentVal, // Brain sees total value ?? NO. Brain should see LIQUID + POSITION
+            // Fixing Brain Input to see breakdown
+            liquidSOL: this.balanceSOL,
+            positionValueSOL: this.position ? this.position.tokenAmount : 0,
+
             token: this.currentToken,
             hasPosition: !!this.position,
             penaltyScore: this.penaltyScore,
-            totalValueSOL: this.getPortfolioValueSOL(),
+            totalValueSOL: currentVal,
+            solPriceUSD: this.solPriceUSD,
+            totalValueUSD: currentVal * this.solPriceUSD,
         };
     }
 
@@ -264,6 +314,7 @@ export class BrutalBrainSimulation {
         return {
             startSOL: this.START_SOL,
             endSOL: finalValue,
+            solPriceUSD: this.solPriceUSD,
             pnlPct,
             penaltyScore: this.penaltyScore,
             totalInvalidDecisions,

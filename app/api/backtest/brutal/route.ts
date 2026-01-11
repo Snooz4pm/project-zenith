@@ -51,6 +51,7 @@ function exampleBrain(state: any): DecisionIntent & { action: any; toToken?: str
             signals: { momentum: 0.7 },
             expectedDirection: 'UP',
             expectedEdgePct: 2 + Math.random() * 2,
+            allocationPct: Math.floor(30 + Math.random() * 70), // Dynamic sizing [30-100%]
             confidence: 0.7,
             invalidationRules: ['If slippage spikes above 2%'],
         };

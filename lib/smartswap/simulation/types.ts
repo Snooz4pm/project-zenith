@@ -15,6 +15,7 @@ export interface DecisionIntent {
     };
     expectedDirection: 'UP' | 'DOWN' | 'NEUTRAL';
     expectedEdgePct?: number;
+    allocationPct?: number; // 0-100% position sizing
     confidence: number;
     invalidationRules: string[];
 }
@@ -44,10 +45,17 @@ export interface DecisionLog {
     // Financials
     entryCostSOL?: number;      // Fees + Slippage at entry
     tradeValueSOL?: number;     // Amount swapped/exited
+    tradeValueUSD?: number;     // USD value of trade
+
     pnlSOL: number;             // Legacy - keeping for compat
     realizedPnlSOL: number;     // Profit banked on exit
+    realizedPnlUSD?: number;
+
     unrealizedPnlSOL: number;   // Mark-to-market while holding
+    unrealizedPnlUSD?: number;
+
     portfolioValueSOL: number;
+    portfolioValueUSD?: number;
 
     evaluation?: DecisionEvaluation;
 }
@@ -70,6 +78,7 @@ export interface DecisionEvaluation {
 export interface SimulationReport {
     startSOL: number;
     endSOL: number;
+    solPriceUSD?: number; // Price used for valuation
     pnlPct: number;
     penaltyScore: number;
     totalInvalidDecisions: number;
