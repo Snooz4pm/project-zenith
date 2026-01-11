@@ -181,6 +181,10 @@ let cachedUniverse: SearchableToken[] | null = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Track recently traded tokens to prevent re-entering same positions
+const recentTrades = new Map<string, number>(); // token -> timestamp of last exit
+const COOLDOWN_MS = 60_000; // 60 seconds cooldown before re-entering same token
+
 async function getUniverse(): Promise<SearchableToken[]> {
     const now = Date.now();
     if (cachedUniverse && (now - cacheTimestamp) < CACHE_TTL) {
@@ -245,6 +249,8 @@ function portfolioBrainV2(state: any): PortfolioAction[] {
                     invalidationRules: ['Stop loss'],
                 },
             });
+            // Add to cooldown to prevent immediate re-entry
+            recentTrades.set(pos.token, Date.now());
             continue;
         }
 
@@ -263,6 +269,8 @@ function portfolioBrainV2(state: any): PortfolioAction[] {
                     invalidationRules: ['Lock in profits'],
                 },
             });
+            // Add to cooldown to prevent immediate re-entry
+            recentTrades.set(pos.token, Date.now());
             continue;
         }
 
@@ -281,6 +289,8 @@ function portfolioBrainV2(state: any): PortfolioAction[] {
                     invalidationRules: ['Max hold time'],
                 },
             });
+            // Add to cooldown to prevent immediate re-entry
+            recentTrades.set(pos.token, Date.now());
             continue;
         }
 
@@ -290,17 +300,33 @@ function portfolioBrainV2(state: any): PortfolioAction[] {
 
     // ===== OPEN NEW POSITIONS =====
     if (positionCount < MAX_POSITIONS && liquidSOL > 0.02) {
-        // Find alpha opportunities
-        const alphaTargets = universe.filter(t =>
-            t.tier === 'SAFE' &&
-            t.mint !== SOL_MINT &&
-            t.hasRoute &&
-            t.valueInSOL > 0 &&
-            t.roundTripLoss < 8 &&
-            (t.alphaScore || 0) > 0.3 &&
-            !t.isStable &&
-            !positions.some((p: any) => p.token === t.symbol) // Don't buy what we already have
-        );
+        // Clean up expired cooldowns
+        const now = Date.now();
+        for (const [token, exitTime] of recentTrades.entries()) {
+            if (now - exitTime > COOLDOWN_MS) {
+                recentTrades.delete(token);
+            }
+        }
+
+        // Find alpha opportunities (excluding tokens on cooldown)
+        const alphaTargets = universe.filter(t => {
+            // Skip if on cooldown
+            const lastExitTime = recentTrades.get(t.symbol);
+            if (lastExitTime && now - lastExitTime < COOLDOWN_MS) {
+                return false; // Still on cooldown
+            }
+
+            return (
+                t.tier === 'SAFE' &&
+                t.mint !== SOL_MINT &&
+                t.hasRoute &&
+                t.valueInSOL > 0 &&
+                t.roundTripLoss < 8 &&
+                (t.alphaScore || 0) > 0.3 &&
+                !t.isStable &&
+                !positions.some((p: any) => p.token === t.symbol) // Don't buy what we already have
+            );
+        });
 
         if (alphaTargets.length > 0) {
             // Sort by alpha score
@@ -336,6 +362,16 @@ function portfolioBrainV2(state: any): PortfolioAction[] {
                     },
                 });
             }
+        } else {
+            // Count tokens on cooldown for better logging
+            const tokensOnCooldown = Array.from(recentTrades.keys()).filter(token => {
+                const lastExitTime = recentTrades.get(token);
+                return lastExitTime && now - lastExitTime < COOLDOWN_MS;
+            });
+
+            if (tokensOnCooldown.length > 0) {
+                console.log(`[Brain] ${tokensOnCooldown.length} tokens on cooldown: ${tokensOnCooldown.join(', ')}`);
+            }
         }
     }
 
@@ -355,14 +391,27 @@ function portfolioBrainV2(state: any): PortfolioAction[] {
 
     // ===== HESITATE (no opportunities) =====
     if (actions.length === 0) {
+        // Check if we're waiting for cooldowns
+        const now = Date.now();
+        const tokensOnCooldown = Array.from(recentTrades.keys()).filter(token => {
+            const lastExitTime = recentTrades.get(token);
+            return lastExitTime && now - lastExitTime < COOLDOWN_MS;
+        });
+
+        let thesis = 'No opportunities: waiting for alpha setups';
+        if (tokensOnCooldown.length > 0) {
+            const cooldownSec = Math.ceil(COOLDOWN_MS / 1000);
+            thesis = `Waiting for cooldown (${cooldownSec}s): ${tokensOnCooldown.join(', ')}. Looking for new alpha opportunities.`;
+        }
+
         actions.push({
             type: 'HESITATE',
             intent: {
-                thesis: 'No opportunities: waiting for alpha setups',
+                thesis,
                 signals: {},
                 expectedDirection: 'NEUTRAL',
                 confidence: 0.3,
-                invalidationRules: ['New opportunities appear'],
+                invalidationRules: ['New opportunities appear', 'Cooldowns expire'],
             },
         });
     }
