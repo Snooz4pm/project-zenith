@@ -25,20 +25,62 @@ const SOL_MINT = 'So11111111111111111111111111111111111111112';
  */
 async function fetchRealUniverse(): Promise<SearchableToken[]> {
     try {
-        // Use internal API to get real tokens
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-        const response = await fetch(`${baseUrl}/api/smart-swap/valuate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ enableValuation: true }),
-        });
 
-        if (!response.ok) {
-            throw new Error(`Failed to fetch universe: ${response.status}`);
+        // Step 1: Fetch token list
+        console.log('[Backtest] Step 1: Fetching token list...');
+        const tokensResponse = await fetch(`${baseUrl}/api/smart-swap/tokens`);
+
+        if (!tokensResponse.ok) {
+            throw new Error(`Failed to fetch tokens: ${tokensResponse.status}`);
         }
 
-        const data = await response.json();
-        const tokens: SmartToken[] = data.tokens || [];
+        const tokensData = await tokensResponse.json();
+        const rawTokens = tokensData.tokens || [];
+
+        if (rawTokens.length === 0) {
+            throw new Error('No tokens available');
+        }
+
+        console.log(`[Backtest] Loaded ${rawTokens.length} raw tokens`);
+
+        // Step 2: Valuate tokens (get SOL values and routes)
+        console.log('[Backtest] Step 2: Valuating tokens...');
+        const valuateResponse = await fetch(`${baseUrl}/api/smart-swap/valuate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tokens: rawTokens.slice(0, 100).map((t: any) => ({
+                    mint: t.address,
+                    decimals: t.decimals || 6,
+                })),
+            }),
+        });
+
+        if (!valuateResponse.ok) {
+            throw new Error(`Failed to valuate tokens: ${valuateResponse.status}`);
+        }
+
+        const valuateData = await valuateResponse.json();
+        const results = valuateData.results || [];
+
+        // Step 3: Merge valuation results with token data
+        const tokens: SmartToken[] = results.map((valuation: any) => {
+            const rawToken = rawTokens.find((t: any) => t.address === valuation.mint);
+            return {
+                mint: valuation.mint,
+                symbol: rawToken?.symbol || 'UNKNOWN',
+                name: rawToken?.name || 'Unknown Token',
+                decimals: valuation.decimals || rawToken?.decimals || 6,
+                valueInSOL: valuation.valueInSOL,
+                priceImpactPct: valuation.priceImpactPct,
+                hasRoute: valuation.hasRoute,
+                canReverse: valuation.canReverse,
+                roundTripLoss: valuation.roundTripLoss,
+                safeTier: valuation.safeTier,
+                alphaScore: valuation.alphaScore,
+            };
+        });
 
         // Convert to SearchableToken format (same transformation as Brain v2 API)
         const searchableTokens: SearchableToken[] = tokens.map(token => ({
