@@ -8,7 +8,8 @@
  */
 
 export const V1_HOLD = {
-    MAX_HOLD_MINUTES: 2.5, // Conservative start
+    MAX_HOLD_MINUTES: 4320, // 3 days maximum (72 hours)
+    MIN_HOLD_MINUTES: 5,    // 5 minutes minimum
     CONFIDENCE_THRESHOLD: 0.4, // Minimum confidence to suggest hold
     MIN_EXIT_LIQUIDITY_USD: 50_000, // Must have emergency exit
     MAX_DRAWDOWN_PCT: 3, // Stop-loss trigger
@@ -26,7 +27,7 @@ export const V1_HOLD = {
  */
 export type V1HoldCheckpoint = {
     token: string; // Mint address
-    suggestedDurationMinutes: number; // 1-2.5 only
+    suggestedDurationMinutes: number; // 5 min - 3 days (4320 min)
 
     confidence: number; // 0-1
     maxDrawdownPct: 3; // Always 3% in v1

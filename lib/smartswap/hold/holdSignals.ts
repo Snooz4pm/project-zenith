@@ -200,10 +200,21 @@ export function computeHoldCheckpoint(input: HoldSignalInput): V1HoldCheckpoint 
     // === DURATION CALCULATION ===
 
     // Higher friction = longer pause recommended
-    // confidence 0.4 → 1.0 min (quick reassess)
-    // confidence 0.7 → 1.6 min (moderate pause)
-    // confidence 1.0 → 2.5 min (strong pause signal)
-    const suggestedDuration = Math.min(V1_HOLD.MAX_HOLD_MINUTES, 0.5 + confidence * 2);
+    // confidence 0.4 → 5 min (minimum)
+    // confidence 0.7 → ~1 hour
+    // confidence 1.0 → up to 3 days (based on severity)
+    //
+    // Scale: 5 min base + (confidence * dynamic range)
+    // Dynamic range increases with friction severity
+    const baseMinutes = V1_HOLD.MIN_HOLD_MINUTES;
+    const maxRange = V1_HOLD.MAX_HOLD_MINUTES - baseMinutes;
+
+    // Exponential scaling for severe friction
+    // Low confidence (0.4-0.6): 5-30 min
+    // Medium confidence (0.6-0.8): 30 min - 4 hours
+    // High confidence (0.8-1.0): 4 hours - 3 days
+    const scaledDuration = baseMinutes + (Math.pow(confidence, 2) * maxRange);
+    const suggestedDuration = Math.min(V1_HOLD.MAX_HOLD_MINUTES, Math.max(V1_HOLD.MIN_HOLD_MINUTES, scaledDuration));
 
     // === BUILD CHECKPOINT ===
 

@@ -61,8 +61,8 @@ model Course {
   isPublished Boolean  @default(true)
   createdAt   DateTime @default(now())
 
-  lessons   Lesson[]
-  progress  CourseProgress[]
+  lessons  Lesson[]
+  progress CourseProgress[]
 }
 
 model Lesson {
@@ -80,7 +80,7 @@ model CourseProgress {
   id           String   @id @default(cuid())
   userId       String
   courseId     String
-  progress     Int      @default(0)  // 0-100
+  progress     Int      @default(0) // 0-100
   lastLessonId String?
   updatedAt    DateTime @updatedAt
 
@@ -98,7 +98,7 @@ model Note {
   id        String   @id @default(cuid())
   userId    String
   content   String   @db.Text
-  context   String?  // e.g., "course:solana-basics", "room:traders-lounge"
+  context   String? // e.g., "course:solana-basics", "room:traders-lounge"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -188,7 +188,7 @@ model Message {
 model Notification {
   id        String   @id @default(cuid())
   userId    String
-  type      String   // join_request | request_approved | new_message | etc.
+  type      String // join_request | request_approved | new_message | etc.
   payload   Json
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -205,30 +205,30 @@ model Notification {
 // =============================================================================
 
 model SwapReceipt {
-  id               String    @id @default(cuid())
-  wallet           String
-  inputMint        String
-  outputMint       String
-  inputSymbol      String?
-  outputSymbol     String?
-  inAmount         String    // Base units
-  outAmount        String    // Base units
-  inAmountUi       Float?    // UI amount
-  outAmountUi      Float?    // UI amount
-  inAmountUsd      Float?
-  outAmountUsd     Float?
-  txid             String    @unique
-  routeType        String?   // 'best' | 'fastest' | 'low_impact'
-  routeHops        Int?
-  slippageBps      Int?
-  priceImpactPct   Float?
-  feeAmount        Float?    // SOL fee
-  status           String    @default("pending") // pending | confirmed | failed
-  jitoBundle       Boolean   @default(false)
-  jitoBundleId     String?
-  errorMessage     String?
-  createdAt        DateTime  @default(now())
-  confirmedAt      DateTime?
+  id             String    @id @default(cuid())
+  wallet         String
+  inputMint      String
+  outputMint     String
+  inputSymbol    String?
+  outputSymbol   String?
+  inAmount       String // Base units
+  outAmount      String // Base units
+  inAmountUi     Float? // UI amount
+  outAmountUi    Float? // UI amount
+  inAmountUsd    Float?
+  outAmountUsd   Float?
+  txid           String    @unique
+  routeType      String? // 'best' | 'fastest' | 'low_impact'
+  routeHops      Int?
+  slippageBps    Int?
+  priceImpactPct Float?
+  feeAmount      Float? // SOL fee
+  status         String    @default("pending") // pending | confirmed | failed
+  jitoBundle     Boolean   @default(false)
+  jitoBundleId   String?
+  errorMessage   String?
+  createdAt      DateTime  @default(now())
+  confirmedAt    DateTime?
 
   @@index([wallet])
   @@index([txid])
@@ -279,24 +279,24 @@ model ArenaSwap {
 // =============================================================================
 
 model PremiumSubscription {
-  id              String   @id @default(cuid())
-  walletAddress   String   @unique
-  
+  id            String @id @default(cuid())
+  walletAddress String @unique
+
   // Subscription details
-  expiresAt       DateTime
-  features        String   // JSON: {"walletTracker":true,"newCoins":true,"rugPulls":true}
-  amountPaid      Float    // SOL amount paid
-  
+  expiresAt  DateTime
+  features   String // JSON: {"walletTracker":true,"newCoins":true,"rugPulls":true}
+  amountPaid Float // SOL amount paid
+
   // Verification
-  paymentTxHash   String   // SOL transfer tx signature
-  signedMessage   String   // User-signed subscription message
-  signature       String   // Base58 signature
-  
+  paymentTxHash String // SOL transfer tx signature
+  signedMessage String // User-signed subscription message
+  signature     String // Base58 signature
+
   // Status
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([walletAddress])
   @@index([expiresAt])
   @@index([isActive])
@@ -308,55 +308,55 @@ model PremiumSubscription {
 
 // User Alert Preferences
 model AlertPreferences {
-  id              String   @id @default(cuid())
-  walletAddress   String   @unique
-  
+  id            String @id @default(cuid())
+  walletAddress String @unique
+
   // Notification channels
-  pushEnabled     Boolean  @default(true)
-  memoEnabled     Boolean  @default(false)
-  
+  pushEnabled Boolean @default(true)
+  memoEnabled Boolean @default(false)
+
   // Frequency: instant, daily, weekly
-  frequency       String   @default("instant")
-  
+  frequency String @default("instant")
+
   // Thresholds
-  minApeScore     Int      @default(70)
-  minTradeSize    Float    @default(10000) // USD
-  rugRiskThreshold Int     @default(60)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  minApeScore      Int   @default(70)
+  minTradeSize     Float @default(10000) // USD
+  rugRiskThreshold Int   @default(60)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([walletAddress])
 }
 
 // Tracked Wallets (Whale Tracking)
 model TrackedWallet {
-  id              String   @id @default(cuid())
-  userWallet      String   // Who is tracking
-  trackedAddress  String   // Wallet being tracked
-  label           String?  // "SOL Whale #1"
-  isPreset        Boolean  @default(false)
-  
-  createdAt       DateTime @default(now())
-  
+  id             String  @id @default(cuid())
+  userWallet     String // Who is tracking
+  trackedAddress String // Wallet being tracked
+  label          String? // "SOL Whale #1"
+  isPreset       Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
   @@unique([userWallet, trackedAddress])
   @@index([userWallet])
 }
 
 // Alerts History
 model Alert {
-  id              String   @id @default(cuid())
-  walletAddress   String   // Who receives
-  
-  type            String   // whale_buy, new_coin, rug_risk
-  title           String
-  message         String
-  tokenMint       String?
-  metadata        String?  // JSON for extra data
-  
-  isRead          Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  
+  id            String @id @default(cuid())
+  walletAddress String // Who receives
+
+  type      String // whale_buy, new_coin, rug_risk
+  title     String
+  message   String
+  tokenMint String?
+  metadata  String? // JSON for extra data
+
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
   @@index([walletAddress])
   @@index([createdAt(sort: Desc)])
 }
@@ -367,24 +367,24 @@ model Alert {
 
 // Token Learning Data - Directional accuracy tracking
 model TokenLearning {
-  id                      String   @id @default(cuid())
-  mint                    String   @unique
-  symbol                  String
-  
+  id     String @id @default(cuid())
+  mint   String @unique
+  symbol String
+
   // Directional accuracy (not numeric predictions)
-  directionAccuracy       Float    @default(0.5)  // 0-1, % times got direction right
-  magnitudeBucketAccuracy Float    @default(0.5)  // 0-1, % times got magnitude bucket right
-  confidenceScore         Float    @default(0.3)  // 0-1, trust in learnings
-  
+  directionAccuracy       Float @default(0.5) // 0-1, % times got direction right
+  magnitudeBucketAccuracy Float @default(0.5) // 0-1, % times got magnitude bucket right
+  confidenceScore         Float @default(0.3) // 0-1, trust in learnings
+
   // Behavior patterns
-  typicalHoldMinutes      Float?   // Observed optimal hold time
-  volatilityProfile       String   @default("MEDIUM") // LOW | MEDIUM | HIGH
-  
+  typicalHoldMinutes Float? // Observed optimal hold time
+  volatilityProfile  String @default("MEDIUM") // LOW | MEDIUM | HIGH
+
   // Metadata
-  learningCount           Int      @default(0)  // Number of sessions learned from
-  lastUpdated             DateTime @updatedAt
-  createdAt               DateTime @default(now())
-  
+  learningCount Int      @default(0) // Number of sessions learned from
+  lastUpdated   DateTime @updatedAt
+  createdAt     DateTime @default(now())
+
   @@index([mint])
   @@index([directionAccuracy])
   @@index([lastUpdated(sort: Desc)])
@@ -392,29 +392,29 @@ model TokenLearning {
 
 // Session Comparison - Learning feedback loop
 model SessionComparison {
-  id                   String   @id @default(cuid())
-  tokenMint            String
-  tokenSymbol          String
-  
+  id          String @id @default(cuid())
+  tokenMint   String
+  tokenSymbol String
+
   // Actual outcome
-  actualDirection      String   // UP | DOWN | FLAT
-  actualBucket         Int      // 0: <2%, 1: 2-5%, 2: >5%
-  actualPercentChange  Float    // For analytics
-  
+  actualDirection     String // UP | DOWN | FLAT
+  actualBucket        Int // 0: <2%, 1: 2-5%, 2: >5%
+  actualPercentChange Float // For analytics
+
   // Predicted (what brain suggested)
-  predictedDirection   String   // UP | DOWN | FLAT
-  predictedBucket      Int      // 0-2
-  
+  predictedDirection String // UP | DOWN | FLAT
+  predictedBucket    Int // 0-2
+
   // Context
-  timeBetweenSessions  Int      // minutes
-  marketRegime         String   // BULL | BEAR | SIDEWAYS | VOLATILE
-  
+  timeBetweenSessions Int // minutes
+  marketRegime        String // BULL | BEAR | SIDEWAYS | VOLATILE
+
   // Outcome
-  wasDirectionCorrect  Boolean
-  wasBucketCorrect     Boolean
-  
-  createdAt            DateTime @default(now())
-  
+  wasDirectionCorrect Boolean
+  wasBucketCorrect    Boolean
+
+  createdAt DateTime @default(now())
+
   @@index([tokenMint])
   @@index([createdAt(sort: Desc)])
   @@index([wasDirectionCorrect])
@@ -425,59 +425,168 @@ model SessionComparison {
 // =============================================================================
 
 model SmartSwap {
-  id               String   @id @default(uuid())
-  userId           String   // Wallet Address or User ID
+  id     String @id @default(uuid())
+  userId String // Wallet Address or User ID
 
-  status           String   // PLANNED | IN_PROGRESS | ABORTED | COMPLETED
-  abortReason      String?
+  status      String // PLANNED | IN_PROGRESS | ABORTED | COMPLETED
+  abortReason String?
 
-  fromToken        String
-  toToken          String
-  startValueSOL    Float
-  targetValueSOL   Float?
+  fromToken      String
+  toToken        String
+  startValueSOL  Float
+  targetValueSOL Float?
 
-  currentStepIndex Int      @default(0)
-  scenario         String   @default("BALANCED")
+  currentStepIndex Int    @default(0)
+  scenario         String @default("BALANCED")
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  abortedAt        DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  abortedAt DateTime?
 
-  steps            SmartSwapStep[]
-  
+  steps SmartSwapStep[]
+
   @@index([userId])
   @@index([status])
 }
 
 model SmartSwapStep {
-  id              String   @id @default(uuid())
-  swapId          String
-  index           Int
+  id     String @id @default(uuid())
+  swapId String
+  index  Int
 
-  status          String   
-  // PLANNED | QUOTE_READY | SIGNED | CONFIRMED | ABORTED
+  action String // SWAP | HOLD
+  status String
+  // PLANNED | QUOTE_READY | SIGNED | CONFIRMED | ABORTED | WAITING (for HOLD)
 
-  fromToken       String
-  toToken         String
+  fromToken String
+  toToken   String
 
-  expectedValueSOL Float
-  minValueSOL      Float     // Timeout Logic
-  quoteFetchedAt        DateTime?
+  expectedValueSOL    Float
+  minValueSOL         Float // Timeout Logic
+  quoteFetchedAt      DateTime?
   quoteExpiresAt      DateTime?
-  quoteFreshnessMaxMs Int?       // Scenario specific tolerance
+  quoteFreshnessMaxMs Int? // Scenario specific tolerance
 
   // Deviation Protection
   expectedOutAmount      String? // Base units from initial quote
-  maxAllowedDeviationPct Float?  // e.g. 0.8% - 5.0%
+  maxAllowedDeviationPct Float? // e.g. 0.8% - 5.0%
+
+  // HOLD-specific fields
+  holdMinutes Int? // For HOLD actions
+  holdUntil   DateTime? // Calculated deadline for HOLD
+  holdReason  String? // Why we're holding
 
   // Outcome
-  txSignature     String?
+  txSignature String?
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  swap            SmartSwap @relation(fields: [swapId], references: [id])
-  
+  swap SmartSwap @relation(fields: [swapId], references: [id])
+
   @@index([swapId])
   @@index([status])
+}
+
+// =============================================================================
+// PREDICTION TESTING (Brain Validation)
+// =============================================================================
+
+model PredictionTest {
+  id              String @id @default(uuid())
+  totalTokens     Int
+  durationMinutes Int
+  cyclesCompleted Int    @default(0)
+  accuracy        Float? // % of correct predictions
+  status          String // RUNNING | COMPLETED | FAILED
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  cycles PredictionCycle[]
+
+  @@index([status])
+}
+
+model PredictionCycle {
+  id     String @id @default(uuid())
+  testId String
+  cycle  Int // Which minute (0-9 for 10min test)
+
+  token          String
+  symbol         String
+  startPrice     Float
+  endPrice       Float
+  priceChangePct Float
+
+  predicted  String // UP | DOWN | NEUTRAL
+  actual     String // UP | DOWN | NEUTRAL
+  correct    Boolean
+  confidence Float
+
+  createdAt DateTime @default(now())
+
+  test PredictionTest @relation(fields: [testId], references: [id])
+
+  @@index([testId])
+  @@index([correct])
+}
+
+// =============================================================================
+// PAPER TRADING (Full Brain Simulation)
+// =============================================================================
+
+model PaperTrade {
+  id String @id @default(uuid())
+
+  startCapitalUSD Float // e.g., 100
+  currentValueUSD Float // Live portfolio value
+  finalValueUSD   Float? // End value
+  roiPct          Float? // (final - start) / start * 100
+
+  durationMinutes Int // e.g., 30
+  status          String // RUNNING | COMPLETED | FAILED
+
+  // Current holdings
+  currentToken  String? // What token we're holding now
+  currentAmount Float? // How much
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  decisions PaperTradeDecision[]
+
+  @@index([status])
+}
+
+model PaperTradeDecision {
+  id      String @id @default(uuid())
+  tradeId String
+  index   Int
+
+  action String // SWAP | HOLD | EXIT
+
+  // For SWAP
+  fromToken   String?
+  toToken     String?
+  fromAmount  Float?
+  expectedOut Float? // Brain's prediction
+  actualOut   Float? // Jupiter quote result
+  accuracyPct Float? // |expected - actual| / expected * 100
+
+  // For HOLD
+  holdMinutes    Int?
+  holdReason     String?
+  priceAtStart   Float?
+  priceAtEnd     Float?
+  priceChangePct Float?
+
+  // Outcome
+  portfolioValueUSD Float? // Portfolio value after this decision
+
+  timestamp DateTime @default(now())
+
+  trade PaperTrade @relation(fields: [tradeId], references: [id])
+
+  @@index([tradeId])
 }

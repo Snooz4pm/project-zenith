@@ -856,6 +856,20 @@ export function convertPathToRoadmap(
     goal: BrainGoal,
     scenario: ScenarioType = 'BEST_EFFORT'
 ): BrainRoadmap {
+    // ============================================================
+    // 🔴 CRITICAL INVARIANT: Path MUST end at exit token
+    // This is guaranteed by exit reachability, but we validate here
+    // ============================================================
+    if (pathState.path.length > 0) {
+        const lastHop = pathState.path[pathState.path.length - 1];
+        if (lastHop.toToken !== goal.targetToken) {
+            throw new Error(
+                `INVARIANT VIOLATION: Path ends at ${lastHop.toSymbol} (${lastHop.toToken}) ` +
+                `but exit token is ${goal.targetToken}. This should never happen.`
+            );
+        }
+    }
+
     const steps: RoadmapStep[] = [];
     const warnings: string[] = []; // Initialize logic warnings
     let stepIndex = 0;
