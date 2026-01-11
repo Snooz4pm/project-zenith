@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { ScenarioRunner } from '@/lib/smartswap/scenarios/ScenarioRunner';
 import { BrainGoal, SearchableToken } from '@/types/BrainV2';
 import { SmartToken } from '@/types/SmartToken';
-import { normalizeToSOL } from '@/lib/solana/price';
+import { normalizeToSOL, getTokenPriceInSOL } from '@/lib/solana/price';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,20 +37,71 @@ function toSearchableToken(token: SmartToken): SearchableToken {
     };
 }
 
+// ============================================================================
+// VALUATION GATE - NO EXECUTION WITHOUT VALID PRICING
+// ============================================================================
+
+interface ValuationResult {
+    token: string;
+    symbol: string;
+    valueInSOL: number;
+    source: 'JUPITER' | 'NATIVE';
+}
+
+interface ValuationError {
+    code: 'VALUATION_UNAVAILABLE';
+    token: string;
+    symbol: string;
+    message: string;
+    suggestion: string;
+}
+
+async function requireValuation(
+    tokenMint: string,
+    tokenSymbol: string,
+    tokens: SmartToken[]
+): Promise<ValuationResult | ValuationError> {
+    // SOL is always 1:1
+    if (tokenMint === SOL_MINT) {
+        return { token: tokenMint, symbol: 'SOL', valueInSOL: 1, source: 'NATIVE' };
+    }
+
+    // Try Jupiter price API
+    const price = await getTokenPriceInSOL(tokenMint);
+    if (price !== null && price > 0) {
+        return { token: tokenMint, symbol: tokenSymbol, valueInSOL: price, source: 'JUPITER' };
+    }
+
+    // Fallback: check if token exists in universe with valueInSOL
+    const tokenData = tokens.find(t => t.mint === tokenMint);
+    if (tokenData?.valueInSOL && tokenData.valueInSOL > 0) {
+        return { token: tokenMint, symbol: tokenData.symbol, valueInSOL: tokenData.valueInSOL, source: 'JUPITER' };
+    }
+
+    // FAIL - cannot price this token
+    return {
+        code: 'VALUATION_UNAVAILABLE',
+        token: tokenMint,
+        symbol: tokenSymbol,
+        message: `Unable to fetch reliable SOL valuation for ${tokenSymbol}`,
+        suggestion: 'Try again later, or switch to a more liquid token (SOL/USDC)',
+    };
+}
+
 export async function POST(request: Request) {
     try {
         const body = await request.json();
         const {
-            startAmount,           // Raw token amount (e.g., 100 for "100 USDC")
-            startAmountSOL,        // Legacy: Direct SOL value (deprecated but supported)
+            startAmount,
+            startAmountSOL,
             tokens,
             startTokenMint,
             targetTokenMint,
             desiredROI,
             preservationMode
         } = body as {
-            startAmount?: number;      // NEW: Raw amount in token units
-            startAmountSOL?: number;   // LEGACY: Direct SOL value
+            startAmount?: number;
+            startAmountSOL?: number;
             tokens: SmartToken[];
             startTokenMint?: string;
             targetTokenMint?: string;
@@ -65,25 +116,70 @@ export async function POST(request: Request) {
         const startMint = startTokenMint || SOL_MINT;
         const targetMint = targetTokenMint || SOL_MINT;
 
-        // === VALUE NORMALIZATION (Phase 2.5 Fix) ===
+        // Get token symbols for error messages
+        const startTokenData = tokens.find(t => t.mint === startMint);
+        const targetTokenData = tokens.find(t => t.mint === targetMint);
+        const startSymbol = startTokenData?.symbol || startMint.slice(0, 8);
+        const targetSymbol = targetTokenData?.symbol || targetMint.slice(0, 8);
+
+        // ============================================================
+        // 🔴 VALUATION GATE - NON-NEGOTIABLE
+        // Brain cannot run without valid pricing for BOTH tokens
+        // ============================================================
+
+        // Validate FROM token can be priced
+        const fromValuation = await requireValuation(startMint, startSymbol, tokens);
+        if ('code' in fromValuation) {
+            console.error(`[Scenario API] ❌ Valuation gate FAILED for FROM token: ${startSymbol}`);
+            return NextResponse.json({
+                error: fromValuation.message,
+                code: fromValuation.code,
+                details: {
+                    failedToken: 'FROM',
+                    token: fromValuation.token,
+                    symbol: fromValuation.symbol,
+                    suggestion: fromValuation.suggestion,
+                    canProceed: false,
+                    roiDisabled: true,
+                }
+            }, { status: 422 });
+        }
+
+        // Validate TO token can be priced
+        const toValuation = await requireValuation(targetMint, targetSymbol, tokens);
+        if ('code' in toValuation) {
+            console.error(`[Scenario API] ❌ Valuation gate FAILED for TO token: ${targetSymbol}`);
+            return NextResponse.json({
+                error: toValuation.message,
+                code: toValuation.code,
+                details: {
+                    failedToken: 'TO',
+                    token: toValuation.token,
+                    symbol: toValuation.symbol,
+                    suggestion: toValuation.suggestion,
+                    canProceed: false,
+                    roiDisabled: true,
+                }
+            }, { status: 422 });
+        }
+
+        console.log(`[Scenario API] ✅ Valuation gate PASSED`);
+        console.log(`[Scenario API]   FROM: ${startSymbol} @ ${fromValuation.valueInSOL} SOL (${fromValuation.source})`);
+        console.log(`[Scenario API]   TO: ${targetSymbol} @ ${toValuation.valueInSOL} SOL (${toValuation.source})`);
+
+        // ============================================================
+        // VALUE NORMALIZATION (now safe - valuation confirmed)
+        // ============================================================
         let normalizedStartSOL: number;
 
         if (startAmountSOL && startAmountSOL > 0) {
-            // Legacy path: Direct SOL amount provided
             normalizedStartSOL = startAmountSOL;
         } else if (startAmount && startAmount > 0) {
-            // New path: Normalize token amount to SOL
             if (startMint === SOL_MINT) {
                 normalizedStartSOL = startAmount;
             } else {
-                const normalized = await normalizeToSOL(startMint, startAmount);
-                if (normalized === null) {
-                    return NextResponse.json({
-                        error: `Unable to fetch price for ${startMint}. Try again or enter SOL equivalent.`,
-                        code: 'PRICE_UNAVAILABLE'
-                    }, { status: 400 });
-                }
-                normalizedStartSOL = normalized;
+                // Safe to normalize - we know price exists
+                normalizedStartSOL = startAmount * fromValuation.valueInSOL;
             }
         } else {
             return NextResponse.json({ error: 'Invalid start amount' }, { status: 400 });
@@ -102,7 +198,7 @@ export async function POST(request: Request) {
         // Convert tokens
         const universe: SearchableToken[] = tokens.map(toSearchableToken);
 
-        // Define Base Goal
+        // Define Base Goal (now with validated pricing)
         const baseGoal: BrainGoal = {
             startToken: startMint,
             targetToken: targetMint,
@@ -111,18 +207,27 @@ export async function POST(request: Request) {
             maxHops: 5,
             maxTotalRTL: 10,
             maxPerHopRTL: 4,
+            roiIntent: {
+                targetPct: effectiveROI * 100,
+                tolerancePct: 1,
+                maxOvershootPct: 5,
+            },
             preservation: preservationMode !== false ? {
                 enabled: true,
                 maxAllowedDrawdownPct: 0.7
             } : undefined
         };
 
-        // Run Scenarios
+        // Run Scenarios (valuation is guaranteed)
         const comparison = await ScenarioRunner.runAll(universe, baseGoal);
 
         return NextResponse.json({
             success: true,
-            comparison
+            comparison,
+            valuation: {
+                from: { symbol: startSymbol, priceSOL: fromValuation.valueInSOL },
+                to: { symbol: targetSymbol, priceSOL: toValuation.valueInSOL },
+            }
         });
 
     } catch (error: any) {

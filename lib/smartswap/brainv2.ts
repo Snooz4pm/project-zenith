@@ -20,6 +20,8 @@ import {
     ConfidenceLevel,
     ScenarioType,
     ProtectionClass,
+    GoalAlignment,
+    GoalAlignmentStatus,
 } from '@/types/BrainV2';
 import { estimateTokenTax } from './tax';
 import { SmartToken } from '@/types/SmartToken';
@@ -138,6 +140,145 @@ function estimateSwapOutcome(
     };
 }
 
+// ============================================================================
+// GOAL ALIGNMENT (Mandatory Explanation)
+// ============================================================================
+
+const HOLDABLE_ROI_GAP_MAX = 6; // Max % gap that can be bridged with hold
+const MIN_USEFUL_ROI_PROGRESS = 0.3; // 30% of target = minimum useful path
+
+/**
+ * Compute Goal Alignment - Mandatory explanation for every result
+ * 
+ * Determines:
+ * - Does path end at exit token?
+ * - Is ROI target reached?
+ * - Is hold required to bridge gap?
+ * - Why is goal unreachable (if so)?
+ */
+function computeGoalAlignment(
+    path: PathState | undefined,
+    goal: BrainGoal,
+    universe: SearchableToken[]
+): GoalAlignment {
+    const targetRoiPct = goal.roiIntent?.targetPct ??
+        ((goal.targetAmountSOL - goal.startAmountSOL) / goal.startAmountSOL) * 100;
+
+    // No path found
+    if (!path) {
+        return {
+            status: 'UNREACHABLE',
+            explanation: 'No viable path found under current constraints.',
+            currentRoiPct: 0,
+            targetRoiPct,
+            remainingGapPct: targetRoiPct,
+            endsAtExitToken: false,
+            exitToken: goal.targetToken,
+            holdRequired: false,
+        };
+    }
+
+    const currentRoiPct = ((path.currentValueSOL - goal.startAmountSOL) / goal.startAmountSOL) * 100;
+    const remainingGapPct = targetRoiPct - currentRoiPct;
+    const endsAtExitToken = path.currentToken === goal.targetToken;
+
+    // Check exit token first (non-negotiable)
+    if (!endsAtExitToken) {
+        // Path doesn't end at exit token - this is PARTIAL at best
+        const roiProgress = currentRoiPct / targetRoiPct;
+
+        if (roiProgress < MIN_USEFUL_ROI_PROGRESS) {
+            return {
+                status: 'UNREACHABLE',
+                explanation: `Path ends at ${path.currentSymbol} instead of target token. ROI progress insufficient (${currentRoiPct.toFixed(1)}% of ${targetRoiPct.toFixed(1)}% target).`,
+                currentRoiPct,
+                targetRoiPct,
+                remainingGapPct,
+                endsAtExitToken: false,
+                exitToken: goal.targetToken,
+                actualExitToken: path.currentToken,
+                holdRequired: false,
+            };
+        }
+
+        return {
+            status: 'PARTIAL',
+            explanation: `Path ends at ${path.currentSymbol} instead of ${goal.targetToken}. This is intermediate progress only.`,
+            currentRoiPct,
+            targetRoiPct,
+            remainingGapPct,
+            endsAtExitToken: false,
+            exitToken: goal.targetToken,
+            actualExitToken: path.currentToken,
+            holdRequired: false,
+        };
+    }
+
+    // Path ends at correct exit token - check ROI
+    const tolerance = goal.roiIntent?.tolerancePct ?? 1;
+
+    if (remainingGapPct <= tolerance) {
+        // Target reached (within tolerance)
+        return {
+            status: 'REACHED',
+            explanation: `Target ROI of ${targetRoiPct.toFixed(1)}% achieved (actual: ${currentRoiPct.toFixed(1)}%).`,
+            currentRoiPct,
+            targetRoiPct,
+            remainingGapPct,
+            endsAtExitToken: true,
+            exitToken: goal.targetToken,
+            holdRequired: false,
+        };
+    }
+
+    if (remainingGapPct > 0 && remainingGapPct <= HOLDABLE_ROI_GAP_MAX) {
+        // Gap exists but is within holdable range
+        // Check if token has momentum signals
+        const exitTokenData = universe.find(t => t.mint === goal.targetToken);
+        const hasMomentum = exitTokenData &&
+            ((exitTokenData.alphaScore ?? 0) > 0.3 || (exitTokenData.volatility ?? 0) > 0.1);
+
+        if (hasMomentum) {
+            return {
+                status: 'REQUIRES_HOLD',
+                explanation: `Path achieves ${currentRoiPct.toFixed(1)}% ROI, ${remainingGapPct.toFixed(1)}% short of target. Hold recommended to bridge gap.`,
+                currentRoiPct,
+                targetRoiPct,
+                remainingGapPct,
+                endsAtExitToken: true,
+                exitToken: goal.targetToken,
+                holdRequired: true,
+                holdReason: `${path.currentSymbol} shows momentum signals. Hold may close remaining ${remainingGapPct.toFixed(1)}% gap.`,
+            };
+        }
+    }
+
+    // Gap too large or no momentum
+    if (remainingGapPct > HOLDABLE_ROI_GAP_MAX) {
+        return {
+            status: 'UNREACHABLE',
+            explanation: `Target ROI of ${targetRoiPct.toFixed(1)}% cannot be reached. Best achievable: ${currentRoiPct.toFixed(1)}% (gap: ${remainingGapPct.toFixed(1)}% exceeds holdable limit of ${HOLDABLE_ROI_GAP_MAX}%).`,
+            currentRoiPct,
+            targetRoiPct,
+            remainingGapPct,
+            endsAtExitToken: true,
+            exitToken: goal.targetToken,
+            holdRequired: false,
+        };
+    }
+
+    // Partial success - on target token but ROI gap exists without momentum
+    return {
+        status: 'PARTIAL',
+        explanation: `Path achieves ${currentRoiPct.toFixed(1)}% ROI at ${path.currentSymbol}, ${remainingGapPct.toFixed(1)}% short of target. No strong momentum signals to suggest hold.`,
+        currentRoiPct,
+        targetRoiPct,
+        remainingGapPct,
+        endsAtExitToken: true,
+        exitToken: goal.targetToken,
+        holdRequired: false,
+    };
+}
 /**
  * Heuristic Score - THE NEURAL PART
  *
@@ -547,11 +688,13 @@ export function searchForPath(
     // Check if start token can even reach exit
     if (!reachability.canReachExit.has(goal.startToken)) {
         console.log(`[Brain v2] ❌ Start token ${goal.startToken} cannot reach exit ${goal.targetToken}`);
+        const goalAlignment = computeGoalAlignment(undefined, goal, universe);
         return {
             found: false,
             reason: `No route exists from start token to ${goal.targetToken}`,
             exploredPaths: 0,
             explanation: pathExplainer.explainFailure(undefined, goal, universe),
+            goalAlignment,
         };
     }
 
@@ -603,12 +746,14 @@ export function searchForPath(
         if (allNewPaths.length === 0) {
             console.log(`[Brain v2] Dead end at hop ${hop}`);
             const explanation = pathExplainer.explainFailure(bestEffort, goal, universe);
+            const goalAlignment = computeGoalAlignment(bestEffort, goal, universe);
             return {
                 found: false,
                 reason: 'No viable paths found under current constraints',
                 bestEffort,
                 exploredPaths,
                 explanation,
+                goalAlignment,
             };
         }
 
@@ -644,6 +789,7 @@ export function searchForPath(
 
                 // Generate explanation
                 const explanation = pathExplainer.explainPath(pathWithHold, goal, universe, allNewPaths);
+                const goalAlignment = computeGoalAlignment(pathWithHold, goal, universe);
 
                 return {
                     found: true,
@@ -652,6 +798,7 @@ export function searchForPath(
                     warnings: generateWarnings(path),
                     reachableAtHop: hop,
                     explanation,
+                    goalAlignment,
                 };
             }
         }
@@ -678,12 +825,15 @@ export function searchForPath(
     const bestEffortWithHold = bestEffort ? attachHoldCheckpoint(bestEffort, universe) : undefined;
 
     const explanation = pathExplainer.explainFailure(bestEffortWithHold, goal, universe);
+    const goalAlignment = computeGoalAlignment(bestEffortWithHold, goal, universe);
+
     return {
         found: false,
         reason: `Target not reachable within ${goal.maxHops} hops under current market conditions`,
         bestEffort: bestEffortWithHold,
         exploredPaths,
         explanation,
+        goalAlignment,
     };
 }
 

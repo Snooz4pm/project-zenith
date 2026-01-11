@@ -119,6 +119,31 @@ export interface PathExplanation {
 }
 
 // ============================================================================
+// GOAL ALIGNMENT (Mandatory Explanation)
+// ============================================================================
+
+export type GoalAlignmentStatus = 'REACHED' | 'REQUIRES_HOLD' | 'UNREACHABLE' | 'PARTIAL';
+
+export interface GoalAlignment {
+    status: GoalAlignmentStatus;
+    explanation: string;
+
+    // Progress metrics
+    currentRoiPct: number;
+    targetRoiPct: number;
+    remainingGapPct: number;
+
+    // Exit validation
+    endsAtExitToken: boolean;
+    exitToken: string;
+    actualExitToken?: string;
+
+    // Hold guidance
+    holdRequired: boolean;
+    holdReason?: string;
+}
+
+// ============================================================================
 // SEARCH RESULT (BRAIN OUTPUT)
 // ============================================================================
 
@@ -129,14 +154,16 @@ export type BrainSearchResult =
         confidence: 'low' | 'medium' | 'high';
         warnings: string[];
         reachableAtHop: number;
-        explanation: PathExplanation; // NEW: Reality-aware context
+        explanation: PathExplanation;
+        goalAlignment: GoalAlignment; // NEW: Mandatory
     }
     | {
         found: false;
         reason: string;
-        bestEffort?: PathState; // closest we got
+        bestEffort?: PathState;
         exploredPaths: number;
-        explanation: PathExplanation; // NEW: Why it failed + alternatives
+        explanation: PathExplanation;
+        goalAlignment: GoalAlignment; // NEW: Mandatory (explains why unreachable)
     };
 
 // ============================================================================
