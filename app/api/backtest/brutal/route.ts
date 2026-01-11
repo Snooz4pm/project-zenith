@@ -149,6 +149,21 @@ async function fetchRealUniverse(): Promise<SearchableToken[]> {
             tier: token.safeTier ?? 'REJECTED',
         }));
 
+        // ✅ ADD SOL to universe (required for Brain v2 pathfinding)
+        searchableTokens.push({
+            mint: SOL_MINT,
+            symbol: 'SOL',
+            valueInSOL: 1.0, // SOL is worth 1 SOL
+            roundTripLoss: 0, // No RTL for SOL itself
+            hasRoute: true,
+            liquidityScore: 1.0,
+            alphaScore: 0,
+            volatility: 0.2,
+            isStable: false,
+            isAlpha: false,
+            tier: 'SAFE',
+        });
+
         console.log(`[Backtest] Loaded ${searchableTokens.length} tokens from real universe`);
         const safeCount = searchableTokens.filter(t => t.tier === 'SAFE').length;
         const alphaCount = searchableTokens.filter(t => t.isAlpha).length;
