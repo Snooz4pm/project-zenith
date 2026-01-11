@@ -14,84 +14,116 @@ import { SmartToken } from '@/types/SmartToken';
 export const dynamic = 'force-dynamic';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
+const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
 
 // ============================================================================
 // REAL TOKEN UNIVERSE - NO MOCK DATA
 // ============================================================================
 
 /**
- * ✅ Fetch REAL token universe from the same source Brain v2 uses
+ * ✅ Fetch REAL token universe directly from Jupiter proxy
  * This ensures simulation uses actual market data
  */
 async function fetchRealUniverse(): Promise<SearchableToken[]> {
     try {
-        // Determine base URL for server-side fetch
-        // In production, use the deployment URL; in dev, construct from host
-        const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-        const host = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_APP_URL || 'localhost:3000';
-        const baseUrl = host.startsWith('http') ? host : `${protocol}://${host}`;
-
-        // Step 1: Fetch token list
-        console.log('[Backtest] Step 1: Fetching token list from', baseUrl);
-        const tokensResponse = await fetch(`${baseUrl}/api/smart-swap/tokens`, {
+        // Step 1: Fetch token list directly from Jupiter proxy
+        console.log('[Backtest] Step 1: Fetching token list from Jupiter proxy...');
+        const tokensResponse = await fetch(`${JUPITER_PROXY_URL}/tokens`, {
             headers: { 'Accept': 'application/json' },
         });
 
         if (!tokensResponse.ok) {
-            const errorText = await tokensResponse.text();
-            console.error('[Backtest] Token fetch failed:', tokensResponse.status, errorText);
-            throw new Error(`Failed to fetch tokens: ${tokensResponse.status}`);
+            throw new Error(`Failed to fetch tokens from Jupiter: ${tokensResponse.status}`);
         }
 
         const tokensData = await tokensResponse.json();
         const rawTokens = tokensData.tokens || [];
 
         if (rawTokens.length === 0) {
-            throw new Error('No tokens available from proxy');
+            throw new Error('No tokens available from Jupiter proxy');
         }
 
         console.log(`[Backtest] Loaded ${rawTokens.length} raw tokens`);
 
-        // Step 2: Valuate tokens (get SOL values and routes)
-        console.log('[Backtest] Step 2: Valuating top 50 tokens...');
-        const valuateResponse = await fetch(`${baseUrl}/api/smart-swap/valuate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                tokens: rawTokens.slice(0, 50).map((t: any) => ({
-                    mint: t.address,
-                    decimals: t.decimals || 6,
-                })),
-            }),
-        });
+        // Step 2: Get Jupiter quotes for top tokens to determine SOL values
+        console.log('[Backtest] Step 2: Getting quotes for top 30 tokens...');
+        const tokensToValue = rawTokens.slice(0, 30);
 
-        if (!valuateResponse.ok) {
-            const errorText = await valuateResponse.text();
-            console.error('[Backtest] Valuation failed:', valuateResponse.status, errorText);
-            throw new Error(`Failed to valuate tokens: ${valuateResponse.status}`);
-        }
+        const results = await Promise.all(
+            tokensToValue.map(async (token: any) => {
+                try {
+                    // Get quote for 1 token unit -> SOL
+                    const amount = Math.pow(10, token.decimals || 6).toString();
+                    const quoteResponse = await fetch(
+                        `${JUPITER_PROXY_URL}/quote?` + new URLSearchParams({
+                            inputMint: token.address,
+                            outputMint: SOL_MINT,
+                            amount: amount,
+                            slippageBps: '50',
+                        })
+                    );
 
-        const valuateData = await valuateResponse.json();
-        const results = valuateData.results || [];
+                    if (!quoteResponse.ok) {
+                        return {
+                            mint: token.address,
+                            hasRoute: false,
+                            roundTripLoss: 99,
+                            safeTier: 'REJECTED' as const,
+                        };
+                    }
+
+                    const quote = await quoteResponse.json();
+                    const solOut = parseInt(quote.outAmount || '0');
+                    const valueInSOL = solOut / Math.pow(10, 9);
+                    const priceImpact = Math.abs(parseFloat(quote.priceImpactPct || '0'));
+
+                    // Estimate RTL (simplified for simulation)
+                    const estimatedRTL = priceImpact * 2; // Rough estimate
+
+                    return {
+                        mint: token.address,
+                        valueInSOL,
+                        priceImpactPct: priceImpact,
+                        hasRoute: true,
+                        roundTripLoss: estimatedRTL,
+                        safeTier: estimatedRTL <= 15 ? 'SAFE' as const : 'RANKABLE' as const,
+                        alphaScore: estimatedRTL > 5 && estimatedRTL < 20 ? 50 : 30,
+                    };
+                } catch (error) {
+                    return {
+                        mint: token.address,
+                        hasRoute: false,
+                        roundTripLoss: 99,
+                        safeTier: 'REJECTED' as const,
+                    };
+                }
+            })
+        );
 
         console.log(`[Backtest] Valuation complete: ${results.length} results`);
 
-        if (results.length === 0) {
-            throw new Error('No tokens passed valuation');
+        const validResults = results.filter(r => r.hasRoute);
+
+        if (validResults.length === 0) {
+            throw new Error('No tokens passed valuation - no routes found');
         }
 
+        console.log(`[Backtest] ${validResults.length} tokens with valid routes`);
+
         // Step 3: Merge valuation results with token data
-        const tokens: SmartToken[] = results.map((valuation: any) => {
-            const rawToken = rawTokens.find((t: any) => t.address === valuation.mint);
+        const tokens: SmartToken[] = validResults.map((valuation: any) => {
+            const rawToken = tokensToValue.find((t: any) => t.address === valuation.mint);
             return {
+                id: valuation.mint, // Use mint as ID
                 mint: valuation.mint,
                 symbol: rawToken?.symbol || 'UNKNOWN',
                 name: rawToken?.name || 'Unknown Token',
-                decimals: valuation.decimals || rawToken?.decimals || 6,
+                decimals: rawToken?.decimals || 6,
+                logoURI: rawToken?.logoURI,
+                tags: rawToken?.tags || [],
                 valueInSOL: valuation.valueInSOL,
                 priceImpactPct: valuation.priceImpactPct,
                 hasRoute: valuation.hasRoute,
-                canReverse: valuation.canReverse,
                 roundTripLoss: valuation.roundTripLoss,
                 safeTier: valuation.safeTier,
                 alphaScore: valuation.alphaScore,
