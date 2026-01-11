@@ -25,6 +25,12 @@ import { estimateTokenTax } from './tax';
 import { SmartToken } from '@/types/SmartToken';
 import { pathExplainer } from './context/PathExplainer';
 import { computeHoldCheckpoint, type HoldSignalInput } from './hold/holdSignals';
+import {
+    buildExitReachability,
+    buildAdjacencyGraph,
+    checkExitReachability,
+    ExitReachability
+} from './exitReachability';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const STABLECOINS = ['USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'FRAX'];
@@ -137,63 +143,94 @@ function estimateSwapOutcome(
  *
  * Decides which paths survive beam search.
  *
- * V2 CRITICAL FIX: Target is now a GRADIENT, not a wall.
+ * V2.6 CRITICAL FIX: ROI is now a TARGET, not a maximum.
+ * Paths that overshoot the target ROI are PENALIZED, not rewarded.
  *
  * Score components:
- * 1. Capital preservation: log(current/start) - don't lose money
- * 2. Target ambition: current/target - how close to goal?
+ * 1. ROI Distance: How close to target? (±tolerance = perfect)
+ * 2. Capital preservation: Don't lose money
  * 3. Risk penalties: RTL, hops
- * 4. Alpha momentum: rewards volatility exploration
- *
- * Higher target → more pressure to explore → more hops, more alpha, more holds
+ * 4. Target token boost: Must end at user's destination
  */
-function calculateHeuristicScore(state: PathState, goal: BrainGoal, alphaScore: number = 0): number {
-    // === CORE OBJECTIVE (NEW: Target-Aware) ===
 
-    // 1. Capital preservation (log scale to prevent losses from dominating)
+/**
+ * ROI Distance Score - Goal-seeking, not maximization
+ * 
+ * Returns 1.0 for perfect match (within tolerance)
+ * Decays toward 0 for overshoot or undershoot
+ */
+function roiDistanceScore(achievedROI: number, targetROI: number, tolerance: number = 1, maxOvershoot: number = 5): number {
+    const distance = Math.abs(achievedROI - targetROI);
+
+    // Perfect match → max score
+    if (distance <= tolerance) return 1.0;
+
+    // Outside tolerance → decay based on distance
+    // The further from target, the worse the score
+    const excessDistance = distance - tolerance;
+    const decay = 1 - (excessDistance / maxOvershoot);
+
+    return Math.max(0, decay);
+}
+
+function calculateHeuristicScore(
+    state: PathState,
+    goal: BrainGoal,
+    alphaScore: number = 0,
+    targetToken?: string
+): number {
+    // Calculate current ROI
+    const currentROI = ((state.currentValueSOL - goal.startAmountSOL) / goal.startAmountSOL) * 100;
+
+    // Get ROI intent (default to legacy behavior if not set)
+    const roiIntent = goal.roiIntent || {
+        targetPct: ((goal.targetAmountSOL - goal.startAmountSOL) / goal.startAmountSOL) * 100,
+        tolerancePct: 1,
+        maxOvershootPct: 10
+    };
+
+    // === ROI DISTANCE SCORING (NEW: Goal-seeking) ===
+    const roiScore = roiDistanceScore(
+        currentROI,
+        roiIntent.targetPct,
+        roiIntent.tolerancePct,
+        roiIntent.maxOvershootPct
+    ) * 1.5; // Weight: 1.5 (primary driver)
+
+    // === OVERSHOOT PENALTY (NEW) ===
+    let overshootPenalty = 0;
+    const overshoot = currentROI - roiIntent.targetPct;
+    if (overshoot > roiIntent.tolerancePct) {
+        // Penalize overshoot more aggressively
+        overshootPenalty = (overshoot - roiIntent.tolerancePct) * 0.2;
+    }
+
+    // === Capital preservation (log scale) ===
     const growthRatio = state.currentValueSOL / goal.startAmountSOL;
-    const preservationScore = Math.log(Math.max(0.01, growthRatio)) * 0.6; // α = 0.6
-
-    // 2. Target ambition (linear scale - direct progress measure)
-    const targetProgress = state.currentValueSOL / goal.targetAmountSOL;
-    const ambitionScore = Math.min(2, targetProgress) * 0.4; // β = 0.4, capped at 200% to prevent runaway
-
-    // Combined objective: balance safety + ambition
-    const objectiveScore = preservationScore + ambitionScore;
+    const preservationScore = Math.log(Math.max(0.01, growthRatio)) * 0.4;
 
     // === PENALTIES ===
-
-    // Risk penalty (cumulative RTL)
     const rtlPenalty = state.cumulativeRTL * HEURISTIC_WEIGHTS.rtlPenalty;
-
-    // Hop penalty (prevents endless looping)
     const hopPenalty = state.hopsUsed * HEURISTIC_WEIGHTS.hopPenalty;
 
     // === BONUSES ===
 
-    // ✅ NEW: Reward profitable hops
-    let profitBonus = 0;
-    if (state.path.length > 0) {
-        const lastHop = state.path[state.path.length - 1];
-        // Check if last hop was profitable
-        if (lastHop.estimatedOutSOL > lastHop.estimatedInSOL) {
-            const hopProfit = ((lastHop.estimatedOutSOL / lastHop.estimatedInSOL) - 1) * 100;
-            profitBonus = hopProfit * 0.15; // 15% of profit as bonus
+    // Alpha momentum boost
+    const alphaMomentumBoost = alphaScore * HEURISTIC_WEIGHTS.alphaMomentumBoost * 0.5; // Reduced weight
+
+    // Target token boost (must end at user's destination)
+    let targetTokenBoost = 0;
+    if (targetToken && targetToken !== SOL_MINT) {
+        if (state.currentToken === targetToken) {
+            targetTokenBoost = 2.0;
+        } else if (state.path.some(hop => hop.toToken === targetToken)) {
+            targetTokenBoost = 0.5;
         }
     }
 
-    // Alpha momentum boost (rewards volatility at early hops)
-    const alphaMomentumBoost = alphaScore * HEURISTIC_WEIGHTS.alphaMomentumBoost;
-
-    // Alpha fuel boost after hop 2 (encourages breakout to alpha tokens)
-    let alphaFuelBoost = 0;
-    if (state.hopsUsed >= 2 && alphaScore > 0.3) {
-        alphaFuelBoost = 0.2 * alphaScore; // 20% boost scaled by alpha
-    }
-
-    // ✅ FIXED SCORE: Includes profit bonus
-    const score = objectiveScore - rtlPenalty - hopPenalty +
-        profitBonus + alphaMomentumBoost + alphaFuelBoost;
+    // ✅ FINAL SCORE: ROI distance is primary, overshoot is penalized
+    const score = roiScore + preservationScore - rtlPenalty - hopPenalty - overshootPenalty +
+        alphaMomentumBoost + targetTokenBoost;
 
     return score;
 }
@@ -263,11 +300,14 @@ function violatesHardRules(
 
 /**
  * Expand a path state to generate next-hop candidates
+ * 
+ * CRITICAL: Uses exit reachability pruning to guarantee paths end at exit token.
  */
 function expandPath(
     currentState: PathState,
     universe: SearchableToken[],
-    goal: BrainGoal
+    goal: BrainGoal,
+    reachability: ExitReachability  // NEW: Exit reachability graph
 ): PathState[] {
     const newStates: PathState[] = [];
 
@@ -275,19 +315,30 @@ function expandPath(
         // Skip if same as current token
         if (candidate.mint === currentState.currentToken) continue;
 
-        // REMOVED CONSTRAINT: Don't filter by hasRoute
-        // Many tokens can reach SOL through intermediaries (USDC, USDT, BONK, etc.)
-        // Let the brain find indirect routes: Token A → USDC → SOL
-        // Instead of requiring: SOL → Token A (direct route)
+        // ============================================================
+        // 🔴 HARD PRUNE #1: EXIT REACHABILITY (NON-NEGOTIABLE)
+        // This candidate MUST be able to reach the exit token
+        // within the remaining hop budget.
+        // ============================================================
+        const exitCheck = checkExitReachability(
+            candidate.mint,
+            currentState.hopsUsed,
+            goal.maxHops,
+            reachability
+        );
+        if (exitCheck !== null) {
+            // Cannot reach exit from this candidate - skip entirely
+            continue;
+        }
 
-        // Check hard rules
+        // Check hard rules (RTL, liquidity, etc.)
         const { violated, reason } = violatesHardRules(currentState, candidate, goal);
         if (violated) continue;
 
-        // ✅ CORRECTED: Use proper swap estimation
+        // ✅ Use proper swap estimation
         const swap = estimateSwapOutcome(currentState, candidate);
 
-        // ✅ FIX: Check if this swap would be profitable enough
+        // Check if this swap would be profitable enough
         const minAcceptableReturn = -2; // Allow up to 2% loss per hop
         if (swap.expectedReturn < minAcceptableReturn) {
             continue; // Skip hops with too much loss
@@ -366,8 +417,8 @@ function expandPath(
             score: 0, // will be calculated below
         };
 
-        // Calculate heuristic score
-        let score = calculateHeuristicScore(newState, goal, candidate.alphaScore ?? 0);
+        // Calculate heuristic score (with target token bias)
+        let score = calculateHeuristicScore(newState, goal, candidate.alphaScore ?? 0, goal.targetToken);
 
         // Apply escape penalties
         if (pairCount === 1) {
@@ -476,12 +527,33 @@ function attachHoldCheckpoint(state: PathState, universe: SearchableToken[]): Pa
  * Returns:
  * - Found path if target is reachable
  * - "Not found" with best effort if target not reachable
+ * 
+ * CRITICAL: Uses exit reachability pruning to guarantee paths end at exit token.
  */
 export function searchForPath(
     universe: SearchableToken[],
     goal: BrainGoal
 ): BrainSearchResult {
     console.log(`[Brain v2] Starting beam search: ${goal.startAmountSOL} SOL → ${goal.targetAmountSOL} SOL`);
+    console.log(`[Brain v2] Exit token: ${goal.targetToken}`);
+
+    // ============================================================
+    // 🔴 CRITICAL: Build exit reachability graph BEFORE search
+    // This guarantees ALL paths can reach the user's exit token.
+    // ============================================================
+    const adjacency = buildAdjacencyGraph(universe);
+    const reachability = buildExitReachability(universe, goal.targetToken, adjacency);
+
+    // Check if start token can even reach exit
+    if (!reachability.canReachExit.has(goal.startToken)) {
+        console.log(`[Brain v2] ❌ Start token ${goal.startToken} cannot reach exit ${goal.targetToken}`);
+        return {
+            found: false,
+            reason: `No route exists from start token to ${goal.targetToken}`,
+            exploredPaths: 0,
+            explanation: pathExplainer.explainFailure(undefined, goal, universe),
+        };
+    }
 
     // CRITICAL: Calculate adaptive constraints based on target ambition
     const adaptiveConstraints = calculateAdaptiveConstraints(goal);
@@ -497,7 +569,6 @@ export function searchForPath(
     let exploredPaths = 0;
 
     // Initialize with user's starting token
-    // Find symbol in universe (fallback to mint if not found)
     const startTokenObj = universe.find(t => t.mint === goal.startToken);
     const startSymbol = startTokenObj ? startTokenObj.symbol : 'UNKNOWN';
 
@@ -505,12 +576,12 @@ export function searchForPath(
         {
             currentToken: goal.startToken,
             currentSymbol: startSymbol,
-            currentTokenAmount: goal.startAmount ?? 1, // Real token units (e.g., 500000 BONK)
-            currentValueSOL: goal.startAmountSOL, // SOL valuation only
+            currentTokenAmount: goal.startAmount ?? 1,
+            currentValueSOL: goal.startAmountSOL,
             hopsUsed: 0,
             cumulativeRTL: 0,
             path: [],
-            visitedTokens: [goal.startToken], // Start with user token visited
+            visitedTokens: [goal.startToken],
             score: 0,
         },
     ];
@@ -521,9 +592,9 @@ export function searchForPath(
     for (let hop = 1; hop <= goal.maxHops; hop++) {
         const allNewPaths: PathState[] = [];
 
-        // Expand all active paths
+        // Expand all active paths (with exit reachability pruning)
         for (const currentPath of activePaths) {
-            const expansions = expandPath(currentPath, universe, goal);
+            const expansions = expandPath(currentPath, universe, goal, reachability);
             allNewPaths.push(...expansions);
             exploredPaths += expansions.length;
         }

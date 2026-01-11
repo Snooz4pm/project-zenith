@@ -329,11 +329,14 @@ export default function SmartSwapPage() {
                         <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
                             {comparison.all.map((scenario) => {
                                 const isWinner = comparison.best.scenarioId === scenario.scenarioId;
-                                const isBlocked = scenario.roadmap?.blocked;
+                                const status = scenario.status || (scenario.roadmap?.blocked ? 'BLOCKED_PRESERVATION' : 'VALID');
+                                const isBlocked = status === 'BLOCKED_PRESERVATION';
+                                const isNoPath = status === 'NO_PATH';
+                                const isLowConfidence = status === 'LOW_CONFIDENCE';
 
                                 return (
                                     <div key={scenario.scenarioId} className={`p-4 border-b border-zinc-800 last:border-0 ${isWinner ? 'bg-green-950/10' : ''
-                                        } ${isBlocked ? 'opacity-50 grayscale' : ''}`}>
+                                        } ${isBlocked || isNoPath ? 'opacity-50 grayscale' : ''}`}>
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="flex items-center gap-3">
                                                 {getScenarioIcon(scenario.scenarioId)}
@@ -345,121 +348,145 @@ export default function SmartSwapPage() {
                                                         Blocked
                                                     </span>
                                                 )}
+                                                {isNoPath && (
+                                                    <span className="text-[10px] bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded uppercase font-bold border border-zinc-700">
+                                                        No Path
+                                                    </span>
+                                                )}
+                                                {isLowConfidence && (
+                                                    <span className="text-[10px] bg-yellow-900/40 text-yellow-500 px-1.5 py-0.5 rounded uppercase font-bold border border-yellow-900/50">
+                                                        Low Conf
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className={`font-mono font-bold ${scenario.roiPct > 0 ? 'text-green-400' : 'text-zinc-500'}`}>
                                                 {scenario.roiPct > 0 ? '+' : ''}{scenario.roiPct.toFixed(2)}%
                                             </div>
                                         </div>
 
+                                        {/* Status Message (Reason) */}
+                                        {(isBlocked || isNoPath || isLowConfidence) && scenario.reason && (
+                                            <div className="ml-8 mb-2 text-xs font-mono italic flex items-center gap-2">
+                                                {isBlocked ? <Shield className="w-3 h-3 text-red-500/70" /> : <AlertTriangleIcon className="w-3 h-3 text-zinc-500" />}
+                                                <span className={`${isBlocked ? 'text-red-400/80' : 'text-zinc-500'}`}>
+                                                    {scenario.reason}
+                                                </span>
+                                            </div>
+                                        )}
+
                                         {/* Roadmap-Based Display */}
                                         <div className="mt-2 ml-8 space-y-2">
                                             {scenario.roadmap ? (
                                                 <>
-                                                    {isBlocked ? (
+                                                    {isBlocked && !scenario.reason ? (
+                                                        // Fallback if reason missing
                                                         <div className="text-xs text-red-400/80 font-mono italic flex items-center gap-2">
                                                             <Shield className="w-3 h-3" />
                                                             {scenario.roadmap.blockedReason || 'Violates safety constraints'}
                                                         </div>
-                                                    ) : (
-                                                        <>
-                                                            {/* Summary */}
-                                                            <div className="text-xs text-zinc-500 font-mono flex items-center gap-4">
-                                                                <span>{scenario.roadmap.summary.hops} hops</span>
-                                                                {scenario.roadmap.summary.holds > 0 && (
-                                                                    <span className="text-purple-400">⏸ {scenario.roadmap.summary.holds} hold(s)</span>
-                                                                )}
-                                                                <span className={`px-1.5 py-0.5 rounded text-[10px] ${scenario.roadmap.summary.confidence === 'HIGH' ? 'bg-green-900/40 text-green-400' :
-                                                                    scenario.roadmap.summary.confidence === 'MEDIUM' ? 'bg-yellow-900/40 text-yellow-400' :
-                                                                        'bg-red-900/40 text-red-400'
-                                                                    }`}>
-                                                                    {scenario.roadmap.summary.confidence}
-                                                                </span>
-                                                            </div>
+                                                    ) : null}
 
-                                                            {/* Estimates - NO SOL amounts */}
-                                                            <div className="text-xs text-zinc-600 font-mono flex items-center gap-3">
-                                                                <span>~{scenario.roadmap.estimates.durationMinutesRange[0].toFixed(0)}–{scenario.roadmap.estimates.durationMinutesRange[1].toFixed(0)} min</span>
-                                                                <span className={`px-1 rounded ${scenario.roadmap.estimates.feesImpact === 'LOW' ? 'bg-green-900/30 text-green-500' :
-                                                                        scenario.roadmap.estimates.feesImpact === 'MEDIUM' ? 'bg-yellow-900/30 text-yellow-500' :
-                                                                            'bg-red-900/30 text-red-500'
-                                                                    }`}>
-                                                                    Fees: {scenario.roadmap.estimates.feesImpact}
-                                                                </span>
-                                                            </div>
+                                                    {/* Summary */}
+                                                    <div className="text-xs text-zinc-500 font-mono flex items-center gap-4">
+                                                        <span>{scenario.roadmap.summary.hops} hops</span>
+                                                        {scenario.roadmap.summary.holds > 0 && (
+                                                            <span className="text-purple-400">⏸ {scenario.roadmap.summary.holds} hold(s)</span>
+                                                        )}
+                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${scenario.roadmap.summary.confidence === 'HIGH' ? 'bg-green-900/40 text-green-400' :
+                                                            scenario.roadmap.summary.confidence === 'MEDIUM' ? 'bg-yellow-900/40 text-yellow-400' :
+                                                                'bg-red-900/40 text-red-400'
+                                                            }`}>
+                                                            {scenario.roadmap.summary.confidence}
+                                                        </span>
+                                                    </div>
 
-                                                            {/* Why Chosen */}
-                                                            <div className="text-xs text-zinc-500">
-                                                                {scenario.roadmap.explanation.whyChosen.map((reason, i) => (
-                                                                    <span key={i} className="mr-2">• {reason}</span>
-                                                                ))}
-                                                            </div>
+                                                    {/* Estimates - NO SOL amounts */}
+                                                    <div className="text-xs text-zinc-600 font-mono flex items-center gap-3">
+                                                        <span>~{scenario.roadmap.estimates.durationMinutesRange[0].toFixed(0)}–{scenario.roadmap.estimates.durationMinutesRange[1].toFixed(0)} min</span>
+                                                        <span className={`px-1 rounded ${scenario.roadmap.estimates.feesImpact === 'LOW' ? 'bg-green-900/30 text-green-500' :
+                                                            scenario.roadmap.estimates.feesImpact === 'MEDIUM' ? 'bg-yellow-900/30 text-yellow-500' :
+                                                                'bg-red-900/30 text-red-500'
+                                                            }`}>
+                                                            Fees: {scenario.roadmap.estimates.feesImpact}
+                                                        </span>
+                                                    </div>
 
-                                                            {/* Steps - NO amounts, just routing */}
-                                                            <div className="space-y-1">
-                                                                {scenario.roadmap.steps.map((step, i) => (
-                                                                    <div key={i} className={`text-xs font-mono flex flex-col gap-1 ${step.mandatory ? 'text-zinc-300' : 'text-zinc-500'
-                                                                        }`}>
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className="text-zinc-600 w-4">{step.index + 1}.</span>
-                                                                            {step.action === 'SWAP' ? (
-                                                                                <>
-                                                                                    <span>{step.fromSymbol} → {step.toSymbol}</span>
-                                                                                    <span className={`text-[10px] uppercase px-1 rounded ${step.confidence === 'HIGH' ? 'text-green-500 bg-green-900/20' :
-                                                                                        step.confidence === 'MEDIUM' ? 'text-yellow-500 bg-yellow-900/20' : 'text-red-500 bg-red-900/20'
-                                                                                        }`}>
-                                                                                        {step.confidence}
-                                                                                    </span>
-                                                                                    {/* Protection Badge */}
-                                                                                    {step.protection && step.protection !== 'SAFE' && (
-                                                                                        <span className={`text-[9px] uppercase px-1 rounded border ${step.protection === 'JITO_ONLY' ? 'border-purple-500 text-purple-400' :
-                                                                                                'border-red-500 text-red-400'
-                                                                                            }`}>
-                                                                                            {step.protection === 'JITO_ONLY' ? '🛡️ MEV' : '⚠️ RISK'}
-                                                                                        </span>
-                                                                                    )}
-                                                                                </>
-                                                                            ) : (
-                                                                                <span className="text-purple-400">⏸ Hold {step.holdMinutes}min — {step.holdReason?.substring(0, 30)}...</span>
-                                                                            )}
-                                                                        </div>
+                                                    {/* Why Chosen */}
+                                                    <div className="text-xs text-zinc-500">
+                                                        {scenario.roadmap.explanation.whyChosen.map((reason, i) => (
+                                                            <span key={i} className="mr-2">• {reason}</span>
+                                                        ))}
+                                                    </div>
 
-                                                                        {/* Exit Guard UI - The "Trust Anchor" */}
-                                                                        {step.exitEnvelope && (
-                                                                            <div className="ml-6 flex items-center gap-2 text-[10px] text-zinc-600">
-                                                                                <Shield className="w-3 h-3 text-zinc-700" />
-                                                                                <span>Exit here → worse case </span>
-                                                                                <span className="text-zinc-400 font-bold">
-                                                                                    {step.exitEnvelope.worstCaseExitPct.toFixed(1)}%
+                                                    {/* Steps - NO amounts, just routing */}
+                                                    <div className="space-y-1">
+                                                        {scenario.roadmap.steps.map((step, i) => (
+                                                            <div key={i} className={`text-xs font-mono flex flex-col gap-1 ${step.mandatory ? 'text-zinc-300' : 'text-zinc-500'
+                                                                }`}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-zinc-600 w-4">{step.index + 1}.</span>
+                                                                    {step.action === 'SWAP' ? (
+                                                                        <>
+                                                                            <span>{step.fromSymbol} → {step.toSymbol}</span>
+                                                                            <span className={`text-[10px] uppercase px-1 rounded ${step.confidence === 'HIGH' ? 'text-green-500 bg-green-900/20' :
+                                                                                step.confidence === 'MEDIUM' ? 'text-yellow-500 bg-yellow-900/20' : 'text-red-500 bg-red-900/20'
+                                                                                }`}>
+                                                                                {step.confidence}
+                                                                            </span>
+                                                                            {/* Protection Badge */}
+                                                                            {step.protection && step.protection !== 'SAFE' && (
+                                                                                <span className={`text-[9px] uppercase px-1 rounded border ${step.protection === 'JITO_ONLY' ? 'border-purple-500 text-purple-400' :
+                                                                                    'border-red-500 text-red-400'
+                                                                                    }`}>
+                                                                                    {step.protection === 'JITO_ONLY' ? '🛡️ MEV' : '⚠️ RISK'}
                                                                                 </span>
-                                                                                <span> preserved</span>
-                                                                            </div>
-                                                                        )}
+                                                                            )}
+                                                                        </>
+                                                                    ) : (
+                                                                        <span className="text-purple-400">⏸ Hold {step.holdMinutes}min — {step.holdReason?.substring(0, 30)}...</span>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Exit Guard UI - The "Trust Anchor" */}
+                                                                {step.exitEnvelope && (
+                                                                    <div className="ml-6 flex items-center gap-2 text-[10px] text-zinc-600">
+                                                                        <Shield className="w-3 h-3 text-zinc-700" />
+                                                                        <span>Exit here → worse case </span>
+                                                                        <span className="text-zinc-400 font-bold">
+                                                                            {step.exitEnvelope.worstCaseExitPct.toFixed(1)}%
+                                                                        </span>
+                                                                        <span> preserved</span>
                                                                     </div>
-                                                                ))}
+                                                                )}
                                                             </div>
+                                                        ))}
+                                                    </div>
 
-                                                            {/* Main Risks */}
-                                                            {scenario.roadmap.explanation.mainRisks.length > 0 && (
-                                                                <div className="text-xs text-zinc-600 italic">
-                                                                    Risks: {scenario.roadmap.explanation.mainRisks.slice(0, 2).join('; ')}
-                                                                </div>
-                                                            )}
-
-                                                            {/* Warnings */}
-                                                            {scenario.roadmap.warnings.length > 0 && (
-                                                                <div className="text-xs text-orange-400 mt-1">
-                                                                    {scenario.roadmap.warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
-                                                                </div>
-                                                            )}
-
-                                                            {/* Disclaimer - CRITICAL */}
-                                                            <div className="text-[10px] text-zinc-600 italic mt-2 border-t border-zinc-800 pt-2">
-                                                                Based on current signals. Final amounts determined by live quotes. Markets can change instantly.
-                                                            </div>
-                                                        </>
+                                                    {/* Main Risks */}
+                                                    {scenario.roadmap.explanation.mainRisks.length > 0 && (
+                                                        <div className="text-xs text-zinc-600 italic">
+                                                            Risks: {scenario.roadmap.explanation.mainRisks.slice(0, 2).join('; ')}
+                                                        </div>
                                                     )}
+
+                                                    {/* Warnings */}
+                                                    {scenario.roadmap.warnings.length > 0 && (
+                                                        <div className="text-xs text-orange-400 mt-1">
+                                                            {scenario.roadmap.warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Disclaimer - CRITICAL */}
+                                                    <div className="text-[10px] text-zinc-600 italic mt-2 border-t border-zinc-800 pt-2">
+                                                        Based on current signals. Final amounts determined by live quotes. Markets can change instantly.
+                                                    </div>
                                                 </>
-                                            ) : <span className="text-zinc-600 text-xs font-mono">No roadmap generated</span>}
+                                            ) : (
+                                                <div className="text-zinc-600 text-xs font-mono flex flex-col gap-1">
+                                                    <span>No roadmap generated.</span>
+                                                    {!scenario.reason && <span className="opacity-50">Constraint filtering active.</span>}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 );

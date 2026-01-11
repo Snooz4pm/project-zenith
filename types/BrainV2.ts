@@ -15,6 +15,18 @@ import { V1HoldCheckpoint } from '@/lib/smartswap/hold/V1Constants';
 // SEARCH GOAL (USER INPUT)
 // ============================================================================
 
+/**
+ * ROI Intent - Goal-seeking, not maximization
+ * 
+ * The Brain should find paths CLOSE to the target ROI, not maximize it.
+ * Overshoot is penalized, not rewarded.
+ */
+export interface RoiIntent {
+    targetPct: number;        // e.g., 7 for 7%
+    tolerancePct: number;     // ±1% is "perfect match"
+    maxOvershootPct: number;  // Hard cap on overshoot (scenario-dependent)
+}
+
 export type BrainGoal = {
     startToken: string; // Mint address (e.g., SOL, BONK)
     targetToken: string; // Mint address (e.g., MEMO, USDC)
@@ -26,6 +38,9 @@ export type BrainGoal = {
     maxHops: number;
     maxTotalRTL: number;
     maxPerHopRTL: number;
+
+    // ROI Intent (Phase 2.6) - Goal-seeking, not maximization
+    roiIntent?: RoiIntent;
 
     // Safety Layer (Phase 2)
     preservation?: {
@@ -177,7 +192,7 @@ export type SearchableToken = {
 // Brain outputs PLANNING, not quotes. Execution fetches fresh quotes.
 // ============================================================================
 
-export type ScenarioType = 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE' | 'VOLATILITY' | 'BEST_EFFORT';
+export type ScenarioType = 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE' | 'VOLATILITY' | 'BEST_EFFORT' | 'TRINITY';
 export type ConfidenceLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 export type ImpactLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
 

@@ -10,7 +10,8 @@ export enum ScenarioId {
     BALANCED = 'BALANCED',
     AGGRESSIVE = 'AGGRESSIVE',
     VOLATILITY = 'VOLATILITY',
-    BEST_EFFORT = 'BEST_EFFORT'
+    BEST_EFFORT = 'BEST_EFFORT',
+    TRINITY = 'TRINITY' // Consensus + Circuit Breaker
 }
 
 export interface ScenarioConfig {
@@ -30,11 +31,15 @@ export interface ScenarioConfig {
     constraintRelaxation: boolean; // Allow relaxation for high-confidence tokens?
 }
 
+export type ScenarioStatus = 'VALID' | 'BLOCKED_PRESERVATION' | 'NO_PATH' | 'LOW_CONFIDENCE';
+
 export interface ScenarioResult {
     scenarioId: ScenarioId;
     config: ScenarioConfig;
 
     // Outcome
+    status: ScenarioStatus; // NEW: Explicit status
+    reason?: string;        // NEW: Visible reason for status
     found: boolean;
     result: BrainSearchResult; // The actual brain result
 
