@@ -10,12 +10,32 @@ import { DecisionIntent } from '@/lib/smartswap/simulation/types';
 
 export const dynamic = 'force-dynamic';
 
+// Brain Decision Sanitizer
+function sanitizeDecision(decision: any, state: any): DecisionIntent & { action: any; toToken?: string } {
+    if (
+        decision.action === 'SWAP' &&
+        decision.toToken === state.token
+    ) {
+        return {
+            action: 'HESITATE',
+            thesis: 'No meaningful token transition available (already holding)',
+            signals: {},
+            expectedDirection: 'NEUTRAL',
+            confidence: 0.3,
+            invalidationRules: ['Identical token swap suppressed'],
+        };
+    }
+
+    return decision;
+}
+
 // Example brain (replace with real brainv2 logic)
 function exampleBrain(state: any): DecisionIntent & { action: any; toToken?: string } {
     const roll = Math.random();
+    let decision: any;
 
     if (roll < 0.25) {
-        return {
+        decision = {
             action: 'HESITATE',
             thesis: 'No clear edge detected',
             signals: {},
@@ -23,18 +43,20 @@ function exampleBrain(state: any): DecisionIntent & { action: any; toToken?: str
             confidence: 0.4,
             invalidationRules: [],
         };
+    } else {
+        decision = {
+            action: 'SWAP',
+            toToken: roll > 0.6 ? 'BONK' : 'RENDER',
+            thesis: 'Momentum continuation signal',
+            signals: { momentum: 0.7 },
+            expectedDirection: 'UP',
+            expectedEdgePct: 2 + Math.random() * 2,
+            confidence: 0.7,
+            invalidationRules: ['If slippage spikes above 2%'],
+        };
     }
 
-    return {
-        action: 'SWAP',
-        toToken: roll > 0.6 ? 'BONK' : 'RENDER',
-        thesis: 'Momentum continuation signal',
-        signals: { momentum: 0.7 },
-        expectedDirection: 'UP',
-        expectedEdgePct: 2 + Math.random() * 2,
-        confidence: 0.7,
-        invalidationRules: ['If slippage spikes above 2%'],
-    };
+    return sanitizeDecision(decision, state);
 }
 
 export async function POST(request: Request) {

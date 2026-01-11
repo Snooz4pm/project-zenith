@@ -22,6 +22,8 @@ export class BrutalBrainSimulation {
     private lastActionAt = Date.now();
     private onProgress?: (log: DecisionLog, state: any) => void;
 
+    private consecutiveRejects = 0;
+
     /**
      * Run simulation with real-time progress callback
      */
@@ -53,6 +55,43 @@ export class BrutalBrainSimulation {
                 executed: false,
                 pnlSOL: 0,
             };
+
+            // ===== HARD GUARD: NO-OP SWAP PREVENTION =====
+            if (
+                intentDecision.action === 'SWAP' &&
+                intentDecision.toToken === this.currentToken
+            ) {
+                log.executed = false;
+                log.skippedReason = 'INVALID_SWAP_SAME_TOKEN';
+                log.pnlSOL = 0;
+
+                log.evaluation = {
+                    outcomeClass: 'BAD_DECISION_BAD_OUTCOME',
+                    penaltyScore: 5,
+                    explanation: 'Swap proposed with identical from/to token (no-op)',
+                };
+
+                this.penaltyScore += 5;
+                this.consecutiveRejects++;
+
+                // Punish spamming nonsense
+                if (this.consecutiveRejects >= 3) {
+                    this.penaltyScore += 10;
+                    log.evaluation.explanation += ' | SPAM PENALTY (+10)';
+                }
+
+                this.logs.push(log);
+                this.lastActionAt = now;
+
+                if (this.onProgress) {
+                    this.onProgress(log, this.getState());
+                }
+
+                continue;
+            }
+
+            // Reset consecutive rejects on any other action (including intentional HOLD/HESITATE)
+            this.consecutiveRejects = 0;
 
             // EXECUTION SIMULATION
             if (intentDecision.action === 'HESITATE') {
@@ -115,24 +154,27 @@ export class BrutalBrainSimulation {
 
     private report(): SimulationReport {
         const pnlPct = ((this.balanceSOL - this.START_SOL) / this.START_SOL) * 100;
+        const totalInvalidDecisions = this.logs.filter(l => l.skippedReason === 'INVALID_SWAP_SAME_TOKEN').length;
 
         // Verdict logic
         const passConditions = [
             pnlPct > 3, // +3% minimum
             this.penaltyScore < 15, // Low penalty
             this.logs.filter(l => l.evaluation?.outcomeClass.includes('GOOD_DECISION')).length > this.logs.length * 0.6,
+            totalInvalidDecisions === 0, // Zero invalid swaps allowed for PASS
         ];
 
         const verdict = passConditions.every(c => c) ? 'PASS' : 'FAIL';
         const verdictReason = verdict === 'PASS'
             ? 'Brain demonstrated good decision-making'
-            : `Failed: PnL ${pnlPct.toFixed(1)}%, Penalty ${this.penaltyScore}`;
+            : `Failed: PnL ${pnlPct.toFixed(1)}%, Penalty ${this.penaltyScore}, Invalid Swaps ${totalInvalidDecisions}`;
 
         return {
             startSOL: this.START_SOL,
             endSOL: this.balanceSOL,
             pnlPct,
             penaltyScore: this.penaltyScore,
+            totalInvalidDecisions,
             logs: this.logs,
             verdict,
             verdictReason,

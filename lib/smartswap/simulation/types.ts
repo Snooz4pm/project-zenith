@@ -56,6 +56,7 @@ export interface SimulationReport {
     endSOL: number;
     pnlPct: number;
     penaltyScore: number;
+    totalInvalidDecisions: number;
     logs: DecisionLog[];
     verdict: 'PASS' | 'FAIL';
     verdictReason: string;
