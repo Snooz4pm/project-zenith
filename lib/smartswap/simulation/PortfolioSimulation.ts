@@ -36,6 +36,7 @@ export class PortfolioSimulation {
     private liquidSOL = this.START_SOL; // Available cash
     private positions: Map<string, PortfolioPosition> = new Map(); // token symbol -> position
     private totalFeesSOL = 0; // Track fees paid (not a penalty, just accounting)
+    private solPriceUSD = 150; // SOL price for USD conversions
 
     private logs: DecisionLog[] = [];
     private penaltyScore = 0; // Only for BAD decisions, not fees
@@ -50,6 +51,10 @@ export class PortfolioSimulation {
         onProgress?: (log: DecisionLog, state: any) => void
     ): Promise<SimulationReport> {
         this.onProgress = onProgress;
+
+        // Fetch SOL price for USD conversions
+        await this.fetchSolPrice();
+
         const start = Date.now();
 
         while (Date.now() - start < this.DURATION_MS) {
@@ -81,6 +86,21 @@ export class PortfolioSimulation {
         }
 
         return this.report();
+    }
+
+    private async fetchSolPrice() {
+        try {
+            const response = await fetch('https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112');
+            const data = await response.json();
+            this.solPriceUSD = parseFloat(data.data['So11111111111111111111111111111111111111112']?.price || '150');
+            if (!this.solPriceUSD || this.solPriceUSD <= 0) {
+                this.solPriceUSD = 150;
+            }
+            console.log(`[Portfolio] SOL price: $${this.solPriceUSD.toFixed(2)}`);
+        } catch (e) {
+            console.error('Error fetching SOL price:', e);
+            this.solPriceUSD = 150; // Fallback
+        }
     }
 
     private async executeAction(action: PortfolioAction, now: number) {
@@ -128,10 +148,11 @@ export class PortfolioSimulation {
 
         // Update portfolio value
         log.portfolioValueSOL = this.getPortfolioValueSOL();
-        log.portfolioValueUSD = log.portfolioValueSOL * 150; // Simplified
+        log.portfolioValueUSD = log.portfolioValueSOL * this.solPriceUSD;
 
         // Calculate unrealized PnL across all positions
         log.unrealizedPnlSOL = this.getTotalUnrealizedPnL();
+        log.unrealizedPnlUSD = log.unrealizedPnlSOL * this.solPriceUSD;
 
         this.logs.push(log);
         if (this.onProgress) this.onProgress(log, this.getState());
@@ -345,6 +366,7 @@ export class PortfolioSimulation {
         return {
             startSOL: this.START_SOL,
             endSOL: finalValue,
+            solPriceUSD: this.solPriceUSD,
             pnlPct,
             penaltyScore: this.penaltyScore,
             totalInvalidDecisions,

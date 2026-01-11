@@ -9,12 +9,26 @@
 import { useState } from 'react';
 import { DecisionLog, SimulationReport } from '@/lib/smartswap/simulation/types';
 
+interface PortfolioPosition {
+    token: string;
+    mint: string;
+    valueSOL: number;
+    costBasis: number;
+    unrealizedPnL: number;
+    holdCount: number;
+    ageSeconds: number;
+}
+
 export default function BrutalSimulationPage() {
     const [isRunning, setIsRunning] = useState(false);
     const [logs, setLogs] = useState<DecisionLog[]>([]);
     const [report, setReport] = useState<SimulationReport | null>(null);
     const [currentBalance, setCurrentBalance] = useState(0.2);
     const [currentToken, setCurrentToken] = useState('SOL');
+    const [liquidSOL, setLiquidSOL] = useState(0.2);
+    const [positions, setPositions] = useState<PortfolioPosition[]>([]);
+    const [totalFees, setTotalFees] = useState(0);
+    const [solPrice, setSolPrice] = useState(150);
 
     const runSimulation = async () => {
         setIsRunning(true);
@@ -22,6 +36,10 @@ export default function BrutalSimulationPage() {
         setReport(null);
         setCurrentBalance(0.2);
         setCurrentToken('SOL');
+        setLiquidSOL(0.2);
+        setPositions([]);
+        setTotalFees(0);
+        setSolPrice(150);
 
         try {
             const response = await fetch('/api/backtest/brutal', {
@@ -48,13 +66,19 @@ export default function BrutalSimulationPage() {
                         if (chunk.type === 'LOG') {
                             setLogs(prev => [...prev, chunk.data]);
                             if (chunk.state) {
-                                setCurrentBalance(chunk.state.totalValueSOL);
+                                setCurrentBalance(chunk.state.totalValueSOL || 0.2);
                                 setCurrentToken(chunk.state.token || 'SOL');
+                                setLiquidSOL(chunk.state.liquidSOL || chunk.state.totalValueSOL || 0.2);
+                                setPositions(chunk.state.positions || []);
+                                setTotalFees(chunk.state.totalFeesSOL || 0);
                             }
                         } else if (chunk.type === 'REPORT') {
                             setReport(chunk.data);
                             setLogs(chunk.data.logs);
                             setCurrentBalance(chunk.data.endSOL);
+                            if (chunk.data.solPriceUSD) {
+                                setSolPrice(chunk.data.solPriceUSD);
+                            }
                         } else if (chunk.type === 'ERROR') {
                             console.error('Simulation Error:', chunk.error);
                         }
@@ -85,13 +109,13 @@ export default function BrutalSimulationPage() {
     return (
         <div className="min-h-screen bg-black text-white p-8">
             <div className="max-w-7xl mx-auto">
-                <h1 className="text-4xl font-bold mb-2">🧠 Brain v2 Paper Trading Simulation</h1>
+                <h1 className="text-4xl font-bold mb-2">🧠 Brain v2 Portfolio Simulation</h1>
                 <p className="text-zinc-400 mb-2">
-                    30-minute real-time simulation using actual Brain v2 logic with live Jupiter quotes.
+                    30-minute portfolio manager with multi-asset support. Can hold up to 4 positions simultaneously.
                 </p>
-                <div className="flex gap-4 mb-8 text-sm">
+                <div className="flex gap-4 mb-8 text-sm flex-wrap">
                     <span className="bg-emerald-950/30 text-emerald-400 px-3 py-1 rounded border border-emerald-900/30">
-                        ✅ Real Brain v2 Search
+                        ✅ Multi-Asset Portfolio
                     </span>
                     <span className="bg-blue-950/30 text-blue-400 px-3 py-1 rounded border border-blue-900/30">
                         💰 0.2 SOL Paper Money
@@ -100,7 +124,10 @@ export default function BrutalSimulationPage() {
                         📊 Live Jupiter Quotes
                     </span>
                     <span className="bg-yellow-950/30 text-yellow-400 px-3 py-1 rounded border border-yellow-900/30">
-                        ⚠️ V1 Hold System
+                        💼 Up to 4 Positions
+                    </span>
+                    <span className="bg-orange-950/30 text-orange-400 px-3 py-1 rounded border border-orange-900/30">
+                        💸 Fees Deducted from Wallet
                     </span>
                 </div>
 
@@ -115,25 +142,28 @@ export default function BrutalSimulationPage() {
                 {/* Live Stats */}
                 <div className="grid grid-cols-5 gap-4 mb-8">
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <div className="text-zinc-500 text-sm mb-1">Current Position</div>
+                        <div className="text-zinc-500 text-sm mb-1">Positions</div>
                         <div className="text-2xl font-bold font-mono flex items-center gap-2">
-                            {currentToken === 'SOL' ? (
-                                <span className="text-emerald-400">💰 SOL</span>
-                            ) : (
-                                <span className="text-blue-400">🎯 {currentToken}</span>
-                            )}
+                            <span className="text-blue-400">{positions.length}</span>
                         </div>
                         <div className="text-xs text-zinc-500 mt-1">
-                            {currentToken === 'SOL' ? 'Scanning for alpha' : 'In position'}
+                            {positions.length === 0 ? 'All cash' : `${positions.length} active`}
                         </div>
                     </div>
 
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <div className="text-zinc-500 text-sm mb-1">Portfolio Value</div>
+                        <div className="text-zinc-500 text-sm mb-1">Liquid SOL</div>
+                        <div className="text-2xl font-bold font-mono text-emerald-400">{liquidSOL.toFixed(4)}</div>
+                        <div className="text-sm text-zinc-500 mt-1 font-mono">
+                            ≈ ${(liquidSOL * solPrice).toFixed(2)}
+                        </div>
+                    </div>
+
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                        <div className="text-zinc-500 text-sm mb-1">Total Value</div>
                         <div className="text-2xl font-bold font-mono">{currentBalance.toFixed(4)} SOL</div>
                         <div className="text-sm text-zinc-500 mt-1 font-mono">
-                            ≈ ${(logs[logs.length - 1]?.portfolioValueUSD || (currentBalance * (report?.solPriceUSD || 0))).toFixed(2)}
-                            {report?.solPriceUSD && <span className="text-zinc-600 text-xs ml-1">(@ ${report.solPriceUSD.toFixed(1)})</span>}
+                            ≈ ${(currentBalance * solPrice).toFixed(2)}
                         </div>
                     </div>
 
@@ -155,12 +185,103 @@ export default function BrutalSimulationPage() {
                     </div>
 
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                        <div className="text-zinc-500 text-sm mb-1">Fees Paid</div>
+                        <div className="text-2xl font-bold font-mono text-orange-400">{totalFees.toFixed(5)} SOL</div>
+                        <div className="text-sm text-zinc-500 mt-1 font-mono">
+                            ≈ ${(totalFees * solPrice).toFixed(2)}
+                        </div>
+                    </div>
+
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
                         <div className="text-zinc-500 text-sm mb-1">PnL %</div>
                         <div className={`text-2xl font-bold font-mono ${(report?.pnlPct || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {report ? `${report.pnlPct > 0 ? '+' : ''}${report.pnlPct.toFixed(2)}%` : '—'}
                         </div>
                     </div>
                 </div>
+
+                {/* Portfolio Holdings */}
+                {positions.length > 0 && (
+                    <div className="bg-gradient-to-br from-blue-950/30 to-purple-950/30 border border-blue-900/30 rounded-lg p-6 mb-8">
+                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                            <span>💼 Portfolio Holdings</span>
+                            <span className="text-sm font-normal text-zinc-400">({positions.length} positions)</span>
+                        </h2>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {positions.map((pos, idx) => {
+                                const isProfitable = pos.unrealizedPnL > 0;
+                                const pnlPct = (pos.unrealizedPnL / pos.costBasis) * 100;
+
+                                return (
+                                    <div
+                                        key={idx}
+                                        className={`bg-black/50 border rounded-lg p-4 ${
+                                            isProfitable ? 'border-emerald-900/50' : 'border-red-900/50'
+                                        }`}
+                                    >
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div>
+                                                <div className="text-lg font-bold text-blue-400 mb-1">
+                                                    {pos.token}
+                                                </div>
+                                                <div className="text-xs text-zinc-600 font-mono">
+                                                    {pos.mint.substring(0, 8)}...
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className={`text-sm font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                    {isProfitable ? '+' : ''}{pnlPct.toFixed(2)}%
+                                                </div>
+                                                <div className="text-xs text-zinc-500">
+                                                    Hold x{pos.holdCount}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3 text-sm">
+                                            <div>
+                                                <div className="text-zinc-500 text-xs mb-1">Value (SOL)</div>
+                                                <div className="font-mono font-bold">
+                                                    {pos.valueSOL.toFixed(4)}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-zinc-500 text-xs mb-1">Value (USD)</div>
+                                                <div className="font-mono font-bold text-emerald-400">
+                                                    ${(pos.valueSOL * solPrice).toFixed(2)}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-zinc-500 text-xs mb-1">Cost Basis</div>
+                                                <div className="font-mono text-zinc-400">
+                                                    {pos.costBasis.toFixed(4)} SOL
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-zinc-500 text-xs mb-1">Unrealized PnL</div>
+                                                <div className={`font-mono font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                    {isProfitable ? '+' : ''}{pos.unrealizedPnL.toFixed(5)} SOL
+                                                </div>
+                                                <div className={`text-xs font-mono ${isProfitable ? 'text-emerald-700' : 'text-red-900'}`}>
+                                                    ≈ ${(pos.unrealizedPnL * solPrice).toFixed(2)}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-3 pt-3 border-t border-zinc-800 text-xs text-zinc-500">
+                                            <div className="flex justify-between">
+                                                <span>Age: {Math.floor(pos.ageSeconds)}s</span>
+                                                <span>Holds: {pos.holdCount}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
 
                 {/* Action Stats */}
                 {logs.length > 0 && (
