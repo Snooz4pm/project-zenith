@@ -15,7 +15,7 @@ import type {
     HoldSuggestion,
     SearchConstraints,
 } from '@/types/PredictiveMemory';
-import type { SearchableToken } from '@/types/BrainV2';
+import type { SearchableToken } from '@/types/LiquidityFilter';
 import { neonStorage } from './NeonStorage';
 
 export class PredictiveEngineSafe {

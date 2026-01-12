@@ -7,7 +7,7 @@
  * This GUARANTEES paths end at the correct destination - no hallucination.
  */
 
-import { SearchableToken } from '@/types/BrainV2';
+import { SearchableToken } from '@/types/LiquidityFilter';
 
 // ============================================================================
 // TYPES

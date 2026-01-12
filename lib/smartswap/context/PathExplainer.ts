@@ -5,7 +5,7 @@
  * Explains WHY paths work or don't work, provides alternatives.
  */
 
-import type { PathState, SearchableToken, BrainGoal } from '@/types/BrainV2';
+import type { PathState, SearchableToken, BrainGoal } from '@/types/LiquidityFilter';
 
 export interface PathExplanation {
     summary: string;

@@ -22,7 +22,7 @@ import {
     ProtectionClass,
     GoalAlignment,
     GoalAlignmentStatus,
-} from '@/types/BrainV2';
+} from '@/types/LiquidityFilter';
 import { estimateTokenTax } from './tax';
 import { SmartToken } from '@/types/SmartToken';
 import { pathExplainer } from './context/PathExplainer';
@@ -60,22 +60,15 @@ function calculateAdaptiveConstraints(goal: BrainGoal) {
     const baseMaxTotalRTL = goal.maxTotalRTL || 20;
     const baseMaxPerHopRTL = goal.maxPerHopRTL || 5;
 
-    // Adaptive increases (up to 50% more for ambitious targets)
-    const effectiveMaxHops = Math.floor(baseMaxHops * (1 + ambitionFactor * 0.5));
-    const effectiveMaxTotalRTL = baseMaxTotalRTL * (1 + ambitionFactor * 0.5);
-    const effectiveMaxPerHopRTL = baseMaxPerHopRTL * (1 + ambitionFactor * 0.3);
-
-    console.log(`[Adaptive Constraints]`);
-    console.log(`  Ambition: ${ambitionRatio.toFixed(2)}x (factor: ${ambitionFactor.toFixed(2)})`);
-    console.log(`  Max Hops: ${baseMaxHops} → ${effectiveMaxHops}`);
-    console.log(`  Max Total RTL: ${baseMaxTotalRTL}% → ${effectiveMaxTotalRTL.toFixed(1)}%`);
-    console.log(`  Max Per-Hop RTL: ${baseMaxPerHopRTL}% → ${effectiveMaxPerHopRTL.toFixed(1)}%`);
+    // [LOBOTOMIZED] Adaptive constraints removed.
+    // Safety is not negotiable. 10x target = 10x risk is FALSE.
+    // We enforce base constraints regardless of ambition.
 
     return {
-        maxHops: effectiveMaxHops,
-        maxTotalRTL: effectiveMaxTotalRTL,
-        maxPerHopRTL: effectiveMaxPerHopRTL,
-        ambitionFactor, // Can be used for other adjustments
+        maxHops: baseMaxHops,
+        maxTotalRTL: baseMaxTotalRTL,
+        maxPerHopRTL: baseMaxPerHopRTL,
+        ambitionFactor: 0,
     };
 }
 
@@ -119,14 +112,12 @@ function estimateSwapOutcome(
     const liquidityFactor = Math.max(0.1, 1 - candidate.liquidityScore);
     const baseImpact = 0.5 + (liquidityFactor * 7.5); // 0.5% to 8%
 
-    // Alpha momentum can overcome price impact
-    const alphaBoost = (candidate.alphaScore || 0) * 0.08; // Up to 8% boost
+    // [LOBOTOMIZED] Removed alpha momentum injection.
+    // Physics only: Impact + RTL = Loss.
+    // There is no such thing as "expected return" in a pathfinder.
+    const expectedReturnPercent = -(baseImpact / 100);
 
-    // Calculate expected return
-    // Can be positive (gain) or negative (loss)
-    const expectedReturnPercent = alphaBoost - (baseImpact / 100);
-
-    // Calculate new amount (can be higher or lower)
+    // Calculate new amount (always lower due to friction)
     const newAmountSOL = currentAmount * (1 + expectedReturnPercent);
 
     // RTL is informational - what you'd lose if swapping back immediately
@@ -136,7 +127,7 @@ function estimateSwapOutcome(
         estimatedOutSOL: newAmountSOL,
         priceImpact: baseImpact,
         hopRTL,
-        expectedReturn: expectedReturnPercent * 100, // as percentage
+        expectedReturn: expectedReturnPercent * 100, // as percentage (always negative)
     };
 }
 

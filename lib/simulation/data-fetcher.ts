@@ -5,7 +5,7 @@
  * to build the trading universe for Brain V2 simulation
  */
 
-import type { SearchableToken } from '@/types/BrainV2';
+import type { SearchableToken } from '@/types/LiquidityFilter';
 import type { TokenPriceHistory } from '@/lib/learning-validation/types';
 
 const JUPITER_PROXY_API = 'https://jupiter-proxy-production.up.railway.app';

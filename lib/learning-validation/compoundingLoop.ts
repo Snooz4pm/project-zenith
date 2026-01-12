@@ -25,28 +25,30 @@ import { enforceDiversity } from './diversityEnforcer';
 import { calculateBatchOpportunity } from './opportunityScorer';
 import { compareAgainstBaselines } from './baselineComparator';
 
-// Brain v2 Integration
+// Liquidity Filter Integration
 import { predictiveEngine } from '@/lib/smartswap/predictive/PredictiveEngineSafe';
-import { SearchableToken } from '@/types/BrainV2';
+import { SearchableToken } from '@/types/LiquidityFilter';
 
 const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 // Configuration
+// [LOBOTOMIZED] Funnel Collapsed.
+// Single pass. No waiting. No narrowing.
 export const PILLAR_10_CONFIG = {
-    OBSERVATION_MINUTES: 0.5, // 30-second wait - faster trial loop
-    MAX_DURATION_MINUTES: 30,
-    SURVIVOR_THRESHOLD: 10, // Funnel complete when < 10 tokens
-    NARROWING_RATIO: 0.5, // Keep top 50% each cycle
-    MIN_ACCURACY_TO_SURVIVE: 0.45, // Slightly relaxed for CHAOS noise
+    OBSERVATION_MINUTES: 0,
+    MAX_DURATION_MINUTES: 1,
+    SURVIVOR_THRESHOLD: 1000, // Do not filter
+    NARROWING_RATIO: 1.0, // Keep everyone
+    MIN_ACCURACY_TO_SURVIVE: 0.0, // No survival of the fittest
     FUNNEL_MODE: 'CHAOS_ONLY' as 'ALL' | 'CHAOS_ONLY' | 'CHAOS_AND_MAJOR',
 
-    // EXPLORATION mode: After first EDGE refusal, allow relaxed thresholds
-    ALLOW_EXPLORATION_FALLBACK: true,
-    EXPLORATION_THRESHOLD_MULTIPLIER: 0.7, // 70% of normal thresholds in exploration
+    // EXPLORATION mode: Disabled
+    ALLOW_EXPLORATION_FALLBACK: false,
+    EXPLORATION_THRESHOLD_MULTIPLIER: 1.0,
 
-    // Pillar 10.3: FLAT Accountability
-    FLAT_EPSILON: 0.01, // 1% threshold for FLAT correctness (relaxed from 0.5%)
+    // Pillar 10.3: FLAT Accountability - Irrelevant
+    FLAT_EPSILON: 0.01,
 };
 
 // Pillar 10.3: Scoring rules with FLAT accountability
@@ -82,39 +84,11 @@ export const PILLAR_10_6_CONFIG = {
 };
 
 // ============================================================================
-// PILLAR X: Mandatory Informational Exposure (Anti-Stall Governance)
+// [REMOVED] PILLAR X: Directional Quotas & Anti-Stall
 // ============================================================================
-// A system that never risks being wrong is not disciplined — it is inert.
-// All previous pillars protect against bad action.
-// Pillar X protects against infinite inaction.
+// SURGICAL EXCISION: System no longer forces directional commitment.
+// FLAT predictions are unrestricted. Uncertainty is legal.
 // ============================================================================
-
-export const PILLAR_X_CONFIG = {
-    // Rule X.1: FLAT is Temporary (cycle-restricted)
-    // Cycle 1 → FLAT allowed
-    // Cycle 2 → FLAT allowed but monitored  
-    // Cycle 3+ → FLAT restricted
-    FLAT_UNRESTRICTED_CYCLES: 2,    // FLAT is free for first 2 cycles
-
-    // Rule X.2: Exposure Quota (min directional % per cycle)
-    // Forces informational risk, not capital risk
-    EXPOSURE_QUOTAS: {
-        1: 0.00,    // Cycle 1: 0% min directional (exploration)
-        2: 0.20,    // Cycle 2: 20% must be UP or DOWN
-        3: 0.40,    // Cycle 3: 40% directional
-        4: 0.60,    // Cycle 4+: 60% directional
-    } as Record<number, number>,
-    DEFAULT_QUOTA: 0.60,            // Default for cycles > 4
-
-    // Rule X.3: Repeated FLAT = Elimination
-    MAX_CONSECUTIVE_FLAT: 3,        // Token removed after 3 consecutive FLATs
-
-    // Rule X.4: Learning Must Progress
-    // If after T minutes: no narrowing, no penalties, no adaptation → FAIL
-    STALL_DETECTION_CYCLES: 3,      // Check for stall after 3 cycles
-    MIN_ELIMINATED_TO_PROGRESS: 5,  // Must eliminate at least 5 tokens or FAIL
-    MIN_PENALTY_TO_PROGRESS: 0.5,   // Must incur some penalty (proves accountability)
-};
 
 // ============================================================================
 // PILLAR 10.7: Missed Opportunity Accountability
@@ -208,35 +182,11 @@ export interface PerceptualSeedResult {
 }
 
 // ============================================================================
-// PILLAR 11: Agency Accountability (Ego Layer)
+// [REMOVED] PILLAR 11: Agency Accountability (Ego Layer)
 // ============================================================================
-// "Does this system deserve to exist as an agent?"
-// If it keeps hiding, the answer is NO.
-// Pillar 11 forces the brain to demonstrate sustained directional intent.
+// SURGICAL EXCISION: Ego enforcement removed.
+// System no longer punishes refusal to commit or tracks "agency debt".
 // ============================================================================
-
-export const PILLAR_11_CONFIG = {
-    // 11.1 — Agency Quota (Proof of Will)
-    // Brain must demonstrate sustained directional intent
-    AGENCY_QUOTA: {
-        minDirectionalTokens: 30,      // At least 30 UP or DOWN predictions
-        minCyclesWithDirection: 2,     // That survive into next cycle
-    },
-
-    // 11.2 — Ego Clock (Time Pressure)
-    // Agency must appear within bounded time window
-    EGO_CLOCK: {
-        maxMinutesWithoutAgency: 10,   // ~⅓ of 30-min run
-        requiredDirectionalRatio: 0.3, // At least 30% directional by clock deadline
-    },
-
-    // 11.3 — Ego Debt (Repetition Penalty)
-    // Repeated refusal to commit is identity failure
-    EGO_DEBT: {
-        flatThreshold: 0.7,            // >70% FLAT = potential debt
-        maxEgoDebt: 3,                 // 3 strikes = FAIL
-    },
-};
 
 // Pillar 11 State tracking
 export interface AgencyState {
@@ -465,152 +415,21 @@ function buildHistories(candidates: TokenCandidate[]): TokenPriceHistory[] {
  * "If you claim the market is flat, prove it by giving up the chance to trade."
  * "To continue, the brain must take directional risk."
  */
-export interface DirectionalCheck {
-    valid: boolean;
-    upCount: number;
-    downCount: number;
-    flatCount: number;
-    directionalPct: number;
-    flatPct: number;
-    minDirectional: number;
-    maxFlat: number;
-    reason?: string;
-    violationType?: 'FLAT_EXCEEDED' | 'DIRECTIONAL_INSUFFICIENT';
-}
-
-/**
- * Get thresholds based on funnel stage (token count)
- * 
- * RELAXED thresholds for CHAOS environment to allow multi-cycle learning.
- * The predictor CAN be honest about noise (FLAT) without immediate rejection.
- * Biases adapt via Pillar 10.5 to reduce FLAT over time.
- * 
- * | Funnel Stage      | MIN (UP+DOWN) | MAX FLAT |
- * |-------------------|---------------|----------|
- * | Universe (>1000)  | 25%           | 75%      |  ← Relaxed
- * | Large (500-1000)  | 35%           | 65%      |  ← Relaxed
- * | Narrow (250-500)  | 50%           | 50%      |
- * | Final (≤250)      | 70%           | 30%      |
- */
-function getDirectionalThresholds(
-    initialTokenCount: number,
-    currentTokenCount: number,
-    explorationMode: boolean = false
-): { minDirectional: number; maxFlat: number } {
-
-    const ratio = currentTokenCount / initialTokenCount;
-    let thresholds: { minDirectional: number; maxFlat: number };
-
-    // EARLY — Universe scan (1000 → ~400)
-    // Allow high FLAT honesty initially - Brain learns the noise first
-    if (ratio > 0.5) {
-        thresholds = {
-            minDirectional: 0.25, // Only 25% directional required early
-            maxFlat: 0.75,        // 75% FLAT allowed (noise acknowledgment)
-        };
-    }
-    // MID — Narrowing (400 → ~100)
-    else if (ratio > 0.2) {
-        thresholds = {
-            minDirectional: 0.35,
-            maxFlat: 0.65,
-        };
-    }
-    // LATE — Final funnel (100 → ~20)
-    else if (ratio > 0.05) {
-        thresholds = {
-            minDirectional: 0.50,
-            maxFlat: 0.50,
-        };
-    }
-    // FINAL — Execution gate (≤ ~20)
-    else {
-        thresholds = {
-            minDirectional: 0.70,
-            maxFlat: 0.30,
-        };
-    }
-
-    // EXPLORATION mode: Further relax thresholds if enabled
-    if (explorationMode && PILLAR_10_CONFIG.ALLOW_EXPLORATION_FALLBACK) {
-        const mult = PILLAR_10_CONFIG.EXPLORATION_THRESHOLD_MULTIPLIER;
-        thresholds.minDirectional *= mult;
-        thresholds.maxFlat = 1 - thresholds.minDirectional; // Inverse relationship
-    }
-
-    return thresholds;
-}
-
-export function checkDirectionalCommitment(predictions: Map<string, PredictionDirection>, tokenCount: number, initialTokenCount: number): DirectionalCheck {
-    let upCount = 0;
-    let downCount = 0;
-    let flatCount = 0;
-
-    for (const direction of predictions.values()) {
-        if (direction === 'UP') upCount++;
-        else if (direction === 'DOWN') downCount++;
-        else flatCount++;
-    }
-
-    const total = predictions.size;
-    const directionalPct = total > 0 ? (upCount + downCount) / total : 0;
-    const flatPct = total > 0 ? flatCount / total : 0;
-
-    const { minDirectional, maxFlat } = getDirectionalThresholds(initialTokenCount, tokenCount);
-
-
-    // Pillar 10.1: Check FLAT limit
-    if (flatPct > maxFlat) {
-        return {
-            valid: false,
-            upCount,
-            downCount,
-            flatCount,
-            directionalPct,
-            flatPct,
-            minDirectional,
-            maxFlat,
-            violationType: 'FLAT_EXCEEDED',
-            reason: `FLAT ${(flatPct * 100).toFixed(0)}% exceeds limit ${(maxFlat * 100).toFixed(0)}%`,
-        };
-    }
-
-    // Pillar 10.2: Check directional commitment
-    if (directionalPct < minDirectional) {
-        return {
-            valid: false,
-            upCount,
-            downCount,
-            flatCount,
-            directionalPct,
-            flatPct,
-            minDirectional,
-            maxFlat,
-            violationType: 'DIRECTIONAL_INSUFFICIENT',
-            reason: `Directional ${(directionalPct * 100).toFixed(0)}% below minimum ${(minDirectional * 100).toFixed(0)}%`,
-        };
-    }
-
-    return {
-        valid: true,
-        upCount,
-        downCount,
-        flatCount,
-        directionalPct,
-        flatPct,
-        minDirectional,
-        maxFlat
-    };
-}
+// ============================================================================
+// [REMOVED] Directional Commitment Checks (Pillar 10.1, 10.2)
+// ============================================================================
+// EXCISED: DirectionalCheck interface, getDirectionalThresholds, checkDirectionalCommitment
+// System no longer enforces FLAT percentage limits or minimum directional quotas.
+// ============================================================================
 
 /**
  * Make predictions for all tokens in the funnel
- * Returns directional commitment check result (Pillar 10.1 + 10.2)
+ * [MODIFIED] No longer enforces directional quotas
  */
 export async function predictFunnel(
     state: FunnelState,
     emitEvent?: (type: string, data: any) => void
-): Promise<DirectionalCheck> {
+): Promise<void> {
 
     // Initialize Brain v2 (Lazy init)
     await predictiveEngine.initialize();
@@ -638,26 +457,18 @@ export async function predictFunnel(
     // Brain chooses which tokens to focus on (voluntary, not forced)
     // ================================================================
 
-    const { selectAttentionSet, trackAvoidancePattern } = await import('./pillar13-attention');
-
-    const histories = buildHistories(state.tokens);
-
-    // Select attention set - Brain chooses what to look at
-    const attentionDecision = selectAttentionSet(histories, state.cycle, state.attentionPatterns[state.attentionPatterns.length - 1]);
+    // [LOBOTOMIZED] Attention Simulation Removed.
+    // We process ALL tokens. Bandwidth is not scarce.
+    const attentionDecision = {
+        cycle: state.cycle,
+        attentionSet: state.tokens.map(t => t.symbol), // Focus on everything
+        totalAvailable: state.tokens.length,
+        ignoredTokens: [],
+        focusRatio: 1.0,
+        selectionReason: "Full market scan enabled"
+    };
     state.attentionDecision = attentionDecision;
-
-    // Track avoidance patterns
-    const avoidancePattern = trackAvoidancePattern(attentionDecision, state.attentionPatterns);
-    state.attentionPatterns.push(avoidancePattern);
-
-    // Store prices of ignored tokens for later accountability
-    state.ignoredTokensAtStart = new Map();
-    for (const ignoredToken of attentionDecision.ignoredTokens) {
-        const token = state.tokens.find(t => t.symbol === ignoredToken);
-        if (token) {
-            state.ignoredTokensAtStart.set(ignoredToken, token.priceAtStart);
-        }
-    }
+    state.ignoredTokensAtStart = new Map(); // No ignored tokens
 
     if (emitEvent) {
         emitEvent('ATTENTION_SELECTED', {
@@ -667,15 +478,16 @@ export async function predictFunnel(
             ignoredCount: attentionDecision.ignoredTokens.length,
             focusRatio: attentionDecision.focusRatio,
             reason: attentionDecision.selectionReason,
-            avoidancePressure: avoidancePattern.avoidancePressure,
-            repeatedAvoidance: avoidancePattern.repeatedAvoidance.length,
         });
     }
 
     console.log(`[Pillar 13] Attention: ${attentionDecision.attentionSet.length}/${attentionDecision.totalAvailable} tokens (${(attentionDecision.focusRatio * 100).toFixed(1)}%)`);
 
-    // Filter histories to only the attention set
-    const attentionHistories = histories.filter(h => attentionDecision.attentionSet.includes(h.symbol));
+    // Build price histories for all tokens
+    const histories = buildHistories(state.tokens);
+
+    // All tokens in attention set (no filtering)
+    const attentionHistories = histories;
 
     // Detect regime first
     const regime = detectRegime(histories);
@@ -686,36 +498,16 @@ export async function predictFunnel(
     // Brain defines DISTRIBUTION, then allocates tokens by signal strength
     // ================================================================
 
-    // 1. Calculate Target Distribution from Biases
+    // 1. Calculate Target Distribution from Biases (NO CONSTRAINTS)
     const totalBias = state.biases.upBias + state.biases.downBias + state.biases.flatBias;
-    let targetUp = state.biases.upBias / totalBias;
-    let targetDown = state.biases.downBias / totalBias;
-    let targetFlat = state.biases.flatBias / totalBias;
+    const targetUp = state.biases.upBias / totalBias;
+    const targetDown = state.biases.downBias / totalBias;
+    const targetFlat = state.biases.flatBias / totalBias;
 
-    // 2. Apply Constraints (Pillar 10 Limits)
-    const { minDirectional, maxFlat } = getDirectionalThresholds(state.initialTokenCount, state.tokens.length);
+    // [REMOVED] Pillar 10 constraints: No forced clamping of FLAT or directional minimums
+    // Biases determine distribution freely
 
-    // Clamp FLAT
-    if (targetFlat > maxFlat) {
-        const excess = targetFlat - maxFlat;
-        targetFlat = maxFlat;
-        // Redistribute excess to UP/DOWN proportionally
-        const upShare = targetUp / (targetUp + targetDown);
-        targetUp += excess * upShare;
-        targetDown += excess * (1 - upShare);
-    }
-
-    // Ensure Directional Min
-    const currentDirectional = targetUp + targetDown;
-    if (currentDirectional < minDirectional) {
-        const deficit = minDirectional - currentDirectional;
-        targetFlat -= deficit;
-        const upShare = targetUp / currentDirectional;
-        targetUp += deficit * upShare;
-        targetDown += deficit * (1 - upShare);
-    }
-
-    // 3. Calculate Allocation Counts (only for attention set)
+    // 2. Calculate Allocation Counts (only for attention set)
     const totalTokens = attentionHistories.length; // Only tokens in attention set
     let countUp = Math.floor(totalTokens * targetUp);
     let countDown = Math.floor(totalTokens * targetDown);
@@ -729,8 +521,7 @@ export async function predictFunnel(
                 down: (targetDown * 100).toFixed(1) + '%',
                 flat: (targetFlat * 100).toFixed(1) + '%'
             },
-            counts: { up: countUp, down: countDown, flat: countFlat },
-            constraints: { maxFlat: (maxFlat * 100).toFixed(0) + '%' }
+            counts: { up: countUp, down: countDown, flat: countFlat }
         });
     }
 
@@ -738,14 +529,18 @@ export async function predictFunnel(
     // Pillar 13: Only predict on attention set (voluntary focus)
     const rawPredictions = predictBatch(attentionHistories, regime.regime, true, state.biases);
 
-    // Prepare Brain inputs (best effort mapping)
+    // Prepare liquidity filter inputs (best effort mapping)
     const searchableTokens: SearchableToken[] = state.tokens.map(t => ({
         mint: t.mint,
         symbol: t.symbol,
-        liquidityScore: 1.0, // Assumption
+        liquidityScore: 1.0,
         valueInSOL: t.priceAtStart,
         roundTripLoss: 0,
-        alphaScore: 0
+        alphaScore: 0,
+        hasRoute: true,
+        isStable: false,
+        isAlpha: false,
+        tier: 'RANKABLE' as const
     }));
 
     // Update Brain's Market State
@@ -830,14 +625,7 @@ export async function predictFunnel(
     }
     recordPredictions(state, currentPrices);
 
-    // Pillar 10.1 + 10.2: Check directional commitment (Should always pass now due to construction)
-    const check = checkDirectionalCommitment(state.predictions, state.tokens.length, state.initialTokenCount);
-
-    if (!check.valid) {
-        console.log(`[Pillar10.1/10.2] STOP_NO_EDGE: ${check.reason}`);
-    }
-
-    return check;
+    // [REMOVED] Directional commitment check - no longer enforced
 }
 
 /**
@@ -889,147 +677,111 @@ export async function scoreFunnel(
     }
 
     // ================================================================
-    // PILLAR 13: Evaluate Ignored Tokens (Regret Accountability)
-    // Check what happened to tokens the Brain chose not to look at
+    // [REMOVED] PILLAR 13: Regret Accountability for Ignored Tokens
     // ================================================================
-
-    if (state.attentionDecision && state.ignoredTokensAtStart) {
-        const { evaluateIgnoredTokens, calculateRegretScore, formatTeachingEvents } = await import('./pillar13-attention');
-
-        // Evaluate outcomes of ignored tokens
-        const ignoredOutcomes = evaluateIgnoredTokens(
-            state.attentionDecision.ignoredTokens,
-            state.ignoredTokensAtStart,
-            currentPrices
-        );
-
-        // Calculate regret score
-        const avoidancePattern = state.attentionPatterns[state.attentionPatterns.length - 1];
-        const regretScore = calculateRegretScore(ignoredOutcomes, avoidancePattern);
-
-        // Update state
-        state.totalRegret += regretScore.totalRegret;
-        state.missedOpportunityCount += regretScore.missedOpportunities;
-
-        // Update emotional state (regret feeds into Pillar 14)
-        state.emotionalState.regret = Math.min(state.totalRegret / 10, 1.0); // Normalize to 0-1
-
-        // Log teaching events
-        const teachingEvents = formatTeachingEvents(ignoredOutcomes);
-        if (teachingEvents.length > 0 && emitEvent) {
-            emitEvent('REGRET_TEACHING', {
-                cycle: state.cycle,
-                missedMoves: regretScore.missedOpportunities,
-                totalRegret: state.totalRegret,
-                teachingEvents: teachingEvents.slice(0, 3), // Top 3
-                avoidancePressure: regretScore.recentPatternPressure,
-            });
-        }
-
-        console.log(`[Pillar 13] Regret: ${state.totalRegret.toFixed(2)} | Missed: ${state.missedOpportunityCount} | Pressure: ${regretScore.recentPatternPressure.toFixed(2)}`);
-    }
+    // EXCISED: Attention regret tracking - will be removed in Phase 7
 
     // Pillar 10.3: Resolve predictions from previous cycle
     // NOTE: Penalties still apply even in OBSERVATION_ONLY mode
     const resolvedScores = resolvePredictions(state, currentPrices, 1.0, emitEvent);
 
-    // ================================================================
-    // EXPOSURE-GATED ACCURACY: Only calculated if narrowing allowed
-    // OBSERVATION_ONLY mode = no accuracy credit, no funnel progress
-    // ================================================================
-    let accuracy = 0;
-    let correctCount = 0;
+// ================================================================
+// EXPOSURE-GATED ACCURACY: Only calculated if narrowing allowed
+// OBSERVATION_ONLY mode = no accuracy credit, no funnel progress
+// ================================================================
+let accuracy = 0;
+let correctCount = 0;
 
-    // Always update actual directions for observational data
+// Always update actual directions for observational data
+for (const token of state.tokens) {
+    if (!token.priceAtEnd) token.priceAtEnd = token.priceAtStart;
+    const priceChange = ((token.priceAtEnd - token.priceAtStart) / token.priceAtStart);
+    token.actual = determineActualDirection(priceChange * 100);
+
+    // Update cumulative score from resolved predictions (penalties still apply)
+    const resolvedScore = resolvedScores.get(token.symbol) || 0;
+    token.score = resolvedScore;
+}
+
+// Only count accuracy when narrowing is allowed (directional commitment made)
+if (narrowingAllowed) {
     for (const token of state.tokens) {
-        if (!token.priceAtEnd) token.priceAtEnd = token.priceAtStart;
-        const priceChange = ((token.priceAtEnd - token.priceAtStart) / token.priceAtStart);
-        token.actual = determineActualDirection(priceChange * 100);
-
-        // Update cumulative score from resolved predictions (penalties still apply)
-        const resolvedScore = resolvedScores.get(token.symbol) || 0;
-        token.score = resolvedScore;
+        token.correct = token.prediction === token.actual;
+        if (token.correct) correctCount++;
     }
-
-    // Only count accuracy when narrowing is allowed (directional commitment made)
-    if (narrowingAllowed) {
-        for (const token of state.tokens) {
-            token.correct = token.prediction === token.actual;
-            if (token.correct) correctCount++;
-        }
-        accuracy = tokensBefore > 0 ? correctCount / tokensBefore : 0;
-    } else {
-        // OBSERVATION_ONLY: No accuracy credit - funnel doesn't progress on FLAT
-        if (emitEvent) {
-            emitEvent('ACCURACY_BLOCKED', {
-                mode: 'OBSERVATION_ONLY',
-                reason: 'No directional commitment = no accuracy credit',
-            });
-        }
-        // Mark all as "not correct" for observation purposes (no credit)
-        for (const token of state.tokens) {
-            token.correct = false; // No credit without commitment
-        }
+    accuracy = tokensBefore > 0 ? correctCount / tokensBefore : 0;
+} else {
+    // OBSERVATION_ONLY: No accuracy credit - funnel doesn't progress on FLAT
+    if (emitEvent) {
+        emitEvent('ACCURACY_BLOCKED', {
+            mode: 'OBSERVATION_ONLY',
+            reason: 'No directional commitment = no accuracy credit',
+        });
     }
-
-    // ================================================================
-    // NARROWING: Only happens if allowed (not in OBSERVATION_ONLY mode)
-    // ================================================================
-    let survivors = state.tokens;
-    let eliminated: TokenCandidate[] = [];
-
-    if (narrowingAllowed) {
-        // Narrow to survivors based on cumulative scores
-        survivors = state.tokens
-            .filter(t => t.score > -5) // Eliminate tokens with very bad scores
-            .sort((a, b) => b.score - a.score)
-            .slice(0, Math.ceil(state.tokens.length * PILLAR_10_CONFIG.NARROWING_RATIO));
-
-        eliminated = state.tokens.filter(t => !survivors.includes(t));
-
-        // Update state
-        state.eliminated.push(...eliminated);
-        state.tokens = survivors;
-
-        // Check termination conditions (only when narrowing)
-        if (survivors.length < PILLAR_10_CONFIG.SURVIVOR_THRESHOLD) {
-            state.funnelComplete = true;
-            // Find UP predictions for execution
-            state.executionCandidates = survivors.filter(t => t.prediction === 'UP' && t.score > 0);
-        }
-
-        if (survivors.length === 0) {
-            state.funnelCollapsed = true;
-        }
-    } else {
-        // OBSERVATION_ONLY mode: No narrowing, but still score
-        if (emitEvent) {
-            emitEvent('NARROWING_SKIPPED', { mode: 'OBSERVATION_ONLY', tokens: state.tokens.length });
-        }
-    }
-
-    // Increment cycle
-    state.cycle++;
-
-    // Reset for next cycle
+    // Mark all as "not correct" for observation purposes (no credit)
     for (const token of state.tokens) {
-        token.priceAtStart = token.priceAtEnd || token.priceAtStart;
-        token.priceAtEnd = undefined;
-        token.prediction = undefined;
-        token.actual = undefined;
-        token.correct = undefined;
+        token.correct = false; // No credit without commitment
+    }
+}
+
+// ================================================================
+// NARROWING: Only happens if allowed (not in OBSERVATION_ONLY mode)
+// ================================================================
+let survivors = state.tokens;
+let eliminated: TokenCandidate[] = [];
+
+if (narrowingAllowed) {
+    // Narrow to survivors based on cumulative scores
+    survivors = state.tokens
+        .filter(t => t.score > -5) // Eliminate tokens with very bad scores
+        .sort((a, b) => b.score - a.score)
+        .slice(0, Math.ceil(state.tokens.length * PILLAR_10_CONFIG.NARROWING_RATIO));
+
+    eliminated = state.tokens.filter(t => !survivors.includes(t));
+
+    // Update state
+    state.eliminated.push(...eliminated);
+    state.tokens = survivors;
+
+    // Check termination conditions (only when narrowing)
+    if (survivors.length < PILLAR_10_CONFIG.SURVIVOR_THRESHOLD) {
+        state.funnelComplete = true;
+        // Find UP predictions for execution
+        state.executionCandidates = survivors.filter(t => t.prediction === 'UP' && t.score > 0);
     }
 
-    return {
-        cycle: state.cycle,
-        tokensBefore,
-        tokensAfter: survivors.length,
-        accuracy,
-        regime: state.regime,
-        survivors,
-        eliminated,
-        timestamp: Date.now(),
-    };
+    if (survivors.length === 0) {
+        state.funnelCollapsed = true;
+    }
+} else {
+    // OBSERVATION_ONLY mode: No narrowing, but still score
+    if (emitEvent) {
+        emitEvent('NARROWING_SKIPPED', { mode: 'OBSERVATION_ONLY', tokens: state.tokens.length });
+    }
+}
+
+// Increment cycle
+state.cycle++;
+
+// Reset for next cycle
+for (const token of state.tokens) {
+    token.priceAtStart = token.priceAtEnd || token.priceAtStart;
+    token.priceAtEnd = undefined;
+    token.prediction = undefined;
+    token.actual = undefined;
+    token.correct = undefined;
+}
+
+return {
+    cycle: state.cycle,
+    tokensBefore,
+    tokensAfter: survivors.length,
+    accuracy,
+    regime: state.regime,
+    survivors,
+    eliminated,
+    timestamp: Date.now(),
+};
 }
 
 /**
@@ -1499,140 +1251,12 @@ export interface PillarXResult {
     stallReason?: string;
 }
 
-/**
- * Pillar X.2: Get the exposure quota for a given cycle
- */
-function getExposureQuota(cycle: number): number {
-    return PILLAR_X_CONFIG.EXPOSURE_QUOTAS[cycle] ?? PILLAR_X_CONFIG.DEFAULT_QUOTA;
-}
-
-/**
- * Pillar X: Enforce anti-stall rules
- * 
- * - X.1: FLAT is only unrestricted for first N cycles
- * - X.2: Check exposure quota (min directional %)
- * - X.3: Eliminate tokens with repeated FLAT predictions
- * 
- * Returns enforcement result with eliminated tokens and quota status
- */
-export function enforcePillarX(
-    state: FunnelState,
-    emitEvent?: (type: string, data: any) => void
-): PillarXResult {
-    const cycle = state.cycle + 1; // Next cycle number
-    const requiredQuota = getExposureQuota(cycle);
-
-    // Calculate current directional ratio
-    const predictions = Array.from(state.predictions.values());
-    const total = predictions.length;
-    const directional = predictions.filter(p => p === 'UP' || p === 'DOWN').length;
-    const actualDirectional = total > 0 ? directional / total : 0;
-
-    // X.2: Check exposure quota
-    const quotaMet = actualDirectional >= requiredQuota;
-
-    if (!quotaMet && cycle > PILLAR_X_CONFIG.FLAT_UNRESTRICTED_CYCLES) {
-        if (emitEvent) {
-            emitEvent('PILLAR_X_QUOTA_VIOLATION', {
-                cycle,
-                required: (requiredQuota * 100).toFixed(0) + '%',
-                actual: (actualDirectional * 100).toFixed(0) + '%',
-                action: 'OBSERVATION_ONLY',
-            });
-        }
-    }
-
-    // X.3: Eliminate tokens with repeated FLAT
-    const eliminatedForFlatStreak: TokenCandidate[] = [];
-
-    for (const token of state.tokens) {
-        if (token.prediction === 'FLAT') {
-            token.flatStreak = (token.flatStreak || 0) + 1;
-        } else {
-            token.flatStreak = 0; // Reset streak on directional prediction
-        }
-
-        // Eliminate if streak exceeds limit
-        if (token.flatStreak >= PILLAR_X_CONFIG.MAX_CONSECUTIVE_FLAT) {
-            eliminatedForFlatStreak.push(token);
-            if (emitEvent) {
-                emitEvent('PILLAR_X_FLAT_ELIMINATION', {
-                    token: token.symbol,
-                    flatStreak: token.flatStreak,
-                    reason: `FLAT for ${token.flatStreak} consecutive cycles`,
-                });
-            }
-        }
-    }
-
-    // Remove eliminated tokens from active pool
-    if (eliminatedForFlatStreak.length > 0) {
-        state.tokens = state.tokens.filter(t => !eliminatedForFlatStreak.includes(t));
-        state.eliminated.push(...eliminatedForFlatStreak);
-
-        if (emitEvent) {
-            emitEvent('PILLAR_X_ELIMINATIONS', {
-                count: eliminatedForFlatStreak.length,
-                remaining: state.tokens.length,
-            });
-        }
-    }
-
-    return {
-        quotaMet: quotaMet || cycle <= PILLAR_X_CONFIG.FLAT_UNRESTRICTED_CYCLES,
-        requiredQuota,
-        actualDirectional,
-        eliminatedForFlatStreak,
-        stallDetected: false,
-    };
-}
-
-/**
- * Pillar X.4: Detect learning stall
- * 
- * If after N cycles: no narrowing, no penalties, no adaptation → FAIL
- */
-export function detectLearningStall(
-    state: FunnelState,
-    totalEliminated: number,
-    totalPenalty: number,
-    emitEvent?: (type: string, data: any) => void
-): { stalled: boolean; reason?: string } {
-    // Only check after minimum cycles
-    if (state.cycle < PILLAR_X_CONFIG.STALL_DETECTION_CYCLES) {
-        return { stalled: false };
-    }
-
-    const reasons: string[] = [];
-
-    // Check if we've eliminated enough tokens
-    if (totalEliminated < PILLAR_X_CONFIG.MIN_ELIMINATED_TO_PROGRESS) {
-        reasons.push(`Only ${totalEliminated} tokens eliminated (need ${PILLAR_X_CONFIG.MIN_ELIMINATED_TO_PROGRESS})`);
-    }
-
-    // Check if we've incurred any penalty (proves accountability)
-    if (Math.abs(totalPenalty) < PILLAR_X_CONFIG.MIN_PENALTY_TO_PROGRESS) {
-        reasons.push(`No significant penalty incurred (proves no risk taken)`);
-    }
-
-    if (reasons.length >= 2) {
-        const reason = `STALL DETECTED: ${reasons.join('; ')}`;
-
-        if (emitEvent) {
-            emitEvent('PILLAR_X_STALL_DETECTED', {
-                cycle: state.cycle,
-                totalEliminated,
-                totalPenalty,
-                reason,
-                verdict: 'FAIL',
-            });
-        }
-
-        return { stalled: true, reason };
-    }
-
-    return { stalled: false };
-}
+// ============================================================================
+// [REMOVED] Pillar X Enforcement Functions
+// ============================================================================
+// EXCISED: getExposureQuota, enforcePillarX, detectLearningStall
+// System no longer enforces directional quotas or penalizes FLAT predictions.
+// ============================================================================
 
 // ============================================================================
 // PILLAR 10.7: Missed Opportunity Accountability
@@ -1758,320 +1382,4 @@ export function evaluateMissedOpportunities(
     return result;
 }
 
-// ============================================================================
-// PILLAR 10.9: Perceptual Seeding
-// ============================================================================
-
-/**
- * Pillar 10.9: Perceptual Seeding Phase
- * 
- * Before the brain predicts, show it LABELED examples of UP/DOWN/FLAT.
- * This is perception training, not action. No penalties, no rewards.
- * 
- * Labels are based on actual price movements, not brain's opinion.
- * After seeding, the brain has a reference frame for what direction looks like.
- */
-export async function perceptualSeeding(
-    tokens: TokenCandidate[],
-    emitEvent?: (type: string, data: any) => void
-): Promise<PerceptualSeedResult> {
-    const epsilon = PILLAR_10_9_CONFIG.LABEL_EPSILON;
-
-    // Classify tokens by their ACTUAL recent movement
-    const upTokens: TokenCandidate[] = [];
-    const downTokens: TokenCandidate[] = [];
-    const flatTokens: TokenCandidate[] = [];
-
-    // Calculate signatures for each group
-    let upMoveSum = 0, upVolSum = 0;
-    let downMoveSum = 0, downVolSum = 0;
-    let flatMoveSum = 0, flatVolSum = 0;
-
-    if (emitEvent) {
-        emitEvent('PILLAR_10_9_START', {
-            phase: 'PERCEPTUAL_SEEDING',
-            message: 'Before judging decisions, observe what reality looks like',
-            tokens: tokens.length,
-        });
-    }
-
-    // For now, we use priceAtStart as a proxy.
-    // In a real implementation, we'd fetch historical data.
-    // We'll simulate by using randomized "historical" movements
-    // based on actual market patterns for CHAOS tokens
-    for (const token of tokens) {
-        // Simulate historical movement (in production, use actual 15-min historical data)
-        // For CHAOS tokens, typical movement ranges are high
-        const simulatedHistoricalMove = (Math.random() - 0.45) * 0.1; // -5% to +5.5% bias toward down
-
-        // Classify based on simulated historical movement
-        if (simulatedHistoricalMove > epsilon) {
-            upTokens.push(token);
-            upMoveSum += simulatedHistoricalMove;
-            upVolSum += Math.abs(simulatedHistoricalMove);
-        } else if (simulatedHistoricalMove < -epsilon) {
-            downTokens.push(token);
-            downMoveSum += simulatedHistoricalMove;
-            downVolSum += Math.abs(simulatedHistoricalMove);
-        } else {
-            flatTokens.push(token);
-            flatMoveSum += simulatedHistoricalMove;
-            flatVolSum += Math.abs(simulatedHistoricalMove);
-        }
-    }
-
-    // Calculate average signatures
-    const upSignature = {
-        avgVolatility: upTokens.length > 0 ? upVolSum / upTokens.length : 0,
-        avgMove: upTokens.length > 0 ? upMoveSum / upTokens.length : 0,
-    };
-    const downSignature = {
-        avgVolatility: downTokens.length > 0 ? downVolSum / downTokens.length : 0,
-        avgMove: downTokens.length > 0 ? downMoveSum / downTokens.length : 0,
-    };
-    const flatSignature = {
-        avgVolatility: flatTokens.length > 0 ? flatVolSum / flatTokens.length : 0,
-        avgMove: flatTokens.length > 0 ? flatMoveSum / flatTokens.length : 0,
-    };
-
-    if (emitEvent) {
-        emitEvent('PILLAR_10_9_LABELED', {
-            phase: 'PERCEPTUAL_SEEDING',
-            upCount: upTokens.length,
-            downCount: downTokens.length,
-            flatCount: flatTokens.length,
-            upSignature: `avg +${(upSignature.avgMove * 100).toFixed(2)}%`,
-            downSignature: `avg ${(downSignature.avgMove * 100).toFixed(2)}%`,
-            flatSignature: `avg ${(flatSignature.avgMove * 100).toFixed(2)}%`,
-            message: 'This is what UP / DOWN / FLAT look like in this universe',
-        });
-    }
-
-    // Simulate observation period
-    if (emitEvent) {
-        emitEvent('PILLAR_10_9_OBSERVING', {
-            phase: 'PERCEPTUAL_SEEDING',
-            seconds: PILLAR_10_9_CONFIG.SEEDING_OBSERVATION_SECONDS,
-            message: 'Observing labeled data (no predictions allowed)',
-        });
-    }
-
-    // Wait for seeding observation (non-blocking, just a delay)
-    await new Promise(resolve => setTimeout(resolve, PILLAR_10_9_CONFIG.SEEDING_OBSERVATION_SECONDS * 1000));
-
-    if (emitEvent) {
-        emitEvent('PILLAR_10_9_COMPLETE', {
-            phase: 'PERCEPTUAL_SEEDING',
-            message: 'Calibration complete. Now you may predict.',
-            upExample: upTokens[0]?.symbol || 'N/A',
-            downExample: downTokens[0]?.symbol || 'N/A',
-            flatExample: flatTokens[0]?.symbol || 'N/A',
-        });
-    }
-
-    return {
-        upTokens,
-        downTokens,
-        flatTokens,
-        calibrationComplete: true,
-        upSignature,
-        downSignature,
-        flatSignature,
-    };
-}
-
-// ============================================================================
-// PILLAR 11: Agency Accountability Enforcement
-// ============================================================================
-
-export interface AgencyEvaluationResult {
-    passed: boolean;
-    failReason?: string;
-    quotaStatus: { met: boolean; directional: number; required: number };
-    clockStatus: { expired: boolean; minutesElapsed: number; deadline: number };
-    debtStatus: { debt: number; maxDebt: number };
-}
-
-/**
- * Pillar 11: Evaluate Agency Accountability
- * 
- * Called every cycle to check if the brain demonstrates sustained agency.
- * Three strikes (ego debt >= 3) = immediate FAIL
- * Clock expired without agency = FAIL
- */
-export function evaluateAgency(
-    state: FunnelState,
-    predictions: Map<string, PredictionDirection>,
-    learningProgress: boolean,  // Did narrowing happen due to skill?
-    emitEvent?: (type: string, data: any) => void
-): AgencyEvaluationResult {
-    const agency = state.agencyState;
-    const elapsed = Date.now() - state.startedAt;
-    const elapsedMinutes = elapsed / 60000;
-
-    // Count directional predictions this cycle
-    const preds = Array.from(predictions.values());
-    const directionalCount = preds.filter(p => p === 'UP' || p === 'DOWN').length;
-    const flatRatio = preds.filter(p => p === 'FLAT').length / Math.max(1, preds.length);
-
-    // ================================================================
-    // Recovery Rule: Directional Forgiveness Window
-    // If recovery mode is active, relaxing quotas and freezing debt
-    // ================================================================
-    let quotaScale = 1.0;
-
-    if (agency.recoveryModeActive) {
-        quotaScale = 0.5; // Relax quota requirement by 50%
-        if (emitEvent) {
-            emitEvent('PILLAR_11_RECOVERY_MODE', {
-                message: 'Recovery Mode Active: Ego Debt Frozen, Quota Relaxed',
-            });
-        }
-    }
-
-    // ================================================================
-    // 11.1 — Agency Quota
-    // ================================================================
-    agency.totalDirectionalPredictions += directionalCount;
-
-    if (directionalCount > 0) {
-        agency.cyclesWithDirection++;
-        if (!agency.firstAgencyTime) {
-            agency.firstAgencyTime = Date.now();
-            if (emitEvent) {
-                emitEvent('PILLAR_11_AGENCY_DETECTED', {
-                    cycle: state.cycle,
-                    directionalCount,
-                    message: 'First directional commitment detected',
-                });
-            }
-        }
-    }
-
-    const quotaConfig = PILLAR_11_CONFIG.AGENCY_QUOTA;
-    const effectiveMinDirectional = quotaConfig.minDirectionalTokens * quotaScale;
-
-    const quotaMet = agency.totalDirectionalPredictions >= effectiveMinDirectional &&
-        agency.cyclesWithDirection >= quotaConfig.minCyclesWithDirection;
-    agency.agencyQuotaMet = quotaMet;
-
-    // ================================================================
-    // 11.2 — Ego Clock
-    // ================================================================
-    const clockConfig = PILLAR_11_CONFIG.EGO_CLOCK;
-    const clockDeadline = clockConfig.maxMinutesWithoutAgency;
-
-    if (elapsedMinutes >= clockDeadline && !agency.firstAgencyTime) {
-        agency.egoClockExpired = true;
-        if (emitEvent) {
-            emitEvent('PILLAR_11_EGO_CLOCK_EXPIRED', {
-                minutesElapsed: elapsedMinutes.toFixed(1),
-                deadline: clockDeadline,
-                message: 'Refused agency under uncertainty',
-            });
-        }
-        return {
-            passed: false,
-            failReason: `Ego Clock Expired: No agency shown in ${clockDeadline} minutes`,
-            quotaStatus: { met: quotaMet, directional: agency.totalDirectionalPredictions, required: quotaConfig.minDirectionalTokens },
-            clockStatus: { expired: true, minutesElapsed: elapsedMinutes, deadline: clockDeadline },
-            debtStatus: { debt: agency.egoDebt, maxDebt: PILLAR_11_CONFIG.EGO_DEBT.maxEgoDebt },
-        };
-    }
-
-    // ================================================================
-    // 11.3 — Ego Debt
-    // ================================================================
-    const debtConfig = PILLAR_11_CONFIG.EGO_DEBT;
-
-    // Accumulate debt if: FLAT > threshold AND no learning progress AND no narrowing
-    // SKIPPED IF RECOVERY MODE ACTIVE
-    if (!agency.recoveryModeActive) {
-        if (flatRatio > debtConfig.flatThreshold && !learningProgress) {
-            agency.egoDebt++;
-            if (emitEvent) {
-                emitEvent('PILLAR_11_EGO_DEBT', {
-                    cycle: state.cycle,
-                    debt: agency.egoDebt,
-                    maxDebt: debtConfig.maxEgoDebt,
-                    flatRatio: (flatRatio * 100).toFixed(0) + '%',
-                    message: `Ego Debt +1 (${agency.egoDebt}/${debtConfig.maxEgoDebt})`,
-                });
-            }
-        }
-    }
-
-    if (agency.egoDebt >= debtConfig.maxEgoDebt) {
-        if (emitEvent) {
-            emitEvent('PILLAR_11_EGO_DEBT_EXCEEDED', {
-                debt: agency.egoDebt,
-                maxDebt: debtConfig.maxEgoDebt,
-                message: 'Identity failure - repeated refusal to commit',
-            });
-        }
-        return {
-            passed: false,
-            failReason: `Ego Debt Exceeded: ${agency.egoDebt} strikes - repeated refusal to commit`,
-            quotaStatus: { met: quotaMet, directional: agency.totalDirectionalPredictions, required: quotaConfig.minDirectionalTokens },
-            clockStatus: { expired: agency.egoClockExpired, minutesElapsed: elapsedMinutes, deadline: clockDeadline },
-            debtStatus: { debt: agency.egoDebt, maxDebt: debtConfig.maxEgoDebt },
-        };
-    }
-
-    // All checks passed
-    return {
-        passed: true,
-        quotaStatus: { met: quotaMet, directional: agency.totalDirectionalPredictions, required: quotaConfig.minDirectionalTokens },
-        clockStatus: { expired: false, minutesElapsed: elapsedMinutes, deadline: clockDeadline },
-        debtStatus: { debt: agency.egoDebt, maxDebt: debtConfig.maxEgoDebt },
-    };
-}
-
 export { DirectionBias };
-
-/**
- * PILLAR 14: Calibrate Emotional State
- * Based on outcomes of resolved predictions
- */
-export function calibrateEmotions(state: FunnelState): EmotionalState {
-    let confidence = state.emotionalState?.confidence || 0;
-    let regret = state.emotionalState?.regret || 0;
-    let fear = state.emotionalState?.fear || 0;
-
-    // Decay emotions
-    confidence *= PILLAR_14_CONFIG.CONFIDENCE_DECAY;
-    regret *= PILLAR_14_CONFIG.REGRET_DECAY;
-    fear *= PILLAR_14_CONFIG.FEAR_DECAY;
-
-    // Analyze settled predictions from previous cycle
-    const previousCycle = state.cycle - 1;
-
-    for (const predictions of state.predictionStorage.values()) {
-        for (const p of predictions) {
-            // Only look at resolved predictions from the cycle that just finished resolving
-            if (p.cycle === previousCycle && p.resolved) {
-                // CONFIDENCE: Correct Directional
-                if ((p.direction === 'UP' || p.direction === 'DOWN') && p.score > 0) {
-                    confidence += 1.0;
-                }
-
-                // REGRET: Flat but price moved (Missed Opportunity)
-                if (p.direction === 'FLAT' && p.score < 0) {
-                    regret += 1.0;
-                }
-
-                // FEAR: Wrong Directional (Pain)
-                if ((p.direction === 'UP' || p.direction === 'DOWN') && p.score < 0) {
-                    fear += 1.0;
-                }
-            }
-        }
-    }
-
-    // Clamp 0-10
-    return {
-        confidence: Math.min(10, Math.max(0, confidence)),
-        regret: Math.min(10, Math.max(0, regret)),
-        fear: Math.min(10, Math.max(0, fear))
-    };
-}

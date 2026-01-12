@@ -19,8 +19,8 @@ import {
     PathState,
     ScenarioType,
     BrainRoadmap
-} from '@/types/BrainV2';
-import { searchForPath, convertPathToRoadmap } from '@/lib/smartswap/brainv2';
+} from '@/types/LiquidityFilter';
+import { searchForPath, convertPathToRoadmap } from '@/lib/smartswap/liquidityFilter';
 
 // ... (Existing SCENARIOS config)
 

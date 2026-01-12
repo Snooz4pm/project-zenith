@@ -12,7 +12,7 @@ import { useSmartTokens } from '@/hooks/useSmartTokens';
 import { useState, useEffect } from 'react';
 import { Loader2, TrendingUp, Route, Shield, Zap, Flame, Crosshair, BarChart3, ArrowRight, Settings2, RefreshCw } from 'lucide-react';
 import { ScenarioComparison, ScenarioId } from '@/types/ScenarioRunner';
-import { PathHop } from '@/types/BrainV2';
+import { PathHop } from '@/types/LiquidityFilter';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 

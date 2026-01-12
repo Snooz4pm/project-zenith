@@ -256,23 +256,9 @@ export function endLearningRun(
     currentRunMemory.endedAt = Date.now();
     currentRunMemory.verdict = verdict;
 
-    // Calculate bias adjustments based on learning
-    const events = currentRunMemory.teachingEvents;
-    const missedOpportunities = events.filter(e => e.type === 'MISSED_OPPORTUNITY').length;
-    const directionalErrors = events.filter(e => e.type === 'DIRECTIONAL_ERROR').length;
-    const correctCalls = events.filter(e => e.type === 'CORRECT_CALL').length;
-
-    // Adjust biases for next run
-    // More missed opportunities → reduce FLAT bias
-    // More directional errors → reduce that direction's bias
-    if (missedOpportunities > 5) {
-        currentRunMemory.biasAdjustments.flatBias *= 0.9;
-    }
-    if (directionalErrors > correctCalls) {
-        // Conservative: reduce both
-        currentRunMemory.biasAdjustments.upBias *= 0.95;
-        currentRunMemory.biasAdjustments.downBias *= 0.95;
-    }
+    // [REMOVED] Bias Adjustment Logic
+    // We no longer adjust biases based on past performance.
+    // The system should observe, not "learn" false confidence.
 
     if (emitEvent) {
         emitEvent('MEMORY_RUN_COMPLETE', {
@@ -298,27 +284,9 @@ export function endLearningRun(
  * Get accumulated bias adjustments from all past runs
  */
 export function getAccumulatedBiases(): { upBias: number; downBias: number; flatBias: number } {
-    if (memoryHistory.length === 0) {
-        return { upBias: 1.0, downBias: 1.0, flatBias: 1.0 };
-    }
-
-    // Accumulate from all runs
-    let upBias = 1.0, downBias = 1.0, flatBias = 1.0;
-
-    for (const run of memoryHistory) {
-        upBias *= run.biasAdjustments.upBias;
-        downBias *= run.biasAdjustments.downBias;
-        flatBias *= run.biasAdjustments.flatBias;
-    }
-
-    // Clamp to reasonable range
-    const clamp = (v: number) => Math.max(0.3, Math.min(2.0, v));
-
-    return {
-        upBias: clamp(upBias),
-        downBias: clamp(downBias),
-        flatBias: clamp(flatBias),
-    };
+    // [FROZEN] Always return neutral biases.
+    // We are blocking the "learning" tumor.
+    return { upBias: 1.0, downBias: 1.0, flatBias: 1.0 };
 }
 
 /**

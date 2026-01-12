@@ -8,8 +8,8 @@
  */
 
 import { NextResponse } from 'next/server';
-import { searchForPath } from '@/lib/smartswap/brainv2';
-import { BrainGoal, SearchableToken } from '@/types/BrainV2';
+import { searchForPath } from '@/lib/smartswap/liquidityFilter';
+import { BrainGoal, SearchableToken } from '@/types/LiquidityFilter';
 import { SmartToken } from '@/types/SmartToken';
 
 export const dynamic = 'force-dynamic';

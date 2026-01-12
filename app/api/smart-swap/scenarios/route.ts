@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ScenarioRunner } from '@/lib/smartswap/scenarios/ScenarioRunner';
-import { BrainGoal, SearchableToken } from '@/types/BrainV2';
+import { BrainGoal, SearchableToken } from '@/types/LiquidityFilter';
 import { SmartToken } from '@/types/SmartToken';
 import { normalizeToSOL, getTokenPriceInSOL } from '@/lib/solana/price';
 

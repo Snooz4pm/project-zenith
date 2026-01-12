@@ -175,14 +175,9 @@ function determineDirection(
         return { prediction: 'UP', reasons: reasons.slice(0, 2) };
     } else if (diff < -flatThreshold) {
         return { prediction: 'DOWN', reasons: reasons.slice(0, 2) };
-    } else if (allowFlat) {
-        return { prediction: 'FLAT', reasons: ['no clear signal'] };
     } else {
-        // Force a direction in trending regimes / if flat forbidden
-        return {
-            prediction: momentum >= 0 ? 'UP' : 'DOWN',
-            reasons: reasons.length > 0 ? reasons.slice(0, 2) : ['weak signal, forced by regime']
-        };
+        // Weak signal = honest admission of uncertainty
+        return { prediction: 'FLAT', reasons: ['no clear signal'] };
     }
 }
 

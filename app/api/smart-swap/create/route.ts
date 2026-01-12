@@ -7,7 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { BrainRoadmap } from '@/types/BrainV2';
+import { BrainRoadmap } from '@/types/LiquidityFilter';
 
 export const dynamic = 'force-dynamic';
 
