@@ -590,3 +590,99 @@ model PaperTradeDecision {
 
   @@index([tradeId])
 }
+
+// =============================================================================
+// LEARNING VALIDATION (8-Pillar Self-Deception Prevention)
+// =============================================================================
+// Minimal schema for immutable learning run persistence.
+// UI only READS from these tables - no edits, no overrides.
+// =============================================================================
+
+model LearningRun {
+  id               String    @id @default(uuid())
+  startedAt        DateTime  @default(now())
+  endedAt          DateTime?
+  finalVerdict     String    // EDGE_VALIDATED | NO_EDGE_BASELINE_BEATS_BRAIN | NO_TRADE_LOW_OPPORTUNITY | LEARNING_SATURATED_EARLY
+  executionAllowed Boolean   @default(false)
+  config           Json?     // maxCycles, tokensPerCycle, narrowingRatio
+  
+  cycles           LearningCycle[]
+  decisions        LearningTokenDecision[]
+
+  @@index([startedAt(sort: Desc)])
+  @@index([finalVerdict])
+}
+
+model LearningCycle {
+  id               String  @id @default(uuid())
+  runId            String
+  cycleIndex       Int
+  regime           String  // TREND_UP | TREND_DOWN | RANGE | CHAOS
+  regimeConfidence Float
+  accuracy         Float
+  baselineRandom   Float
+  baselineMomentum Float
+  opportunityScore Float
+  saturationHit    Boolean
+  decision         String  // CONTINUE | STOP_SATURATION | STOP_NO_EDGE | STOP_NO_OPPORTUNITY
+  tokensBefore     Int
+  tokensAfter      Int
+  
+  run              LearningRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@index([cycleIndex])
+}
+
+model LearningTokenDecision {
+  id         String   @id @default(uuid())
+  runId      String
+  cycleIndex Int
+  token      String
+  mint       String
+  prediction String   // UP | DOWN | FLAT
+  actual     String   // UP | DOWN | FLAT
+  scoreDelta Float
+  reasons    String[] // Top 2 contributing reasons
+  eliminated Boolean  @default(false)
+  
+  run        LearningRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@index([cycleIndex])
+  @@index([token])
+}
+
+// =============================================================================
+// TRUST / AUTHORITY COMPOUNDING (Pillar 9)
+// =============================================================================
+// Permission governance based on accumulated discipline.
+// Does NOT affect predictions. Does NOT override learning verdicts.
+// =============================================================================
+
+model TrustState {
+  id          String   @id @default("current")
+  trustLevel  Int      @default(0) // 0-4
+  updatedAt   DateTime @updatedAt
+}
+
+model TrustHistory {
+  id        String   @id @default(uuid())
+  fromLevel Int
+  toLevel   Int
+  reason    String
+  timestamp DateTime @default(now())
+
+  @@index([timestamp(sort: Desc)])
+}
+
+model TrustViolation {
+  id          String   @id @default(uuid())
+  type        String   // EXECUTED_WITHOUT_EDGE, EXCEEDED_TRADE_LIMIT, etc.
+  description String
+  severity    String   // LOW, MEDIUM, HIGH, CRITICAL
+  timestamp   DateTime @default(now())
+
+  @@index([timestamp(sort: Desc)])
+  @@index([severity])
+}
