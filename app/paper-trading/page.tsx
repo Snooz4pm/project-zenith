@@ -260,6 +260,14 @@ export default function PaperTradingPage() {
                 addLog(`⏰ EGO CLOCK EXPIRED: ${data.message}`);
                 break;
             // Memory events
+            case 'MEMORY_INIT':
+                addLog(`🧠 ${data.message}`);
+                addLog(`   Loaded Biases: UP=${data.biases.up} DOWN=${data.biases.down} FLAT=${data.biases.flat}`);
+                break;
+            case 'MEMORY_RUN_COMPLETE':
+                addLog(`🏁 Run Complete. Teaching events recorded.`);
+                addLog(`   Adjusted Biases: UP=${data.biasAdjustments.upBias.toFixed(2)} DOWN=${data.biasAdjustments.downBias.toFixed(2)} FLAT=${data.biasAdjustments.flatBias.toFixed(2)}`);
+                break;
             case 'MEMORY_TEACHING':
                 addLog(`📚 ${data.lesson}`);
                 break;
