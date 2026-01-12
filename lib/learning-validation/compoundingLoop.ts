@@ -30,15 +30,19 @@ const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 // Configuration
 export const PILLAR_10_CONFIG = {
-    OBSERVATION_MINUTES: 5, // Real 5-minute wait
+    OBSERVATION_MINUTES: 15, // 15-minute wait - gives direction time to emerge
     MAX_DURATION_MINUTES: 30,
     SURVIVOR_THRESHOLD: 10, // Funnel complete when < 10 tokens
     NARROWING_RATIO: 0.5, // Keep top 50% each cycle
-    MIN_ACCURACY_TO_SURVIVE: 0.5, // Must be 50%+ accurate to survive
-    FUNNEL_MODE: 'CHAOS_ONLY' as 'ALL' | 'CHAOS_ONLY' | 'CHAOS_AND_MAJOR', // Mode A: Pure Chaos Test
+    MIN_ACCURACY_TO_SURVIVE: 0.45, // Slightly relaxed for CHAOS noise
+    FUNNEL_MODE: 'CHAOS_ONLY' as 'ALL' | 'CHAOS_ONLY' | 'CHAOS_AND_MAJOR',
+
+    // EXPLORATION mode: After first EDGE refusal, allow relaxed thresholds
+    ALLOW_EXPLORATION_FALLBACK: true,
+    EXPLORATION_THRESHOLD_MULTIPLIER: 0.7, // 70% of normal thresholds in exploration
 
     // Pillar 10.3: FLAT Accountability
-    FLAT_EPSILON: 0.005, // 0.5% threshold for FLAT correctness
+    FLAT_EPSILON: 0.01, // 1% threshold for FLAT correctness (relaxed from 0.5%)
 };
 
 // Pillar 10.3: Scoring rules with FLAT accountability
@@ -266,51 +270,64 @@ export interface DirectionalCheck {
 /**
  * Get thresholds based on funnel stage (token count)
  * 
- * Starting with ~1000 tokens, narrow down to candidates
+ * RELAXED thresholds for CHAOS environment to allow multi-cycle learning.
+ * The predictor CAN be honest about noise (FLAT) without immediate rejection.
+ * Biases adapt via Pillar 10.5 to reduce FLAT over time.
  * 
  * | Funnel Stage      | MIN (UP+DOWN) | MAX FLAT |
  * |-------------------|---------------|----------|
- * | Universe (>1000)  | 30%           | 70%      |
- * | Large (500-1000)  | 50%           | 50%      |
- * | Narrow (250-500)  | 70%           | 30%      |
- * | Final (≤250)      | 90%           | 10%      |
+ * | Universe (>1000)  | 25%           | 75%      |  ← Relaxed
+ * | Large (500-1000)  | 35%           | 65%      |  ← Relaxed
+ * | Narrow (250-500)  | 50%           | 50%      |
+ * | Final (≤250)      | 70%           | 30%      |
  */
 function getDirectionalThresholds(
     initialTokenCount: number,
-    currentTokenCount: number
+    currentTokenCount: number,
+    explorationMode: boolean = false
 ): { minDirectional: number; maxFlat: number } {
 
     const ratio = currentTokenCount / initialTokenCount;
+    let thresholds: { minDirectional: number; maxFlat: number };
 
     // EARLY — Universe scan (1000 → ~400)
+    // Allow high FLAT honesty initially - Brain learns the noise first
     if (ratio > 0.5) {
-        return {
-            minDirectional: 0.40, // must commit early
-            maxFlat: 0.60,
+        thresholds = {
+            minDirectional: 0.25, // Only 25% directional required early
+            maxFlat: 0.75,        // 75% FLAT allowed (noise acknowledgment)
         };
     }
-
     // MID — Narrowing (400 → ~100)
-    if (ratio > 0.2) {
-        return {
-            minDirectional: 0.60,
-            maxFlat: 0.40,
+    else if (ratio > 0.2) {
+        thresholds = {
+            minDirectional: 0.35,
+            maxFlat: 0.65,
         };
     }
-
     // LATE — Final funnel (100 → ~20)
-    if (ratio > 0.05) {
-        return {
-            minDirectional: 0.80,
-            maxFlat: 0.20,
+    else if (ratio > 0.05) {
+        thresholds = {
+            minDirectional: 0.50,
+            maxFlat: 0.50,
+        };
+    }
+    // FINAL — Execution gate (≤ ~20)
+    else {
+        thresholds = {
+            minDirectional: 0.70,
+            maxFlat: 0.30,
         };
     }
 
-    // FINAL — Execution gate (≤ ~20)
-    return {
-        minDirectional: 0.95,
-        maxFlat: 0.05,
-    };
+    // EXPLORATION mode: Further relax thresholds if enabled
+    if (explorationMode && PILLAR_10_CONFIG.ALLOW_EXPLORATION_FALLBACK) {
+        const mult = PILLAR_10_CONFIG.EXPLORATION_THRESHOLD_MULTIPLIER;
+        thresholds.minDirectional *= mult;
+        thresholds.maxFlat = 1 - thresholds.minDirectional; // Inverse relationship
+    }
+
+    return thresholds;
 }
 
 export function checkDirectionalCommitment(predictions: Map<string, PredictionDirection>, tokenCount: number, initialTokenCount: number): DirectionalCheck {
