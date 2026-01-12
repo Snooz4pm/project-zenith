@@ -35,7 +35,42 @@ export const PILLAR_10_CONFIG = {
     SURVIVOR_THRESHOLD: 10, // Funnel complete when < 10 tokens
     NARROWING_RATIO: 0.5, // Keep top 50% each cycle
     MIN_ACCURACY_TO_SURVIVE: 0.5, // Must be 50%+ accurate to survive
+    FUNNEL_MODE: 'CHAOS_ONLY' as 'ALL' | 'CHAOS_ONLY' | 'CHAOS_AND_MAJOR', // Mode A: Pure Chaos Test
 };
+
+// Token Classification
+export type TokenClass = 'STABLE' | 'MAJOR' | 'CHAOS';
+
+// Known stablecoins - excluded from Pillar 10 (no directional prediction possible)
+const STABLE_SYMBOLS = ['USDC', 'USDT', 'PYUSD', 'DAI', 'USDH', 'UXD', 'FRAX', 'BUSD', 'TUSD', 'USDP', 'GUSD', 'PAX'];
+const STABLE_MINTS = [
+    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+    'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
+    'HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3', // PYUSD
+];
+
+// Known major tokens - optional inclusion based on mode
+const MAJOR_SYMBOLS = ['SOL', 'ETH', 'BTC', 'WBTC', 'WETH', 'JUP', 'RAY', 'BONK', 'JTO', 'PYTH', 'WIF', 'RNDR'];
+
+/**
+ * Classify a token
+ */
+export function classifyToken(symbol: string, mint: string): TokenClass {
+    const upperSymbol = symbol.toUpperCase();
+
+    // Check stables first
+    if (STABLE_SYMBOLS.includes(upperSymbol) || STABLE_MINTS.includes(mint)) {
+        return 'STABLE';
+    }
+
+    // Check majors
+    if (MAJOR_SYMBOLS.includes(upperSymbol)) {
+        return 'MAJOR';
+    }
+
+    // Everything else is CHAOS
+    return 'CHAOS';
+}
 
 export interface FunnelState {
     cycle: number;
@@ -52,6 +87,7 @@ export interface FunnelState {
 export interface TokenCandidate {
     symbol: string;
     mint: string;
+    tokenClass: TokenClass;
     priceAtStart: number;
     priceAtEnd?: number;
     prediction?: PredictionDirection;
@@ -72,7 +108,7 @@ export interface CycleResult {
 }
 
 /**
- * Fetch frozen universe of tokens from Jupiter
+ * Fetch frozen universe of tokens from Jupiter with classification
  */
 export async function freezeUniverse(limit: number = 100): Promise<TokenCandidate[]> {
     const tokensRes = await fetch(`${JUPITER_PROXY_URL}/tokens`);
@@ -80,10 +116,25 @@ export async function freezeUniverse(limit: number = 100): Promise<TokenCandidat
 
     const { tokens } = await tokensRes.json();
     const candidates: TokenCandidate[] = [];
+    const classificationStats = { STABLE: 0, MAJOR: 0, CHAOS: 0 };
 
     // Get quotes for all tokens to establish starting prices
-    for (const token of tokens.slice(0, limit)) {
+    for (const token of tokens.slice(0, limit * 2)) { // Fetch more to compensate for filtering
         if (token.address === SOL_MINT) continue;
+
+        const tokenClass = classifyToken(token.symbol, token.address);
+        classificationStats[tokenClass]++;
+
+        // Filter based on mode
+        if (tokenClass === 'STABLE') {
+            // NEVER include stables in Pillar 10 funnel
+            continue;
+        }
+
+        if (PILLAR_10_CONFIG.FUNNEL_MODE === 'CHAOS_ONLY' && tokenClass === 'MAJOR') {
+            // Mode A: Pure Chaos Test - exclude majors too
+            continue;
+        }
 
         try {
             const amount = Math.pow(10, token.decimals || 6).toString();
@@ -100,10 +151,11 @@ export async function freezeUniverse(limit: number = 100): Promise<TokenCandidat
             const quote = await quoteRes.json();
             const solOut = parseInt(quote.outAmount || '0') / 1e9;
 
-            if (solOut > 0) {
+            if (solOut > 0 && candidates.length < limit) {
                 candidates.push({
                     symbol: token.symbol,
                     mint: token.address,
+                    tokenClass,
                     priceAtStart: solOut,
                     score: 0,
                 });
@@ -112,6 +164,9 @@ export async function freezeUniverse(limit: number = 100): Promise<TokenCandidat
             continue;
         }
     }
+
+    console.log(`[Pillar10] Universe classification: ${JSON.stringify(classificationStats)}`);
+    console.log(`[Pillar10] Funnel mode: ${PILLAR_10_CONFIG.FUNNEL_MODE}, candidates: ${candidates.length}`);
 
     return candidates;
 }
