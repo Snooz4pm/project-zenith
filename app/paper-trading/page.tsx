@@ -211,6 +211,47 @@ export default function PaperTradingPage() {
             case 'ERROR':
                 addLog(`❌ ${data.message}`);
                 break;
+            // Phase transitions
+            case 'PHASE':
+                addLog(`🔄 ${data.phase}: ${data.message}`);
+                break;
+            // Pillar 10.9: Perceptual Seeding
+            case 'PILLAR_10_9_START':
+                addLog(`🧠 SEEDING: ${data.message}`);
+                break;
+            case 'PILLAR_10_9_LABELED':
+                addLog(`   🏷️ UP=${data.upCount} DOWN=${data.downCount} FLAT=${data.flatCount}`);
+                addLog(`   ${data.message}`);
+                break;
+            case 'PILLAR_10_9_OBSERVING':
+                addLog(`👁️ Observing labeled data (${data.seconds}s)...`);
+                break;
+            case 'PILLAR_10_9_COMPLETE':
+                addLog(`✅ Calibration complete. Now predicting.`);
+                break;
+            // Pillar X: Anti-Stall
+            case 'PILLAR_X_QUOTA_VIOLATION':
+                addLog(`⚠️ Pillar X: Quota ${data.actual} < ${data.required}`);
+                break;
+            case 'PILLAR_X_FLAT_ELIMINATION':
+                addLog(`🗑️ Eliminated ${data.token}: ${data.reason}`);
+                break;
+            case 'PILLAR_X_ELIMINATIONS':
+                addLog(`🗑️ Pillar X eliminated ${data.count} tokens (${data.remaining} left)`);
+                break;
+            case 'PILLAR_X_STALL_DETECTED':
+                addLog(`❌ STALL DETECTED: ${data.reason}`);
+                break;
+            // Exposure-gated accuracy
+            case 'ACCURACY_BLOCKED':
+                addLog(`🚫 No accuracy credit (${data.mode})`);
+                break;
+            // Default: log any unhandled events
+            default:
+                if (data?.message) {
+                    addLog(`📋 ${type}: ${data.message}`);
+                }
+                break;
         }
     };
 
