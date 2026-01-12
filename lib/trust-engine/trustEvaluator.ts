@@ -58,16 +58,23 @@ export async function evaluateTrust(): Promise<TrustDecision> {
  * Get trust history from DB
  */
 async function getTrustHistory(): Promise<TrustHistorySummary> {
-    const runs = await prisma.learningRun.findMany({
-        orderBy: { startedAt: 'desc' },
-        take: 100, // Last 100 runs
-        select: {
-            id: true,
-            finalVerdict: true,
-            executionAllowed: true,
-            startedAt: true,
-        },
-    });
+    let runs: any[] = [];
+
+    try {
+        runs = await prisma.learningRun.findMany({
+            orderBy: { startedAt: 'desc' },
+            take: 100, // Last 100 runs
+            select: {
+                id: true,
+                finalVerdict: true,
+                executionAllowed: true,
+                startedAt: true,
+            },
+        }) || [];
+    } catch (error) {
+        console.error('[TrustEvaluator] Failed to fetch learning runs:', error);
+        runs = [];
+    }
 
     const totalRuns = runs.length;
     const edgeValidatedRuns = runs.filter(r => r.finalVerdict === 'EDGE_VALIDATED').length;
@@ -93,16 +100,22 @@ async function getTrustHistory(): Promise<TrustHistorySummary> {
     }
 
     // Get trust changes
-    const changes = await prisma.trustHistory.findMany({
-        orderBy: { timestamp: 'desc' },
-        take: 20,
-    });
+    let changes: TrustHistory[] = [];
+    try {
+        changes = await prisma.trustHistory.findMany({
+            orderBy: { timestamp: 'desc' },
+            take: 20,
+        }) || [];
+    } catch (error) {
+        console.error('[TrustEvaluator] Failed to fetch trust history:', error);
+        changes = [];
+    }
 
-    const promotions: TrustChange[] = changes
+    const promotions: TrustChange[] = (changes || [])
         .filter((c: TrustHistory) => c.toLevel > c.fromLevel)
         .map((c: TrustHistory) => ({ fromLevel: c.fromLevel as TrustLevel, toLevel: c.toLevel as TrustLevel, reason: c.reason, timestamp: c.timestamp }));
 
-    const demotions: TrustChange[] = changes
+    const demotions: TrustChange[] = (changes || [])
         .filter((c: TrustHistory) => c.toLevel < c.fromLevel)
         .map((c: TrustHistory) => ({ fromLevel: c.fromLevel as TrustLevel, toLevel: c.toLevel as TrustLevel, reason: c.reason, timestamp: c.timestamp }));
 
@@ -202,11 +215,11 @@ function buildDecision(
         maxSolPerTrade: config.maxSolPerTrade,
         reason,
         timestamp: Date.now(),
-        consecutiveEdgeValidated: history.consecutiveEdgeValidated,
-        totalRuns: history.totalRuns,
-        violations: history.violations.length,
-        lastPromotion: history.promotions[0]?.timestamp ?? null,
-        lastDemotion: history.demotions[0]?.timestamp ?? null,
+        consecutiveEdgeValidated: history.consecutiveEdgeValidated || 0,
+        totalRuns: history.totalRuns || 0,
+        violations: (history.violations || []).length,
+        lastPromotion: (history.promotions || [])[0]?.timestamp ?? null,
+        lastDemotion: (history.demotions || [])[0]?.timestamp ?? null,
     };
 }
 
