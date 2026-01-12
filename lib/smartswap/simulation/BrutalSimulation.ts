@@ -33,8 +33,16 @@ import {
     getFunnelVerdict,
     // Pillar 10.9: Perceptual Seeding
     perceptualSeeding,
+    // Pillar 11: Agency Accountability
+    evaluateAgency,
 } from '@/lib/learning-validation/compoundingLoop';
 import { DirectionBias } from '@/lib/learning-validation/predictor';
+import {
+    startLearningRun,
+    archiveTokens,
+    endLearningRun,
+    getAccumulatedBiases,
+} from '@/lib/learning-validation/memory';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
@@ -121,6 +129,22 @@ export class BrutalBrainSimulation {
 
         // Initialize funnel state
         this.funnelState = createFunnelState(universe);
+
+        // Persistent Memory: Start run and load accumulated biases
+        const runId = startLearningRun();
+        const memoryBiases = getAccumulatedBiases();
+        this.funnelState.biases = memoryBiases;
+
+        this.emit('MEMORY_INIT', {
+            runId,
+            biases: {
+                up: memoryBiases.upBias.toFixed(2),
+                down: memoryBiases.downBias.toFixed(2),
+                flat: memoryBiases.flatBias.toFixed(2),
+            },
+            message: 'Memory loaded. Biases adjusted based on past experience.',
+        });
+        console.log(`[BrutalSim] 🧠 Memory: UP=${memoryBiases.upBias.toFixed(2)} DOWN=${memoryBiases.downBias.toFixed(2)} FLAT=${memoryBiases.flatBias.toFixed(2)}`);
 
         // ====================================================================
         // PHASE 2: TRUST EVALUATION (Pillar 9)
@@ -287,6 +311,18 @@ export class BrutalBrainSimulation {
                 this.emit(type, data);
             }, narrowingAllowed); // Pass narrowing permission
 
+            // Persistent Memory: Archive eliminated tokens
+            if (result.eliminated.length > 0) {
+                // We need current prices to determine outcome
+                // scoreFunnel updates prices on tokens, so we can use them
+                const currentPrices = new Map<string, number>();
+                result.eliminated.forEach(t => currentPrices.set(t.symbol, t.priceAtEnd || t.priceAtStart));
+
+                archiveTokens(result.eliminated, result.cycle, currentPrices, (type, data) => {
+                    this.emit(type, data);
+                });
+            }
+
             // Track cycle metrics
             const flatStats = getFlatStatistics(this.funnelState.predictionStorage);
             this.cycleMetrics.push({
@@ -329,6 +365,24 @@ export class BrutalBrainSimulation {
                 console.log(`[BrutalSim] ❌ ${stallCheck.reason}`);
                 return this.report('FAIL', stallCheck.reason || 'Stall detected - unable to learn under uncertainty');
             }
+
+            // ================================================================
+            // PILLAR 11: Agency Accountability
+            // Does this system deserve to exist as an agent?
+            // ================================================================
+            const learningProgress = narrowingAllowed && result.eliminated.length > 0;
+            const agencyResult = evaluateAgency(this.funnelState, this.funnelState.predictions, learningProgress, (type, data) => {
+                this.emit(type, data);
+            });
+
+            if (!agencyResult.passed) {
+                this.stopReason = 'AGENCY_FAILURE';
+                console.log(`[BrutalSim] ❌ ${agencyResult.failReason}`);
+                return this.report('FAIL', agencyResult.failReason || 'Agency accountability failure');
+            }
+
+            // Log agency status
+            console.log(`[BrutalSim] 🧠 Agency: ${agencyResult.quotaStatus.directional}/${agencyResult.quotaStatus.required} directional | Debt: ${agencyResult.debtStatus.debt}/${agencyResult.debtStatus.maxDebt}`);
 
             // Check end conditions - only FUNNEL states, not directional failures
             if (this.funnelState.funnelComplete && executionEarned) {
@@ -487,6 +541,11 @@ export class BrutalBrainSimulation {
             endSOL: finalValue,
             pnlPct,
             cycles: this.cycleMetrics.length,
+        });
+
+        // Persistent Memory: End learning run
+        endLearningRun(verdict, (type, data) => {
+            this.emit(type, data);
         });
 
         return {

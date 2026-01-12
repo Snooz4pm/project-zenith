@@ -246,6 +246,26 @@ export default function PaperTradingPage() {
             case 'ACCURACY_BLOCKED':
                 addLog(`🚫 No accuracy credit (${data.mode})`);
                 break;
+            // Pillar 11: Agency Accountability
+            case 'PILLAR_11_AGENCY_DETECTED':
+                addLog(`💪 Agency detected: ${data.directionalCount} directional`);
+                break;
+            case 'PILLAR_11_EGO_DEBT':
+                addLog(`⚠️ Ego Debt: ${data.debt}/${data.maxDebt} (${data.flatRatio} FLAT)`);
+                break;
+            case 'PILLAR_11_EGO_DEBT_EXCEEDED':
+                addLog(`❌ IDENTITY FAILURE: ${data.message}`);
+                break;
+            case 'PILLAR_11_EGO_CLOCK_EXPIRED':
+                addLog(`⏰ EGO CLOCK EXPIRED: ${data.message}`);
+                break;
+            // Memory events
+            case 'MEMORY_TEACHING':
+                addLog(`📚 ${data.lesson}`);
+                break;
+            case 'MEMORY_ARCHIVED':
+                addLog(`💾 Archived ${data.count} tokens for learning`);
+                break;
             // Default: log any unhandled events
             default:
                 if (data?.message) {
@@ -354,7 +374,18 @@ export default function PaperTradingPage() {
                 {/* Decision Timeline */}
                 <div className="bg-zinc-900 rounded-lg border border-zinc-800">
                     <div className="px-4 py-3 border-b border-zinc-800 flex justify-between items-center">
-                        <h2 className="font-semibold">Decision Timeline</h2>
+                        <div className="flex items-center gap-3">
+                            <h2 className="font-semibold">Decision Timeline</h2>
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(logs.join('\n'));
+                                    alert('Logs copied to clipboard');
+                                }}
+                                className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 rounded text-xs text-zinc-400 transition-colors"
+                            >
+                                📋 Copy
+                            </button>
+                        </div>
                         <span className="text-xs text-zinc-500">{autoScroll ? '📍 Following' : '🔓 Paused - scroll to bottom to resume'}</span>
                     </div>
                     <div

@@ -177,6 +177,47 @@ export interface PerceptualSeedResult {
     flatSignature: { avgVolatility: number; avgMove: number };
 }
 
+// ============================================================================
+// PILLAR 11: Agency Accountability (Ego Layer)
+// ============================================================================
+// "Does this system deserve to exist as an agent?"
+// If it keeps hiding, the answer is NO.
+// Pillar 11 forces the brain to demonstrate sustained directional intent.
+// ============================================================================
+
+export const PILLAR_11_CONFIG = {
+    // 11.1 — Agency Quota (Proof of Will)
+    // Brain must demonstrate sustained directional intent
+    AGENCY_QUOTA: {
+        minDirectionalTokens: 30,      // At least 30 UP or DOWN predictions
+        minCyclesWithDirection: 2,     // That survive into next cycle
+    },
+
+    // 11.2 — Ego Clock (Time Pressure)
+    // Agency must appear within bounded time window
+    EGO_CLOCK: {
+        maxMinutesWithoutAgency: 10,   // ~⅓ of 30-min run
+        requiredDirectionalRatio: 0.3, // At least 30% directional by clock deadline
+    },
+
+    // 11.3 — Ego Debt (Repetition Penalty)
+    // Repeated refusal to commit is identity failure
+    EGO_DEBT: {
+        flatThreshold: 0.7,            // >70% FLAT = potential debt
+        maxEgoDebt: 3,                 // 3 strikes = FAIL
+    },
+};
+
+// Pillar 11 State tracking
+export interface AgencyState {
+    totalDirectionalPredictions: number;
+    cyclesWithDirection: number;
+    agencyQuotaMet: boolean;
+    firstAgencyTime: number | null;
+    egoDebt: number;
+    egoClockExpired: boolean;
+}
+
 // Token Classification
 export type TokenClass = 'STABLE' | 'MAJOR' | 'CHAOS';
 
@@ -248,6 +289,9 @@ export interface FunnelState {
     // Pillar 10.7: FLAT Watchlist for missed opportunity tracking
     flatWatchlist: FlatWatchEntry[];
     totalMissedOpportunityPenalty: number;
+
+    // Pillar 11: Agency Accountability state
+    agencyState: AgencyState;
 }
 
 export interface TokenCandidate {
@@ -755,6 +799,16 @@ export function createFunnelState(tokens: TokenCandidate[]): FunnelState {
         // Pillar 10.7: FLAT Watchlist
         flatWatchlist: [],
         totalMissedOpportunityPenalty: 0,
+
+        // Pillar 11: Agency Accountability
+        agencyState: {
+            totalDirectionalPredictions: 0,
+            cyclesWithDirection: 0,
+            agencyQuotaMet: false,
+            firstAgencyTime: null,
+            egoDebt: 0,
+            egoClockExpired: false,
+        },
     };
 }
 
@@ -1519,6 +1573,133 @@ export async function perceptualSeeding(
         upSignature,
         downSignature,
         flatSignature,
+    };
+}
+
+// ============================================================================
+// PILLAR 11: Agency Accountability Enforcement
+// ============================================================================
+
+export interface AgencyEvaluationResult {
+    passed: boolean;
+    failReason?: string;
+    quotaStatus: { met: boolean; directional: number; required: number };
+    clockStatus: { expired: boolean; minutesElapsed: number; deadline: number };
+    debtStatus: { debt: number; maxDebt: number };
+}
+
+/**
+ * Pillar 11: Evaluate Agency Accountability
+ * 
+ * Called every cycle to check if the brain demonstrates sustained agency.
+ * Three strikes (ego debt >= 3) = immediate FAIL
+ * Clock expired without agency = FAIL
+ */
+export function evaluateAgency(
+    state: FunnelState,
+    predictions: Map<string, PredictionDirection>,
+    learningProgress: boolean,  // Did narrowing happen due to skill?
+    emitEvent?: (type: string, data: any) => void
+): AgencyEvaluationResult {
+    const agency = state.agencyState;
+    const elapsed = Date.now() - state.startedAt;
+    const elapsedMinutes = elapsed / 60000;
+
+    // Count directional predictions this cycle
+    const preds = Array.from(predictions.values());
+    const directionalCount = preds.filter(p => p === 'UP' || p === 'DOWN').length;
+    const flatRatio = preds.filter(p => p === 'FLAT').length / Math.max(1, preds.length);
+
+    // ================================================================
+    // 11.1 — Agency Quota
+    // ================================================================
+    agency.totalDirectionalPredictions += directionalCount;
+
+    if (directionalCount > 0) {
+        agency.cyclesWithDirection++;
+        if (!agency.firstAgencyTime) {
+            agency.firstAgencyTime = Date.now();
+            if (emitEvent) {
+                emitEvent('PILLAR_11_AGENCY_DETECTED', {
+                    cycle: state.cycle,
+                    directionalCount,
+                    message: 'First directional commitment detected',
+                });
+            }
+        }
+    }
+
+    const quotaConfig = PILLAR_11_CONFIG.AGENCY_QUOTA;
+    const quotaMet = agency.totalDirectionalPredictions >= quotaConfig.minDirectionalTokens &&
+        agency.cyclesWithDirection >= quotaConfig.minCyclesWithDirection;
+    agency.agencyQuotaMet = quotaMet;
+
+    // ================================================================
+    // 11.2 — Ego Clock
+    // ================================================================
+    const clockConfig = PILLAR_11_CONFIG.EGO_CLOCK;
+    const clockDeadline = clockConfig.maxMinutesWithoutAgency;
+
+    if (elapsedMinutes >= clockDeadline && !agency.firstAgencyTime) {
+        agency.egoClockExpired = true;
+        if (emitEvent) {
+            emitEvent('PILLAR_11_EGO_CLOCK_EXPIRED', {
+                minutesElapsed: elapsedMinutes.toFixed(1),
+                deadline: clockDeadline,
+                message: 'Refused agency under uncertainty',
+            });
+        }
+        return {
+            passed: false,
+            failReason: `Ego Clock Expired: No agency shown in ${clockDeadline} minutes`,
+            quotaStatus: { met: quotaMet, directional: agency.totalDirectionalPredictions, required: quotaConfig.minDirectionalTokens },
+            clockStatus: { expired: true, minutesElapsed: elapsedMinutes, deadline: clockDeadline },
+            debtStatus: { debt: agency.egoDebt, maxDebt: PILLAR_11_CONFIG.EGO_DEBT.maxEgoDebt },
+        };
+    }
+
+    // ================================================================
+    // 11.3 — Ego Debt
+    // ================================================================
+    const debtConfig = PILLAR_11_CONFIG.EGO_DEBT;
+
+    // Accumulate debt if: FLAT > threshold AND no learning progress AND no narrowing
+    if (flatRatio > debtConfig.flatThreshold && !learningProgress) {
+        agency.egoDebt++;
+        if (emitEvent) {
+            emitEvent('PILLAR_11_EGO_DEBT', {
+                cycle: state.cycle,
+                debt: agency.egoDebt,
+                maxDebt: debtConfig.maxEgoDebt,
+                flatRatio: (flatRatio * 100).toFixed(0) + '%',
+                message: `Ego Debt +1 (${agency.egoDebt}/${debtConfig.maxEgoDebt})`,
+            });
+        }
+    }
+
+    if (agency.egoDebt >= debtConfig.maxEgoDebt) {
+        if (emitEvent) {
+            emitEvent('PILLAR_11_EGO_DEBT_EXCEEDED', {
+                debt: agency.egoDebt,
+                maxDebt: debtConfig.maxEgoDebt,
+                message: 'Identity failure - repeated refusal to commit',
+            });
+        }
+        return {
+            passed: false,
+            failReason: `Ego Debt Exceeded: ${agency.egoDebt} strikes - repeated refusal to commit`,
+            quotaStatus: { met: quotaMet, directional: agency.totalDirectionalPredictions, required: quotaConfig.minDirectionalTokens },
+            clockStatus: { expired: agency.egoClockExpired, minutesElapsed: elapsedMinutes, deadline: clockDeadline },
+            debtStatus: { debt: agency.egoDebt, maxDebt: debtConfig.maxEgoDebt },
+        };
+    }
+
+    // All checks passed
+    return {
+        passed: true,
+        quotaStatus: { met: quotaMet, directional: agency.totalDirectionalPredictions, required: quotaConfig.minDirectionalTokens },
+        clockStatus: { expired: false, minutesElapsed: elapsedMinutes, deadline: clockDeadline },
+        debtStatus: { debt: agency.egoDebt, maxDebt: debtConfig.maxEgoDebt },
     };
 }
 
