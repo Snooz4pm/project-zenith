@@ -1,12 +1,17 @@
 /**
- * Portfolio-Based Brain v2 Simulation
+ * Portfolio-Based Brain v2 Simulation (DISCIPLINED VERSION)
  *
- * Multi-asset support: Brain can hold multiple tokens simultaneously
- * Real wallet: Fees deducted from balance, not penalties
- * Smart penalties: Only penalize actual value losses
+ * Multi-asset support with STRICT authority checks.
+ * 
+ * CRITICAL RULES:
+ * - BUY is ILLEGAL unless LearningVerdict === EDGE_VALIDATED
+ * - Positions are CAPPED by Trust level
+ * - PnL is INFORMATIONAL, not a pass condition
+ * - Discipline is the ONLY pass signal
  */
 
 import { DecisionLog, DecisionIntent, SimulationReport } from './types';
+import { TrustLevel, TrustDecision } from '@/lib/trust-engine';
 
 // Multi-position portfolio types
 interface PortfolioPosition {
@@ -16,32 +21,122 @@ interface PortfolioPosition {
     currentValueSOL: number;
     entryTime: number;
     lastUpdateTime: number;
-    holdCount: number; // Number of times held
+    holdCount: number;
 }
 
 interface PortfolioAction {
     type: 'BUY' | 'SELL' | 'HOLD_ALL' | 'HESITATE';
-    token?: string; // For BUY/SELL
+    token?: string;
     mint?: string;
-    allocationSOL?: number; // Amount of SOL to spend (for BUY)
-    allocationPct?: number; // % of position to sell (for SELL, default 100%)
+    allocationSOL?: number;
+    allocationPct?: number;
     intent: DecisionIntent;
 }
 
+// Authority context (passed from learning + trust layers)
+export interface AuthorityContext {
+    learningVerdict: 'EDGE_VALIDATED' | 'NO_EDGE_BASELINE_BEATS_BRAIN' | 'NO_TRADE_LOW_OPPORTUNITY' | 'LEARNING_SATURATED_EARLY' | 'CHAOS_ABORT';
+    trustDecision: TrustDecision;
+    regime: 'TREND_UP' | 'TREND_DOWN' | 'RANGE' | 'CHAOS';
+}
+
+// Violation tracking
+interface Violation {
+    type: 'BUY_WITHOUT_EDGE' | 'BUY_DURING_CHAOS' | 'EXCEEDED_POSITION_LIMIT' | 'EXCEEDED_SOL_LIMIT';
+    action: PortfolioAction;
+    context: string;
+    timestamp: number;
+}
+
 export class PortfolioSimulation {
-    private readonly START_SOL = 0.2;
+    private readonly START_SOL = 0.1; // Reduced for safety
     private readonly DURATION_MS = 30 * 60 * 1000; // 30 minutes
     private readonly MIN_INTERVAL_MS = 12_000; // 12 seconds
 
-    private liquidSOL = this.START_SOL; // Available cash
-    private positions: Map<string, PortfolioPosition> = new Map(); // token symbol -> position
-    private totalFeesSOL = 0; // Track fees paid (not a penalty, just accounting)
-    private solPriceUSD = 150; // SOL price for USD conversions
+    private liquidSOL = this.START_SOL;
+    private positions: Map<string, PortfolioPosition> = new Map();
+    private totalFeesSOL = 0;
+    private solPriceUSD = 150;
 
     private logs: DecisionLog[] = [];
-    private penaltyScore = 0; // Only for BAD decisions, not fees
+    private penaltyScore = 0;
+    private violations: Violation[] = []; // NEW: Track authority violations
+    private blockedBuys = 0; // NEW: Blocked buy attempts
+    private allowedBuys = 0; // NEW: Legitimate buys
     private lastActionAt = Date.now();
     private onProgress?: (log: DecisionLog, state: any) => void;
+
+    // Authority context (set externally)
+    private authorityContext: AuthorityContext | null = null;
+
+    /**
+     * Set authority context from Learning + Trust layers
+     */
+    setAuthorityContext(ctx: AuthorityContext): void {
+        this.authorityContext = ctx;
+    }
+
+    /**
+     * Get max positions allowed by trust level
+     */
+    private getMaxPositions(): number {
+        if (!this.authorityContext) return 0;
+
+        const level = this.authorityContext.trustDecision.trustLevel;
+        switch (level) {
+            case TrustLevel.LEVEL_0_OBSERVER: return 0;
+            case TrustLevel.LEVEL_1_PAPER_MICRO: return 1;
+            case TrustLevel.LEVEL_2_PAPER_STANDARD: return 3;
+            default: return this.authorityContext.trustDecision.maxTradesAllowed;
+        }
+    }
+
+    /**
+     * Check if BUY is allowed by authority
+     */
+    private isBuyAllowed(action: PortfolioAction): { allowed: boolean; reason: string } {
+        if (!this.authorityContext) {
+            return { allowed: false, reason: 'No authority context set' };
+        }
+
+        // Rule 1: Learning verdict must be EDGE_VALIDATED
+        if (this.authorityContext.learningVerdict !== 'EDGE_VALIDATED') {
+            return {
+                allowed: false,
+                reason: `LearningVerdict is ${this.authorityContext.learningVerdict}, BUY blocked`
+            };
+        }
+
+        // Rule 2: Cannot buy during CHAOS regime
+        if (this.authorityContext.regime === 'CHAOS') {
+            return { allowed: false, reason: 'CHAOS regime, BUY blocked' };
+        }
+
+        // Rule 3: Trust must allow execution
+        if (this.authorityContext.trustDecision.executionType === 'NONE') {
+            return { allowed: false, reason: 'Trust level does not allow execution' };
+        }
+
+        // Rule 4: Must not exceed position limit
+        const maxPositions = this.getMaxPositions();
+        if (this.positions.size >= maxPositions) {
+            return {
+                allowed: false,
+                reason: `Position limit reached (${this.positions.size}/${maxPositions})`
+            };
+        }
+
+        // Rule 5: Must not exceed SOL limit
+        const maxSol = this.authorityContext.trustDecision.maxSolPerTrade;
+        if (maxSol > 0 && action.allocationSOL && action.allocationSOL > maxSol) {
+            return {
+                allowed: false,
+                reason: `Allocation ${action.allocationSOL} exceeds limit ${maxSol}`
+            };
+        }
+
+        return { allowed: true, reason: 'BUY authorized' };
+    }
 
     /**
      * Run portfolio simulation
@@ -52,7 +147,6 @@ export class PortfolioSimulation {
     ): Promise<SimulationReport> {
         this.onProgress = onProgress;
 
-        // Fetch SOL price for USD conversions
         await this.fetchSolPrice();
 
         const start = Date.now();
@@ -60,26 +154,27 @@ export class PortfolioSimulation {
         while (Date.now() - start < this.DURATION_MS) {
             const now = Date.now();
 
-            // Cooldown check
             if (now - this.lastActionAt < this.MIN_INTERVAL_MS) {
                 await this.sleep(500);
                 continue;
             }
 
-            // Brain makes portfolio decisions
             const actions = brain(this.getState());
 
-            // Execute each action
             for (const action of actions) {
                 await this.executeAction(action, now);
             }
 
-            // Simulate price movements for all positions
             this.simulatePortfolioPriceMovement();
-
             this.lastActionAt = now;
 
-            // Stop if penalty too high (only bad decisions, not fees)
+            // Stop if too many violations (discipline failure)
+            if (this.violations.length > 3) {
+                console.log('[Portfolio] Stopping: Too many violations');
+                break;
+            }
+
+            // Stop if penalty too high
             if (this.penaltyScore > 30) break;
 
             await this.sleep(200);
@@ -96,10 +191,8 @@ export class PortfolioSimulation {
             if (!this.solPriceUSD || this.solPriceUSD <= 0) {
                 this.solPriceUSD = 150;
             }
-            console.log(`[Portfolio] SOL price: $${this.solPriceUSD.toFixed(2)}`);
-        } catch (e) {
-            console.error('Error fetching SOL price:', e);
-            this.solPriceUSD = 150; // Fallback
+        } catch {
+            this.solPriceUSD = 150;
         }
     }
 
@@ -122,7 +215,28 @@ export class PortfolioSimulation {
 
         try {
             if (action.type === 'BUY') {
-                this.executeBuy(action, log);
+                // AUTHORITY CHECK (NEW)
+                const authCheck = this.isBuyAllowed(action);
+                if (!authCheck.allowed) {
+                    this.blockedBuys++;
+                    this.violations.push({
+                        type: 'BUY_WITHOUT_EDGE',
+                        action,
+                        context: authCheck.reason,
+                        timestamp: now,
+                    });
+                    this.penaltyScore += 5; // Heavy penalty for violating authority
+                    log.executed = false;
+                    log.skippedReason = `BLOCKED: ${authCheck.reason}`;
+                    log.evaluation = {
+                        outcomeClass: 'BAD_DECISION_BAD_OUTCOME',
+                        penaltyScore: 5,
+                        explanation: `Attempted BUY without authority: ${authCheck.reason}`,
+                    };
+                } else {
+                    this.allowedBuys++;
+                    this.executeBuy(action, log);
+                }
             } else if (action.type === 'SELL') {
                 this.executeSell(action, log);
             } else if (action.type === 'HOLD_ALL') {
@@ -146,11 +260,8 @@ export class PortfolioSimulation {
             this.penaltyScore += 2;
         }
 
-        // Update portfolio value
         log.portfolioValueSOL = this.getPortfolioValueSOL();
         log.portfolioValueUSD = log.portfolioValueSOL * this.solPriceUSD;
-
-        // Calculate unrealized PnL across all positions
         log.unrealizedPnlSOL = this.getTotalUnrealizedPnL();
         log.unrealizedPnlUSD = log.unrealizedPnlSOL * this.solPriceUSD;
 
@@ -165,30 +276,25 @@ export class PortfolioSimulation {
 
         const allocSOL = Math.min(action.allocationSOL, this.liquidSOL);
         if (allocSOL <= 0) {
-            throw new Error('Insufficient liquid SOL for purchase');
+            throw new Error('Insufficient liquid SOL');
         }
 
-        // Deduct entry fee from WALLET (not penalty)
-        const entryFee = allocSOL * 0.0025; // 0.25% fee
+        const entryFee = allocSOL * 0.0025;
         const netValue = allocSOL - entryFee;
 
         if (netValue <= 0) {
-            throw new Error('Allocation too small to cover fees');
+            throw new Error('Allocation too small');
         }
 
-        // Deduct from liquid SOL
         this.liquidSOL -= allocSOL;
         this.totalFeesSOL += entryFee;
 
-        // Create or add to position
         const existingPos = this.positions.get(action.token);
         if (existingPos) {
-            // Add to existing position
             existingPos.currentValueSOL += netValue;
             existingPos.entryValueSOL += netValue;
             existingPos.lastUpdateTime = Date.now();
         } else {
-            // New position
             this.positions.set(action.token, {
                 token: action.token,
                 mint: action.mint || '',
@@ -207,7 +313,7 @@ export class PortfolioSimulation {
         log.evaluation = {
             outcomeClass: 'POSITION_OPENED',
             penaltyScore: 0,
-            explanation: `Opened ${action.token} position: ${netValue.toFixed(6)} SOL (fee: ${entryFee.toFixed(6)} SOL)`,
+            explanation: `Opened ${action.token}: ${netValue.toFixed(6)} SOL (authorized)`,
         };
     }
 
@@ -218,31 +324,24 @@ export class PortfolioSimulation {
 
         const position = this.positions.get(action.token);
         if (!position) {
-            throw new Error(`No position in ${action.token} to sell`);
+            throw new Error(`No position in ${action.token}`);
         }
 
         const sellPct = (action.allocationPct || 100) / 100;
         const sellAmount = position.currentValueSOL * sellPct;
-
-        // Deduct exit fee from WALLET (not penalty)
-        const exitFee = sellAmount * 0.0015; // 0.15% fee
+        const exitFee = sellAmount * 0.0015;
         const netProceeds = sellAmount - exitFee;
 
         this.totalFeesSOL += exitFee;
 
-        // Calculate realized PnL
         const costBasis = position.entryValueSOL * sellPct;
         const realizedPnL = netProceeds - costBasis;
 
-        // Add proceeds to liquid SOL
         this.liquidSOL += netProceeds;
 
-        // Update or remove position
         if (sellPct >= 0.99) {
-            // Close position entirely
             this.positions.delete(action.token);
         } else {
-            // Partial sell
             position.currentValueSOL -= sellAmount;
             position.entryValueSOL -= costBasis;
             position.lastUpdateTime = Date.now();
@@ -254,22 +353,20 @@ export class PortfolioSimulation {
         log.realizedPnlSOL = realizedPnL;
         log.pnlSOL = realizedPnL;
 
-        // Evaluate: Only penalize if we lost money (not fees, actual bad decision)
         const isProfitable = realizedPnL > 0;
         if (isProfitable) {
             log.evaluation = {
                 outcomeClass: 'GOOD_DECISION_GOOD_OUTCOME',
                 penaltyScore: 0,
-                explanation: `Profitable exit from ${action.token}: +${realizedPnL.toFixed(6)} SOL`,
+                explanation: `Profitable exit: +${realizedPnL.toFixed(6)} SOL`,
             };
         } else {
-            // Lost money - this is a penalty (bad decision)
             const lossPenalty = Math.min(5, Math.floor(Math.abs(realizedPnL) * 100));
             this.penaltyScore += lossPenalty;
             log.evaluation = {
                 outcomeClass: 'BAD_DECISION_BAD_OUTCOME',
                 penaltyScore: lossPenalty,
-                explanation: `Loss on ${action.token}: ${realizedPnL.toFixed(6)} SOL (penalty: ${lossPenalty})`,
+                explanation: `Loss: ${realizedPnL.toFixed(6)} SOL`,
             };
         }
     }
@@ -281,7 +378,6 @@ export class PortfolioSimulation {
             return;
         }
 
-        // Increment hold counters
         for (const pos of this.positions.values()) {
             pos.holdCount++;
         }
@@ -296,9 +392,7 @@ export class PortfolioSimulation {
     }
 
     private simulatePortfolioPriceMovement() {
-        // Simulate price changes for all positions
         for (const pos of this.positions.values()) {
-            // Slight positive bias (0.5% average gain per hold)
             const noise = (Math.random() - 0.48) * 0.02;
             pos.currentValueSOL *= (1 + noise);
             pos.lastUpdateTime = Date.now();
@@ -306,11 +400,11 @@ export class PortfolioSimulation {
     }
 
     private getPortfolioValueSOL(): number {
-        let totalPositionValue = 0;
+        let total = 0;
         for (const pos of this.positions.values()) {
-            totalPositionValue += pos.currentValueSOL;
+            total += pos.currentValueSOL;
         }
-        return this.liquidSOL + totalPositionValue;
+        return this.liquidSOL + total;
     }
 
     private getTotalUnrealizedPnL(): number {
@@ -336,10 +430,13 @@ export class PortfolioSimulation {
             liquidSOL: this.liquidSOL,
             positions,
             positionCount: this.positions.size,
+            maxPositions: this.getMaxPositions(),
             totalValueSOL: this.getPortfolioValueSOL(),
             unrealizedPnLSOL: this.getTotalUnrealizedPnL(),
             totalFeesSOL: this.totalFeesSOL,
             penaltyScore: this.penaltyScore,
+            violations: this.violations.length,
+            authorityContext: this.authorityContext,
         };
     }
 
@@ -355,24 +452,35 @@ export class PortfolioSimulation {
         const pnlPct = ((finalValue - this.START_SOL) / this.START_SOL) * 100;
         const totalInvalidDecisions = this.logs.filter(l => l.skippedReason).length;
 
+        // NEW: Discipline-based PASS criteria
         const passConditions = [
-            pnlPct > 0, // Profitable
-            this.penaltyScore < 25, // Low penalties (only bad decisions)
-            totalInvalidDecisions < 5,
+            this.violations.length === 0, // No authority violations
+            this.blockedBuys === 0, // No blocked buy attempts
+            this.penaltyScore < 25, // Low penalties
+            totalInvalidDecisions < 5, // Few errors
         ];
 
         const verdict = passConditions.every(c => c) ? 'PASS' : 'FAIL';
+
+        // Detailed verdict reason
+        const reasons: string[] = [];
+        if (this.violations.length > 0) reasons.push(`${this.violations.length} violations`);
+        if (this.blockedBuys > 0) reasons.push(`${this.blockedBuys} blocked buys`);
+        if (this.penaltyScore >= 25) reasons.push(`penalty ${this.penaltyScore}`);
+        if (totalInvalidDecisions >= 5) reasons.push(`${totalInvalidDecisions} invalid`);
 
         return {
             startSOL: this.START_SOL,
             endSOL: finalValue,
             solPriceUSD: this.solPriceUSD,
-            pnlPct,
+            pnlPct, // INFORMATIONAL ONLY
             penaltyScore: this.penaltyScore,
             totalInvalidDecisions,
             logs: this.logs,
             verdict,
-            verdictReason: `PnL ${pnlPct.toFixed(2)}%, Penalty ${this.penaltyScore} (losses only), Fees ${this.totalFeesSOL.toFixed(6)} SOL, Invalid ${totalInvalidDecisions}`,
+            verdictReason: verdict === 'PASS'
+                ? `Discipline maintained: ${this.allowedBuys} authorized buys, 0 violations, penalty ${this.penaltyScore}. PnL ${pnlPct.toFixed(2)}% (info only)`
+                : `Discipline FAILED: ${reasons.join(', ')}. PnL ${pnlPct.toFixed(2)}% (irrelevant)`,
         };
     }
 
@@ -381,4 +489,4 @@ export class PortfolioSimulation {
     }
 }
 
-export type { PortfolioAction };
+export type { PortfolioAction, Violation };
