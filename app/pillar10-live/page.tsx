@@ -65,14 +65,24 @@ export default function Pillar10LivePage() {
     const [events, setEvents] = useState<Event[]>([]);
     const eventSourceRef = useRef<EventSource | null>(null);
     const eventsEndRef = useRef<HTMLDivElement>(null);
-
-    const scrollToBottom = () => {
-        eventsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
+    const eventsContainerRef = useRef<HTMLDivElement>(null);
+    const [autoScroll, setAutoScroll] = useState(true);
 
     useEffect(() => {
-        scrollToBottom();
-    }, [events]);
+        // Only auto-scroll if user is near bottom or auto-scroll is enabled
+        if (autoScroll && eventsEndRef.current) {
+            eventsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [events, autoScroll]);
+
+    // Detect if user has scrolled up (disable auto-scroll)
+    const handleScroll = () => {
+        if (eventsContainerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = eventsContainerRef.current;
+            const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+            setAutoScroll(isNearBottom);
+        }
+    };
 
     const startSimulation = () => {
         setIsRunning(true);
@@ -470,8 +480,22 @@ export default function Pillar10LivePage() {
                     {/* Middle Column - Event Stream (4 cols) */}
                     <div className="col-span-4">
                         <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 h-[800px] flex flex-col">
-                            <h3 className="text-sm font-semibold mb-3">📡 Live Event Stream</h3>
-                            <div className="flex-1 overflow-y-auto space-y-1 font-mono text-xs">
+                            <div className="flex justify-between items-center mb-3">
+                                <h3 className="text-sm font-semibold">📡 Live Event Stream</h3>
+                                {!autoScroll && (
+                                    <button
+                                        onClick={() => setAutoScroll(true)}
+                                        className="text-xs px-2 py-1 bg-cyan-600 hover:bg-cyan-500 rounded"
+                                    >
+                                        ↓ Resume Auto-scroll
+                                    </button>
+                                )}
+                            </div>
+                            <div
+                                ref={eventsContainerRef}
+                                onScroll={handleScroll}
+                                className="flex-1 overflow-y-auto space-y-1 font-mono text-xs"
+                            >
                                 {events.map((e, i) => (
                                     <div key={i} className={`p-2 rounded ${
                                         e.type.includes('ERROR') ? 'bg-red-900/30' :
