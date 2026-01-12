@@ -145,8 +145,8 @@ export async function GET(request: NextRequest) {
                         break;
                     }
 
-                    // Make predictions for ALL tokens
-                    const entropyCheck = predictFunnel(state.funnel);
+                    // Make predictions for ALL tokens, passing emit for 10.5 logs
+                    const entropyCheck = predictFunnel(state.funnel, emit);
 
                     const upCount = Array.from(state.funnel.predictions.values()).filter(p => p === 'UP').length;
                     const downCount = Array.from(state.funnel.predictions.values()).filter(p => p === 'DOWN').length;
@@ -205,7 +205,7 @@ export async function GET(request: NextRequest) {
 
                     // Score predictions against reality
                     emit('PHASE', { phase: 'SCORING', message: 'Fetching real prices and scoring...' });
-                    const cycleResult = await scoreFunnel(state.funnel);
+                    const cycleResult = await scoreFunnel(state.funnel, emit);
 
                     emit('CYCLE_RESULT', {
                         cycle: cycleResult.cycle,

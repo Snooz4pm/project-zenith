@@ -18,7 +18,7 @@
  */
 
 import { TokenPriceHistory, TokenOutcome, PredictionDirection } from './types';
-import { predictBatch } from './predictor';
+import { predictBatch, DirectionBias } from './predictor';
 import { scoreBatch, calculateAccuracy, determineActualDirection } from './scorer';
 import { detectRegime, isRegimeTradeable } from './regimeDetector';
 import { enforceDiversity } from './diversityEnforcer';
@@ -49,6 +49,13 @@ export const PILLAR_10_SCORES = {
     WRONG_UP: -2,          // Most dangerous
     WRONG_DOWN: -0.5,
     WRONG_FLAT: -1.5,      // Cowardice penalty
+};
+
+// Pillar 10.4: Hesitation Opportunity Penalty
+export const PILLAR_10_4_CONFIG = {
+    OPPORTUNITY_EPSILON: 0.01,      // 1% move = significant opportunity
+    HESITATION_PENALTY: -0.75,      // Lighter than wrong UP (-2), but real cost
+    MIN_OPPORTUNITY_SCORE: 0.3,     // Only penalize if opportunity was real
 };
 
 // Token Classification
@@ -93,6 +100,7 @@ export interface StoredPrediction {
     cycle: number;
     score: number;
     resolved: boolean;
+    hesitationPenaltyApplied?: boolean; // Pillar 10.4
 }
 
 export interface FunnelState {
@@ -109,6 +117,10 @@ export interface FunnelState {
 
     // Pillar 10.3: Prediction storage for delayed accountability
     predictionStorage: Map<string, StoredPrediction[]>;
+
+    // Pillar 10.5: Behavioral Adaptation state
+    biases: DirectionBias;
+    lastPenaltyProfile?: CyclePenaltyProfile;
 }
 
 export interface TokenCandidate {
@@ -367,15 +379,37 @@ export function checkDirectionalCommitment(predictions: Map<string, PredictionDi
  * Make predictions for all tokens in the funnel
  * Returns directional commitment check result (Pillar 10.1 + 10.2)
  */
-export function predictFunnel(state: FunnelState): DirectionalCheck {
+export function predictFunnel(
+    state: FunnelState,
+    emitEvent?: (type: string, data: any) => void
+): DirectionalCheck {
+
+    // Pillar 10.5: Adapt Behavior for Next Cycle (if applicable)
+    // We do this BEFORE prediction to influence the current batch
+    if (state.cycle > 0) {
+        const adaptation = adaptBehavior(state);
+        state.biases = adaptation.biases;
+        state.lastPenaltyProfile = adaptation.profile;
+
+        if (emitEvent) {
+            emitEvent('BEHAVIOR_ADJUSTED', {
+                cycle: state.cycle,
+                changes: state.biases,
+                profile: adaptation.profile,
+                reason: "Penalty feedback from previous cycle"
+            });
+        }
+        console.log(`[Pillar 10.5] Adapted Behavior: UP=${state.biases.upBias.toFixed(2)} DOWN=${state.biases.downBias.toFixed(2)} FLAT=${state.biases.flatBias.toFixed(2)}`);
+    }
+
     const histories = buildHistories(state.tokens);
 
     // Detect regime first
     const regime = detectRegime(histories);
     state.regime = regime.regime;
 
-    // Make predictions for all tokens
-    const predictions = predictBatch(histories, regime.regime, true);
+    // Make predictions for all tokens (with Bias)
+    const predictions = predictBatch(histories, regime.regime, true, state.biases);
 
     state.predictions.clear();
     for (const p of predictions) {
@@ -441,7 +475,7 @@ export async function scoreFunnel(
     }
 
     // Pillar 10.3: Resolve predictions from previous cycle
-    const resolvedScores = resolvePredictions(state, currentPrices, emitEvent);
+    const resolvedScores = resolvePredictions(state, currentPrices, 1.0, emitEvent);
 
     // Calculate accuracy from current cycle predictions
     let correctCount = 0;
@@ -522,6 +556,9 @@ export function createFunnelState(tokens: TokenCandidate[]): FunnelState {
         funnelCollapsed: false,
         executionCandidates: [],
         predictionStorage: new Map(), // Pillar 10.3
+
+        // Pillar 10.5 defaults
+        biases: { upBias: 1.0, downBias: 1.0, flatBias: 1.0 },
     };
 }
 
@@ -622,11 +659,12 @@ export function recordPredictions(
 
 /**
  * Resolve predictions from PREVIOUS cycle at CURRENT cycle
- * This is where FLAT accountability happens
+ * This is where FLAT accountability happens (Pillar 10.3 + 10.4)
  */
 export function resolvePredictions(
     state: FunnelState,
     currentPrices: Map<string, number>,
+    opportunityScore: number,
     emitEvent?: (type: string, data: any) => void
 ): Map<string, number> {
     const tokenScores = new Map<string, number>();
@@ -670,6 +708,33 @@ export function resolvePredictions(
                             priceChange: (priceChange * 100).toFixed(2) + '%',
                             score: pred.score,
                             verdict: 'WRONG - COWARDICE PENALTY',
+                            cycle: pred.cycle,
+                        });
+                    }
+                }
+
+                // --- HESITATION OPPORTUNITY PENALTY (Pillar 10.4) ---
+                // Applied AFTER 10.3 correctness scoring
+                // Only penalize if:
+                // 1. Market regime is tradeable (not CHAOS)
+                // 2. Opportunity was real (> 0.3)
+                // 3. Price moved significantly (> 1%)
+                if (
+                    state.regime !== 'CHAOS' &&
+                    opportunityScore >= PILLAR_10_4_CONFIG.MIN_OPPORTUNITY_SCORE &&
+                    Math.abs(priceChange) >= PILLAR_10_4_CONFIG.OPPORTUNITY_EPSILON
+                ) {
+                    pred.score += PILLAR_10_4_CONFIG.HESITATION_PENALTY;
+                    pred.hesitationPenaltyApplied = true;
+
+                    if (emitEvent) {
+                        emitEvent('HESITATION_PENALTY', {
+                            token: tokenSymbol,
+                            priceChange: (priceChange * 100).toFixed(2) + '%',
+                            penalty: PILLAR_10_4_CONFIG.HESITATION_PENALTY,
+                            regime: state.regime,
+                            opportunityScore: opportunityScore.toFixed(2),
+                            reason: 'Missed directional move after hesitation',
                             cycle: pred.cycle,
                         });
                     }
@@ -759,5 +824,110 @@ export function getFlatStatistics(storage: Map<string, StoredPrediction[]>): {
         wrongFlat,
         flatAccuracy,
         cowardiceScore,
+    };
+}
+
+/**
+ * ========================================
+ * PILLAR 10.5: PENALTY-DRIVEN ADAPTATION
+ * ========================================
+ */
+
+export interface CyclePenaltyProfile {
+    flatExcess: number;        // too many FLAT
+    hesitationPenalty: number; // missed moves
+    wrongUpPenalty: number;    // reckless optimism
+    wrongDownPenalty: number;  // excessive pessimism
+}
+
+function clampBias(x: number): number {
+    return Math.min(1.5, Math.max(0.5, x));
+}
+
+/**
+ * Adapt behavioral biases based on previous cycle penalties
+ */
+export function adaptBehavior(state: FunnelState): { biases: DirectionBias; profile: CyclePenaltyProfile } {
+    // Default neutral biases
+    let upBias = 1.0;
+    let downBias = 1.0;
+    let flatBias = 1.0;
+
+    // Default profile
+    const profile: CyclePenaltyProfile = {
+        flatExcess: 0,
+        hesitationPenalty: 0,
+        wrongUpPenalty: 0,
+        wrongDownPenalty: 0
+    };
+
+    // If first cycle, return neutral
+    if (state.cycle === 0) {
+        return { biases: { upBias, downBias, flatBias }, profile };
+    }
+
+    // Analyze previous cycle (N-1)
+    // We look at resolved predictions that belong to the previous cycle
+    const previousCycle = state.cycle - 1;
+    let totalResolved = 0;
+
+    for (const predictions of state.predictionStorage.values()) {
+        for (const p of predictions) {
+            // Only look at predictions from the previous cycle that are resolved
+            if (p.cycle === previousCycle && p.resolved) {
+                totalResolved++;
+
+                // 1. Hesitation Penalty (already calculated in record/resolve)
+                if (p.hesitationPenaltyApplied) {
+                    profile.hesitationPenalty += PILLAR_10_4_CONFIG.HESITATION_PENALTY;
+                }
+
+                // 2. Wrong UP / DOWN
+                if (p.direction === 'UP' && p.score < 0) {
+                    profile.wrongUpPenalty += p.score;
+                }
+                if (p.direction === 'DOWN' && p.score < 0) {
+                    profile.wrongDownPenalty += p.score;
+                }
+            }
+        }
+    }
+
+    // 3. Flat Excess (Cowardice)
+    const flatStats = getFlatStatistics(state.predictionStorage);
+    profile.flatExcess = flatStats.cowardiceScore;
+
+    // --- APPLY PILLAR 10.5 RULES ---
+
+    // Rule 1: Too much FLAT -> reduce FLAT bias
+    if (profile.flatExcess > 0) {
+        flatBias *= 0.7;
+    }
+
+    // Rule 2: Hesitation penalty -> encourage direction
+    if (profile.hesitationPenalty < 0) {
+        upBias *= 1.1;
+        downBias *= 1.1;
+        flatBias *= 0.8;
+    }
+
+    // Rule 3: Too many wrong UP -> dampen optimism
+    if (profile.wrongUpPenalty < -2) {
+        upBias *= 0.75;
+    }
+
+    // Rule 4: Too many wrong DOWN -> dampen pessimism
+    if (profile.wrongDownPenalty < -2) {
+        downBias *= 0.75;
+    }
+
+    // Safety clamp
+    return {
+        biases: {
+            upBias: clampBias(upBias),
+            downBias: clampBias(downBias),
+            flatBias: clampBias(flatBias)
+        },
+        profile
     };
 }

@@ -6,7 +6,7 @@
  * Deterministic and explainable.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, TrustHistory } from '@prisma/client';
 import { TrustLevel, getTrustConfig, getTrustLevelName } from './trustLevels';
 import { TrustDecision, TrustHistorySummary, TrustChange } from './trustDecision';
 import { evaluatePromotion, PromotionSignals } from './promotionRules';
@@ -99,12 +99,12 @@ async function getTrustHistory(): Promise<TrustHistorySummary> {
     });
 
     const promotions: TrustChange[] = changes
-        .filter(c => c.toLevel > c.fromLevel)
-        .map(c => ({ fromLevel: c.fromLevel as TrustLevel, toLevel: c.toLevel as TrustLevel, reason: c.reason, timestamp: c.timestamp }));
+        .filter((c: TrustHistory) => c.toLevel > c.fromLevel)
+        .map((c: TrustHistory) => ({ fromLevel: c.fromLevel as TrustLevel, toLevel: c.toLevel as TrustLevel, reason: c.reason, timestamp: c.timestamp }));
 
     const demotions: TrustChange[] = changes
-        .filter(c => c.toLevel < c.fromLevel)
-        .map(c => ({ fromLevel: c.fromLevel as TrustLevel, toLevel: c.toLevel as TrustLevel, reason: c.reason, timestamp: c.timestamp }));
+        .filter((c: TrustHistory) => c.toLevel < c.fromLevel)
+        .map((c: TrustHistory) => ({ fromLevel: c.fromLevel as TrustLevel, toLevel: c.toLevel as TrustLevel, reason: c.reason, timestamp: c.timestamp }));
 
     return {
         totalRuns,

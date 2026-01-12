@@ -18,13 +18,21 @@ const UP_THRESHOLD = 0.3;      // Momentum > 0.3 = UP
 const DOWN_THRESHOLD = -0.3;   // Momentum < -0.3 = DOWN
 const VOL_SPIKE_MULT = 1.5;    // Volume spike multiplier
 
+// Pillar 10.5: Behavioral Control Knobs
+export interface DirectionBias {
+    upBias: number;
+    downBias: number;
+    flatBias: number;
+}
+
 /**
  * Generate prediction for a single token
  */
 export function predictToken(
     history: TokenPriceHistory,
     regime: MarketRegime,
-    allowFlat: boolean
+    allowFlat: boolean,
+    bias?: DirectionBias
 ): TokenPrediction | null {
     if (history.prices.length < 3) {
         return null; // Insufficient data
@@ -77,7 +85,8 @@ export function predictToken(
         volatilityDelta,
         volumeExpansion,
         regime,
-        allowFlat
+        allowFlat,
+        bias
     );
 
     return {
@@ -103,7 +112,8 @@ function determineDirection(
     volatilityDelta: number,
     volumeExpansion: number,
     regime: MarketRegime,
-    allowFlat: boolean
+    allowFlat: boolean,
+    bias?: DirectionBias
 ): { prediction: PredictionDirection; reasons: string[] } {
     const reasons: string[] = [];
 
@@ -150,17 +160,25 @@ function determineDirection(
         downScore += 0.2;
     }
 
+    // Apply Pillar 10.5 Behavioral Biases
+    if (bias) {
+        upScore *= bias.upBias;
+        downScore *= bias.downBias;
+        // Flat bias affects the threshold (higher flat bias = wider "no signal" zone)
+    }
+
     // Determine direction
     const diff = upScore - downScore;
+    const flatThreshold = 0.3 * (bias?.flatBias ?? 1.0);
 
-    if (diff > 0.3) {
+    if (diff > flatThreshold) {
         return { prediction: 'UP', reasons: reasons.slice(0, 2) };
-    } else if (diff < -0.3) {
+    } else if (diff < -flatThreshold) {
         return { prediction: 'DOWN', reasons: reasons.slice(0, 2) };
     } else if (allowFlat) {
         return { prediction: 'FLAT', reasons: ['no clear signal'] };
     } else {
-        // Force a direction in trending regimes
+        // Force a direction in trending regimes / if flat forbidden
         return {
             prediction: momentum >= 0 ? 'UP' : 'DOWN',
             reasons: reasons.length > 0 ? reasons.slice(0, 2) : ['weak signal, forced by regime']
@@ -174,12 +192,13 @@ function determineDirection(
 export function predictBatch(
     histories: TokenPriceHistory[],
     regime: MarketRegime,
-    allowFlat: boolean
+    allowFlat: boolean,
+    bias?: DirectionBias
 ): TokenPrediction[] {
     const predictions: TokenPrediction[] = [];
 
     for (const history of histories) {
-        const prediction = predictToken(history, regime, allowFlat);
+        const prediction = predictToken(history, regime, allowFlat, bias);
         if (prediction) {
             predictions.push(prediction);
         }
