@@ -232,6 +232,12 @@ export default function PaperTradingPage() {
             case 'PILLAR_10_9_COMPLETE':
                 addLog(`✅ Calibration complete. Now predicting.`);
                 break;
+            case 'BEHAVIOR_ADJUSTED':
+                addLog(`🧠 Bias: UP=${data.changes.upBias.toFixed(2)} DOWN=${data.changes.downBias.toFixed(2)} FLAT=${data.changes.flatBias.toFixed(2)}`);
+                if (data.profile.correctUpReward > 0 || data.profile.correctDownReward > 0) {
+                    addLog(`   ✨ Reward: +${(data.profile.correctUpReward * 0.05).toFixed(2)} UP / +${(data.profile.correctDownReward * 0.05).toFixed(2)} DOWN`);
+                }
+                break;
             // Pillar X: Anti-Stall
             case 'PILLAR_X_QUOTA_VIOLATION':
                 addLog(`⚠️ Pillar X: Quota ${data.actual} < ${data.required}`);
@@ -267,6 +273,10 @@ export default function PaperTradingPage() {
                 break;
             case 'PILLAR_12_ALLOCATION':
                 addLog(`⚖️ Allocation: ${data.distribution.up} UP / ${data.distribution.down} DOWN / ${data.distribution.flat} FLAT`);
+                break;
+            case 'BRAIN_ACTIVITY':
+                addLog(`🧠 Memory: ${data.message}`);
+                data.picks?.forEach((pick: string) => addLog(`   ➤ Bias: ${pick}`));
                 break;
             // Memory events
             case 'MEMORY_INIT':

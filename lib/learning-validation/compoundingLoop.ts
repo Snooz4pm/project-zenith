@@ -25,12 +25,16 @@ import { enforceDiversity } from './diversityEnforcer';
 import { calculateBatchOpportunity } from './opportunityScorer';
 import { compareAgainstBaselines } from './baselineComparator';
 
+// Brain v2 Integration
+import { predictiveEngine } from '@/lib/smartswap/predictive/PredictiveEngineSafe';
+import { SearchableToken } from '@/types/BrainV2';
+
 const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 // Configuration
 export const PILLAR_10_CONFIG = {
-    OBSERVATION_MINUTES: 15, // 15-minute wait - gives direction time to emerge
+    OBSERVATION_MINUTES: 5, // 5-minute wait - gives direction time to emerge
     MAX_DURATION_MINUTES: 30,
     SURVIVOR_THRESHOLD: 10, // Funnel complete when < 10 tokens
     NARROWING_RATIO: 0.5, // Keep top 50% each cycle
@@ -567,10 +571,13 @@ export function checkDirectionalCommitment(predictions: Map<string, PredictionDi
  * Make predictions for all tokens in the funnel
  * Returns directional commitment check result (Pillar 10.1 + 10.2)
  */
-export function predictFunnel(
+export async function predictFunnel(
     state: FunnelState,
     emitEvent?: (type: string, data: any) => void
-): DirectionalCheck {
+): Promise<DirectionalCheck> {
+
+    // Initialize Brain v2 (Lazy init)
+    await predictiveEngine.initialize();
 
     // Pillar 10.5: Adapt Behavior for Next Cycle (if applicable)
     // We do this BEFORE prediction to influence the current batch
@@ -649,18 +656,67 @@ export function predictFunnel(
         });
     }
 
-    // 4. Score Tokens by Signal Strength (Momentum)
-    // We utilize predictBatch to get the raw signals, ignoring its labeled prediction for now
+    // 4. Score Tokens by Signal Strength (Momentum + Brain v2 Memory)
     const rawPredictions = predictBatch(histories, regime.regime, true, state.biases);
 
-    // Map tokens to their signal score (momentum)
-    const scoredTokens = state.tokens.map(token => {
+    // Prepare Brain inputs (best effort mapping)
+    const searchableTokens: SearchableToken[] = state.tokens.map(t => ({
+        mint: t.mint,
+        symbol: t.symbol,
+        liquidityScore: 1.0, // Assumption
+        valueInSOL: t.priceAtStart,
+        roundTripLoss: 0,
+        alphaScore: 0
+    }));
+
+    // Update Brain's Market State
+    predictiveEngine.updateMarketState(searchableTokens);
+
+    // Map tokens to their signal score (momentum + brain bias)
+    const scoredTokens = await Promise.all(state.tokens.map(async (token) => {
         const pred = rawPredictions.find(p => p.symbol === token.symbol);
         // Use momentum as primary signal Score. 
         // fallback to random if no signal (shouldn't happen with valid history)
         const score = pred?.signals?.momentum ?? (Math.random() - 0.5);
-        return { token, score, prediction: 'FLAT' as PredictionDirection };
-    });
+
+        // Brain v2 Integration: Get Memory/Emotional Bias
+        const searchBias = await predictiveEngine.getSearchBias({
+            mint: token.mint,
+            symbol: token.symbol,
+            liquidityScore: 1,
+            valueInSOL: 0,
+            roundTripLoss: 0,
+            hasRoute: false,
+            isStable: false,
+            isAlpha: false,
+            tier: 'SAFE'
+        });
+
+        // Boost score if Brain has high exploration priority (gut feeling)
+        // explorationPriority is 0-1. 
+        // We add a small bias to the momentum.
+        const brainBoost = (searchBias.explorationPriority - 0.5) * 0.1;
+
+        return {
+            token,
+            score: momentum + brainBoost,
+            brainBias: searchBias.explorationPriority,
+            prediction: 'FLAT' as PredictionDirection
+        };
+    }));
+
+    // Log top brain activities
+    const topBrainPicks = scoredTokens
+        .filter(t => t.brainBias > 0.6)
+        .sort((a, b) => b.brainBias - a.brainBias)
+        .slice(0, 3);
+
+    if (topBrainPicks.length > 0 && emitEvent) {
+        emitEvent('BRAIN_ACTIVITY', {
+            picks: topBrainPicks.map(t => `${t.token.symbol} (${(t.brainBias * 100).toFixed(0)}%)`),
+            message: "Brain memory influencing selection"
+        });
+    }
 
     // 5. Sort by Score (Signed Momentum)
     // Most Positive -> UP
@@ -1170,6 +1226,8 @@ export interface CyclePenaltyProfile {
     hesitationPenalty: number; // missed moves
     wrongUpPenalty: number;    // reckless optimism
     wrongDownPenalty: number;  // excessive pessimism
+    correctUpReward: number;   // valid confidence
+    correctDownReward: number; // valid caution
 }
 
 function clampBias(x: number): number {
@@ -1177,7 +1235,7 @@ function clampBias(x: number): number {
 }
 
 /**
- * Adapt behavioral biases based on previous cycle penalties
+ * Adapt behavioral biases based on previous cycle penalties AND rewards
  */
 export function adaptBehavior(state: FunnelState): { biases: DirectionBias; profile: CyclePenaltyProfile } {
     // Default neutral biases
@@ -1190,7 +1248,9 @@ export function adaptBehavior(state: FunnelState): { biases: DirectionBias; prof
         flatExcess: 0,
         hesitationPenalty: 0,
         wrongUpPenalty: 0,
-        wrongDownPenalty: 0
+        wrongDownPenalty: 0,
+        correctUpReward: 0,
+        correctDownReward: 0
     };
 
     // If first cycle, return neutral
@@ -1201,31 +1261,40 @@ export function adaptBehavior(state: FunnelState): { biases: DirectionBias; prof
     // Analyze previous cycle (N-1)
     // We look at resolved predictions that belong to the previous cycle
     const previousCycle = state.cycle - 1;
-    let totalResolved = 0;
 
     for (const predictions of state.predictionStorage.values()) {
         for (const p of predictions) {
             // Only look at predictions from the previous cycle that are resolved
             if (p.cycle === previousCycle && p.resolved) {
-                totalResolved++;
 
                 // 1. Hesitation Penalty (already calculated in record/resolve)
                 if (p.hesitationPenaltyApplied) {
                     profile.hesitationPenalty += PILLAR_10_4_CONFIG.HESITATION_PENALTY;
                 }
 
-                // 2. Wrong UP / DOWN
+                // 2. Wrong UP / DOWN (Penalties)
                 if (p.direction === 'UP' && p.score < 0) {
                     profile.wrongUpPenalty += p.score;
                 }
                 if (p.direction === 'DOWN' && p.score < 0) {
                     profile.wrongDownPenalty += p.score;
                 }
+
+                // 3. Correct UP / DOWN (Rewards - Pillar 12.1)
+                // If prediction matches reality (score > 0), reinforce bias
+                if (p.direction === 'UP' && p.score > 0) {
+                    profile.correctUpReward += 1;
+                    upBias += 0.05; // Reinforce UP confidence
+                }
+                if (p.direction === 'DOWN' && p.score > 0) {
+                    profile.correctDownReward += 1;
+                    downBias += 0.05; // Reinforce DOWN confidence
+                }
             }
         }
     }
 
-    // 3. Flat Excess (Cowardice)
+    // 4. Flat Excess (Cowardice)
     const flatStats = getFlatStatistics(state.predictionStorage);
     profile.flatExcess = flatStats.cowardiceScore;
 

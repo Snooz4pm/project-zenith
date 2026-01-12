@@ -31,8 +31,6 @@ import {
     enforcePillarX,
     detectLearningStall,
     getFunnelVerdict,
-    // Pillar 10.9: Perceptual Seeding
-    perceptualSeeding,
     // Pillar 11: Agency Accountability
     evaluateAgency,
 } from '@/lib/learning-validation/compoundingLoop';
@@ -180,19 +178,6 @@ export class BrutalBrainSimulation {
         }
 
         // ====================================================================
-        // PHASE 2.5: PERCEPTUAL SEEDING (Pillar 10.9)
-        // Before judging decisions, the mind must be shown what reality looks like.
-        // ====================================================================
-        this.emit('PHASE', { phase: 'SEEDING', message: 'Perceptual seeding - observing labeled UP/DOWN/FLAT examples...' });
-        console.log('[BrutalSim] Starting perceptual seeding phase...');
-
-        const seedResult = await perceptualSeeding(universe, (type, data) => {
-            this.emit(type, data);
-        });
-
-        console.log(`[BrutalSim] Seeding complete: UP=${seedResult.upTokens.length} DOWN=${seedResult.downTokens.length} FLAT=${seedResult.flatTokens.length}`);
-
-        // ====================================================================
         // PHASE 3: COMPOUNDING FUNNEL (Pillar 10)
         // ====================================================================
         this.emit('PHASE', { phase: 'FUNNEL', message: 'Starting compounding prediction loop...' });
@@ -225,7 +210,7 @@ export class BrutalBrainSimulation {
             console.log(`[BrutalSim] Tokens: ${this.funnelState.tokens.length}`);
 
             // --- PREDICT (with behavioral adaptation via Pillar 10.5) ---
-            const directionalCheck = predictFunnel(this.funnelState, (type, data) => {
+            const directionalCheck = await predictFunnel(this.funnelState, (type, data) => {
                 this.emit(type, data);
             });
 
@@ -289,7 +274,7 @@ export class BrutalBrainSimulation {
             }
 
             // --- WAIT (real time observation) - ALWAYS HAPPENS ---
-            const waitMs = Math.min(PILLAR_10_CONFIG.OBSERVATION_MINUTES * 60 * 1000, 30_000); // Cap at 30s for demo
+            const waitMs = Math.min(PILLAR_10_CONFIG.OBSERVATION_MINUTES * 60 * 1000, 120_000); // Cap at 120s for demo
             this.emit('WAITING', {
                 seconds: Math.floor(waitMs / 1000),
                 message: `Observing market for ${Math.floor(waitMs / 1000)}s...`,
