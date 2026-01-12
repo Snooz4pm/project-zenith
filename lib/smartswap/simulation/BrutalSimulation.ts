@@ -23,12 +23,14 @@ import {
     createFunnelState,
     predictFunnel,
     scoreFunnel,
-    shouldContinueFunnel,
     getFunnelVerdict,
     getFlatStatistics,
     FunnelState,
     TokenCandidate,
     PILLAR_10_CONFIG,
+    // Pillar X: Anti-Stall Governance
+    enforcePillarX,
+    detectLearningStall,
 } from '@/lib/learning-validation/compoundingLoop';
 import { DirectionBias } from '@/lib/learning-validation/predictor';
 
@@ -157,13 +159,24 @@ export class BrutalBrainSimulation {
         this.emit('PHASE', { phase: 'FUNNEL', message: 'Starting compounding prediction loop...' });
 
         let cycleCount = 0;
+        let executionEarned = false; // Only true when directional commitment is maintained throughout
 
+        // Main loop only ends when:
+        // 1. Time expires (30 min)
+        // 2. Portfolio = 0
+        // 3. MAX_CYCLES reached
+        // NOT when directional commitment fails - that just blocks execution
         while (
-            shouldContinueFunnel(this.funnelState) &&
             cycleCount < this.MAX_CYCLES &&
-            Date.now() - start < this.DURATION_MS
+            Date.now() - start < this.DURATION_MS &&
+            this.getPortfolioValueSOL() > 0
         ) {
             cycleCount++;
+
+            // Cycle mode - starts as FULL, may become OBSERVATION_ONLY
+            let cycleMode: 'FULL' | 'OBSERVATION_ONLY' = 'FULL';
+            let narrowingAllowed = true;
+
             this.emit('CYCLE_START', {
                 cycle: cycleCount,
                 tokens: this.funnelState.tokens.length,
@@ -172,7 +185,7 @@ export class BrutalBrainSimulation {
             console.log(`\n[BrutalSim] === CYCLE ${cycleCount} ===`);
             console.log(`[BrutalSim] Tokens: ${this.funnelState.tokens.length}`);
 
-            // --- PREDICT (with behavioral adaptation) ---
+            // --- PREDICT (with behavioral adaptation via Pillar 10.5) ---
             const directionalCheck = predictFunnel(this.funnelState, (type, data) => {
                 this.emit(type, data);
             });
@@ -189,22 +202,59 @@ export class BrutalBrainSimulation {
             console.log(`[BrutalSim] Predictions: UP=${predictionBreakdown.up} DOWN=${predictionBreakdown.down} FLAT=${predictionBreakdown.flat}`);
             console.log(`[BrutalSim] Biases: UP=${this.funnelState.biases.upBias.toFixed(2)} DOWN=${this.funnelState.biases.downBias.toFixed(2)} FLAT=${this.funnelState.biases.flatBias.toFixed(2)}`);
 
-            // Check directional commitment (Pillar 10.1 + 10.2)
+            // ================================================================
+            // PILLAR 10.0: Separation of Observation vs Execution
+            // Directional check failure = OBSERVATION_ONLY (soft stop)
+            // NOT simulation termination (hard stop)
+            // ================================================================
             if (!directionalCheck.valid) {
-                this.stopReason = `STOP_NO_EDGE: ${directionalCheck.reason}`;
-                this.emit('STOP_NO_EDGE', {
+                cycleMode = 'OBSERVATION_ONLY';
+                narrowingAllowed = false;
+                executionEarned = false;
+
+                this.emit('OBSERVATION_ONLY', {
                     reason: directionalCheck.reason,
                     violation: directionalCheck.violationType,
+                    flatPct: (directionalCheck.flatPct * 100).toFixed(0) + '%',
+                    maxFlat: (directionalCheck.maxFlat * 100).toFixed(0) + '%',
+                    action: 'CONTINUE_OBSERVING',
                 });
-                console.log(`[BrutalSim] ⛔ ${this.stopReason}`);
-                break;
+                console.log(`[BrutalSim] ⚠️ OBSERVATION_ONLY: ${directionalCheck.reason}`);
+                console.log(`[BrutalSim] → Execution blocked, narrowing disabled`);
+                console.log(`[BrutalSim] → Continuing to observe, score, and adapt...`);
+            } else {
+                // Directional commitment maintained - execution potentially earned
+                executionEarned = true;
+                console.log(`[BrutalSim] ✅ Directional commitment met (${(directionalCheck.directionalPct * 100).toFixed(0)}%)`);
             }
 
-            // --- WAIT (real time observation) ---
+            // ================================================================
+            // PILLAR X: Mandatory Informational Exposure Enforcement
+            // Anti-stall governance - forces progress through the funnel
+            // ================================================================
+            const pillarXResult = enforcePillarX(this.funnelState, (type, data) => {
+                this.emit(type, data);
+            });
+
+            // If Pillar X quota not met after unrestricted cycles, block execution
+            if (!pillarXResult.quotaMet) {
+                cycleMode = 'OBSERVATION_ONLY';
+                narrowingAllowed = false;
+                executionEarned = false;
+                console.log(`[BrutalSim] ⚠️ Pillar X: Exposure quota not met (${(pillarXResult.actualDirectional * 100).toFixed(0)}% < ${(pillarXResult.requiredQuota * 100).toFixed(0)}%)`);
+            }
+
+            // Log eliminated tokens due to FLAT streak
+            if (pillarXResult.eliminatedForFlatStreak.length > 0) {
+                console.log(`[BrutalSim] 🗑️ Pillar X eliminated ${pillarXResult.eliminatedForFlatStreak.length} tokens for FLAT streak`);
+            }
+
+            // --- WAIT (real time observation) - ALWAYS HAPPENS ---
             const waitMs = Math.min(PILLAR_10_CONFIG.OBSERVATION_MINUTES * 60 * 1000, 30_000); // Cap at 30s for demo
             this.emit('WAITING', {
                 seconds: Math.floor(waitMs / 1000),
-                message: `Observing market for ${Math.floor(waitMs / 1000)}s...`
+                message: `Observing market for ${Math.floor(waitMs / 1000)}s...`,
+                mode: cycleMode,
             });
             console.log(`[BrutalSim] ⏳ Waiting ${Math.floor(waitMs / 1000)}s...`);
 
@@ -215,11 +265,12 @@ export class BrutalBrainSimulation {
                 this.emit('TICK', { waited: Math.floor((waited + tickInterval) / 1000), total: Math.floor(waitMs / 1000) });
             }
 
-            // --- SCORE (Pillar 10.3 + 10.4) ---
-            this.emit('SCORING', { tokens: this.funnelState.tokens.length });
+            // --- SCORE (Pillar 10.3 + 10.4) - ALWAYS HAPPENS ---
+            // Penalties apply even in OBSERVATION_ONLY mode!
+            this.emit('SCORING', { tokens: this.funnelState.tokens.length, mode: cycleMode });
             const result = await scoreFunnel(this.funnelState, (type, data) => {
                 this.emit(type, data);
-            });
+            }, narrowingAllowed); // Pass narrowing permission
 
             // Track cycle metrics
             const flatStats = getFlatStatistics(this.funnelState.predictionStorage);
@@ -229,7 +280,7 @@ export class BrutalBrainSimulation {
                 predictions: predictionBreakdown,
                 accuracy: result.accuracy,
                 survivors: result.tokensAfter,
-                eliminated: result.eliminated.length,
+                eliminated: narrowingAllowed ? result.eliminated.length : 0,
                 biases: { ...this.funnelState.biases },
                 flatStats: {
                     total: flatStats.totalFlat,
@@ -240,14 +291,32 @@ export class BrutalBrainSimulation {
 
             this.emit('CYCLE_COMPLETE', {
                 cycle: result.cycle,
+                mode: cycleMode,
                 accuracy: (result.accuracy * 100).toFixed(1) + '%',
                 survivors: result.tokensAfter,
-                eliminated: result.eliminated.length,
+                eliminated: narrowingAllowed ? result.eliminated.length : 0,
+                executionEarned,
             });
-            console.log(`[BrutalSim] Accuracy: ${(result.accuracy * 100).toFixed(1)}% | Survivors: ${result.tokensAfter}`);
+            console.log(`[BrutalSim] Accuracy: ${(result.accuracy * 100).toFixed(1)}% | Survivors: ${result.tokensAfter} | Mode: ${cycleMode}`);
 
-            // Check end conditions
-            if (this.funnelState.funnelComplete) {
+            // ================================================================
+            // PILLAR X.4: Learning Stall Detection
+            // If no narrowing, no penalties, no adaptation → FAIL (unable to learn)
+            // ================================================================
+            const totalEliminated = this.funnelState.eliminated.length;
+            const totalPenalty = this.cycleMetrics.reduce((sum, m) => sum + m.flatStats.cowardice, 0);
+            const stallCheck = detectLearningStall(this.funnelState, totalEliminated, totalPenalty, (type, data) => {
+                this.emit(type, data);
+            });
+
+            if (stallCheck.stalled) {
+                this.stopReason = 'STALL_DETECTED';
+                console.log(`[BrutalSim] ❌ ${stallCheck.reason}`);
+                return this.report('FAIL', stallCheck.reason || 'Stall detected - unable to learn under uncertainty');
+            }
+
+            // Check end conditions - only FUNNEL states, not directional failures
+            if (this.funnelState.funnelComplete && executionEarned) {
                 this.stopReason = 'FUNNEL_COMPLETE';
                 console.log('[BrutalSim] ✅ Funnel complete - edge candidates identified');
                 break;

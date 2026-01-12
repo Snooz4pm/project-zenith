@@ -1,113 +1,84 @@
 'use client';
 
 /**
- * Paper Trading Simulation - 10 Pillars Behavioral Trial
- * 
- * Real-time visualization of the Brain's behavior under CHAOS.
+ * Brain V2 Portfolio Simulation
+ * 30-minute portfolio manager with multi-asset support
  */
 
 import { useState, useRef, useEffect } from 'react';
 
-interface LogEntry {
-    time: string;
-    type: 'INFO' | 'PHASE' | 'PREDICTION' | 'SCORE' | 'TRADE' | 'WARNING' | 'ERROR' | 'SUCCESS';
-    message: string;
+interface Decision {
+    timestamp: number;
+    action: string;
+    token?: string;
+    amount?: number;
+    pnl?: number;
+    reason: string;
 }
 
 export default function PaperTradingPage() {
     const [isRunning, setIsRunning] = useState(false);
-    const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [decisions, setDecisions] = useState<Decision[]>([]);
     const [stats, setStats] = useState({
-        tokens: 0,
+        positions: 0,
+        liquidSOL: 0.2,
+        totalValue: 0.2,
+        totalValueUSD: 30,
+        decisionsCount: 0,
+        penaltyPts: 0,
+        realizedPnL: 0,
+        realizedPnLUSD: 0,
+        feesPaid: 0,
+        pnlPercent: 0,
         cycle: 0,
-        accuracy: 0,
-        pnl: 0,
-        verdict: '',
+        tokens: 0,
     });
+    const [logs, setLogs] = useState<string[]>([]);
     const logsEndRef = useRef<HTMLDivElement>(null);
     const abortRef = useRef<AbortController | null>(null);
 
-    // Auto-scroll to bottom
     useEffect(() => {
         logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [logs]);
 
-    const addLog = (type: LogEntry['type'], message: string) => {
+    const addLog = (message: string) => {
         const time = new Date().toLocaleTimeString();
-        setLogs(prev => [...prev, { time, type, message }]);
+        setLogs(prev => [...prev, `[${time}] ${message}`]);
     };
 
-    const formatEvent = (type: string, data: any): { logType: LogEntry['type']; message: string } | null => {
-        switch (type) {
-            case 'INIT':
-                return { logType: 'INFO', message: '🚀 ' + data.message };
-            case 'START':
-                return { logType: 'INFO', message: `💰 Starting with ${data.startSOL} SOL` };
-            case 'PHASE':
-                return { logType: 'PHASE', message: `━━━ ${data.phase}: ${data.message} ━━━` };
-            case 'UNIVERSE_FROZEN':
-                setStats(s => ({ ...s, tokens: data.count }));
-                return { logType: 'SUCCESS', message: `🌍 Universe frozen: ${data.count} CHAOS tokens loaded (Mode: ${data.mode})` };
-            case 'TRUST_DECISION':
-                return { logType: 'INFO', message: `🔐 Trust: ${data.level} | Execution: ${data.executionType} | Max Trades: ${data.maxTrades}` };
-            case 'CYCLE_START':
-                setStats(s => ({ ...s, cycle: data.cycle }));
-                return { logType: 'PHASE', message: `\n📊 CYCLE ${data.cycle} | Tokens: ${data.tokens} | Elapsed: ${data.elapsed}` };
-            case 'PREDICTIONS':
-                return { logType: 'PREDICTION', message: `   Predictions: ⬆️ UP=${data.up} ⬇️ DOWN=${data.down} ➡️ FLAT=${data.flat}` };
-            case 'BEHAVIOR_ADJUSTED':
-                return { logType: 'WARNING', message: `   🧠 Biases adjusted → UP:${data.biases?.upBias?.toFixed(2)} DOWN:${data.biases?.downBias?.toFixed(2)} FLAT:${data.biases?.flatBias?.toFixed(2)}` };
-            case 'WAITING':
-                return { logType: 'INFO', message: `   ⏳ ${data.message || `Waiting ${data.seconds}s...`}` };
-            case 'TICK':
-                return null; // Skip ticks
-            case 'SCORING':
-                return { logType: 'SCORE', message: `   📈 Scoring ${data.tokens} tokens...` };
-            case 'CYCLE_COMPLETE':
-                setStats(s => ({ ...s, accuracy: parseFloat(data.accuracy) }));
-                return { logType: 'SUCCESS', message: `   ✅ Accuracy: ${data.accuracy} | Survivors: ${data.survivors} | Eliminated: ${data.eliminated}` };
-            case 'STOP_NO_EDGE':
-                return { logType: 'WARNING', message: `🛑 STOPPED: ${data.reason} (${data.violation})` };
-            case 'FUNNEL_VERDICT':
-                return { logType: 'PHASE', message: `\n📋 VERDICT: Edge=${data.edgeValidated ? '✅' : '❌'} | Candidates: ${data.validatedTokens?.join(', ') || 'NONE'}` };
-            case 'EXECUTION_BLOCKED':
-                return { logType: 'WARNING', message: `⛔ Execution blocked: ${data.reason}` };
-            case 'TRADE_OPENED':
-                return { logType: 'TRADE', message: `💹 OPENED: ${data.token} (${data.amount?.toFixed(4)} SOL, fee: ${data.fee})` };
-            case 'HOLDING':
-                return { logType: 'INFO', message: `⏳ Holding position for ${data.seconds}s...` };
-            case 'TRADE_CLOSED':
-                const pnlEmoji = data.pnl >= 0 ? '🟢' : '🔴';
-                return { logType: 'TRADE', message: `${pnlEmoji} CLOSED: ${data.token} | PnL: ${data.pnl >= 0 ? '+' : ''}${data.pnl?.toFixed(6)} SOL` };
-            case 'REPORT':
-                setStats(s => ({ ...s, pnl: data.pnlPct, verdict: data.verdict }));
-                return { logType: 'PHASE', message: `\n═══ FINAL: ${data.verdict} | PnL: ${data.pnlPct?.toFixed(2)}% | Cycles: ${data.cycles} ═══` };
-            case 'FINAL_REPORT':
-                return { logType: 'SUCCESS', message: `🏁 ${data.verdictReason}` };
-            case 'ERROR':
-                return { logType: 'ERROR', message: `❌ ERROR: ${data.message}` };
-            default:
-                return null;
-        }
+    const addDecision = (decision: Decision) => {
+        setDecisions(prev => [decision, ...prev].slice(0, 50));
     };
 
     const runSimulation = async () => {
         setIsRunning(true);
+        setDecisions([]);
         setLogs([]);
-        setStats({ tokens: 0, cycle: 0, accuracy: 0, pnl: 0, verdict: '' });
+        setStats({
+            positions: 0,
+            liquidSOL: 0.2,
+            totalValue: 0.2,
+            totalValueUSD: 30,
+            decisionsCount: 0,
+            penaltyPts: 0,
+            realizedPnL: 0,
+            realizedPnLUSD: 0,
+            feesPaid: 0,
+            pnlPercent: 0,
+            cycle: 0,
+            tokens: 0,
+        });
 
         abortRef.current = new AbortController();
 
         try {
-            addLog('INFO', '🔄 Connecting to simulation engine...');
+            addLog('🚀 Starting Brain V2 simulation...');
 
             const response = await fetch('/api/behavioral-trial', {
                 signal: abortRef.current.signal,
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const reader = response.body?.getReader();
             if (!reader) throw new Error('No reader');
@@ -127,10 +98,7 @@ export default function PaperTradingPage() {
                     if (!line.trim()) continue;
                     try {
                         const event = JSON.parse(line);
-                        const formatted = formatEvent(event.type, event.data);
-                        if (formatted) {
-                            addLog(formatted.logType, formatted.message);
-                        }
+                        handleEvent(event.type, event.data);
                     } catch (e) {
                         console.error('Parse error:', e);
                     }
@@ -138,129 +106,216 @@ export default function PaperTradingPage() {
             }
         } catch (error: any) {
             if (error.name !== 'AbortError') {
-                addLog('ERROR', `Simulation failed: ${error.message}`);
+                addLog(`❌ Error: ${error.message}`);
             }
         } finally {
             setIsRunning(false);
         }
     };
 
-    const stopSimulation = () => {
-        abortRef.current?.abort();
-        addLog('WARNING', '🛑 Simulation stopped by user');
-        setIsRunning(false);
-    };
-
-    const getLogColor = (type: LogEntry['type']) => {
+    const handleEvent = (type: string, data: any) => {
         switch (type) {
-            case 'PHASE': return 'text-cyan-400 font-bold';
-            case 'PREDICTION': return 'text-purple-400';
-            case 'SCORE': return 'text-blue-400';
-            case 'TRADE': return 'text-yellow-400 font-semibold';
-            case 'WARNING': return 'text-orange-400';
-            case 'ERROR': return 'text-red-500 font-bold';
-            case 'SUCCESS': return 'text-green-400';
-            default: return 'text-zinc-300';
+            case 'START':
+                addLog(`💰 Starting with ${data.startSOL} SOL`);
+                setStats(s => ({ ...s, liquidSOL: data.startSOL, totalValue: data.startSOL }));
+                break;
+            case 'UNIVERSE_FROZEN':
+                addLog(`🌍 Loaded ${data.count} CHAOS tokens`);
+                setStats(s => ({ ...s, tokens: data.count }));
+                break;
+            case 'TRUST_DECISION':
+                addLog(`� Trust: ${data.level} | Max ${data.maxTrades} trades`);
+                break;
+            case 'CYCLE_START':
+                addLog(`� Cycle ${data.cycle} | ${data.tokens} tokens`);
+                setStats(s => ({ ...s, cycle: data.cycle }));
+                break;
+            case 'PREDICTIONS':
+                addLog(`   ⬆️ UP=${data.up} ⬇️ DOWN=${data.down} ➡️ FLAT=${data.flat}`);
+                break;
+            case 'OBSERVATION_ONLY':
+                addLog(`⚠️ OBSERVATION_ONLY: ${data.reason}`);
+                addDecision({
+                    timestamp: Date.now(),
+                    action: 'OBSERVE',
+                    reason: data.reason,
+                });
+                setStats(s => ({ ...s, decisionsCount: s.decisionsCount + 1 }));
+                break;
+            case 'WAITING':
+                addLog(`⏳ ${data.message}`);
+                break;
+            case 'CYCLE_COMPLETE':
+                addLog(`✅ Accuracy: ${data.accuracy} | Survivors: ${data.survivors}`);
+                break;
+            case 'TRADE_OPENED':
+                addLog(`💹 OPENED: ${data.token} (${data.amount?.toFixed(4)} SOL)`);
+                addDecision({
+                    timestamp: Date.now(),
+                    action: 'BUY',
+                    token: data.token,
+                    amount: data.amount,
+                    reason: 'Edge validated',
+                });
+                setStats(s => ({
+                    ...s,
+                    positions: s.positions + 1,
+                    liquidSOL: s.liquidSOL - (data.amount || 0),
+                    feesPaid: s.feesPaid + (data.fee || 0),
+                    decisionsCount: s.decisionsCount + 1,
+                }));
+                break;
+            case 'TRADE_CLOSED':
+                const pnlEmoji = data.pnl >= 0 ? '🟢' : '🔴';
+                addLog(`${pnlEmoji} CLOSED: ${data.token} | PnL: ${data.pnl >= 0 ? '+' : ''}${data.pnl?.toFixed(6)} SOL`);
+                addDecision({
+                    timestamp: Date.now(),
+                    action: 'SELL',
+                    token: data.token,
+                    pnl: data.pnl,
+                    reason: data.pnl >= 0 ? 'Take profit' : 'Cut loss',
+                });
+                setStats(s => ({
+                    ...s,
+                    positions: Math.max(0, s.positions - 1),
+                    liquidSOL: s.liquidSOL + (data.exitValue || 0),
+                    realizedPnL: s.realizedPnL + (data.pnl || 0),
+                    decisionsCount: s.decisionsCount + 1,
+                }));
+                break;
+            case 'REPORT':
+                setStats(s => ({
+                    ...s,
+                    totalValue: data.endSOL,
+                    pnlPercent: data.pnlPct,
+                    penaltyPts: data.penaltyScore || 0,
+                }));
+                break;
+            case 'FINAL_REPORT':
+                addLog(`🏁 ${data.verdictReason}`);
+                addLog(`━━━ ${data.verdict}: ${data.pnlPct?.toFixed(2)}% PnL ━━━`);
+                break;
+            case 'ERROR':
+                addLog(`❌ ${data.message}`);
+                break;
         }
     };
 
+    const stopSimulation = () => {
+        abortRef.current?.abort();
+        addLog('🛑 Stopped by user');
+        setIsRunning(false);
+    };
+
     return (
-        <div className="min-h-screen bg-zinc-950 text-white p-6">
-            <div className="max-w-5xl mx-auto">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
-                            10-Pillar Behavioral Trial
-                        </h1>
-                        <p className="text-zinc-500 mt-1">
-                            CHAOS tokens only • Real-time prediction loop • Paper trading
-                        </p>
+        <div className="min-h-screen bg-[#0a0a0a] text-white">
+            {/* Header */}
+            <div className="border-b border-zinc-800 px-6 py-4">
+                <div className="max-w-7xl mx-auto">
+                    <div className="flex items-center gap-3 mb-2">
+                        <span className="text-2xl">🧠</span>
+                        <h1 className="text-2xl font-bold">Brain v2 Portfolio Simulation</h1>
                     </div>
-                    <div className="flex gap-3">
-                        {!isRunning ? (
-                            <button
-                                onClick={runSimulation}
-                                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-lg font-semibold hover:opacity-90 transition-opacity"
-                            >
-                                ▶ Run Simulation
-                            </button>
-                        ) : (
-                            <button
-                                onClick={stopSimulation}
-                                className="px-6 py-3 bg-red-600 rounded-lg font-semibold hover:bg-red-700 transition-colors"
-                            >
-                                ⏹ Stop
-                            </button>
-                        )}
+                    <p className="text-zinc-500 text-sm mb-3">
+                        30-minute portfolio manager with multi-asset support. Can hold up to 4 positions simultaneously.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        <span className="px-3 py-1 bg-blue-600/20 text-blue-400 rounded text-xs">📊 Multi-Asset Portfolio</span>
+                        <span className="px-3 py-1 bg-green-600/20 text-green-400 rounded text-xs">🔒 0.2 SOL Paper Money</span>
+                        <span className="px-3 py-1 bg-purple-600/20 text-purple-400 rounded text-xs">📡 Live Jupiter Quotes</span>
+                        <span className="px-3 py-1 bg-orange-600/20 text-orange-400 rounded text-xs">📈 Up to 4 Positions</span>
+                        <span className="px-3 py-1 bg-pink-600/20 text-pink-400 rounded text-xs">💸 Fees Deducted from Wallet</span>
                     </div>
                 </div>
+            </div>
 
-                {/* Stats Bar */}
-                <div className="grid grid-cols-5 gap-4 mb-6">
+            <div className="max-w-7xl mx-auto p-6 space-y-6">
+                {/* Start Button */}
+                <div>
+                    {!isRunning ? (
+                        <button
+                            onClick={runSimulation}
+                            className="px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 rounded-lg font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+                        >
+                            🚀 START SIMULATION
+                        </button>
+                    ) : (
+                        <button
+                            onClick={stopSimulation}
+                            className="px-6 py-3 bg-red-600 rounded-lg font-semibold hover:bg-red-700 transition-colors"
+                        >
+                            ⏹ STOP
+                        </button>
+                    )}
+                </div>
+
+                {/* Stats Grid - Row 1 */}
+                <div className="grid grid-cols-5 gap-4">
                     <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
-                        <div className="text-zinc-500 text-sm">Tokens</div>
-                        <div className="text-2xl font-bold text-cyan-400">{stats.tokens}</div>
+                        <div className="text-zinc-500 text-xs mb-1">Positions</div>
+                        <div className="text-2xl font-bold text-cyan-400">{stats.positions}</div>
+                        <div className="text-zinc-600 text-xs">{stats.positions === 0 ? 'All cash' : `${stats.positions} active`}</div>
                     </div>
                     <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
-                        <div className="text-zinc-500 text-sm">Cycle</div>
-                        <div className="text-2xl font-bold text-purple-400">{stats.cycle}</div>
+                        <div className="text-zinc-500 text-xs mb-1">Liquid SOL</div>
+                        <div className="text-2xl font-bold text-green-400">{stats.liquidSOL.toFixed(4)}</div>
+                        <div className="text-zinc-600 text-xs">≈ ${(stats.liquidSOL * 150).toFixed(2)}</div>
                     </div>
                     <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
-                        <div className="text-zinc-500 text-sm">Accuracy</div>
-                        <div className="text-2xl font-bold text-blue-400">{stats.accuracy}%</div>
+                        <div className="text-zinc-500 text-xs mb-1">Total Value</div>
+                        <div className="text-2xl font-bold text-white">{stats.totalValue.toFixed(4)} SOL</div>
+                        <div className="text-zinc-600 text-xs">≈ ${(stats.totalValue * 150).toFixed(2)}</div>
                     </div>
                     <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
-                        <div className="text-zinc-500 text-sm">PnL</div>
-                        <div className={`text-2xl font-bold ${stats.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {stats.pnl >= 0 ? '+' : ''}{stats.pnl.toFixed(2)}%
+                        <div className="text-zinc-500 text-xs mb-1">Decisions / Penalty</div>
+                        <div className="text-2xl font-bold">
+                            <span className="text-white">{stats.decisionsCount}</span>
+                            <span className="text-zinc-600 text-lg ml-2">({stats.penaltyPts} pts)</span>
                         </div>
                     </div>
                     <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
-                        <div className="text-zinc-500 text-sm">Verdict</div>
-                        <div className={`text-2xl font-bold ${stats.verdict === 'PASS' ? 'text-green-400' : stats.verdict === 'FAIL' ? 'text-red-400' : 'text-zinc-600'}`}>
-                            {stats.verdict || '—'}
+                        <div className="text-zinc-500 text-xs mb-1">Realized PnL</div>
+                        <div className={`text-2xl font-bold ${stats.realizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {stats.realizedPnL >= 0 ? '+' : ''}{stats.realizedPnL.toFixed(6)} SOL
+                        </div>
+                        <div className="text-zinc-600 text-xs">≈ ${(stats.realizedPnL * 150).toFixed(2)}</div>
+                    </div>
+                </div>
+
+                {/* Stats Grid - Row 2 */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
+                        <div className="text-zinc-500 text-xs mb-1">Fees Paid</div>
+                        <div className="text-2xl font-bold text-orange-400">{stats.feesPaid.toFixed(5)} SOL</div>
+                        <div className="text-zinc-600 text-xs">≈ ${(stats.feesPaid * 150).toFixed(2)}</div>
+                    </div>
+                    <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
+                        <div className="text-zinc-500 text-xs mb-1">PnL %</div>
+                        <div className={`text-2xl font-bold ${stats.pnlPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {stats.pnlPercent === 0 ? '—' : `${stats.pnlPercent >= 0 ? '+' : ''}${stats.pnlPercent.toFixed(2)}%`}
                         </div>
                     </div>
                 </div>
 
-                {/* Logs Panel */}
-                <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
-                    <div className="bg-zinc-800/50 px-4 py-2 border-b border-zinc-800 flex items-center justify-between">
-                        <span className="text-sm font-medium text-zinc-400">Live Logs</span>
-                        {isRunning && (
-                            <span className="flex items-center gap-2 text-sm text-green-400">
-                                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                                Running
-                            </span>
-                        )}
+                {/* Decision Timeline */}
+                <div className="bg-zinc-900 rounded-lg border border-zinc-800">
+                    <div className="px-4 py-3 border-b border-zinc-800">
+                        <h2 className="font-semibold">Decision Timeline</h2>
                     </div>
-                    <div className="h-[500px] overflow-y-auto p-4 font-mono text-sm">
+                    <div className="h-[300px] overflow-y-auto p-4 font-mono text-sm">
                         {logs.length === 0 ? (
-                            <div className="text-zinc-600 text-center py-20">
-                                Click "Run Simulation" to start the 10-Pillar behavioral trial
+                            <div className="text-zinc-600 text-center py-12">
+                                No decisions yet. Start a simulation to see brain activity.
                             </div>
                         ) : (
-                            logs.map((log, i) => (
-                                <div key={i} className={`py-0.5 ${getLogColor(log.type)}`}>
-                                    <span className="text-zinc-600 mr-2">[{log.time}]</span>
-                                    {log.message}
-                                </div>
-                            ))
+                            <div className="space-y-1">
+                                {logs.map((log, i) => (
+                                    <div key={i} className="text-zinc-300">{log}</div>
+                                ))}
+                                <div ref={logsEndRef} />
+                            </div>
                         )}
-                        <div ref={logsEndRef} />
                     </div>
-                </div>
-
-                {/* Legend */}
-                <div className="mt-4 flex flex-wrap gap-4 text-xs text-zinc-500">
-                    <span><span className="text-cyan-400">■</span> Phase</span>
-                    <span><span className="text-purple-400">■</span> Prediction</span>
-                    <span><span className="text-blue-400">■</span> Scoring</span>
-                    <span><span className="text-yellow-400">■</span> Trade</span>
-                    <span><span className="text-orange-400">■</span> Warning</span>
-                    <span><span className="text-green-400">■</span> Success</span>
-                    <span><span className="text-red-400">■</span> Error</span>
                 </div>
             </div>
         </div>

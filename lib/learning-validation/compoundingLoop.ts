@@ -62,6 +62,56 @@ export const PILLAR_10_4_CONFIG = {
     MIN_OPPORTUNITY_SCORE: 0.3,     // Only penalize if opportunity was real
 };
 
+// Pillar 10.6: FLAT DEBT (Time-Based Accountability)
+// FLAT is uncertainty — uncertainty has a cost
+export const PILLAR_10_6_CONFIG = {
+    // Rule 1: FLAT always costs something (opportunity cost)
+    FLAT_OPPORTUNITY_COST: -0.1,    // Small penalty per cycle even if "correct"
+
+    // Rule 2: Repeated FLAT is forbidden
+    MAX_FLAT_STREAK: 2,             // After 2 consecutive FLATs, force decision
+
+    // Rule 3: Global FLAT dominance triggers escalation
+    FLAT_DOMINANCE_THRESHOLD: 0.7,  // If >70% FLAT for 2 cycles
+    FLAT_DOMINANCE_CYCLES: 2,       // Consecutive cycles before escalation
+    ESCALATION_UNIVERSE_SHRINK: 0.3, // Shrink universe by 30% on escalation
+};
+
+// ============================================================================
+// PILLAR X: Mandatory Informational Exposure (Anti-Stall Governance)
+// ============================================================================
+// A system that never risks being wrong is not disciplined — it is inert.
+// All previous pillars protect against bad action.
+// Pillar X protects against infinite inaction.
+// ============================================================================
+
+export const PILLAR_X_CONFIG = {
+    // Rule X.1: FLAT is Temporary (cycle-restricted)
+    // Cycle 1 → FLAT allowed
+    // Cycle 2 → FLAT allowed but monitored  
+    // Cycle 3+ → FLAT restricted
+    FLAT_UNRESTRICTED_CYCLES: 2,    // FLAT is free for first 2 cycles
+
+    // Rule X.2: Exposure Quota (min directional % per cycle)
+    // Forces informational risk, not capital risk
+    EXPOSURE_QUOTAS: {
+        1: 0.00,    // Cycle 1: 0% min directional (exploration)
+        2: 0.20,    // Cycle 2: 20% must be UP or DOWN
+        3: 0.40,    // Cycle 3: 40% directional
+        4: 0.60,    // Cycle 4+: 60% directional
+    } as Record<number, number>,
+    DEFAULT_QUOTA: 0.60,            // Default for cycles > 4
+
+    // Rule X.3: Repeated FLAT = Elimination
+    MAX_CONSECUTIVE_FLAT: 3,        // Token removed after 3 consecutive FLATs
+
+    // Rule X.4: Learning Must Progress
+    // If after T minutes: no narrowing, no penalties, no adaptation → FAIL
+    STALL_DETECTION_CYCLES: 3,      // Check for stall after 3 cycles
+    MIN_ELIMINATED_TO_PROGRESS: 5,  // Must eliminate at least 5 tokens or FAIL
+    MIN_PENALTY_TO_PROGRESS: 0.5,   // Must incur some penalty (proves accountability)
+};
+
 // Token Classification
 export type TokenClass = 'STABLE' | 'MAJOR' | 'CHAOS';
 
@@ -125,6 +175,10 @@ export interface FunnelState {
     // Pillar 10.5: Behavioral Adaptation state
     biases: DirectionBias;
     lastPenaltyProfile?: CyclePenaltyProfile;
+
+    // Pillar 10.6: FLAT DEBT tracking
+    consecutiveFlatDominanceCycles: number;
+    explorationModeActive: boolean;
 }
 
 export interface TokenCandidate {
@@ -137,6 +191,8 @@ export interface TokenCandidate {
     actual?: PredictionDirection;
     correct?: boolean;
     score: number;
+    // Pillar 10.6: FLAT streak tracking
+    flatStreak: number;
 }
 
 export interface CycleResult {
@@ -207,6 +263,7 @@ export async function freezeUniverse(limit: number = 1000): Promise<TokenCandida
                         tokenClass: token.tokenClass,
                         priceAtStart: solOut,
                         score: 0,
+                        flatStreak: 0, // Pillar 10.6
                     };
                 }
                 return null;
@@ -455,10 +512,13 @@ export function predictFunnel(
 /**
  * Fetch current prices and score predictions
  * Pillar 10.3: Resolves previous cycle predictions with FLAT accountability
+ * 
+ * @param narrowingAllowed - If false, skip narrowing (OBSERVATION_ONLY mode)
  */
 export async function scoreFunnel(
     state: FunnelState,
-    emitEvent?: (type: string, data: any) => void
+    emitEvent?: (type: string, data: any) => void,
+    narrowingAllowed: boolean = true
 ): Promise<CycleResult> {
     const tokensBefore = state.tokens.length;
     const startTime = Date.now();
@@ -512,29 +572,44 @@ export async function scoreFunnel(
 
     const accuracy = tokensBefore > 0 ? correctCount / tokensBefore : 0;
 
-    // Narrow to survivors based on cumulative scores
-    const survivors = state.tokens
-        .filter(t => t.score > -5) // Eliminate tokens with very bad scores
-        .sort((a, b) => b.score - a.score)
-        .slice(0, Math.ceil(state.tokens.length * PILLAR_10_CONFIG.NARROWING_RATIO));
+    // ================================================================
+    // NARROWING: Only happens if allowed (not in OBSERVATION_ONLY mode)
+    // ================================================================
+    let survivors = state.tokens;
+    let eliminated: TokenCandidate[] = [];
 
-    const eliminated = state.tokens.filter(t => !survivors.includes(t));
+    if (narrowingAllowed) {
+        // Narrow to survivors based on cumulative scores
+        survivors = state.tokens
+            .filter(t => t.score > -5) // Eliminate tokens with very bad scores
+            .sort((a, b) => b.score - a.score)
+            .slice(0, Math.ceil(state.tokens.length * PILLAR_10_CONFIG.NARROWING_RATIO));
 
-    // Update state
-    state.eliminated.push(...eliminated);
-    state.tokens = survivors;
+        eliminated = state.tokens.filter(t => !survivors.includes(t));
+
+        // Update state
+        state.eliminated.push(...eliminated);
+        state.tokens = survivors;
+
+        // Check termination conditions (only when narrowing)
+        if (survivors.length < PILLAR_10_CONFIG.SURVIVOR_THRESHOLD) {
+            state.funnelComplete = true;
+            // Find UP predictions for execution
+            state.executionCandidates = survivors.filter(t => t.prediction === 'UP' && t.score > 0);
+        }
+
+        if (survivors.length === 0) {
+            state.funnelCollapsed = true;
+        }
+    } else {
+        // OBSERVATION_ONLY mode: No narrowing, but still score
+        if (emitEvent) {
+            emitEvent('NARROWING_SKIPPED', { mode: 'OBSERVATION_ONLY', tokens: state.tokens.length });
+        }
+    }
+
+    // Increment cycle
     state.cycle++;
-
-    // Check termination conditions
-    if (survivors.length < PILLAR_10_CONFIG.SURVIVOR_THRESHOLD) {
-        state.funnelComplete = true;
-        // Find UP predictions for execution
-        state.executionCandidates = survivors.filter(t => t.prediction === 'UP' && t.score > 0);
-    }
-
-    if (survivors.length === 0) {
-        state.funnelCollapsed = true;
-    }
 
     // Reset for next cycle
     for (const token of state.tokens) {
@@ -561,10 +636,15 @@ export async function scoreFunnel(
  * Create initial funnel state
  */
 export function createFunnelState(tokens: TokenCandidate[]): FunnelState {
+    // Initialize flatStreak on all tokens
+    for (const token of tokens) {
+        token.flatStreak = 0;
+    }
+
     return {
         cycle: 0,
         startedAt: Date.now(),
-        initialTokenCount: tokens.length, // Store for ratio-based thresholds
+        initialTokenCount: tokens.length,
         tokens,
         eliminated: [],
         predictions: new Map(),
@@ -572,10 +652,14 @@ export function createFunnelState(tokens: TokenCandidate[]): FunnelState {
         funnelComplete: false,
         funnelCollapsed: false,
         executionCandidates: [],
-        predictionStorage: new Map(), // Pillar 10.3
+        predictionStorage: new Map(),
 
-        // Pillar 10.5 defaults
+        // Pillar 10.5: Behavioral Adaptation
         biases: { upBias: 1.0, downBias: 1.0, flatBias: 1.0 },
+
+        // Pillar 10.6: FLAT DEBT tracking
+        consecutiveFlatDominanceCycles: 0,
+        explorationModeActive: false,
     };
 }
 
@@ -948,5 +1032,153 @@ export function adaptBehavior(state: FunnelState): { biases: DirectionBias; prof
         profile
     };
 }
-export { DirectionBias };
 
+// ============================================================================
+// PILLAR X: Mandatory Informational Exposure Enforcement
+// ============================================================================
+
+export interface PillarXResult {
+    quotaMet: boolean;
+    requiredQuota: number;
+    actualDirectional: number;
+    eliminatedForFlatStreak: TokenCandidate[];
+    stallDetected: boolean;
+    stallReason?: string;
+}
+
+/**
+ * Pillar X.2: Get the exposure quota for a given cycle
+ */
+function getExposureQuota(cycle: number): number {
+    return PILLAR_X_CONFIG.EXPOSURE_QUOTAS[cycle] ?? PILLAR_X_CONFIG.DEFAULT_QUOTA;
+}
+
+/**
+ * Pillar X: Enforce anti-stall rules
+ * 
+ * - X.1: FLAT is only unrestricted for first N cycles
+ * - X.2: Check exposure quota (min directional %)
+ * - X.3: Eliminate tokens with repeated FLAT predictions
+ * 
+ * Returns enforcement result with eliminated tokens and quota status
+ */
+export function enforcePillarX(
+    state: FunnelState,
+    emitEvent?: (type: string, data: any) => void
+): PillarXResult {
+    const cycle = state.cycle + 1; // Next cycle number
+    const requiredQuota = getExposureQuota(cycle);
+
+    // Calculate current directional ratio
+    const predictions = Array.from(state.predictions.values());
+    const total = predictions.length;
+    const directional = predictions.filter(p => p === 'UP' || p === 'DOWN').length;
+    const actualDirectional = total > 0 ? directional / total : 0;
+
+    // X.2: Check exposure quota
+    const quotaMet = actualDirectional >= requiredQuota;
+
+    if (!quotaMet && cycle > PILLAR_X_CONFIG.FLAT_UNRESTRICTED_CYCLES) {
+        if (emitEvent) {
+            emitEvent('PILLAR_X_QUOTA_VIOLATION', {
+                cycle,
+                required: (requiredQuota * 100).toFixed(0) + '%',
+                actual: (actualDirectional * 100).toFixed(0) + '%',
+                action: 'OBSERVATION_ONLY',
+            });
+        }
+    }
+
+    // X.3: Eliminate tokens with repeated FLAT
+    const eliminatedForFlatStreak: TokenCandidate[] = [];
+
+    for (const token of state.tokens) {
+        if (token.prediction === 'FLAT') {
+            token.flatStreak = (token.flatStreak || 0) + 1;
+        } else {
+            token.flatStreak = 0; // Reset streak on directional prediction
+        }
+
+        // Eliminate if streak exceeds limit
+        if (token.flatStreak >= PILLAR_X_CONFIG.MAX_CONSECUTIVE_FLAT) {
+            eliminatedForFlatStreak.push(token);
+            if (emitEvent) {
+                emitEvent('PILLAR_X_FLAT_ELIMINATION', {
+                    token: token.symbol,
+                    flatStreak: token.flatStreak,
+                    reason: `FLAT for ${token.flatStreak} consecutive cycles`,
+                });
+            }
+        }
+    }
+
+    // Remove eliminated tokens from active pool
+    if (eliminatedForFlatStreak.length > 0) {
+        state.tokens = state.tokens.filter(t => !eliminatedForFlatStreak.includes(t));
+        state.eliminated.push(...eliminatedForFlatStreak);
+
+        if (emitEvent) {
+            emitEvent('PILLAR_X_ELIMINATIONS', {
+                count: eliminatedForFlatStreak.length,
+                remaining: state.tokens.length,
+            });
+        }
+    }
+
+    return {
+        quotaMet: quotaMet || cycle <= PILLAR_X_CONFIG.FLAT_UNRESTRICTED_CYCLES,
+        requiredQuota,
+        actualDirectional,
+        eliminatedForFlatStreak,
+        stallDetected: false,
+    };
+}
+
+/**
+ * Pillar X.4: Detect learning stall
+ * 
+ * If after N cycles: no narrowing, no penalties, no adaptation → FAIL
+ */
+export function detectLearningStall(
+    state: FunnelState,
+    totalEliminated: number,
+    totalPenalty: number,
+    emitEvent?: (type: string, data: any) => void
+): { stalled: boolean; reason?: string } {
+    // Only check after minimum cycles
+    if (state.cycle < PILLAR_X_CONFIG.STALL_DETECTION_CYCLES) {
+        return { stalled: false };
+    }
+
+    const reasons: string[] = [];
+
+    // Check if we've eliminated enough tokens
+    if (totalEliminated < PILLAR_X_CONFIG.MIN_ELIMINATED_TO_PROGRESS) {
+        reasons.push(`Only ${totalEliminated} tokens eliminated (need ${PILLAR_X_CONFIG.MIN_ELIMINATED_TO_PROGRESS})`);
+    }
+
+    // Check if we've incurred any penalty (proves accountability)
+    if (Math.abs(totalPenalty) < PILLAR_X_CONFIG.MIN_PENALTY_TO_PROGRESS) {
+        reasons.push(`No significant penalty incurred (proves no risk taken)`);
+    }
+
+    if (reasons.length >= 2) {
+        const reason = `STALL DETECTED: ${reasons.join('; ')}`;
+
+        if (emitEvent) {
+            emitEvent('PILLAR_X_STALL_DETECTED', {
+                cycle: state.cycle,
+                totalEliminated,
+                totalPenalty,
+                reason,
+                verdict: 'FAIL',
+            });
+        }
+
+        return { stalled: true, reason };
+    }
+
+    return { stalled: false };
+}
+
+export { DirectionBias };
