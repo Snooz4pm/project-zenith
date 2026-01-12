@@ -39,10 +39,10 @@ export default function PaperTradingPage() {
     const abortRef = useRef<AbortController | null>(null);
     const [autoScroll, setAutoScroll] = useState(true);
 
-    // Only auto-scroll if user hasn't scrolled up
+    // Only auto-scroll if user hasn't scrolled up (instantly to avoid fighting)
     useEffect(() => {
         if (autoScroll && logsEndRef.current) {
-            logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+            logsEndRef.current.scrollIntoView({ behavior: 'auto' });
         }
     }, [logs, autoScroll]);
 
@@ -50,8 +50,11 @@ export default function PaperTradingPage() {
     const handleLogsScroll = () => {
         if (!logsContainerRef.current) return;
         const { scrollTop, scrollHeight, clientHeight } = logsContainerRef.current;
-        const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-        setAutoScroll(isNearBottom);
+        const isNearBottom = scrollHeight - scrollTop - clientHeight < 50;
+
+        if (isNearBottom !== autoScroll) {
+            setAutoScroll(isNearBottom);
+        }
     };
 
     const addLog = (message: string) => {
@@ -258,6 +261,12 @@ export default function PaperTradingPage() {
                 break;
             case 'PILLAR_11_EGO_CLOCK_EXPIRED':
                 addLog(`⏰ EGO CLOCK EXPIRED: ${data.message}`);
+                break;
+            case 'PILLAR_11_RECOVERY_MODE':
+                addLog(`🩹 ${data.message}`);
+                break;
+            case 'PILLAR_12_ALLOCATION':
+                addLog(`⚖️ Allocation: ${data.distribution.up} UP / ${data.distribution.down} DOWN / ${data.distribution.flat} FLAT`);
                 break;
             // Memory events
             case 'MEMORY_INIT':

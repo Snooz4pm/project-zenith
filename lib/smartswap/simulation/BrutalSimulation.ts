@@ -384,6 +384,21 @@ export class BrutalBrainSimulation {
             // Log agency status
             console.log(`[BrutalSim] 🧠 Agency: ${agencyResult.quotaStatus.directional}/${agencyResult.quotaStatus.required} directional | Debt: ${agencyResult.debtStatus.debt}/${agencyResult.debtStatus.maxDebt}`);
 
+            // ================================================================
+            // RECOVERY RULE: Directional Forgiveness Window Trigger
+            // If tried hard (directional > 50%) but failed (accuracy < 20%),
+            // activate recovery mode for NEXT cycle.
+            // ================================================================
+            const totalPreds = predictionBreakdown.up + predictionBreakdown.down + predictionBreakdown.flat;
+            const dirRatio = (predictionBreakdown.up + predictionBreakdown.down) / Math.max(1, totalPreds);
+
+            if (dirRatio > 0.5 && result.accuracy < 0.2) {
+                this.funnelState.agencyState.recoveryModeActive = true;
+                console.log('[BrutalSim] 🩹 Recovery Mode ACTIVATED for next cycle (High effort, low accuracy)');
+            } else {
+                this.funnelState.agencyState.recoveryModeActive = false;
+            }
+
             // Check end conditions - only FUNNEL states, not directional failures
             if (this.funnelState.funnelComplete && executionEarned) {
                 this.stopReason = 'FUNNEL_COMPLETE';

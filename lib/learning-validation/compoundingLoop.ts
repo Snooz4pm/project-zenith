@@ -216,6 +216,7 @@ export interface AgencyState {
     firstAgencyTime: number | null;
     egoDebt: number;
     egoClockExpired: boolean;
+    recoveryModeActive: boolean; // For Directional Forgiveness Window
 }
 
 // Token Classification
@@ -595,14 +596,94 @@ export function predictFunnel(
     const regime = detectRegime(histories);
     state.regime = regime.regime;
 
-    // Make predictions for all tokens (with Bias)
-    const predictions = predictBatch(histories, regime.regime, true, state.biases);
+    // ================================================================
+    // PILLAR 12: Constrained Directional Allocation
+    // Brain defines DISTRIBUTION, then allocates tokens by signal strength
+    // ================================================================
 
+    // 1. Calculate Target Distribution from Biases
+    const totalBias = state.biases.upBias + state.biases.downBias + state.biases.flatBias;
+    let targetUp = state.biases.upBias / totalBias;
+    let targetDown = state.biases.downBias / totalBias;
+    let targetFlat = state.biases.flatBias / totalBias;
+
+    // 2. Apply Constraints (Pillar 10 Limits)
+    const { minDirectional, maxFlat } = getDirectionalThresholds(state.initialTokenCount, state.tokens.length);
+
+    // Clamp FLAT
+    if (targetFlat > maxFlat) {
+        const excess = targetFlat - maxFlat;
+        targetFlat = maxFlat;
+        // Redistribute excess to UP/DOWN proportionally
+        const upShare = targetUp / (targetUp + targetDown);
+        targetUp += excess * upShare;
+        targetDown += excess * (1 - upShare);
+    }
+
+    // Ensure Directional Min
+    const currentDirectional = targetUp + targetDown;
+    if (currentDirectional < minDirectional) {
+        const deficit = minDirectional - currentDirectional;
+        targetFlat -= deficit;
+        const upShare = targetUp / currentDirectional;
+        targetUp += deficit * upShare;
+        targetDown += deficit * (1 - upShare);
+    }
+
+    // 3. Calculate Allocation Counts
+    const totalTokens = state.tokens.length;
+    let countUp = Math.floor(totalTokens * targetUp);
+    let countDown = Math.floor(totalTokens * targetDown);
+    // Remainder to FLAT to ensure sum = total
+    let countFlat = totalTokens - countUp - countDown;
+
+    if (emitEvent) {
+        emitEvent('PILLAR_12_ALLOCATION', {
+            distribution: {
+                up: (targetUp * 100).toFixed(1) + '%',
+                down: (targetDown * 100).toFixed(1) + '%',
+                flat: (targetFlat * 100).toFixed(1) + '%'
+            },
+            counts: { up: countUp, down: countDown, flat: countFlat },
+            constraints: { maxFlat: (maxFlat * 100).toFixed(0) + '%' }
+        });
+    }
+
+    // 4. Score Tokens by Signal Strength (Momentum)
+    // We utilize predictBatch to get the raw signals, ignoring its labeled prediction for now
+    const rawPredictions = predictBatch(histories, regime.regime, true, state.biases);
+
+    // Map tokens to their signal score (momentum)
+    const scoredTokens = state.tokens.map(token => {
+        const pred = rawPredictions.find(p => p.symbol === token.symbol);
+        // Use momentum as primary signal Score. 
+        // fallback to random if no signal (shouldn't happen with valid history)
+        const score = pred?.signals?.momentum ?? (Math.random() - 0.5);
+        return { token, score, prediction: 'FLAT' as PredictionDirection };
+    });
+
+    // 5. Sort by Score (Signed Momentum)
+    // Most Positive -> UP
+    // Most Negative -> DOWN
+    // Middle -> FLAT
+    scoredTokens.sort((a, b) => b.score - a.score); // Descending
+
+    // 6. Allocate Labels
+    for (let i = 0; i < totalTokens; i++) {
+        if (i < countUp) {
+            scoredTokens[i].prediction = 'UP';
+        } else if (i >= totalTokens - countDown) {
+            scoredTokens[i].prediction = 'DOWN';
+        } else {
+            scoredTokens[i].prediction = 'FLAT';
+        }
+    }
+
+    // 7. Update State
     state.predictions.clear();
-    for (const p of predictions) {
-        state.predictions.set(p.symbol, p.prediction);
-        const token = state.tokens.find(t => t.symbol === p.symbol);
-        if (token) token.prediction = p.prediction;
+    for (const item of scoredTokens) {
+        state.predictions.set(item.token.symbol, item.prediction);
+        item.token.prediction = item.prediction;
     }
 
     // Pillar 10.3: Record predictions (FLAT stored for delayed scoring)
@@ -612,7 +693,7 @@ export function predictFunnel(
     }
     recordPredictions(state, currentPrices);
 
-    // Pillar 10.1 + 10.2: Check directional commitment
+    // Pillar 10.1 + 10.2: Check directional commitment (Should always pass now due to construction)
     const check = checkDirectionalCommitment(state.predictions, state.tokens.length, state.initialTokenCount);
 
     if (!check.valid) {
@@ -808,6 +889,7 @@ export function createFunnelState(tokens: TokenCandidate[]): FunnelState {
             firstAgencyTime: null,
             egoDebt: 0,
             egoClockExpired: false,
+            recoveryModeActive: false,
         },
     };
 }
@@ -1611,6 +1693,21 @@ export function evaluateAgency(
     const flatRatio = preds.filter(p => p === 'FLAT').length / Math.max(1, preds.length);
 
     // ================================================================
+    // Recovery Rule: Directional Forgiveness Window
+    // If recovery mode is active, relaxing quotas and freezing debt
+    // ================================================================
+    let quotaScale = 1.0;
+
+    if (agency.recoveryModeActive) {
+        quotaScale = 0.5; // Relax quota requirement by 50%
+        if (emitEvent) {
+            emitEvent('PILLAR_11_RECOVERY_MODE', {
+                message: 'Recovery Mode Active: Ego Debt Frozen, Quota Relaxed',
+            });
+        }
+    }
+
+    // ================================================================
     // 11.1 — Agency Quota
     // ================================================================
     agency.totalDirectionalPredictions += directionalCount;
@@ -1630,7 +1727,9 @@ export function evaluateAgency(
     }
 
     const quotaConfig = PILLAR_11_CONFIG.AGENCY_QUOTA;
-    const quotaMet = agency.totalDirectionalPredictions >= quotaConfig.minDirectionalTokens &&
+    const effectiveMinDirectional = quotaConfig.minDirectionalTokens * quotaScale;
+
+    const quotaMet = agency.totalDirectionalPredictions >= effectiveMinDirectional &&
         agency.cyclesWithDirection >= quotaConfig.minCyclesWithDirection;
     agency.agencyQuotaMet = quotaMet;
 
@@ -1664,16 +1763,19 @@ export function evaluateAgency(
     const debtConfig = PILLAR_11_CONFIG.EGO_DEBT;
 
     // Accumulate debt if: FLAT > threshold AND no learning progress AND no narrowing
-    if (flatRatio > debtConfig.flatThreshold && !learningProgress) {
-        agency.egoDebt++;
-        if (emitEvent) {
-            emitEvent('PILLAR_11_EGO_DEBT', {
-                cycle: state.cycle,
-                debt: agency.egoDebt,
-                maxDebt: debtConfig.maxEgoDebt,
-                flatRatio: (flatRatio * 100).toFixed(0) + '%',
-                message: `Ego Debt +1 (${agency.egoDebt}/${debtConfig.maxEgoDebt})`,
-            });
+    // SKIPPED IF RECOVERY MODE ACTIVE
+    if (!agency.recoveryModeActive) {
+        if (flatRatio > debtConfig.flatThreshold && !learningProgress) {
+            agency.egoDebt++;
+            if (emitEvent) {
+                emitEvent('PILLAR_11_EGO_DEBT', {
+                    cycle: state.cycle,
+                    debt: agency.egoDebt,
+                    maxDebt: debtConfig.maxEgoDebt,
+                    flatRatio: (flatRatio * 100).toFixed(0) + '%',
+                    message: `Ego Debt +1 (${agency.egoDebt}/${debtConfig.maxEgoDebt})`,
+                });
+            }
         }
     }
 
