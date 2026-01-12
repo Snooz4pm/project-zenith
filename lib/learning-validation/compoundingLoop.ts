@@ -931,3 +931,5 @@ export function adaptBehavior(state: FunnelState): { biases: DirectionBias; prof
         profile
     };
 }
+export { DirectionBias };
+

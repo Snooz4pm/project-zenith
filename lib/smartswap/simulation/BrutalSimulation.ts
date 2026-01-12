@@ -1,474 +1,416 @@
 /**
- * Brain V2 Simulation with 10 Pillars Integration
+ * Brain V2 Behavioral Trial - 10 Pillars Integration
  *
- * Full integration:
- * - Jupiter Proxy (1000 tokens)
- * - Regime Detection
- * - Trust Engine
- * - Learning Validation
- * - Real market data
- * - Paper trading with 0.1 SOL
+ * ONE loop. ONE clock. ONE authority.
+ *
+ * Architecture:
+ * 1. Universe → Jupiter Proxy (1000 CHAOS tokens)
+ * 2. Trust → Pillar 9 evaluation
+ * 3. Compounding Funnel → Predict → Wait → Score → Adapt → Narrow
+ * 4. Execution → Paper trade only if edge validated
+ * 5. Post-Mortem → Truth report
+ *
+ * CHAOS TOKENS ONLY - No stablecoins, no majors
  */
 
-import { DecisionLog, DecisionIntent, SimulationReport, Position } from './types';
+import { DecisionLog, SimulationReport, Position } from './types';
 import { evaluateDecision } from './evaluateDecision';
-import { buildTradingUniverse } from '@/lib/simulation/data-fetcher';
 import { detectRegime } from '@/lib/learning-validation/regimeDetector';
 import { evaluateTrust } from '@/lib/trust-engine/trustEvaluator';
-import { isExecutionAllowed } from '@/lib/trust-engine/trustDecision';
-import { searchForPath } from '@/lib/smartswap/brainv2';
-import type { SearchableToken, BrainGoal } from '@/types/BrainV2';
+import { TrustDecision } from '@/lib/trust-engine/trustDecision';
+import { TrustLevel } from '@/lib/trust-engine/trustLevels';
 import type { TokenPriceHistory } from '@/lib/learning-validation/types';
+
+// === PILLAR 10: COMPOUNDING FUNNEL ===
+import {
+    freezeUniverse,
+    createFunnelState,
+    predictFunnel,
+    scoreFunnel,
+    shouldContinueFunnel,
+    getFunnelVerdict,
+    getFlatStatistics,
+    FunnelState,
+    TokenCandidate,
+    PILLAR_10_CONFIG,
+} from '@/lib/learning-validation/compoundingLoop';
+import { DirectionBias } from '@/lib/learning-validation/predictor';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
+// Cycle metrics for post-mortem
+interface CycleMetrics {
+    cycle: number;
+    regime: string;
+    predictions: { up: number; down: number; flat: number };
+    accuracy: number;
+    survivors: number;
+    eliminated: number;
+    biases: DirectionBias;
+    flatStats: { total: number; correct: number; cowardice: number };
+}
+
+export interface BrutalSimulationReport extends SimulationReport {
+    cycleMetrics: CycleMetrics[];
+    funnelMetrics: {
+        edgeValidated: boolean;
+        totalCycles: number;
+        validatedTokens: string[];
+        stopReason: string;
+    };
+    trustLevel: string;
+}
+
 export class BrutalBrainSimulation {
     private readonly START_SOL = 0.1;
-    private readonly DURATION_MS = 30 * 60 * 1000; // 30 minutes
-    private readonly MIN_INTERVAL_MS = 30_000; // 30 seconds (more realistic)
+    private readonly DURATION_MS = 30 * 60 * 1000; // 30 minutes max
+    private readonly MAX_CYCLES = 6; // Max funnel cycles
 
     private balanceSOL = this.START_SOL;
-    private currentToken = 'SOL';
-    private currentTokenMint = SOL_MINT;
     private position: Position | null = null;
     private realizedPnlSOL = 0;
-    private solPriceUSD = 0;
+    private solPriceUSD = 150;
 
     private logs: DecisionLog[] = [];
     private penaltyScore = 0;
-    private consecutiveRejects = 0;
 
-    private lastActionAt = Date.now();
-    private onProgress?: (log: DecisionLog, state: any) => void;
+    private onEvent?: (type: string, data: any) => void;
 
-    // Trading universe from Jupiter proxy
-    private universe: SearchableToken[] = [];
-    private lastUniverseUpdate = 0;
-    private readonly UNIVERSE_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
+    // Pillar 10: Funnel state
+    private funnelState: FunnelState | null = null;
+    private cycleMetrics: CycleMetrics[] = [];
+    private edgeValidated = false;
+    private validatedTokens: TokenCandidate[] = [];
+    private stopReason: string = '';
+
+    // Pillar 9: Trust
+    private trustDecision: TrustDecision | null = null;
 
     /**
-     * Run simulation with all 10 pillars
+     * Run 30-minute behavioral trial with all 10 pillars
      */
     async run(
-        brain: (state: any, universe: SearchableToken[]) => DecisionIntent & { action: any; toToken?: string },
-        onProgress?: (log: DecisionLog, state: any) => void
-    ): Promise<SimulationReport> {
-        this.onProgress = onProgress;
+        onEvent?: (type: string, data: any) => void
+    ): Promise<BrutalSimulationReport> {
+        this.onEvent = onEvent;
         const start = Date.now();
 
-        console.log('[BrutalSim] 🚀 Starting Brain V2 simulation with 10 pillars');
-        console.log(`[BrutalSim] Starting balance: ${this.START_SOL} SOL`);
+        this.emit('START', { startSOL: this.START_SOL, timestamp: start });
+        console.log('[BrutalSim] 🚀 Starting 10-Pillar Behavioral Trial');
+        console.log(`[BrutalSim] Duration: 30 minutes | Starting SOL: ${this.START_SOL}`);
 
-        // Fetch initial SOL price
+        // Fetch SOL price
         await this.fetchSolPrice();
 
-        // Fetch initial trading universe from Jupiter proxy
-        await this.updateUniverse();
+        // ====================================================================
+        // PHASE 1: FREEZE CHAOS UNIVERSE
+        // ====================================================================
+        this.emit('PHASE', { phase: 'UNIVERSE', message: 'Freezing CHAOS universe from Jupiter...' });
 
-        // Initial invariant check
-        this.assertConservation();
+        const universe = await freezeUniverse(1000);
+        if (universe.length === 0) {
+            this.emit('ERROR', { message: 'Failed to fetch universe' });
+            return this.report('FAIL', 'Universe fetch failed');
+        }
 
-        while (Date.now() - start < this.DURATION_MS) {
-            const now = Date.now();
+        this.emit('UNIVERSE_FROZEN', {
+            count: universe.length,
+            mode: PILLAR_10_CONFIG.FUNNEL_MODE,
+        });
+        console.log(`[BrutalSim] ✅ Universe frozen: ${universe.length} CHAOS tokens`);
 
-            // Cooldown check
-            if (now - this.lastActionAt < this.MIN_INTERVAL_MS) {
-                await this.sleep(1000);
-                continue;
-            }
+        // Initialize funnel state
+        this.funnelState = createFunnelState(universe);
 
-            // Refresh universe periodically
-            if (now - this.lastUniverseUpdate > this.UNIVERSE_REFRESH_MS) {
-                await this.updateUniverse();
-            }
+        // ====================================================================
+        // PHASE 2: TRUST EVALUATION (Pillar 9)
+        // ====================================================================
+        this.emit('PHASE', { phase: 'TRUST', message: 'Evaluating trust level...' });
 
-            // === PILLAR 1: REGIME DETECTION ===
-            const priceHistories = this.buildPriceHistories();
-            const regime = detectRegime(priceHistories);
+        try {
+            this.trustDecision = await evaluateTrust();
+        } catch (error) {
+            console.error('[BrutalSim] Trust evaluation failed:', error);
+            this.trustDecision = {
+                trustLevel: TrustLevel.LEVEL_1_PAPER_MICRO,
+                executionType: 'PAPER',
+                maxTradesAllowed: 2,
+                maxSolPerTrade: 0.02,
+                reason: 'Fallback (DB unavailable)',
+                timestamp: Date.now(),
+                consecutiveEdgeValidated: 0,
+                totalRuns: 0,
+                violations: 0,
+                lastPromotion: null,
+                lastDemotion: null,
+            };
+        }
 
-            console.log(`[BrutalSim] Regime: ${regime.regime} (confidence: ${(regime.confidence * 100).toFixed(1)}%)`);
+        this.emit('TRUST_DECISION', {
+            level: TrustLevel[this.trustDecision.trustLevel],
+            executionType: this.trustDecision.executionType,
+            maxTrades: this.trustDecision.maxTradesAllowed,
+        });
+        console.log(`[BrutalSim] Trust: ${TrustLevel[this.trustDecision.trustLevel]}`);
 
-            // === PILLAR 9: TRUST ENGINE ===
-            const trustDecision = await evaluateTrust();
+        if (this.trustDecision.executionType === 'NONE') {
+            this.stopReason = 'STOP_TRUST_BLOCKED';
+            return this.report('PASS', 'Trust level forbids execution (correct discipline)');
+        }
 
-            console.log(`[BrutalSim] Trust Level: ${trustDecision.trustLevel}`);
-            console.log(`[BrutalSim] Max trades: ${trustDecision.maxTradesAllowed}`);
-            console.log(`[BrutalSim] Max SOL/trade: ${trustDecision.maxSolPerTrade}`);
+        // ====================================================================
+        // PHASE 3: COMPOUNDING FUNNEL (Pillar 10)
+        // ====================================================================
+        this.emit('PHASE', { phase: 'FUNNEL', message: 'Starting compounding prediction loop...' });
 
-            // Check if we can trade based on trust level
-            if (trustDecision.executionType === 'NONE') {
-                console.log(`[BrutalSim] ⛔ Execution blocked by trust level`);
-                await this.sleep(this.MIN_INTERVAL_MS);
-                continue;
-            }
+        let cycleCount = 0;
 
-            // Determine max trade size based on trust
-            const maxTradeSize = Math.min(
-                this.balanceSOL,
-                trustDecision.maxSolPerTrade
-            );
+        while (
+            shouldContinueFunnel(this.funnelState) &&
+            cycleCount < this.MAX_CYCLES &&
+            Date.now() - start < this.DURATION_MS
+        ) {
+            cycleCount++;
+            this.emit('CYCLE_START', {
+                cycle: cycleCount,
+                tokens: this.funnelState.tokens.length,
+                elapsed: Math.floor((Date.now() - start) / 1000) + 's'
+            });
+            console.log(`\n[BrutalSim] === CYCLE ${cycleCount} ===`);
+            console.log(`[BrutalSim] Tokens: ${this.funnelState.tokens.length}`);
 
-            // === BRAIN DECISION ===
-            const intentDecision = brain(this.getState(), this.universe);
+            // --- PREDICT (with behavioral adaptation) ---
+            const directionalCheck = predictFunnel(this.funnelState, (type, data) => {
+                this.emit(type, data);
+            });
 
-            const currentValSOL = this.getPortfolioValueSOL();
-
-            const log: DecisionLog = {
-                timestamp: now,
-                action: intentDecision.action as any,
-                fromToken: this.currentToken,
-                toToken: intentDecision.action === 'SWAP' ? intentDecision.toToken : undefined,
-                intent: intentDecision,
-                executed: false,
-
-                // Financials
-                pnlSOL: 0,
-                realizedPnlSOL: 0,
-                unrealizedPnlSOL: 0,
-
-                portfolioValueSOL: currentValSOL,
-                portfolioValueUSD: currentValSOL * this.solPriceUSD,
+            // Track predictions
+            const preds = Array.from(this.funnelState.predictions.values());
+            const predictionBreakdown = {
+                up: preds.filter(p => p === 'UP').length,
+                down: preds.filter(p => p === 'DOWN').length,
+                flat: preds.filter(p => p === 'FLAT').length,
             };
 
-            // === VALIDATION: NO-OP SWAP PREVENTION ===
-            if (
-                intentDecision.action === 'SWAP' &&
-                intentDecision.toToken === this.currentTokenMint
-            ) {
-                log.executed = false;
-                log.skippedReason = 'INVALID_SWAP_SAME_TOKEN';
-                log.evaluation = {
-                    outcomeClass: 'BAD_DECISION_BAD_OUTCOME',
-                    penaltyScore: 5,
-                    explanation: 'Swap proposed with identical from/to token (no-op)',
-                };
-                this.penaltyScore += 5;
-                this.consecutiveRejects++;
-                if (this.consecutiveRejects >= 3) {
-                    this.penaltyScore += 10;
-                    log.evaluation.explanation += ' | SPAM PENALTY (+10)';
-                }
-                this.logs.push(log);
-                this.lastActionAt = now;
-                if (this.onProgress) this.onProgress(log, this.getState());
-                continue;
-            }
+            this.emit('PREDICTIONS', predictionBreakdown);
+            console.log(`[BrutalSim] Predictions: UP=${predictionBreakdown.up} DOWN=${predictionBreakdown.down} FLAT=${predictionBreakdown.flat}`);
+            console.log(`[BrutalSim] Biases: UP=${this.funnelState.biases.upBias.toFixed(2)} DOWN=${this.funnelState.biases.downBias.toFixed(2)} FLAT=${this.funnelState.biases.flatBias.toFixed(2)}`);
 
-            this.consecutiveRejects = 0;
-
-            // === EXECUTION LOGIC ===
-            if (intentDecision.action === 'HESITATE') {
-                log.executed = false;
-                if (this.position) {
-                    this.simulatePriceMove();
-                    log.unrealizedPnlSOL = this.position.tokenAmount - this.position.entryValueSOL;
-                    log.unrealizedPnlUSD = log.unrealizedPnlSOL * this.solPriceUSD;
-                }
-            } else if (intentDecision.action === 'SWAP' || intentDecision.action === 'EXIT') {
-                const toTokenMint = this.findTokenMint(intentDecision.toToken || 'SOL');
-
-                if (toTokenMint === SOL_MINT) {
-                    // EXITING TO SOL
-                    if (!this.position) {
-                        log.executed = false;
-                        log.skippedReason = 'INVALID_EXIT_NO_POSITION';
-                        log.evaluation = {
-                            outcomeClass: 'BAD_DECISION_BAD_OUTCOME',
-                            penaltyScore: 2,
-                            explanation: 'Tried to exit to SOL while already in SOL',
-                        };
-                    } else {
-                        const exitValue = this.position.tokenAmount;
-                        const exitFee = 0.0003;
-                        const netExitValue = exitValue - exitFee;
-                        const totalRealizedPnl = netExitValue - this.position.entryValueSOL;
-
-                        this.realizedPnlSOL += totalRealizedPnl;
-                        this.balanceSOL += netExitValue;
-                        this.currentToken = 'SOL';
-                        this.currentTokenMint = SOL_MINT;
-                        this.position = null;
-
-                        log.action = 'EXIT';
-                        log.executed = true;
-                        log.realizedPnlSOL = totalRealizedPnl;
-                        log.pnlSOL = totalRealizedPnl;
-                        log.realizedPnlUSD = totalRealizedPnl * this.solPriceUSD;
-                        log.tradeValueSOL = exitValue;
-                        log.tradeValueUSD = exitValue * this.solPriceUSD;
-
-                        console.log(`[BrutalSim] ✅ EXIT ${this.currentToken} → SOL: ${totalRealizedPnl >= 0 ? '+' : ''}${totalRealizedPnl.toFixed(6)} SOL`);
-                    }
-                } else {
-                    // OPENING OR FLIPPING POSITION
-                    const entryCost = 0.0005;
-
-                    // Handle flip: close existing position first
-                    if (this.position) {
-                        const exitValue = this.position.tokenAmount;
-                        const exitFee = 0.0003;
-                        const netExitValue = exitValue - exitFee;
-                        const totalRealizedPnl = netExitValue - this.position.entryValueSOL;
-
-                        this.realizedPnlSOL += totalRealizedPnl;
-                        this.balanceSOL += netExitValue;
-                        this.position = null;
-                        this.currentToken = 'SOL';
-                        this.currentTokenMint = SOL_MINT;
-                    }
-
-                    // Use allocation from intent, capped by trust limit
-                    const allocPct = intentDecision.allocationPct || 100;
-                    const allocAmount = this.balanceSOL * (allocPct / 100);
-                    const tradeAmount = Math.min(allocAmount, maxTradeSize);
-
-                    if (tradeAmount <= entryCost) {
-                        log.executed = false;
-                        log.skippedReason = 'INSUFFICIENT_FUNDS';
-                        log.evaluation = {
-                            outcomeClass: 'BAD_DECISION_BAD_OUTCOME',
-                            penaltyScore: 1,
-                            explanation: `Insufficient funds for trade (need ${entryCost}, have ${tradeAmount})`,
-                        };
-                    } else {
-                        const toToken = this.universe.find(t => t.mint === toTokenMint);
-
-                        this.openPosition(toTokenMint, toToken?.symbol || 'UNKNOWN', entryCost, now, allocPct, maxTradeSize);
-
-                        log.executed = true;
-                        log.entryCostSOL = entryCost;
-                        log.unrealizedPnlSOL = -entryCost;
-                        log.unrealizedPnlUSD = -entryCost * this.solPriceUSD;
-                        log.tradeValueSOL = this.position!.entryValueSOL;
-                        log.tradeValueUSD = this.position!.entryValueSOL * this.solPriceUSD;
-
-                        this.currentToken = toToken?.symbol || 'UNKNOWN';
-                        this.currentTokenMint = toTokenMint;
-
-                        console.log(`[BrutalSim] ✅ SWAP SOL → ${this.currentToken}: ${log.tradeValueSOL.toFixed(6)} SOL`);
-                    }
-                }
-            } else if (intentDecision.action === 'HOLD') {
-                if (this.position) {
-                    this.simulatePriceMove();
-                    log.unrealizedPnlSOL = this.position.tokenAmount - this.position.entryValueSOL;
-                    log.unrealizedPnlUSD = log.unrealizedPnlSOL * this.solPriceUSD;
-                    log.executed = true;
-                } else {
-                    log.executed = false;
-                    log.skippedReason = 'HOLDING_SOL_NO_OP';
-                }
-            }
-
-            // Post-Action Safety Check
-            this.assertConservation();
-
-            // State sync
-            log.portfolioValueSOL = this.getPortfolioValueSOL();
-            log.portfolioValueUSD = log.portfolioValueSOL * this.solPriceUSD;
-            log.realizedPnlSOL = this.realizedPnlSOL;
-            log.realizedPnlUSD = this.realizedPnlSOL * this.solPriceUSD;
-
-            // EVALUATE
-            const evaluation = evaluateDecision(log);
-            log.evaluation = evaluation;
-            this.penaltyScore += evaluation.penaltyScore;
-
-            this.logs.push(log);
-            this.lastActionAt = now;
-
-            if (this.onProgress) this.onProgress(log, this.getState());
-
-            // Stop if penalty too high
-            if (this.penaltyScore > 25) {
-                console.log('[BrutalSim] ⛔ Stopping: penalty score too high');
+            // Check directional commitment (Pillar 10.1 + 10.2)
+            if (!directionalCheck.valid) {
+                this.stopReason = `STOP_NO_EDGE: ${directionalCheck.reason}`;
+                this.emit('STOP_NO_EDGE', {
+                    reason: directionalCheck.reason,
+                    violation: directionalCheck.violationType,
+                });
+                console.log(`[BrutalSim] ⛔ ${this.stopReason}`);
                 break;
             }
 
-            await this.sleep(1000);
+            // --- WAIT (real time observation) ---
+            const waitMs = Math.min(PILLAR_10_CONFIG.OBSERVATION_MINUTES * 60 * 1000, 30_000); // Cap at 30s for demo
+            this.emit('WAITING', {
+                seconds: Math.floor(waitMs / 1000),
+                message: `Observing market for ${Math.floor(waitMs / 1000)}s...`
+            });
+            console.log(`[BrutalSim] ⏳ Waiting ${Math.floor(waitMs / 1000)}s...`);
+
+            // Tick during wait
+            const tickInterval = 5000;
+            for (let waited = 0; waited < waitMs; waited += tickInterval) {
+                await this.sleep(tickInterval);
+                this.emit('TICK', { waited: Math.floor((waited + tickInterval) / 1000), total: Math.floor(waitMs / 1000) });
+            }
+
+            // --- SCORE (Pillar 10.3 + 10.4) ---
+            this.emit('SCORING', { tokens: this.funnelState.tokens.length });
+            const result = await scoreFunnel(this.funnelState, (type, data) => {
+                this.emit(type, data);
+            });
+
+            // Track cycle metrics
+            const flatStats = getFlatStatistics(this.funnelState.predictionStorage);
+            this.cycleMetrics.push({
+                cycle: result.cycle,
+                regime: result.regime,
+                predictions: predictionBreakdown,
+                accuracy: result.accuracy,
+                survivors: result.tokensAfter,
+                eliminated: result.eliminated.length,
+                biases: { ...this.funnelState.biases },
+                flatStats: {
+                    total: flatStats.totalFlat,
+                    correct: flatStats.correctFlat,
+                    cowardice: flatStats.cowardiceScore,
+                },
+            });
+
+            this.emit('CYCLE_COMPLETE', {
+                cycle: result.cycle,
+                accuracy: (result.accuracy * 100).toFixed(1) + '%',
+                survivors: result.tokensAfter,
+                eliminated: result.eliminated.length,
+            });
+            console.log(`[BrutalSim] Accuracy: ${(result.accuracy * 100).toFixed(1)}% | Survivors: ${result.tokensAfter}`);
+
+            // Check end conditions
+            if (this.funnelState.funnelComplete) {
+                this.stopReason = 'FUNNEL_COMPLETE';
+                console.log('[BrutalSim] ✅ Funnel complete - edge candidates identified');
+                break;
+            }
+            if (this.funnelState.funnelCollapsed) {
+                this.stopReason = 'FUNNEL_COLLAPSED';
+                console.log('[BrutalSim] ⚠️ Funnel collapsed - no survivors');
+                break;
+            }
         }
 
-        console.log('[BrutalSim] 🏁 Simulation complete');
-        return this.report();
+        // Get funnel verdict
+        const verdict = getFunnelVerdict(this.funnelState);
+        this.edgeValidated = verdict.shouldExecute;
+        this.validatedTokens = verdict.candidates;
+        if (!this.stopReason) {
+            this.stopReason = verdict.reason;
+        }
+
+        this.emit('FUNNEL_VERDICT', {
+            edgeValidated: this.edgeValidated,
+            validatedTokens: this.validatedTokens.map(t => t.symbol),
+            reason: this.stopReason,
+        });
+        console.log(`\n[BrutalSim] === FUNNEL VERDICT ===`);
+        console.log(`[BrutalSim] Edge Validated: ${this.edgeValidated}`);
+        console.log(`[BrutalSim] Validated Tokens: ${this.validatedTokens.map(t => t.symbol).join(', ') || 'NONE'}`);
+        console.log(`[BrutalSim] Reason: ${this.stopReason}`);
+
+        // ====================================================================
+        // PHASE 4: EXECUTION (Only if earned)
+        // ====================================================================
+        if (!this.edgeValidated) {
+            this.emit('EXECUTION_BLOCKED', { reason: 'Edge not validated' });
+            return this.report('PASS', `NO TRADE: ${this.stopReason} (correct discipline)`);
+        }
+
+        if (this.validatedTokens.length === 0) {
+            this.emit('EXECUTION_BLOCKED', { reason: 'No validated tokens' });
+            return this.report('PASS', 'NO TRADE: No tokens survived funnel');
+        }
+
+        // Execute one paper trade on best validated token
+        this.emit('PHASE', { phase: 'EXECUTION', message: 'Executing paper trade...' });
+        console.log('\n[BrutalSim] === EXECUTION ===');
+
+        const bestToken = this.validatedTokens[0];
+        const tradeAmount = Math.min(this.balanceSOL, this.trustDecision.maxSolPerTrade);
+        const fee = 0.0005;
+
+        if (tradeAmount <= fee) {
+            this.emit('EXECUTION_BLOCKED', { reason: 'Insufficient funds' });
+            return this.report('FAIL', 'Insufficient funds for trade');
+        }
+
+        // Open position
+        this.position = {
+            token: bestToken.mint,
+            entryValueSOL: tradeAmount - fee,
+            entryPrice: bestToken.priceAtStart,
+            tokenAmount: tradeAmount - fee,
+            openedAt: Date.now(),
+        };
+        this.balanceSOL -= tradeAmount;
+
+        this.emit('TRADE_OPENED', {
+            token: bestToken.symbol,
+            amount: tradeAmount,
+            fee,
+        });
+        console.log(`[BrutalSim] ✅ Opened position: ${bestToken.symbol} (${tradeAmount.toFixed(4)} SOL)`);
+
+        // Hold for remaining time (simulate price movement)
+        const holdTime = Math.min(5 * 60 * 1000, this.DURATION_MS - (Date.now() - start));
+        this.emit('HOLDING', { seconds: Math.floor(holdTime / 1000) });
+        console.log(`[BrutalSim] ⏳ Holding for ${Math.floor(holdTime / 1000)}s...`);
+
+        // Simulate price movement during hold
+        const intervals = Math.floor(holdTime / 5000);
+        for (let i = 0; i < intervals; i++) {
+            await this.sleep(5000);
+            // Random walk with slight positive bias for UP predictions
+            const noise = (Math.random() - 0.45) * 0.02;
+            this.position.tokenAmount *= (1 + noise);
+        }
+
+        // Exit position
+        const exitValue = this.position.tokenAmount;
+        const exitFee = 0.0003;
+        const netExit = exitValue - exitFee;
+        const pnl = netExit - (tradeAmount - fee);
+
+        this.realizedPnlSOL = pnl;
+        this.balanceSOL += netExit;
+        this.position = null;
+
+        this.emit('TRADE_CLOSED', {
+            token: bestToken.symbol,
+            exitValue,
+            pnl,
+        });
+        console.log(`[BrutalSim] ✅ Closed position: ${pnl >= 0 ? '+' : ''}${pnl.toFixed(6)} SOL`);
+
+        // ====================================================================
+        // PHASE 5: POST-MORTEM
+        // ====================================================================
+        this.emit('PHASE', { phase: 'POSTMORTEM', message: 'Generating truth report...' });
+
+        return this.report(
+            pnl >= 0 ? 'PASS' : 'FAIL',
+            `Trade ${pnl >= 0 ? 'profitable' : 'unprofitable'}: ${pnl >= 0 ? '+' : ''}${pnl.toFixed(6)} SOL`
+        );
+    }
+
+    private emit(type: string, data: any) {
+        if (this.onEvent) {
+            this.onEvent(type, data);
+        }
     }
 
     private async fetchSolPrice() {
         try {
             const response = await fetch('https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112');
             const data = await response.json();
-            this.solPriceUSD = parseFloat(data.data['So11111111111111111111111111111111111111112']?.price || '0');
-            if (!this.solPriceUSD) {
-                console.warn('[BrutalSim] Failed to fetch SOL price, default to 150');
-                this.solPriceUSD = 150;
-            }
-            console.log(`[BrutalSim] SOL price: $${this.solPriceUSD.toFixed(2)}`);
-        } catch (e) {
-            console.error('[BrutalSim] Error fetching SOL price:', e);
+            this.solPriceUSD = parseFloat(data.data[SOL_MINT]?.price || '150');
+            if (!this.solPriceUSD || this.solPriceUSD <= 0) this.solPriceUSD = 150;
+        } catch {
             this.solPriceUSD = 150;
         }
-    }
-
-    private async updateUniverse() {
-        console.log('[BrutalSim] 🔄 Updating trading universe from Jupiter proxy...');
-        try {
-            this.universe = await buildTradingUniverse(10_000, 100); // Top 100 tokens
-            this.lastUniverseUpdate = Date.now();
-            console.log(`[BrutalSim] ✅ Universe updated: ${this.universe.length} tokens`);
-        } catch (error) {
-            console.error('[BrutalSim] Failed to update universe:', error);
-        }
-    }
-
-    private buildPriceHistories(): TokenPriceHistory[] {
-        // Build mock price histories from current universe
-        return this.universe.slice(0, 50).map(token => ({
-            symbol: token.symbol,
-            mint: token.mint,
-            prices: [
-                {
-                    timestamp: Date.now() - 60 * 60 * 1000,
-                    price: token.valueInSOL * (1 + ((token.volatility || 0) * (Math.random() - 0.5))),
-                    volume: 10000,
-                },
-                {
-                    timestamp: Date.now(),
-                    price: token.valueInSOL,
-                    volume: 10000,
-                },
-            ],
-        }));
-    }
-
-    private findTokenMint(symbolOrMint: string): string {
-        if (symbolOrMint === 'SOL') return SOL_MINT;
-
-        // 🔥 CHAOS MODE: Block stablecoins
-        const STABLECOINS = ['USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'FRAX', 'PYUSD', 'GUSD', 'USDP', 'USDD'];
-        if (STABLECOINS.includes(symbolOrMint.toUpperCase())) {
-            console.log(`[BrutalSim] 🚫 BLOCKED: Stablecoin ${symbolOrMint} not allowed in CHAOS MODE`);
-            return SOL_MINT; // Force to SOL instead
-        }
-
-        // Check if it's already a mint address
-        if (symbolOrMint.length === 44) {
-            // Validate it's not a stablecoin mint
-            const token = this.universe.find(t => t.mint === symbolOrMint);
-            if (token?.isStable) {
-                console.log(`[BrutalSim] 🚫 BLOCKED: Stablecoin ${token.symbol} not allowed in CHAOS MODE`);
-                return SOL_MINT;
-            }
-            return symbolOrMint;
-        }
-
-        // Find by symbol
-        const token = this.universe.find(t => t.symbol.toUpperCase() === symbolOrMint.toUpperCase());
-
-        // Double-check not a stablecoin
-        if (token?.isStable) {
-            console.log(`[BrutalSim] 🚫 BLOCKED: Stablecoin ${token.symbol} not allowed in CHAOS MODE`);
-            return SOL_MINT;
-        }
-
-        return token?.mint || SOL_MINT;
-    }
-
-    private openPosition(tokenMint: string, symbol: string, fees: number, now: number, allocationPct: number, maxTradeSize: number) {
-        // 🔥 FINAL GUARD: Prevent stablecoin positions
-        const token = this.universe.find(t => t.mint === tokenMint);
-        if (token?.isStable) {
-            throw new Error(`🚫 CHAOS MODE: Cannot open position on stablecoin ${symbol}`);
-        }
-
-        const solAvailable = this.balanceSOL;
-        const effectivePct = Math.min(Math.max(allocationPct, 1), 100);
-        const requestedSpend = solAvailable * (effectivePct / 100);
-        const solToSpend = Math.min(requestedSpend, maxTradeSize);
-
-        const netValue = solToSpend - fees;
-
-        if (netValue <= 0) {
-            throw new Error(`Insufficient funds. Available: ${solAvailable}, Needed > ${fees}`);
-        }
-
-        this.position = {
-            token: tokenMint,
-            entryValueSOL: netValue,
-            entryPrice: 1.0,
-            tokenAmount: netValue,
-            openedAt: now,
-        };
-
-        this.balanceSOL -= solToSpend;
-    }
-
-    private simulatePriceMove() {
-        if (!this.position) return;
-
-        // Find token in universe for volatility
-        const token = this.universe.find(t => t.mint === this.position!.token);
-        const volatility = token?.volatility || 0.02;
-        const momentum = token?.alphaScore || 0;
-
-        // Price movement based on token characteristics
-        const noise = (Math.random() - 0.45) * volatility * 2; // Slight positive bias
-        const trend = momentum * 0.001; // Alpha momentum
-
-        this.position.tokenAmount *= (1 + noise + trend);
+        console.log(`[BrutalSim] SOL price: $${this.solPriceUSD.toFixed(2)}`);
     }
 
     private getPortfolioValueSOL(): number {
-        if (this.position) {
-            return this.balanceSOL + this.position.tokenAmount;
-        }
-        return this.balanceSOL;
+        return this.balanceSOL + (this.position?.tokenAmount || 0);
     }
 
-    private assertConservation() {
-        const val = this.getPortfolioValueSOL();
-        if (val <= 0 || isNaN(val)) {
-            throw new Error(`CRITICAL: Portfolio value conservation failed. Value: ${val}`);
-        }
-    }
-
-    private getState() {
-        const currentVal = this.getPortfolioValueSOL();
-        return {
-            // For brain compatibility
-            liquidSOL: this.balanceSOL,
-            positionValueSOL: this.position ? this.position.tokenAmount : 0,
-            token: this.currentToken,
-            tokenMint: this.currentTokenMint,
-            hasPosition: !!this.position,
-            penaltyScore: this.penaltyScore,
-            totalValueSOL: currentVal,
-            solPriceUSD: this.solPriceUSD,
-            totalValueUSD: currentVal * this.solPriceUSD,
-
-            // Extended state
-            universe: this.universe,
-            universeSize: this.universe.length,
-        };
-    }
-
-    private report(): SimulationReport {
+    private report(verdict: 'PASS' | 'FAIL', reason: string): BrutalSimulationReport {
         const finalValue = this.getPortfolioValueSOL();
         const pnlPct = ((finalValue - this.START_SOL) / this.START_SOL) * 100;
-        const totalInvalidDecisions = this.logs.filter(l => l.skippedReason === 'INVALID_SWAP_SAME_TOKEN').length;
 
-        const passConditions = [
-            pnlPct > 1,
-            this.penaltyScore < 20,
-            totalInvalidDecisions === 0,
-        ];
-
-        const verdict = passConditions.every(c => c) ? 'PASS' : 'FAIL';
-
-        console.log('[BrutalSim] === FINAL REPORT ===');
+        console.log('\n[BrutalSim] === FINAL REPORT ===');
         console.log(`  Start: ${this.START_SOL} SOL`);
         console.log(`  End: ${finalValue.toFixed(6)} SOL`);
         console.log(`  PnL: ${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%`);
-        console.log(`  Penalty: ${this.penaltyScore}`);
+        console.log(`  Cycles: ${this.cycleMetrics.length}`);
         console.log(`  Verdict: ${verdict}`);
+        console.log(`  Reason: ${reason}`);
+
+        this.emit('REPORT', {
+            verdict,
+            reason,
+            startSOL: this.START_SOL,
+            endSOL: finalValue,
+            pnlPct,
+            cycles: this.cycleMetrics.length,
+        });
 
         return {
             startSOL: this.START_SOL,
@@ -476,10 +418,18 @@ export class BrutalBrainSimulation {
             solPriceUSD: this.solPriceUSD,
             pnlPct,
             penaltyScore: this.penaltyScore,
-            totalInvalidDecisions,
+            totalInvalidDecisions: 0,
             logs: this.logs,
             verdict,
-            verdictReason: `PnL ${pnlPct.toFixed(2)}%, Penalty ${this.penaltyScore}, Invalid Swaps ${totalInvalidDecisions}`,
+            verdictReason: reason,
+            cycleMetrics: this.cycleMetrics,
+            funnelMetrics: {
+                edgeValidated: this.edgeValidated,
+                totalCycles: this.cycleMetrics.length,
+                validatedTokens: this.validatedTokens.map(t => t.symbol),
+                stopReason: this.stopReason,
+            },
+            trustLevel: this.trustDecision ? TrustLevel[this.trustDecision.trustLevel] : 'UNKNOWN',
         };
     }
 

@@ -223,4 +223,7 @@ function buildDecision(
     };
 }
 
-export { prisma };
+export {
+    prisma, TrustDecision // Build signals
+    , TrustLevel
+};
