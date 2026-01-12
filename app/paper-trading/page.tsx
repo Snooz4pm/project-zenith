@@ -35,11 +35,24 @@ export default function PaperTradingPage() {
     });
     const [logs, setLogs] = useState<string[]>([]);
     const logsEndRef = useRef<HTMLDivElement>(null);
+    const logsContainerRef = useRef<HTMLDivElement>(null);
     const abortRef = useRef<AbortController | null>(null);
+    const [autoScroll, setAutoScroll] = useState(true);
 
+    // Only auto-scroll if user hasn't scrolled up
     useEffect(() => {
-        logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [logs]);
+        if (autoScroll && logsEndRef.current) {
+            logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [logs, autoScroll]);
+
+    // Detect if user scrolled away from bottom
+    const handleLogsScroll = () => {
+        if (!logsContainerRef.current) return;
+        const { scrollTop, scrollHeight, clientHeight } = logsContainerRef.current;
+        const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+        setAutoScroll(isNearBottom);
+    };
 
     const addLog = (message: string) => {
         const time = new Date().toLocaleTimeString();
@@ -299,10 +312,15 @@ export default function PaperTradingPage() {
 
                 {/* Decision Timeline */}
                 <div className="bg-zinc-900 rounded-lg border border-zinc-800">
-                    <div className="px-4 py-3 border-b border-zinc-800">
+                    <div className="px-4 py-3 border-b border-zinc-800 flex justify-between items-center">
                         <h2 className="font-semibold">Decision Timeline</h2>
+                        <span className="text-xs text-zinc-500">{autoScroll ? '📍 Following' : '🔓 Paused - scroll to bottom to resume'}</span>
                     </div>
-                    <div className="h-[300px] overflow-y-auto p-4 font-mono text-sm">
+                    <div
+                        ref={logsContainerRef}
+                        onScroll={handleLogsScroll}
+                        className="h-[300px] overflow-y-auto p-4 font-mono text-sm"
+                    >
                         {logs.length === 0 ? (
                             <div className="text-zinc-600 text-center py-12">
                                 No decisions yet. Start a simulation to see brain activity.
