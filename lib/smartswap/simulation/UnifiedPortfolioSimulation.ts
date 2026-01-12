@@ -231,7 +231,32 @@ export class UnifiedPortfolioSimulation {
         // ====================================================================
 
         this.emitFunnelEvent('TRUST_EVALUATION', {});
-        this.trustDecision = await evaluateTrust();
+
+        try {
+            this.trustDecision = await evaluateTrust();
+        } catch (error) {
+            // Fallback if database not available or trust evaluation fails
+            console.error('[UnifiedPortfolioSimulation] Trust evaluation failed:', error);
+            this.emitFunnelEvent('TRUST_ERROR', {
+                error: error instanceof Error ? error.message : String(error),
+                fallback: 'Using Level 1 Paper Trading'
+            });
+
+            this.trustDecision = {
+                trustLevel: TrustLevel.LEVEL_1_PAPER_MICRO,
+                executionType: 'PAPER' as const,
+                maxTradesAllowed: this.edgeValidated ? 2 : 0,
+                maxSolPerTrade: 0.02,
+                reason: 'Fallback (Database unavailable)',
+                timestamp: Date.now(),
+                consecutiveEdgeValidated: 0,
+                totalRuns: 0,
+                violations: 0,
+                lastPromotion: null,
+                lastDemotion: null
+            };
+        }
+
         this.emitFunnelEvent('TRUST_DECISION', {
             level: TrustLevel[this.trustDecision.trustLevel],
             executionType: this.trustDecision.executionType,

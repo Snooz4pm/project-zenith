@@ -179,6 +179,10 @@ export default function BrainDashboardPage() {
                         setValidatedTokens(data.data?.validatedTokens || []);
                         break;
 
+                    case 'FUNNEL_TRUST_ERROR':
+                        setViolations(prev => [...prev, `Trust Error: ${data.data?.error || 'Unknown'} - ${data.data?.fallback || 'Using fallback'}`]);
+                        break;
+
                     case 'FUNNEL_TRUST_DECISION':
                         setTrustLevel(data.data?.level || '');
                         break;
