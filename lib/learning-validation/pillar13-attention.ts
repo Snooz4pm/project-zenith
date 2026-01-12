@@ -83,19 +83,22 @@ export const PILLAR_13_CONFIG = {
 export function selectAttentionSet(
     availableTokens: TokenPriceHistory[],
     cycle: number,
-    previousPattern?: AttentionPattern
+    _previousPattern?: AttentionPattern // Reserved for future learning
 ): AttentionDecision {
     // For now, simple heuristic: focus on top movers + random sample
     // In Brain v2, this would be learned behavior
+    // TODO: Use previousPattern to learn from past attention decisions
 
     const totalAvailable = availableTokens.length;
 
     // Calculate recent volatility for each token
     const withVolatility = availableTokens.map(t => {
-        const recentChanges = t.history.slice(-5).map((h, i, arr) =>
+        // Use last 5 price points (or all if less than 5)
+        const recentPrices = t.prices.slice(-5);
+        const recentChanges = recentPrices.map((h, i, arr) =>
             i > 0 ? Math.abs((h.price - arr[i-1].price) / arr[i-1].price) : 0
         );
-        const avgVolatility = recentChanges.reduce((a, b) => a + b, 0) / recentChanges.length;
+        const avgVolatility = recentChanges.reduce((a, b) => a + b, 0) / Math.max(1, recentChanges.length);
         return { token: t, volatility: avgVolatility };
     });
 
@@ -224,14 +227,15 @@ export function trackAvoidancePattern(
     const repeatedAvoidance: string[] = [];
 
     if (previousPatterns.length > 0) {
-        const lastPattern = previousPatterns[previousPatterns.length - 1];
-
+        // TODO: Implement proper token-level tracking across cycles
+        // For now, use simplified pressure based on pattern count
         for (const token of ignoredTokens) {
             // Count how many recent cycles this token was ignored
             let consecutiveIgnores = 1; // Current cycle
 
             for (let i = previousPatterns.length - 1; i >= 0; i--) {
-                // This is approximate - would need full history tracking
+                // Simplified: assume tokens ignored repeatedly
+                // Full implementation would track per-token ignore history
                 consecutiveIgnores++;
             }
 
