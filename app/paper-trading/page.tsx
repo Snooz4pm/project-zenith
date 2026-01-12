@@ -302,6 +302,26 @@ export default function PaperTradingPage() {
             case 'MEMORY_ARCHIVED':
                 addLog(`💾 Archived ${data.count} tokens for learning`);
                 break;
+            // Pillar 13: Voluntary Attention & Accountability
+            case 'ATTENTION_SELECTED':
+                addLog(`👁️ Attention: ${data.attentionSetSize}/${data.totalAvailable} tokens (${(data.focusRatio * 100).toFixed(1)}%)`);
+                if (data.ignoredCount > 0) {
+                    addLog(`   ⏭️ Voluntarily ignored ${data.ignoredCount} tokens`);
+                }
+                if (data.avoidancePressure > 0) {
+                    addLog(`   ⚠️ Avoidance pressure: ${data.avoidancePressure.toFixed(2)} (${data.repeatedAvoidance} repeated)`);
+                }
+                break;
+            case 'REGRET_TEACHING':
+                if (data.missedMoves > 0) {
+                    addLog(`😢 Regret: Missed ${data.missedMoves} opportunities (Total: ${data.totalRegret.toFixed(2)})`);
+                    if (data.teachingEvents && data.teachingEvents.length > 0) {
+                        data.teachingEvents.forEach((event: string) => {
+                            addLog(`   💭 ${event}`);
+                        });
+                    }
+                }
+                break;
             // Default: log any unhandled events
             default:
                 if (data?.message) {
