@@ -34,7 +34,7 @@ const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 // Configuration
 export const PILLAR_10_CONFIG = {
-    OBSERVATION_MINUTES: 5, // 5-minute wait - gives direction time to emerge
+    OBSERVATION_MINUTES: 0.5, // 30-second wait - faster trial loop
     MAX_DURATION_MINUTES: 30,
     SURVIVOR_THRESHOLD: 10, // Funnel complete when < 10 tokens
     NARROWING_RATIO: 0.5, // Keep top 50% each cycle
