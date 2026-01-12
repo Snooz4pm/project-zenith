@@ -214,6 +214,12 @@ export default function PaperTradingPage() {
             case 'ERROR':
                 addLog(`❌ ${data.message}`);
                 break;
+            case 'TICK':
+                addLog(`⏳ ... ${data.total - data.waited}s remaining`);
+                break;
+            case 'SCORING':
+                addLog(`📊 Scoring ${data.tokens} tokens... (Mode: ${data.mode})`);
+                break;
             // Phase transitions
             case 'PHASE':
                 addLog(`🔄 ${data.phase}: ${data.message}`);

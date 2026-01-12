@@ -774,31 +774,37 @@ export async function scoreFunnel(
     const startTime = Date.now();
 
     // Fetch current prices for all tokens
+    // Fetch current prices for all tokens (Batched)
     const currentPrices = new Map<string, number>();
-    for (const token of state.tokens) {
-        try {
-            const amount = Math.pow(10, 6).toString(); // Standard decimals
-            const quoteRes = await fetch(
-                `${JUPITER_PROXY_URL}/quote?` + new URLSearchParams({
-                    inputMint: token.mint,
-                    outputMint: SOL_MINT,
-                    amount,
-                    slippageBps: '50',
-                })
-            );
+    const BATCH_SIZE = 10;
 
-            if (quoteRes.ok) {
-                const quote = await quoteRes.json();
-                token.priceAtEnd = parseInt(quote.outAmount || '0') / 1e9;
-                currentPrices.set(token.symbol, token.priceAtEnd);
-            } else {
-                token.priceAtEnd = token.priceAtStart;
+    for (let i = 0; i < state.tokens.length; i += BATCH_SIZE) {
+        const batch = state.tokens.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(async (token) => {
+            try {
+                const amount = Math.pow(10, 6).toString(); // Standard decimals
+                const quoteRes = await fetch(
+                    `${JUPITER_PROXY_URL}/quote?` + new URLSearchParams({
+                        inputMint: token.mint,
+                        outputMint: SOL_MINT,
+                        amount,
+                        slippageBps: '50',
+                    })
+                );
+
+                if (quoteRes.ok) {
+                    const quote = await quoteRes.json();
+                    token.priceAtEnd = parseInt(quote.outAmount || '0') / 1e9;
+                    currentPrices.set(token.symbol, token.priceAtEnd);
+                } else {
+                    token.priceAtEnd = token.priceAtStart;
+                    currentPrices.set(token.symbol, token.priceAtStart);
+                }
+            } catch {
+                token.priceAtEnd = token.priceAtStart; // Assume flat if error
                 currentPrices.set(token.symbol, token.priceAtStart);
             }
-        } catch {
-            token.priceAtEnd = token.priceAtStart; // Assume flat if error
-            currentPrices.set(token.symbol, token.priceAtStart);
-        }
+        }));
     }
 
     // Pillar 10.3: Resolve predictions from previous cycle
