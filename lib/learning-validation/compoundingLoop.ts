@@ -191,9 +191,52 @@ function buildHistories(candidates: TokenCandidate[]): TokenPriceHistory[] {
 }
 
 /**
- * Make predictions for all tokens in the funnel
+ * Pillar 10.1: Directional Entropy Constraint
+ * 
+ * Rejects rounds with too many FLAT predictions.
+ * "If you claim the market is flat, prove it by giving up the chance to trade."
  */
-export function predictFunnel(state: FunnelState): void {
+export interface EntropyCheck {
+    valid: boolean;
+    flatCount: number;
+    flatPct: number;
+    maxAllowed: number;
+    reason?: string;
+}
+
+function getMaxFlatPercentage(tokenCount: number): number {
+    if (tokenCount > 50) return 0.60; // Universe rounds: 60%
+    if (tokenCount > 20) return 0.40; // Narrowed rounds: 40%
+    return 0.20; // Final rounds: 20%
+}
+
+export function checkEntropyConstraint(predictions: Map<string, PredictionDirection>, tokenCount: number): EntropyCheck {
+    let flatCount = 0;
+    for (const direction of predictions.values()) {
+        if (direction === 'FLAT') flatCount++;
+    }
+
+    const flatPct = predictions.size > 0 ? flatCount / predictions.size : 0;
+    const maxAllowed = getMaxFlatPercentage(tokenCount);
+
+    if (flatPct > maxAllowed) {
+        return {
+            valid: false,
+            flatCount,
+            flatPct,
+            maxAllowed,
+            reason: `FLAT ${(flatPct * 100).toFixed(0)}% exceeds limit ${(maxAllowed * 100).toFixed(0)}%`,
+        };
+    }
+
+    return { valid: true, flatCount, flatPct, maxAllowed };
+}
+
+/**
+ * Make predictions for all tokens in the funnel
+ * Returns entropy check result
+ */
+export function predictFunnel(state: FunnelState): EntropyCheck {
     const histories = buildHistories(state.tokens);
 
     // Detect regime first
@@ -209,6 +252,15 @@ export function predictFunnel(state: FunnelState): void {
         const token = state.tokens.find(t => t.symbol === p.symbol);
         if (token) token.prediction = p.prediction;
     }
+
+    // Pillar 10.1: Check directional entropy
+    const entropyCheck = checkEntropyConstraint(state.predictions, state.tokens.length);
+
+    if (!entropyCheck.valid) {
+        console.log(`[Pillar10.1] STOP_NO_EDGE: ${entropyCheck.reason}`);
+    }
+
+    return entropyCheck;
 }
 
 /**

@@ -81,8 +81,8 @@ export async function GET(request: NextRequest) {
 
             try {
                 // 1. FREEZE UNIVERSE
-                emit('PHASE', { phase: 'FREEZING_UNIVERSE', message: 'Fetching ~100 tokens from Jupiter...' });
-                const universe = await freezeUniverse(100);
+                emit('PHASE', { phase: 'FREEZING_UNIVERSE', message: 'Fetching ~500 tokens from Jupiter...' });
+                const universe = await freezeUniverse(500);
 
                 if (universe.length === 0) {
                     emit('ERROR', { error: 'Failed to freeze universe' });
@@ -146,17 +146,35 @@ export async function GET(request: NextRequest) {
                     }
 
                     // Make predictions for ALL tokens
-                    predictFunnel(state.funnel);
+                    const entropyCheck = predictFunnel(state.funnel);
 
                     const upCount = Array.from(state.funnel.predictions.values()).filter(p => p === 'UP').length;
                     const downCount = Array.from(state.funnel.predictions.values()).filter(p => p === 'DOWN').length;
+                    const flatCount = state.funnel.tokens.length - upCount - downCount;
 
                     emit('PREDICTIONS', {
                         total: state.funnel.tokens.length,
                         up: upCount,
                         down: downCount,
-                        flat: state.funnel.tokens.length - upCount - downCount,
+                        flat: flatCount,
                     });
+
+                    // Pillar 10.1: Directional Entropy Constraint
+                    if (!entropyCheck.valid) {
+                        emit('ENTROPY_VIOLATION', {
+                            flatPct: (entropyCheck.flatPct * 100).toFixed(0) + '%',
+                            maxAllowed: (entropyCheck.maxAllowed * 100).toFixed(0) + '%',
+                            reason: entropyCheck.reason,
+                        });
+                        emit('BLOCKED', {
+                            layer: 'PILLAR_10.1',
+                            reason: `STOP_NO_EDGE: ${entropyCheck.reason}`
+                        });
+                        // This is a PASS - not a failure, a refusal
+                        state.verdict = 'PASS';
+                        state.reason = 'STOP_NO_EDGE: Too many FLAT predictions = market is flat, no trade needed.';
+                        break;
+                    }
 
                     // WAIT 5 REAL MINUTES (capped for serverless)
                     const waitMs = Math.min(PILLAR_10_CONFIG.OBSERVATION_MINUTES * 60 * 1000, 30_000); // Cap at 30s for demo
