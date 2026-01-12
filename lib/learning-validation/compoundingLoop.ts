@@ -677,7 +677,7 @@ export async function predictFunnel(
         const pred = rawPredictions.find(p => p.symbol === token.symbol);
         // Use momentum as primary signal Score. 
         // fallback to random if no signal (shouldn't happen with valid history)
-        const score = pred?.signals?.momentum ?? (Math.random() - 0.5);
+        const momentum = pred?.signals?.momentum ?? (Math.random() - 0.5);
 
         // Brain v2 Integration: Get Memory/Emotional Bias
         const searchBias = await predictiveEngine.getSearchBias({
