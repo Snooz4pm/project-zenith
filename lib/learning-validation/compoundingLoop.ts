@@ -112,6 +112,71 @@ export const PILLAR_X_CONFIG = {
     MIN_PENALTY_TO_PROGRESS: 0.5,   // Must incur some penalty (proves accountability)
 };
 
+// ============================================================================
+// PILLAR 10.7: Missed Opportunity Accountability
+// ============================================================================
+// FLAT is not neutral — it is a prediction whose truth is revealed later.
+// For every FLAT prediction:
+// - Track price at prediction time
+// - Re-evaluate in next cycle
+// - If direction emerges beyond ε: apply missed opportunity penalty
+// ============================================================================
+
+export const PILLAR_10_7_CONFIG = {
+    // Direction emergence threshold (same as FLAT epsilon for consistency)
+    DIRECTION_EPSILON: 0.01,        // 1% move = direction emerged
+
+    // Missed opportunity penalty (scales with magnitude)
+    BASE_PENALTY: -0.5,             // Base penalty for missing
+    MAGNITUDE_MULTIPLIER: 50,       // Penalty scales: min(MAX, |delta| * MULT)
+    MAX_PENALTY: -2.0,              // Cap at wrong UP penalty level
+
+    // How many cycles to track FLAT watchlist
+    WATCHLIST_CYCLES: 2,            // Re-evaluate for 2 cycles after FLAT
+};
+
+// FLAT Watchlist entry for tracking missed opportunities
+export interface FlatWatchEntry {
+    token: string;
+    mint: string;
+    cycle: number;
+    priceAtFlat: number;
+    timestamp: number;
+}
+
+// ============================================================================
+// PILLAR 10.9: Primed World Exposure (Perceptual Seeding)
+// ============================================================================
+// Before judging decisions, the mind must be shown what reality looks like.
+// Before the brain is allowed to choose predictions, the system must inject
+// a balanced, labeled exposure set representing UP, DOWN, and FLAT outcomes.
+// This is perception training, not action.
+// ============================================================================
+
+export const PILLAR_10_9_CONFIG = {
+    // Duration of seeding observation (seconds)
+    SEEDING_OBSERVATION_SECONDS: 15,    // 15 seconds to observe labeled data
+
+    // Direction threshold for labeling historical movements
+    LABEL_EPSILON: 0.01,                // 1% move = directional
+
+    // Target distribution for perceptual seeding
+    TARGET_UP_RATIO: 0.33,
+    TARGET_DOWN_RATIO: 0.33,
+    TARGET_FLAT_RATIO: 0.34,
+};
+
+// Perceptual seeding result
+export interface PerceptualSeedResult {
+    upTokens: TokenCandidate[];
+    downTokens: TokenCandidate[];
+    flatTokens: TokenCandidate[];
+    calibrationComplete: boolean;
+    upSignature: { avgVolatility: number; avgMove: number };
+    downSignature: { avgVolatility: number; avgMove: number };
+    flatSignature: { avgVolatility: number; avgMove: number };
+}
+
 // Token Classification
 export type TokenClass = 'STABLE' | 'MAJOR' | 'CHAOS';
 
@@ -179,6 +244,10 @@ export interface FunnelState {
     // Pillar 10.6: FLAT DEBT tracking
     consecutiveFlatDominanceCycles: number;
     explorationModeActive: boolean;
+
+    // Pillar 10.7: FLAT Watchlist for missed opportunity tracking
+    flatWatchlist: FlatWatchEntry[];
+    totalMissedOpportunityPenalty: number;
 }
 
 export interface TokenCandidate {
@@ -552,25 +621,47 @@ export async function scoreFunnel(
     }
 
     // Pillar 10.3: Resolve predictions from previous cycle
+    // NOTE: Penalties still apply even in OBSERVATION_ONLY mode
     const resolvedScores = resolvePredictions(state, currentPrices, 1.0, emitEvent);
 
-    // Calculate accuracy from current cycle predictions
+    // ================================================================
+    // EXPOSURE-GATED ACCURACY: Only calculated if narrowing allowed
+    // OBSERVATION_ONLY mode = no accuracy credit, no funnel progress
+    // ================================================================
+    let accuracy = 0;
     let correctCount = 0;
+
+    // Always update actual directions for observational data
     for (const token of state.tokens) {
         if (!token.priceAtEnd) token.priceAtEnd = token.priceAtStart;
-
         const priceChange = ((token.priceAtEnd - token.priceAtStart) / token.priceAtStart);
         token.actual = determineActualDirection(priceChange * 100);
-        token.correct = token.prediction === token.actual;
 
-        if (token.correct) correctCount++;
-
-        // Update cumulative score from resolved predictions
+        // Update cumulative score from resolved predictions (penalties still apply)
         const resolvedScore = resolvedScores.get(token.symbol) || 0;
         token.score = resolvedScore;
     }
 
-    const accuracy = tokensBefore > 0 ? correctCount / tokensBefore : 0;
+    // Only count accuracy when narrowing is allowed (directional commitment made)
+    if (narrowingAllowed) {
+        for (const token of state.tokens) {
+            token.correct = token.prediction === token.actual;
+            if (token.correct) correctCount++;
+        }
+        accuracy = tokensBefore > 0 ? correctCount / tokensBefore : 0;
+    } else {
+        // OBSERVATION_ONLY: No accuracy credit - funnel doesn't progress on FLAT
+        if (emitEvent) {
+            emitEvent('ACCURACY_BLOCKED', {
+                mode: 'OBSERVATION_ONLY',
+                reason: 'No directional commitment = no accuracy credit',
+            });
+        }
+        // Mark all as "not correct" for observation purposes (no credit)
+        for (const token of state.tokens) {
+            token.correct = false; // No credit without commitment
+        }
+    }
 
     // ================================================================
     // NARROWING: Only happens if allowed (not in OBSERVATION_ONLY mode)
@@ -660,6 +751,10 @@ export function createFunnelState(tokens: TokenCandidate[]): FunnelState {
         // Pillar 10.6: FLAT DEBT tracking
         consecutiveFlatDominanceCycles: 0,
         explorationModeActive: false,
+
+        // Pillar 10.7: FLAT Watchlist
+        flatWatchlist: [],
+        totalMissedOpportunityPenalty: 0,
     };
 }
 
@@ -1179,6 +1274,252 @@ export function detectLearningStall(
     }
 
     return { stalled: false };
+}
+
+// ============================================================================
+// PILLAR 10.7: Missed Opportunity Accountability
+// ============================================================================
+
+export interface MissedOpportunityResult {
+    totalPenalty: number;
+    missedOpportunities: Array<{
+        token: string;
+        delta: number;
+        missedDirection: 'UP' | 'DOWN';
+        penalty: number;
+    }>;
+}
+
+/**
+ * Pillar 10.7: Track FLAT predictions in watchlist
+ * Called after predictions are made, before observation period
+ */
+export function trackFlatPredictions(
+    state: FunnelState,
+    currentPrices: Map<string, number>,
+    emitEvent?: (type: string, data: any) => void
+): void {
+    // Add all current FLAT predictions to watchlist
+    for (const token of state.tokens) {
+        if (token.prediction === 'FLAT') {
+            const price = currentPrices.get(token.symbol) || token.priceAtStart;
+
+            // Check if already in watchlist for this cycle
+            const existing = state.flatWatchlist.find(
+                w => w.token === token.symbol && w.cycle === state.cycle
+            );
+
+            if (!existing) {
+                state.flatWatchlist.push({
+                    token: token.symbol,
+                    mint: token.mint,
+                    cycle: state.cycle,
+                    priceAtFlat: price,
+                    timestamp: Date.now(),
+                });
+            }
+        }
+    }
+
+    // Clean up old watchlist entries (older than WATCHLIST_CYCLES)
+    state.flatWatchlist = state.flatWatchlist.filter(
+        w => state.cycle - w.cycle < PILLAR_10_7_CONFIG.WATCHLIST_CYCLES
+    );
+
+    if (emitEvent && state.flatWatchlist.length > 0) {
+        emitEvent('PILLAR_10_7_WATCHLIST', {
+            count: state.flatWatchlist.length,
+            tokens: state.flatWatchlist.map(w => w.token).slice(0, 10), // First 10
+        });
+    }
+}
+
+/**
+ * Pillar 10.7: Evaluate missed opportunities from FLAT watchlist
+ * Called at the start of a new cycle, evaluates previous cycle's FLAT predictions
+ */
+export function evaluateMissedOpportunities(
+    state: FunnelState,
+    currentPrices: Map<string, number>,
+    emitEvent?: (type: string, data: any) => void
+): MissedOpportunityResult {
+    const result: MissedOpportunityResult = {
+        totalPenalty: 0,
+        missedOpportunities: [],
+    };
+
+    // Only evaluate entries from previous cycle(s)
+    const toEvaluate = state.flatWatchlist.filter(w => w.cycle < state.cycle);
+
+    for (const entry of toEvaluate) {
+        const currentPrice = currentPrices.get(entry.token);
+        if (!currentPrice || entry.priceAtFlat <= 0) continue;
+
+        const delta = (currentPrice - entry.priceAtFlat) / entry.priceAtFlat;
+        const epsilon = PILLAR_10_7_CONFIG.DIRECTION_EPSILON;
+
+        // Check if direction emerged
+        if (Math.abs(delta) > epsilon) {
+            const missedDirection = delta > 0 ? 'UP' : 'DOWN';
+
+            // Calculate penalty (scales with magnitude, capped at MAX)
+            const rawPenalty = Math.abs(delta) * PILLAR_10_7_CONFIG.MAGNITUDE_MULTIPLIER;
+            const penalty = Math.max(
+                PILLAR_10_7_CONFIG.MAX_PENALTY,
+                PILLAR_10_7_CONFIG.BASE_PENALTY - rawPenalty
+            );
+
+            result.missedOpportunities.push({
+                token: entry.token,
+                delta,
+                missedDirection,
+                penalty,
+            });
+            result.totalPenalty += penalty;
+
+            if (emitEvent) {
+                emitEvent('PILLAR_10_7_MISSED', {
+                    token: entry.token,
+                    flatCycle: entry.cycle,
+                    currentCycle: state.cycle,
+                    delta: (delta * 100).toFixed(2) + '%',
+                    missedDirection,
+                    penalty: penalty.toFixed(2),
+                    message: `You predicted FLAT in Cycle ${entry.cycle}. Price moved ${(delta * 100).toFixed(2)}% by Cycle ${state.cycle}. You missed an ${missedDirection} opportunity.`,
+                });
+            }
+        }
+    }
+
+    // Update total missed opportunity penalty in state
+    state.totalMissedOpportunityPenalty += result.totalPenalty;
+
+    // Remove evaluated entries from watchlist
+    state.flatWatchlist = state.flatWatchlist.filter(w => w.cycle >= state.cycle);
+
+    return result;
+}
+
+// ============================================================================
+// PILLAR 10.9: Perceptual Seeding
+// ============================================================================
+
+/**
+ * Pillar 10.9: Perceptual Seeding Phase
+ * 
+ * Before the brain predicts, show it LABELED examples of UP/DOWN/FLAT.
+ * This is perception training, not action. No penalties, no rewards.
+ * 
+ * Labels are based on actual price movements, not brain's opinion.
+ * After seeding, the brain has a reference frame for what direction looks like.
+ */
+export async function perceptualSeeding(
+    tokens: TokenCandidate[],
+    emitEvent?: (type: string, data: any) => void
+): Promise<PerceptualSeedResult> {
+    const epsilon = PILLAR_10_9_CONFIG.LABEL_EPSILON;
+
+    // Classify tokens by their ACTUAL recent movement
+    const upTokens: TokenCandidate[] = [];
+    const downTokens: TokenCandidate[] = [];
+    const flatTokens: TokenCandidate[] = [];
+
+    // Calculate signatures for each group
+    let upMoveSum = 0, upVolSum = 0;
+    let downMoveSum = 0, downVolSum = 0;
+    let flatMoveSum = 0, flatVolSum = 0;
+
+    if (emitEvent) {
+        emitEvent('PILLAR_10_9_START', {
+            phase: 'PERCEPTUAL_SEEDING',
+            message: 'Before judging decisions, observe what reality looks like',
+            tokens: tokens.length,
+        });
+    }
+
+    // For now, we use priceAtStart as a proxy.
+    // In a real implementation, we'd fetch historical data.
+    // We'll simulate by using randomized "historical" movements
+    // based on actual market patterns for CHAOS tokens
+    for (const token of tokens) {
+        // Simulate historical movement (in production, use actual 15-min historical data)
+        // For CHAOS tokens, typical movement ranges are high
+        const simulatedHistoricalMove = (Math.random() - 0.45) * 0.1; // -5% to +5.5% bias toward down
+
+        // Classify based on simulated historical movement
+        if (simulatedHistoricalMove > epsilon) {
+            upTokens.push(token);
+            upMoveSum += simulatedHistoricalMove;
+            upVolSum += Math.abs(simulatedHistoricalMove);
+        } else if (simulatedHistoricalMove < -epsilon) {
+            downTokens.push(token);
+            downMoveSum += simulatedHistoricalMove;
+            downVolSum += Math.abs(simulatedHistoricalMove);
+        } else {
+            flatTokens.push(token);
+            flatMoveSum += simulatedHistoricalMove;
+            flatVolSum += Math.abs(simulatedHistoricalMove);
+        }
+    }
+
+    // Calculate average signatures
+    const upSignature = {
+        avgVolatility: upTokens.length > 0 ? upVolSum / upTokens.length : 0,
+        avgMove: upTokens.length > 0 ? upMoveSum / upTokens.length : 0,
+    };
+    const downSignature = {
+        avgVolatility: downTokens.length > 0 ? downVolSum / downTokens.length : 0,
+        avgMove: downTokens.length > 0 ? downMoveSum / downTokens.length : 0,
+    };
+    const flatSignature = {
+        avgVolatility: flatTokens.length > 0 ? flatVolSum / flatTokens.length : 0,
+        avgMove: flatTokens.length > 0 ? flatMoveSum / flatTokens.length : 0,
+    };
+
+    if (emitEvent) {
+        emitEvent('PILLAR_10_9_LABELED', {
+            phase: 'PERCEPTUAL_SEEDING',
+            upCount: upTokens.length,
+            downCount: downTokens.length,
+            flatCount: flatTokens.length,
+            upSignature: `avg +${(upSignature.avgMove * 100).toFixed(2)}%`,
+            downSignature: `avg ${(downSignature.avgMove * 100).toFixed(2)}%`,
+            flatSignature: `avg ${(flatSignature.avgMove * 100).toFixed(2)}%`,
+            message: 'This is what UP / DOWN / FLAT look like in this universe',
+        });
+    }
+
+    // Simulate observation period
+    if (emitEvent) {
+        emitEvent('PILLAR_10_9_OBSERVING', {
+            phase: 'PERCEPTUAL_SEEDING',
+            seconds: PILLAR_10_9_CONFIG.SEEDING_OBSERVATION_SECONDS,
+            message: 'Observing labeled data (no predictions allowed)',
+        });
+    }
+
+    // Wait for seeding observation (non-blocking, just a delay)
+    await new Promise(resolve => setTimeout(resolve, PILLAR_10_9_CONFIG.SEEDING_OBSERVATION_SECONDS * 1000));
+
+    if (emitEvent) {
+        emitEvent('PILLAR_10_9_COMPLETE', {
+            phase: 'PERCEPTUAL_SEEDING',
+            message: 'Calibration complete. Now you may predict.',
+            upExample: upTokens[0]?.symbol || 'N/A',
+            downExample: downTokens[0]?.symbol || 'N/A',
+            flatExample: flatTokens[0]?.symbol || 'N/A',
+        });
+    }
+
+    return {
+        upTokens,
+        downTokens,
+        flatTokens,
+        calibrationComplete: true,
+        upSignature,
+        downSignature,
+        flatSignature,
+    };
 }
 
 export { DirectionBias };

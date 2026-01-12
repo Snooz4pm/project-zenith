@@ -23,7 +23,6 @@ import {
     createFunnelState,
     predictFunnel,
     scoreFunnel,
-    getFunnelVerdict,
     getFlatStatistics,
     FunnelState,
     TokenCandidate,
@@ -31,6 +30,9 @@ import {
     // Pillar X: Anti-Stall Governance
     enforcePillarX,
     detectLearningStall,
+    getFunnelVerdict,
+    // Pillar 10.9: Perceptual Seeding
+    perceptualSeeding,
 } from '@/lib/learning-validation/compoundingLoop';
 import { DirectionBias } from '@/lib/learning-validation/predictor';
 
@@ -152,6 +154,19 @@ export class BrutalBrainSimulation {
             this.stopReason = 'STOP_TRUST_BLOCKED';
             return this.report('PASS', 'Trust level forbids execution (correct discipline)');
         }
+
+        // ====================================================================
+        // PHASE 2.5: PERCEPTUAL SEEDING (Pillar 10.9)
+        // Before judging decisions, the mind must be shown what reality looks like.
+        // ====================================================================
+        this.emit('PHASE', { phase: 'SEEDING', message: 'Perceptual seeding - observing labeled UP/DOWN/FLAT examples...' });
+        console.log('[BrutalSim] Starting perceptual seeding phase...');
+
+        const seedResult = await perceptualSeeding(universe, (type, data) => {
+            this.emit(type, data);
+        });
+
+        console.log(`[BrutalSim] Seeding complete: UP=${seedResult.upTokens.length} DOWN=${seedResult.downTokens.length} FLAT=${seedResult.flatTokens.length}`);
 
         // ====================================================================
         // PHASE 3: COMPOUNDING FUNNEL (Pillar 10)
