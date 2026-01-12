@@ -81,8 +81,8 @@ export async function GET(request: NextRequest) {
 
             try {
                 // 1. FREEZE UNIVERSE
-                emit('PHASE', { phase: 'FREEZING_UNIVERSE', message: 'Fetching ~500 tokens from Jupiter...' });
-                const universe = await freezeUniverse(500);
+                emit('PHASE', { phase: 'FREEZING_UNIVERSE', message: 'Fetching ~1000 tokens from Jupiter...' });
+                const universe = await freezeUniverse(1000);
 
                 if (universe.length === 0) {
                     emit('ERROR', { error: 'Failed to freeze universe' });
@@ -157,22 +157,27 @@ export async function GET(request: NextRequest) {
                         up: upCount,
                         down: downCount,
                         flat: flatCount,
+                        directionalPct: (entropyCheck.directionalPct * 100).toFixed(0) + '%',
+                        minRequired: (entropyCheck.minDirectional * 100).toFixed(0) + '%',
                     });
 
-                    // Pillar 10.1: Directional Entropy Constraint
+                    // Pillar 10.1 + 10.2: Directional Commitment Constraint
                     if (!entropyCheck.valid) {
-                        emit('ENTROPY_VIOLATION', {
+                        emit('DIRECTIONAL_VIOLATION', {
+                            type: entropyCheck.violationType,
+                            directionalPct: (entropyCheck.directionalPct * 100).toFixed(0) + '%',
+                            minDirectional: (entropyCheck.minDirectional * 100).toFixed(0) + '%',
                             flatPct: (entropyCheck.flatPct * 100).toFixed(0) + '%',
-                            maxAllowed: (entropyCheck.maxAllowed * 100).toFixed(0) + '%',
+                            maxFlat: (entropyCheck.maxFlat * 100).toFixed(0) + '%',
                             reason: entropyCheck.reason,
                         });
                         emit('BLOCKED', {
-                            layer: 'PILLAR_10.1',
+                            layer: entropyCheck.violationType === 'FLAT_EXCEEDED' ? 'PILLAR_10.1' : 'PILLAR_10.2',
                             reason: `STOP_NO_EDGE: ${entropyCheck.reason}`
                         });
                         // This is a PASS - not a failure, a refusal
                         state.verdict = 'PASS';
-                        state.reason = 'STOP_NO_EDGE: Too many FLAT predictions = market is flat, no trade needed.';
+                        state.reason = `STOP_NO_EDGE: ${entropyCheck.reason}`;
                         break;
                     }
 

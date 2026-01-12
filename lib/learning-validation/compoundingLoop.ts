@@ -75,6 +75,7 @@ export function classifyToken(symbol: string, mint: string): TokenClass {
 export interface FunnelState {
     cycle: number;
     startedAt: number;
+    initialTokenCount: number; // For ratio-based thresholds
     tokens: TokenCandidate[];
     eliminated: TokenCandidate[];
     predictions: Map<string, PredictionDirection>;
@@ -110,7 +111,7 @@ export interface CycleResult {
 /**
  * Fetch frozen universe of tokens from Jupiter with classification
  */
-export async function freezeUniverse(limit: number = 100): Promise<TokenCandidate[]> {
+export async function freezeUniverse(limit: number = 1000): Promise<TokenCandidate[]> {
     const tokensRes = await fetch(`${JUPITER_PROXY_URL}/tokens`);
     if (!tokensRes.ok) throw new Error('Failed to fetch tokens');
 
@@ -118,50 +119,62 @@ export async function freezeUniverse(limit: number = 100): Promise<TokenCandidat
     const candidates: TokenCandidate[] = [];
     const classificationStats = { STABLE: 0, MAJOR: 0, CHAOS: 0 };
 
-    // Get quotes for all tokens to establish starting prices
-    for (const token of tokens.slice(0, limit * 2)) { // Fetch more to compensate for filtering
+    // Pre-filter tokens before fetching quotes
+    const tokensToFetch: any[] = [];
+    for (const token of tokens.slice(0, limit * 3)) {
         if (token.address === SOL_MINT) continue;
 
         const tokenClass = classifyToken(token.symbol, token.address);
         classificationStats[tokenClass]++;
 
         // Filter based on mode
-        if (tokenClass === 'STABLE') {
-            // NEVER include stables in Pillar 10 funnel
-            continue;
-        }
+        if (tokenClass === 'STABLE') continue;
+        if (PILLAR_10_CONFIG.FUNNEL_MODE === 'CHAOS_ONLY' && tokenClass === 'MAJOR') continue;
 
-        if (PILLAR_10_CONFIG.FUNNEL_MODE === 'CHAOS_ONLY' && tokenClass === 'MAJOR') {
-            // Mode A: Pure Chaos Test - exclude majors too
-            continue;
-        }
+        tokensToFetch.push({ ...token, tokenClass });
+        if (tokensToFetch.length >= limit) break;
+    }
 
-        try {
-            const amount = Math.pow(10, token.decimals || 6).toString();
-            const quoteRes = await fetch(
-                `${JUPITER_PROXY_URL}/quote?` + new URLSearchParams({
-                    inputMint: token.address,
-                    outputMint: SOL_MINT,
-                    amount,
-                    slippageBps: '50',
-                })
-            );
+    console.log(`[Pillar10] Pre-filtered: ${tokensToFetch.length} tokens to fetch quotes for`);
 
-            if (!quoteRes.ok) continue;
-            const quote = await quoteRes.json();
-            const solOut = parseInt(quote.outAmount || '0') / 1e9;
+    // Fetch quotes in parallel batches of 100 (avoid rate limits)
+    const BATCH_SIZE = 250;
+    for (let i = 0; i < tokensToFetch.length && candidates.length < limit; i += BATCH_SIZE) {
+        const batch = tokensToFetch.slice(i, i + BATCH_SIZE);
 
-            if (solOut > 0 && candidates.length < limit) {
-                candidates.push({
-                    symbol: token.symbol,
-                    mint: token.address,
-                    tokenClass,
-                    priceAtStart: solOut,
-                    score: 0,
-                });
+        const batchResults = await Promise.allSettled(
+            batch.map(async (token) => {
+                const amount = Math.pow(100, token.decimals || 6).toString();
+                const quoteRes = await fetch(
+                    `${JUPITER_PROXY_URL}/quote?` + new URLSearchParams({
+                        inputMint: token.address,
+                        outputMint: SOL_MINT,
+                        amount,
+                        slippageBps: '50',
+                    })
+                );
+
+                if (!quoteRes.ok) return null;
+                const quote = await quoteRes.json();
+                const solOut = parseInt(quote.outAmount || '0') / 1e9;
+
+                if (solOut > 0) {
+                    return {
+                        symbol: token.symbol,
+                        mint: token.address,
+                        tokenClass: token.tokenClass,
+                        priceAtStart: solOut,
+                        score: 0,
+                    };
+                }
+                return null;
+            })
+        );
+
+        for (const result of batchResults) {
+            if (result.status === 'fulfilled' && result.value && candidates.length < limit) {
+                candidates.push(result.value);
             }
-        } catch {
-            continue;
         }
     }
 
@@ -191,52 +204,144 @@ function buildHistories(candidates: TokenCandidate[]): TokenPriceHistory[] {
 }
 
 /**
- * Pillar 10.1: Directional Entropy Constraint
+ * Pillar 10.1 + 10.2: Directional Commitment Rules
  * 
- * Rejects rounds with too many FLAT predictions.
+ * 10.1: Rejects rounds with too many FLAT predictions.
+ * 10.2: Requires minimum directional (UP+DOWN) commitment.
+ * 
  * "If you claim the market is flat, prove it by giving up the chance to trade."
+ * "To continue, the brain must take directional risk."
  */
-export interface EntropyCheck {
+export interface DirectionalCheck {
     valid: boolean;
+    upCount: number;
+    downCount: number;
     flatCount: number;
+    directionalPct: number;
     flatPct: number;
-    maxAllowed: number;
+    minDirectional: number;
+    maxFlat: number;
     reason?: string;
+    violationType?: 'FLAT_EXCEEDED' | 'DIRECTIONAL_INSUFFICIENT';
 }
 
-function getMaxFlatPercentage(tokenCount: number): number {
-    if (tokenCount > 50) return 0.60; // Universe rounds: 60%
-    if (tokenCount > 20) return 0.40; // Narrowed rounds: 40%
-    return 0.20; // Final rounds: 20%
-}
+/**
+ * Get thresholds based on funnel stage (token count)
+ * 
+ * Starting with ~1000 tokens, narrow down to candidates
+ * 
+ * | Funnel Stage      | MIN (UP+DOWN) | MAX FLAT |
+ * |-------------------|---------------|----------|
+ * | Universe (>1000)  | 30%           | 70%      |
+ * | Large (500-1000)  | 50%           | 50%      |
+ * | Narrow (250-500)  | 70%           | 30%      |
+ * | Final (≤250)      | 90%           | 10%      |
+ */
+function getDirectionalThresholds(
+    initialTokenCount: number,
+    currentTokenCount: number
+): { minDirectional: number; maxFlat: number } {
 
-export function checkEntropyConstraint(predictions: Map<string, PredictionDirection>, tokenCount: number): EntropyCheck {
-    let flatCount = 0;
-    for (const direction of predictions.values()) {
-        if (direction === 'FLAT') flatCount++;
-    }
+    const ratio = currentTokenCount / initialTokenCount;
 
-    const flatPct = predictions.size > 0 ? flatCount / predictions.size : 0;
-    const maxAllowed = getMaxFlatPercentage(tokenCount);
-
-    if (flatPct > maxAllowed) {
+    // EARLY — Universe scan (1000 → ~400)
+    if (ratio > 0.5) {
         return {
-            valid: false,
-            flatCount,
-            flatPct,
-            maxAllowed,
-            reason: `FLAT ${(flatPct * 100).toFixed(0)}% exceeds limit ${(maxAllowed * 100).toFixed(0)}%`,
+            minDirectional: 0.40, // must commit early
+            maxFlat: 0.60,
         };
     }
 
-    return { valid: true, flatCount, flatPct, maxAllowed };
+    // MID — Narrowing (400 → ~100)
+    if (ratio > 0.2) {
+        return {
+            minDirectional: 0.60,
+            maxFlat: 0.40,
+        };
+    }
+
+    // LATE — Final funnel (100 → ~20)
+    if (ratio > 0.05) {
+        return {
+            minDirectional: 0.80,
+            maxFlat: 0.20,
+        };
+    }
+
+    // FINAL — Execution gate (≤ ~20)
+    return {
+        minDirectional: 0.95,
+        maxFlat: 0.05,
+    };
+}
+
+export function checkDirectionalCommitment(predictions: Map<string, PredictionDirection>, tokenCount: number, initialTokenCount: number): DirectionalCheck {
+    let upCount = 0;
+    let downCount = 0;
+    let flatCount = 0;
+
+    for (const direction of predictions.values()) {
+        if (direction === 'UP') upCount++;
+        else if (direction === 'DOWN') downCount++;
+        else flatCount++;
+    }
+
+    const total = predictions.size;
+    const directionalPct = total > 0 ? (upCount + downCount) / total : 0;
+    const flatPct = total > 0 ? flatCount / total : 0;
+
+    const { minDirectional, maxFlat } = getDirectionalThresholds(initialTokenCount, tokenCount);
+
+
+    // Pillar 10.1: Check FLAT limit
+    if (flatPct > maxFlat) {
+        return {
+            valid: false,
+            upCount,
+            downCount,
+            flatCount,
+            directionalPct,
+            flatPct,
+            minDirectional,
+            maxFlat,
+            violationType: 'FLAT_EXCEEDED',
+            reason: `FLAT ${(flatPct * 100).toFixed(0)}% exceeds limit ${(maxFlat * 100).toFixed(0)}%`,
+        };
+    }
+
+    // Pillar 10.2: Check directional commitment
+    if (directionalPct < minDirectional) {
+        return {
+            valid: false,
+            upCount,
+            downCount,
+            flatCount,
+            directionalPct,
+            flatPct,
+            minDirectional,
+            maxFlat,
+            violationType: 'DIRECTIONAL_INSUFFICIENT',
+            reason: `Directional ${(directionalPct * 100).toFixed(0)}% below minimum ${(minDirectional * 100).toFixed(0)}%`,
+        };
+    }
+
+    return {
+        valid: true,
+        upCount,
+        downCount,
+        flatCount,
+        directionalPct,
+        flatPct,
+        minDirectional,
+        maxFlat
+    };
 }
 
 /**
  * Make predictions for all tokens in the funnel
- * Returns entropy check result
+ * Returns directional commitment check result (Pillar 10.1 + 10.2)
  */
-export function predictFunnel(state: FunnelState): EntropyCheck {
+export function predictFunnel(state: FunnelState): DirectionalCheck {
     const histories = buildHistories(state.tokens);
 
     // Detect regime first
@@ -253,14 +358,14 @@ export function predictFunnel(state: FunnelState): EntropyCheck {
         if (token) token.prediction = p.prediction;
     }
 
-    // Pillar 10.1: Check directional entropy
-    const entropyCheck = checkEntropyConstraint(state.predictions, state.tokens.length);
+    // Pillar 10.1 + 10.2: Check directional commitment
+    const check = checkDirectionalCommitment(state.predictions, state.tokens.length, state.initialTokenCount);
 
-    if (!entropyCheck.valid) {
-        console.log(`[Pillar10.1] STOP_NO_EDGE: ${entropyCheck.reason}`);
+    if (!check.valid) {
+        console.log(`[Pillar10.1/10.2] STOP_NO_EDGE: ${check.reason}`);
     }
 
-    return entropyCheck;
+    return check;
 }
 
 /**
@@ -364,6 +469,7 @@ export function createFunnelState(tokens: TokenCandidate[]): FunnelState {
     return {
         cycle: 0,
         startedAt: Date.now(),
+        initialTokenCount: tokens.length, // Store for ratio-based thresholds
         tokens,
         eliminated: [],
         predictions: new Map(),
