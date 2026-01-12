@@ -284,6 +284,9 @@ export default function PaperTradingPage() {
                 addLog(`🧠 Memory: ${data.message}`);
                 data.picks?.forEach((pick: string) => addLog(`   ➤ Bias: ${pick}`));
                 break;
+            case 'PILLAR_14_EMOTIONS':
+                addLog(`🎭 ${data.message}`);
+                break;
             // Memory events
             case 'MEMORY_INIT':
                 addLog(`🧠 ${data.message}`);

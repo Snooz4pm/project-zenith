@@ -139,6 +139,32 @@ export const PILLAR_10_7_CONFIG = {
     WATCHLIST_CYCLES: 2,            // Re-evaluate for 2 cycles after FLAT
 };
 
+// ============================================================================
+// PILLAR 14: Emotional Calibration & Accountability
+// ============================================================================
+// The Brain must internalize consequences of its choices through three bounded signals:
+// Confidence, Regret, and Fear.
+// ============================================================================
+export const PILLAR_14_CONFIG = {
+    // Confidence: Earned trust (Predicted UP/DOWN -> Correct)
+    CONFIDENCE_BOOST: 0.1,         // Increase directional bias
+    CONFIDENCE_DECAY: 0.9,         // Decay factor per cycle
+
+    // Regret: Missed reality (Predicted FLAT -> Price Moved)
+    REGRET_PENALTY: 0.15,          // Reduce FLAT bias
+    REGRET_DECAY: 0.8,
+
+    // Fear: Calibration against overconfidence (Wrong Direction)
+    FEAR_PENALTY: 0.2,             // Increase FLAT bias (caution)
+    FEAR_DECAY: 0.7,
+};
+
+export interface EmotionalState {
+    confidence: number; // 0-10
+    regret: number;     // 0-10
+    fear: number;       // 0-10
+}
+
 // FLAT Watchlist entry for tracking missed opportunities
 export interface FlatWatchEntry {
     token: string;
@@ -297,6 +323,16 @@ export interface FunnelState {
 
     // Pillar 11: Agency Accountability state
     agencyState: AgencyState;
+
+    // Pillar 13: Voluntary Attention & Accountability
+    attentionDecision?: import('./pillar13-attention').AttentionDecision;
+    ignoredTokensAtStart?: Map<string, number>; // Prices when ignored
+    attentionPatterns: import('./pillar13-attention').AttentionPattern[];
+    totalRegret: number;
+    missedOpportunityCount: number;
+
+    // Pillar 14: Emotional State
+    emotionalState: EmotionalState;
 }
 
 export interface TokenCandidate {
@@ -597,7 +633,49 @@ export async function predictFunnel(
         console.log(`[Pillar 10.5] Adapted Behavior: UP=${state.biases.upBias.toFixed(2)} DOWN=${state.biases.downBias.toFixed(2)} FLAT=${state.biases.flatBias.toFixed(2)}`);
     }
 
+    // ================================================================
+    // PILLAR 13: Voluntary Attention & Accountability
+    // Brain chooses which tokens to focus on (voluntary, not forced)
+    // ================================================================
+
+    const { selectAttentionSet, trackAvoidancePattern } = await import('./pillar13-attention');
+
     const histories = buildHistories(state.tokens);
+
+    // Select attention set - Brain chooses what to look at
+    const attentionDecision = selectAttentionSet(histories, state.cycle, state.attentionPatterns[state.attentionPatterns.length - 1]);
+    state.attentionDecision = attentionDecision;
+
+    // Track avoidance patterns
+    const avoidancePattern = trackAvoidancePattern(attentionDecision, state.attentionPatterns);
+    state.attentionPatterns.push(avoidancePattern);
+
+    // Store prices of ignored tokens for later accountability
+    state.ignoredTokensAtStart = new Map();
+    for (const ignoredToken of attentionDecision.ignoredTokens) {
+        const token = state.tokens.find(t => t.symbol === ignoredToken);
+        if (token) {
+            state.ignoredTokensAtStart.set(ignoredToken, token.priceAtStart);
+        }
+    }
+
+    if (emitEvent) {
+        emitEvent('ATTENTION_SELECTED', {
+            cycle: state.cycle,
+            totalAvailable: attentionDecision.totalAvailable,
+            attentionSetSize: attentionDecision.attentionSet.length,
+            ignoredCount: attentionDecision.ignoredTokens.length,
+            focusRatio: attentionDecision.focusRatio,
+            reason: attentionDecision.selectionReason,
+            avoidancePressure: avoidancePattern.avoidancePressure,
+            repeatedAvoidance: avoidancePattern.repeatedAvoidance.length,
+        });
+    }
+
+    console.log(`[Pillar 13] Attention: ${attentionDecision.attentionSet.length}/${attentionDecision.totalAvailable} tokens (${(attentionDecision.focusRatio * 100).toFixed(1)}%)`);
+
+    // Filter histories to only the attention set
+    const attentionHistories = histories.filter(h => attentionDecision.attentionSet.includes(h.symbol));
 
     // Detect regime first
     const regime = detectRegime(histories);
@@ -637,8 +715,8 @@ export async function predictFunnel(
         targetDown += deficit * (1 - upShare);
     }
 
-    // 3. Calculate Allocation Counts
-    const totalTokens = state.tokens.length;
+    // 3. Calculate Allocation Counts (only for attention set)
+    const totalTokens = attentionHistories.length; // Only tokens in attention set
     let countUp = Math.floor(totalTokens * targetUp);
     let countDown = Math.floor(totalTokens * targetDown);
     // Remainder to FLAT to ensure sum = total
@@ -657,7 +735,8 @@ export async function predictFunnel(
     }
 
     // 4. Score Tokens by Signal Strength (Momentum + Brain v2 Memory)
-    const rawPredictions = predictBatch(histories, regime.regime, true, state.biases);
+    // Pillar 13: Only predict on attention set (voluntary focus)
+    const rawPredictions = predictBatch(attentionHistories, regime.regime, true, state.biases);
 
     // Prepare Brain inputs (best effort mapping)
     const searchableTokens: SearchableToken[] = state.tokens.map(t => ({
@@ -673,7 +752,9 @@ export async function predictFunnel(
     predictiveEngine.updateMarketState(searchableTokens);
 
     // Map tokens to their signal score (momentum + brain bias)
-    const scoredTokens = await Promise.all(state.tokens.map(async (token) => {
+    // Pillar 13: Only score tokens in attention set
+    const attentionSetTokens = state.tokens.filter(t => attentionDecision.attentionSet.includes(t.symbol));
+    const scoredTokens = await Promise.all(attentionSetTokens.map(async (token) => {
         const pred = rawPredictions.find(p => p.symbol === token.symbol);
         // Use momentum as primary signal Score. 
         // fallback to random if no signal (shouldn't happen with valid history)
@@ -805,6 +886,47 @@ export async function scoreFunnel(
                 currentPrices.set(token.symbol, token.priceAtStart);
             }
         }));
+    }
+
+    // ================================================================
+    // PILLAR 13: Evaluate Ignored Tokens (Regret Accountability)
+    // Check what happened to tokens the Brain chose not to look at
+    // ================================================================
+
+    if (state.attentionDecision && state.ignoredTokensAtStart) {
+        const { evaluateIgnoredTokens, calculateRegretScore, formatTeachingEvents } = await import('./pillar13-attention');
+
+        // Evaluate outcomes of ignored tokens
+        const ignoredOutcomes = evaluateIgnoredTokens(
+            state.attentionDecision.ignoredTokens,
+            state.ignoredTokensAtStart,
+            currentPrices
+        );
+
+        // Calculate regret score
+        const avoidancePattern = state.attentionPatterns[state.attentionPatterns.length - 1];
+        const regretScore = calculateRegretScore(ignoredOutcomes, avoidancePattern);
+
+        // Update state
+        state.totalRegret += regretScore.totalRegret;
+        state.missedOpportunityCount += regretScore.missedOpportunities;
+
+        // Update emotional state (regret feeds into Pillar 14)
+        state.emotionalState.regret = Math.min(state.totalRegret / 10, 1.0); // Normalize to 0-1
+
+        // Log teaching events
+        const teachingEvents = formatTeachingEvents(ignoredOutcomes);
+        if (teachingEvents.length > 0 && emitEvent) {
+            emitEvent('REGRET_TEACHING', {
+                cycle: state.cycle,
+                missedMoves: regretScore.missedOpportunities,
+                totalRegret: state.totalRegret,
+                teachingEvents: teachingEvents.slice(0, 3), // Top 3
+                avoidancePressure: regretScore.recentPatternPressure,
+            });
+        }
+
+        console.log(`[Pillar 13] Regret: ${state.totalRegret.toFixed(2)} | Missed: ${state.missedOpportunityCount} | Pressure: ${regretScore.recentPatternPressure.toFixed(2)}`);
     }
 
     // Pillar 10.3: Resolve predictions from previous cycle
@@ -952,6 +1074,18 @@ export function createFunnelState(tokens: TokenCandidate[]): FunnelState {
             egoDebt: 0,
             egoClockExpired: false,
             recoveryModeActive: false,
+        },
+
+        // Pillar 13: Voluntary Attention & Accountability
+        attentionPatterns: [],
+        totalRegret: 0,
+        missedOpportunityCount: 0,
+
+        // Pillar 14: Emotional State
+        emotionalState: {
+            fear: 0,
+            confidence: 0.5,
+            regret: 0,
         },
     };
 }
@@ -1326,6 +1460,19 @@ export function adaptBehavior(state: FunnelState): { biases: DirectionBias; prof
     // Rule 4: Too many wrong DOWN -> dampen pessimism
     if (profile.wrongDownPenalty < -2) {
         downBias *= 0.75;
+    }
+
+    // PILLAR 14: Emotional Calibration
+    if (state.emotionalState) {
+        // Confidence boosts directional conviction
+        upBias += state.emotionalState.confidence * PILLAR_14_CONFIG.CONFIDENCE_BOOST;
+        downBias += state.emotionalState.confidence * PILLAR_14_CONFIG.CONFIDENCE_BOOST;
+
+        // Regret reduces FLAT bias (FOMO)
+        flatBias -= state.emotionalState.regret * PILLAR_14_CONFIG.REGRET_PENALTY;
+
+        // Fear increases FLAT bias (Caution)
+        flatBias += state.emotionalState.fear * PILLAR_14_CONFIG.FEAR_PENALTY;
     }
 
     // Safety clamp
@@ -1881,3 +2028,50 @@ export function evaluateAgency(
 }
 
 export { DirectionBias };
+
+/**
+ * PILLAR 14: Calibrate Emotional State
+ * Based on outcomes of resolved predictions
+ */
+export function calibrateEmotions(state: FunnelState): EmotionalState {
+    let confidence = state.emotionalState?.confidence || 0;
+    let regret = state.emotionalState?.regret || 0;
+    let fear = state.emotionalState?.fear || 0;
+
+    // Decay emotions
+    confidence *= PILLAR_14_CONFIG.CONFIDENCE_DECAY;
+    regret *= PILLAR_14_CONFIG.REGRET_DECAY;
+    fear *= PILLAR_14_CONFIG.FEAR_DECAY;
+
+    // Analyze settled predictions from previous cycle
+    const previousCycle = state.cycle - 1;
+
+    for (const predictions of state.predictionStorage.values()) {
+        for (const p of predictions) {
+            // Only look at resolved predictions from the cycle that just finished resolving
+            if (p.cycle === previousCycle && p.resolved) {
+                // CONFIDENCE: Correct Directional
+                if ((p.direction === 'UP' || p.direction === 'DOWN') && p.score > 0) {
+                    confidence += 1.0;
+                }
+
+                // REGRET: Flat but price moved (Missed Opportunity)
+                if (p.direction === 'FLAT' && p.score < 0) {
+                    regret += 1.0;
+                }
+
+                // FEAR: Wrong Directional (Pain)
+                if ((p.direction === 'UP' || p.direction === 'DOWN') && p.score < 0) {
+                    fear += 1.0;
+                }
+            }
+        }
+    }
+
+    // Clamp 0-10
+    return {
+        confidence: Math.min(10, Math.max(0, confidence)),
+        regret: Math.min(10, Math.max(0, regret)),
+        fear: Math.min(10, Math.max(0, fear))
+    };
+}

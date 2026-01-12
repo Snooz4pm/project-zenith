@@ -33,6 +33,9 @@ import {
     getFunnelVerdict,
     // Pillar 11: Agency Accountability
     evaluateAgency,
+    // Pillar 14: Emotional Calibration
+    calibrateEmotions,
+    PILLAR_14_CONFIG,
 } from '@/lib/learning-validation/compoundingLoop';
 import { DirectionBias } from '@/lib/learning-validation/predictor';
 import {
@@ -54,6 +57,14 @@ interface CycleMetrics {
     eliminated: number;
     biases: DirectionBias;
     flatStats: { total: number; correct: number; cowardice: number };
+    // Pillar 13: Attention & Regret
+    attention?: {
+        focusRatio: number;
+        attentionSetSize: number;
+        ignoredCount: number;
+        missedOpportunities: number;
+        totalRegret: number;
+    };
 }
 
 export interface BrutalSimulationReport extends SimulationReport {
@@ -127,6 +138,8 @@ export class BrutalBrainSimulation {
 
         // Initialize funnel state
         this.funnelState = createFunnelState(universe);
+        // Pillar 14: Init Emotions (Zero state)
+        this.funnelState.emotionalState = { confidence: 0, regret: 0, fear: 0 };
 
         // Persistent Memory: Start run and load accumulated biases
         const runId = startLearningRun();
@@ -323,6 +336,14 @@ export class BrutalBrainSimulation {
                     correct: flatStats.correctFlat,
                     cowardice: flatStats.cowardiceScore,
                 },
+                // Pillar 13: Attention & Regret
+                attention: this.funnelState.attentionDecision ? {
+                    focusRatio: this.funnelState.attentionDecision.focusRatio,
+                    attentionSetSize: this.funnelState.attentionDecision.attentionSet.length,
+                    ignoredCount: this.funnelState.attentionDecision.ignoredTokens.length,
+                    missedOpportunities: this.funnelState.missedOpportunityCount,
+                    totalRegret: this.funnelState.totalRegret,
+                } : undefined,
             });
 
             this.emit('CYCLE_COMPLETE', {
@@ -334,6 +355,21 @@ export class BrutalBrainSimulation {
                 executionEarned,
             });
             console.log(`[BrutalSim] Accuracy: ${(result.accuracy * 100).toFixed(1)}% | Survivors: ${result.tokensAfter} | Mode: ${cycleMode}`);
+
+            // Log Pillar 13 attention metrics if available
+            if (this.funnelState.attentionDecision) {
+                console.log(`[BrutalSim] Attention: ${this.funnelState.attentionDecision.attentionSet.length}/${this.funnelState.attentionDecision.totalAvailable} (${(this.funnelState.attentionDecision.focusRatio * 100).toFixed(1)}%) | Regret: ${this.funnelState.totalRegret.toFixed(2)} | Missed: ${this.funnelState.missedOpportunityCount}`);
+            }
+
+            // Pillar 14: Calibrate Emotions
+            const emotions = calibrateEmotions(this.funnelState);
+            this.funnelState.emotionalState = emotions;
+
+            this.emit('PILLAR_14_EMOTIONS', {
+                cycle: this.funnelState.cycle,
+                emotions,
+                message: `Calibrated: 🦁${emotions.confidence.toFixed(1)} 😢${emotions.regret.toFixed(1)} 😱${emotions.fear.toFixed(1)}`
+            });
 
             // ================================================================
             // PILLAR X.4: Learning Stall Detection
