@@ -234,7 +234,11 @@ export default function BrainDashboardPage() {
                         break;
 
                     case 'ERROR':
-                        console.error('Stream error:', data.data);
+                        const errorMsg = data.data?.error || JSON.stringify(data.data);
+                        console.error('Stream error:', errorMsg);
+                        console.error('Full error data:', data.data);
+                        setViolations(prev => [...prev, `Simulation Error: ${errorMsg}`]);
+                        setPhase('ERROR');
                         setIsRunning(false);
                         eventSource.close();
                         break;

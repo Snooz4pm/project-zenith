@@ -40,7 +40,12 @@ export async function GET(request: NextRequest) {
                 sendEvent(controller, 'STREAM_END', {});
 
             } catch (error: any) {
-                sendEvent(controller, 'ERROR', { error: error.message, stack: error.stack });
+                console.error('[Unified Simulation] Error:', error);
+                sendEvent(controller, 'ERROR', {
+                    error: error?.message || String(error),
+                    stack: error?.stack,
+                    type: error?.constructor?.name || 'Unknown'
+                });
             } finally {
                 controller.close();
             }

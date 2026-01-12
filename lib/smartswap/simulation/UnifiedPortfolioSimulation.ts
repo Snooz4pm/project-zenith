@@ -314,9 +314,10 @@ export class UnifiedPortfolioSimulation {
                 allocationSOL: Math.min(0.03, this.liquidSOL * 0.3),
                 intent: {
                     thesis: `Opening position in validated CHAOS token ${token}`,
+                    signals: {},
+                    expectedDirection: 'UP',
                     confidence: 0.7,
-                    horizon: '5-15min',
-                    risk: 'LOW',
+                    invalidationRules: ['Price drop > 5%', 'Trust level demotion'],
                 },
             };
         }
@@ -329,9 +330,10 @@ export class UnifiedPortfolioSimulation {
                     token,
                     intent: {
                         thesis: `Cutting loss on ${token}: ${pos.unrealizedPnL.toFixed(6)} SOL`,
+                        signals: {},
+                        expectedDirection: 'DOWN',
                         confidence: 0.9,
-                        horizon: 'IMMEDIATE',
-                        risk: 'MEDIUM',
+                        invalidationRules: ['Position recovers to breakeven'],
                     },
                 };
             }
@@ -345,9 +347,10 @@ export class UnifiedPortfolioSimulation {
                     token,
                     intent: {
                         thesis: `Taking profit on ${token}: +${pos.unrealizedPnL.toFixed(6)} SOL`,
+                        signals: {},
+                        expectedDirection: 'NEUTRAL',
                         confidence: 0.9,
-                        horizon: 'IMMEDIATE',
-                        risk: 'LOW',
+                        invalidationRules: ['Strong upward momentum continues'],
                     },
                 };
             }
@@ -359,9 +362,10 @@ export class UnifiedPortfolioSimulation {
                 type: 'HOLD_ALL',
                 intent: {
                     thesis: `Holding ${this.positions.size} positions`,
+                    signals: {},
+                    expectedDirection: 'NEUTRAL',
                     confidence: 0.8,
-                    horizon: 'SHORT',
-                    risk: 'LOW',
+                    invalidationRules: ['Major regime change', 'Stop loss triggered'],
                 },
             };
         }
@@ -370,9 +374,10 @@ export class UnifiedPortfolioSimulation {
             type: 'HESITATE',
             intent: {
                 thesis: 'Awaiting opportunity',
+                signals: {},
+                expectedDirection: 'NEUTRAL',
                 confidence: 0.5,
-                horizon: 'SHORT',
-                risk: 'NONE',
+                invalidationRules: ['Clear signal emerges'],
             },
         };
     }
@@ -380,7 +385,7 @@ export class UnifiedPortfolioSimulation {
     private async executeAction(action: PortfolioAction, now: number) {
         const log: DecisionLog = {
             timestamp: now,
-            action: action.type === 'BUY' ? 'SWAP' : action.type === 'SELL' ? 'EXIT' : action.type,
+            action: action.type === 'BUY' ? 'SWAP' : action.type === 'SELL' ? 'EXIT' : action.type === 'HOLD_ALL' ? 'HOLD' : action.type,
             fromToken: action.type === 'SELL' ? action.token || 'UNKNOWN' : 'SOL',
             toToken: action.type === 'BUY' ? action.token : undefined,
             intent: action.intent,
