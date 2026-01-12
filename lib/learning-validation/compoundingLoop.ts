@@ -36,6 +36,19 @@ export const PILLAR_10_CONFIG = {
     NARROWING_RATIO: 0.5, // Keep top 50% each cycle
     MIN_ACCURACY_TO_SURVIVE: 0.5, // Must be 50%+ accurate to survive
     FUNNEL_MODE: 'CHAOS_ONLY' as 'ALL' | 'CHAOS_ONLY' | 'CHAOS_AND_MAJOR', // Mode A: Pure Chaos Test
+
+    // Pillar 10.3: FLAT Accountability
+    FLAT_EPSILON: 0.005, // 0.5% threshold for FLAT correctness
+};
+
+// Pillar 10.3: Scoring rules with FLAT accountability
+export const PILLAR_10_SCORES = {
+    CORRECT_UP: +1,
+    CORRECT_DOWN: +1.5,    // Capital protection bonus
+    CORRECT_FLAT: +0.5,
+    WRONG_UP: -2,          // Most dangerous
+    WRONG_DOWN: -0.5,
+    WRONG_FLAT: -1.5,      // Cowardice penalty
 };
 
 // Token Classification
@@ -72,6 +85,16 @@ export function classifyToken(symbol: string, mint: string): TokenClass {
     return 'CHAOS';
 }
 
+// Pillar 10.3: Stored prediction with delayed scoring
+export interface StoredPrediction {
+    token: string;
+    direction: PredictionDirection;
+    priceAtPrediction: number;
+    cycle: number;
+    score: number;
+    resolved: boolean;
+}
+
 export interface FunnelState {
     cycle: number;
     startedAt: number;
@@ -83,6 +106,9 @@ export interface FunnelState {
     funnelComplete: boolean;
     funnelCollapsed: boolean;
     executionCandidates: TokenCandidate[];
+
+    // Pillar 10.3: Prediction storage for delayed accountability
+    predictionStorage: Map<string, StoredPrediction[]>;
 }
 
 export interface TokenCandidate {
@@ -358,6 +384,13 @@ export function predictFunnel(state: FunnelState): DirectionalCheck {
         if (token) token.prediction = p.prediction;
     }
 
+    // Pillar 10.3: Record predictions (FLAT stored for delayed scoring)
+    const currentPrices = new Map<string, number>();
+    for (const token of state.tokens) {
+        currentPrices.set(token.symbol, token.priceAtStart);
+    }
+    recordPredictions(state, currentPrices);
+
     // Pillar 10.1 + 10.2: Check directional commitment
     const check = checkDirectionalCommitment(state.predictions, state.tokens.length, state.initialTokenCount);
 
@@ -370,12 +403,17 @@ export function predictFunnel(state: FunnelState): DirectionalCheck {
 
 /**
  * Fetch current prices and score predictions
+ * Pillar 10.3: Resolves previous cycle predictions with FLAT accountability
  */
-export async function scoreFunnel(state: FunnelState): Promise<CycleResult> {
+export async function scoreFunnel(
+    state: FunnelState,
+    emitEvent?: (type: string, data: any) => void
+): Promise<CycleResult> {
     const tokensBefore = state.tokens.length;
     const startTime = Date.now();
 
     // Fetch current prices for all tokens
+    const currentPrices = new Map<string, number>();
     for (const token of state.tokens) {
         try {
             const amount = Math.pow(10, 6).toString(); // Standard decimals
@@ -391,35 +429,41 @@ export async function scoreFunnel(state: FunnelState): Promise<CycleResult> {
             if (quoteRes.ok) {
                 const quote = await quoteRes.json();
                 token.priceAtEnd = parseInt(quote.outAmount || '0') / 1e9;
+                currentPrices.set(token.symbol, token.priceAtEnd);
+            } else {
+                token.priceAtEnd = token.priceAtStart;
+                currentPrices.set(token.symbol, token.priceAtStart);
             }
         } catch {
             token.priceAtEnd = token.priceAtStart; // Assume flat if error
+            currentPrices.set(token.symbol, token.priceAtStart);
         }
     }
 
-    // Score each prediction
+    // Pillar 10.3: Resolve predictions from previous cycle
+    const resolvedScores = resolvePredictions(state, currentPrices, emitEvent);
+
+    // Calculate accuracy from current cycle predictions
     let correctCount = 0;
     for (const token of state.tokens) {
         if (!token.priceAtEnd) token.priceAtEnd = token.priceAtStart;
 
-        const priceChange = ((token.priceAtEnd - token.priceAtStart) / token.priceAtStart) * 100;
-        token.actual = determineActualDirection(priceChange);
+        const priceChange = ((token.priceAtEnd - token.priceAtStart) / token.priceAtStart);
+        token.actual = determineActualDirection(priceChange * 100);
         token.correct = token.prediction === token.actual;
 
-        // Update score
-        if (token.correct) {
-            token.score += token.prediction === 'DOWN' ? 1.5 : 1;
-            correctCount++;
-        } else if (token.prediction === 'UP' && token.actual === 'DOWN') {
-            token.score -= 2; // Heavy penalty for wrong UP
-        }
+        if (token.correct) correctCount++;
+
+        // Update cumulative score from resolved predictions
+        const resolvedScore = resolvedScores.get(token.symbol) || 0;
+        token.score = resolvedScore;
     }
 
     const accuracy = tokensBefore > 0 ? correctCount / tokensBefore : 0;
 
-    // Narrow to survivors
+    // Narrow to survivors based on cumulative scores
     const survivors = state.tokens
-        .filter(t => t.correct || t.score > 0)
+        .filter(t => t.score > -5) // Eliminate tokens with very bad scores
         .sort((a, b) => b.score - a.score)
         .slice(0, Math.ceil(state.tokens.length * PILLAR_10_CONFIG.NARROWING_RATIO));
 
@@ -477,6 +521,7 @@ export function createFunnelState(tokens: TokenCandidate[]): FunnelState {
         funnelComplete: false,
         funnelCollapsed: false,
         executionCandidates: [],
+        predictionStorage: new Map(), // Pillar 10.3
     };
 }
 
@@ -531,5 +576,188 @@ export function getFunnelVerdict(state: FunnelState): {
         shouldExecute: true,
         reason: `Funnel complete: ${state.executionCandidates.length} UP candidates ready.`,
         candidates: state.executionCandidates,
+    };
+}
+
+/**
+ * ========================================
+ * PILLAR 10.3: FLAT ACCOUNTABILITY
+ * ========================================
+ *
+ * Core principle: FLAT predictions are allowed but NOT free.
+ * - FLAT predictions from Cycle N are stored
+ * - They are scored at Cycle N+1 (delayed accountability)
+ * - Cowardice collapses naturally
+ * - Intelligence survives
+ */
+
+/**
+ * Record predictions from current cycle
+ * FLAT predictions are stored but NOT scored yet
+ */
+export function recordPredictions(
+    state: FunnelState,
+    currentPrices: Map<string, number>
+): void {
+    for (const token of state.tokens) {
+        if (!token.prediction) continue;
+
+        const price = currentPrices.get(token.symbol);
+        if (!price) continue;
+
+        if (!state.predictionStorage.has(token.symbol)) {
+            state.predictionStorage.set(token.symbol, []);
+        }
+
+        state.predictionStorage.get(token.symbol)!.push({
+            token: token.symbol,
+            direction: token.prediction,
+            priceAtPrediction: price,
+            cycle: state.cycle,
+            score: 0,
+            resolved: false,
+        });
+    }
+}
+
+/**
+ * Resolve predictions from PREVIOUS cycle at CURRENT cycle
+ * This is where FLAT accountability happens
+ */
+export function resolvePredictions(
+    state: FunnelState,
+    currentPrices: Map<string, number>,
+    emitEvent?: (type: string, data: any) => void
+): Map<string, number> {
+    const tokenScores = new Map<string, number>();
+
+    for (const [tokenSymbol, predictions] of state.predictionStorage.entries()) {
+        const currentPrice = currentPrices.get(tokenSymbol);
+        if (!currentPrice) continue;
+
+        let totalScore = 0;
+
+        for (const pred of predictions) {
+            if (pred.resolved) {
+                totalScore += pred.score;
+                continue;
+            }
+
+            const priceChange = (currentPrice - pred.priceAtPrediction) / pred.priceAtPrediction;
+
+            // --- FLAT ACCOUNTABILITY (Pillar 10.3) ---
+            if (pred.direction === 'FLAT') {
+                if (Math.abs(priceChange) <= PILLAR_10_CONFIG.FLAT_EPSILON) {
+                    pred.score = PILLAR_10_SCORES.CORRECT_FLAT;
+                    pred.resolved = true;
+
+                    if (emitEvent) {
+                        emitEvent('FLAT_RESOLVED', {
+                            token: tokenSymbol,
+                            priceChange: (priceChange * 100).toFixed(2) + '%',
+                            score: pred.score,
+                            verdict: 'CORRECT',
+                            cycle: pred.cycle,
+                        });
+                    }
+                } else {
+                    pred.score = PILLAR_10_SCORES.WRONG_FLAT;
+                    pred.resolved = true;
+
+                    if (emitEvent) {
+                        emitEvent('FLAT_RESOLVED', {
+                            token: tokenSymbol,
+                            priceChange: (priceChange * 100).toFixed(2) + '%',
+                            score: pred.score,
+                            verdict: 'WRONG - COWARDICE PENALTY',
+                            cycle: pred.cycle,
+                        });
+                    }
+                }
+
+                totalScore += pred.score;
+                continue;
+            }
+
+            // --- UP / DOWN (immediate scoring) ---
+            if (pred.direction === 'UP') {
+                pred.score = priceChange > PILLAR_10_CONFIG.FLAT_EPSILON
+                    ? PILLAR_10_SCORES.CORRECT_UP
+                    : PILLAR_10_SCORES.WRONG_UP;
+            }
+
+            if (pred.direction === 'DOWN') {
+                pred.score = priceChange < -PILLAR_10_CONFIG.FLAT_EPSILON
+                    ? PILLAR_10_SCORES.CORRECT_DOWN
+                    : PILLAR_10_SCORES.WRONG_DOWN;
+            }
+
+            pred.resolved = true;
+            totalScore += pred.score;
+        }
+
+        tokenScores.set(tokenSymbol, totalScore);
+    }
+
+    return tokenScores;
+}
+
+/**
+ * Get aggregated scores for all tokens
+ * Used for funnel narrowing logic
+ */
+export function getTokenScores(storage: Map<string, StoredPrediction[]>): Map<string, number> {
+    const scores = new Map<string, number>();
+
+    for (const [token, predictions] of storage.entries()) {
+        const total = predictions
+            .filter(p => p.resolved)
+            .reduce((sum, p) => sum + p.score, 0);
+
+        scores.set(token, total);
+    }
+
+    return scores;
+}
+
+/**
+ * Get statistics about FLAT usage
+ * Helps detect cowardice vs intelligence
+ */
+export function getFlatStatistics(storage: Map<string, StoredPrediction[]>): {
+    totalFlat: number;
+    correctFlat: number;
+    wrongFlat: number;
+    flatAccuracy: number;
+    cowardiceScore: number; // High = too much FLAT
+} {
+    let totalFlat = 0;
+    let correctFlat = 0;
+    let wrongFlat = 0;
+
+    for (const predictions of storage.values()) {
+        for (const pred of predictions) {
+            if (pred.direction === 'FLAT' && pred.resolved) {
+                totalFlat++;
+                if (pred.score > 0) correctFlat++;
+                else wrongFlat++;
+            }
+        }
+    }
+
+    const flatAccuracy = totalFlat > 0 ? correctFlat / totalFlat : 0;
+
+    // Cowardice score: too many FLAT predictions relative to directional
+    const allPredictions = Array.from(storage.values()).flat();
+    const resolvedCount = allPredictions.filter(p => p.resolved).length;
+    const flatRatio = resolvedCount > 0 ? totalFlat / resolvedCount : 0;
+    const cowardiceScore = flatRatio > 0.5 ? flatRatio : 0; // Over 50% FLAT = cowardice
+
+    return {
+        totalFlat,
+        correctFlat,
+        wrongFlat,
+        flatAccuracy,
+        cowardiceScore,
     };
 }
