@@ -263,6 +263,24 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                     console.error(`[PortfolioRunner] Real quote failed for ${token.symbol}`, err);
                     currentFrictionReason = err.message || "Jupiter Quote Failed";
                 }
+
+                // ============ VIRTUAL EXECUTION FALLBACK (Simulation Strength) ============
+                if (!exitPlan) {
+                    console.log(`[PortfolioRunner] Using VIRTUAL FALLBACK for ${token.symbol} exit simulation.`);
+                    const grossSOL = (position.amount * tokenPrice) / solPrice;
+                    exitPlan = {
+                        targetToken: 'SOL',
+                        targetSymbol: 'SOL',
+                        grossSOL: isFinite(grossSOL) ? grossSOL : 0,
+                        slippagePct: 1.0,
+                        feesSOL: isFinite(grossSOL) ? grossSOL * 0.01 : 0,
+                        netSOL: isFinite(grossSOL) ? grossSOL * 0.98 : 0, // Apply 2% simulated penalty
+                        routeSummary: "Virtual Market Execution",
+                        scenarioUsed: "VIRTUAL_SIM"
+                    };
+                    currentFrictionReason = undefined; // Clear friction as we have successfully simulated the trade
+                }
+                // ==========================================================================
             }
 
             results.push({

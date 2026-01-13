@@ -7,7 +7,7 @@
 
 // Jupiter API Configuration
 export const JUPITER_API_KEY = '9734e999-cc55-46e5-ba68-f7def92483aa';
-export const JUPITER_API_URL = 'https://api.jup.ag/ultra';
+export const JUPITER_API_URL = 'https://quote-api.jup.ag/v6';
 
 /**
  * YOUR SOLANA WALLET (RECEIVES ALL FEES)
