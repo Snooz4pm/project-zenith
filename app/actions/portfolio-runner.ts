@@ -43,6 +43,8 @@ export async function runPortfolioAnalysis(mints: string[]): Promise<PortfolioAn
     const results: PortfolioAnalysisResult[] = [];
 
     for (const token of marketData) {
+        console.log(`[PortfolioRunner] Processing ${token.symbol}...`);
+
         // 2. Physics Evaluation (MarketScanner Logic)
         // We manually reconstruct the logic here or use MarketScanner if it exposes a helper.
         // Since MarketScanner is mostly a loop, we'll implement the "Evaluation Logic" directly here

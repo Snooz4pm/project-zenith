@@ -17,6 +17,39 @@ export interface VolumeAssessment {
 }
 
 export class VolumeObserver {
+    /**
+     * Analyze a batch of tokens using DexScreener
+     */
+    async analyzeBatch(mints: string[]): Promise<(VolumeAssessment | null)[]> {
+        if (mints.length === 0) return [];
+
+        try {
+            const ids = mints.join(',');
+            const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${ids}`);
+            const data = await res.json();
+            const pairs = data.pairs || [];
+
+            return mints.map(mint => {
+                // Find best pair for this mint
+                const tokenPairs = pairs.filter((p: any) => p.baseToken.address === mint);
+                if (tokenPairs.length === 0) return null;
+
+                // Sort by liquidity
+                tokenPairs.sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
+                const bestPair = tokenPairs[0];
+
+                return this.assess(bestPair);
+            });
+
+        } catch (error) {
+            console.error('VolumeObserver: analyzeBatch failed', error);
+            // Return nulls for failed batch to keep alignment? Or empty?
+            // Returning empty might break alignment if caller expects ordered results.
+            // Returning array of nulls matching length.
+            return new Array(mints.length).fill(null);
+        }
+    }
+
     assess(pair: {
         baseToken: { address: string; symbol: string };
         volume?: { h24?: number; h1?: number; m5?: number };
