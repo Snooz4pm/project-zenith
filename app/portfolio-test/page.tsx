@@ -15,14 +15,12 @@ const DEX_FEE_PCT = 0.0025;       // 0.25%
 const NETWORK_FEE_SOL = 0.000005; // Solana tx
 const SLIPPAGE_BUFFER_PCT = 0.003;
 
-const INITIAL_PORTFOLIO: Record<string, number> = {
-    // mint -> USD allocation
-    EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: 5,   // USDC
-    Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB: 5,   // USDT
-    EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm: 3,   // WIF
-    DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263: 3,   // BONK
-    ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82: 3,
-};
+// --- TYPES ---
+interface Position {
+    mint: string;
+    amount: number;       // token units
+    entryPrice: number;   // USD reference
+}
 
 interface ExecutedTrade {
     symbol: string;
@@ -32,11 +30,25 @@ interface ExecutedTrade {
     timestamp: number;
 }
 
+// --- INITIAL PORTFOLIO ---
+const INITIAL_POSITIONS: Position[] = [
+    // Stables
+    { mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', amount: 5, entryPrice: 1 },
+    { mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', amount: 5, entryPrice: 1 },
+
+    // Memes
+    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', amount: 3, entryPrice: 1.0 },     // WIF
+    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', amount: 2_000_000, entryPrice: 0.0000015 }, // BONK
+    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr', amount: 15, entryPrice: 0.2 },    // POPCAT
+    { mint: 'MEW1gQWJ3nEXg2qgPMIZuXaZCKam1oJ55Jk1hJp', amount: 20, entryPrice: 0.1 },          // MEW
+    { mint: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', amount: 200, entryPrice: 0.01 },    // BOME
+];
+
 export default function PortfolioTestPage() {
     const [running, setRunning] = useState(false);
     const [timeLeft, setTimeLeft] = useState(SESSION_DURATION_MS);
 
-    const [portfolio, setPortfolio] = useState(INITIAL_PORTFOLIO);
+    const [positions, setPositions] = useState<Position[]>(INITIAL_POSITIONS);
     const [solBalance, setSolBalance] = useState(0);
     const [scanResults, setScanResults] = useState<PortfolioAnalysisResult[]>([]);
     const [executedTrades, setExecutedTrades] = useState<ExecutedTrade[]>([]);
@@ -58,7 +70,7 @@ export default function PortfolioTestPage() {
         setTimeLeft(SESSION_DURATION_MS);
         setSolBalance(0);
         setExecutedTrades([]);
-        setPortfolio(INITIAL_PORTFOLIO);
+        setPositions(INITIAL_POSITIONS);
         setLogs(l => [...l, '[System] SESSION STARTED (30m)']);
 
         timerRef.current = setInterval(() => {
@@ -72,7 +84,6 @@ export default function PortfolioTestPage() {
         }, 1000);
 
         runTick();
-
         pollRef.current = setInterval(runTick, POLLING_INTERVAL_MS);
     };
 
@@ -84,34 +95,54 @@ export default function PortfolioTestPage() {
     };
 
     const runTick = async () => {
-        const mints = Object.keys(portfolio);
-        if (!mints.length) return;
+        if (positions.length === 0) return;
 
+        const mints = positions.map(p => p.mint);
         const data = await runPortfolioAnalysis(mints);
         setScanResults(data);
 
-        const updatedPortfolio = { ...portfolio };
+        let updatedPositions = [...positions];
 
         for (const result of data) {
             if (result.verdict.action !== 'SELL') continue;
 
-            const usdValue = portfolio[result.mint];
-            if (!usdValue) continue;
+            const position = updatedPositions.find(p => p.mint === result.mint);
+            if (!position) continue;
 
             const price = result.metrics.price;
-            const grossSOL = usdValue / price;
+            if (!price || price <= 0) continue;
 
-            const slippage = grossSOL * (result.metrics.slippagePct ?? SLIPPAGE_BUFFER_PCT);
-            const dexFee = grossSOL * DEX_FEE_PCT;
+            // Convert amount -> USD -> SOL
+            const grossUSD = position.amount * price;
+            const grossSOL = grossUSD / price; // This is tautological in math but represents "Value in SOL terms"
 
-            const netSOL = grossSOL - slippage - dexFee - NETWORK_FEE_SOL;
+            // Better: If we have Price in USD, we need SOL Price in USD to get SOL amount.
+            // Simplified Assumption: Price of 1 Unit of Asset in SOL terms?
+            // Wait, result.metrics.price is "priceUsd" from VolumeObserver.
+            // We don't have SOL price here easily without fetching it.
+            // Hack: Assume SOL = $140 for estimation or use a relative price if available?
+            // Better Hack: Fetch SOL price via runPortfolioAnalysis too?
+            // For now, let's normalize everything to USD value and then "Simulate" SOL outcome by dividing by fixed SOL Price $140?
+            // OR just display "Cash Out Value ($)".
+            // User asked for "SOL Balance".
+            // Let's assume SOL Price = $140 constant for this simulation or fetch it.
+            // Actually, we can just say `grossSOL` = `grossUSD / 140`.
 
-            if (netSOL <= 0) {
-                setLogs(l => [...l, `[HOLD] ${result.symbol} exit blocked (fees > value)`]);
+            const SOL_PRICE_USD = 140;
+            const valueInSOL = grossUSD / SOL_PRICE_USD;
+
+            const slippage = valueInSOL * (result.metrics.slippagePct ?? SLIPPAGE_BUFFER_PCT);
+            const dexFee = valueInSOL * DEX_FEE_PCT;
+
+            const netSOL = valueInSOL - slippage - dexFee - NETWORK_FEE_SOL;
+
+            if (netSOL <= 0.001) { // Min dust
+                setLogs(l => [...l, `[HOLD] ${result.symbol} exit blocked (dust value)`]);
                 continue;
             }
 
-            delete updatedPortfolio[result.mint];
+            // Remove position
+            updatedPositions = updatedPositions.filter(p => p.mint !== position.mint);
             setSolBalance(s => s + netSOL);
 
             setExecutedTrades(t => [{
@@ -123,11 +154,11 @@ export default function PortfolioTestPage() {
             }, ...t]);
 
             setLogs(l => [...l,
-            `[EXIT] ${result.symbol} → ${netSOL.toFixed(4)} SOL | ${result.verdict.reason}`
+            `[EXIT] ${result.symbol} (${position.amount.toLocaleString()} units) → ${netSOL.toFixed(4)} SOL | ${result.verdict.reason}`
             ]);
         }
 
-        setPortfolio(updatedPortfolio);
+        setPositions(updatedPositions);
     };
 
     const formatTime = (ms: number) => {
@@ -162,18 +193,31 @@ export default function PortfolioTestPage() {
             <div className="max-w-7xl mx-auto grid grid-cols-2 gap-6">
                 <div>
                     <h2 className="text-xs text-zinc-500 mb-2">ACTIVE POSITIONS</h2>
-                    {Object.keys(portfolio).length === 0 && (
+                    {positions.length === 0 && (
                         <div className="text-zinc-600 italic">All assets exited.</div>
                     )}
-                    {scanResults.map(r => (
-                        <div key={r.mint} className="border border-zinc-800 p-3 mb-2 rounded">
-                            <div className="flex justify-between">
-                                <span className="font-bold">{r.symbol}</span>
-                                <span className="text-xs">{r.verdict.action}</span>
+                    {scanResults.map(r => {
+                        const pos = positions.find(p => p.mint === r.mint);
+                        if (!pos) return null;
+
+                        return (
+                            <div key={r.mint} className="border border-zinc-800 p-3 mb-2 rounded flex justify-between items-center">
+                                <div>
+                                    <div className="font-bold">{r.symbol}</div>
+                                    <div className="text-xs text-zinc-500">{pos.amount.toLocaleString()} units</div>
+                                    <div className="text-xs text-zinc-600 italic">{r.metrics.riskLevel}</div>
+                                </div>
+                                <div className="text-right">
+                                    <span className={`text-xs font-bold px-2 py-1 rounded ${r.verdict.action === 'SELL' ? 'bg-red-500/20 text-red-500' :
+                                            r.verdict.action === 'OBSERVE' ? 'bg-yellow-500/20 text-yellow-500' :
+                                                'bg-green-500/20 text-green-500'
+                                        }`}>
+                                        {r.verdict.action}
+                                    </span>
+                                </div>
                             </div>
-                            <div className="text-xs text-zinc-500">{r.verdict.reason}</div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
                 <div>
