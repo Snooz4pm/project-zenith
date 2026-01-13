@@ -69,8 +69,8 @@ export function auditCoverage(
     return {
         cycle,
         totalUniverse: total,
-        successfullyScanned: scanned,
-        failedScans: total - scanned,
+        successfullyScanned: scannedCount,
+        failedScans: total - scannedCount,
         coverageRatio,
         status,
         missingTokens: missing,
