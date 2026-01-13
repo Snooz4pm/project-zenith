@@ -68,9 +68,37 @@ interface SurvivalMetrics {
     averageHoldTimeMs: number;
 }
 
-// --- INITIAL PORTFOLIO (Brutal starting positions) ---
+// --- INITIAL PORTFOLIO (Brutal Chaos Test - 10 High-Risk Memecoins) ---
 const INITIAL_POSITIONS: Position[] = [
-    { mint: 'So11111111111111111111111111111111111111112', amount: 0.30, entryPriceSOL: 1 },   // SOL reserve
+    // Minimal base SOL for some "stability" amid chaos
+    { mint: 'So11111111111111111111111111111111111111112', amount: 0.035, entryPriceSOL: 1 },   // ≈ $4.90
+
+    // OG memecoin king – massive volume, frequent dumps
+    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', amount: 477_000 },   // BONK ≈ $5.00
+
+    // Dog meta leader – beta swings like crazy
+    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', amount: 13.4 },   // WIF ≈ $5.00
+
+    // Cat meta contender – narrative flips
+    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr', amount: 51.6 },   // POPCAT ≈ $5.00
+
+    // Anti-dog cat play – high rug potential
+    { mint: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5', amount: 5_020 },   // MEW ≈ $5.00
+
+    // AI/viral goat – extreme pumps from narratives
+    { mint: 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump', amount: 133 },   // GOAT ≈ $5.00
+
+    // Squirrel tragedy meme – sentiment-driven volatility
+    { mint: '2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump', amount: 61 },   // PNUT ≈ $5.00
+
+    // Absurd fart meta – pure degeneracy swings
+    { mint: '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump', amount: 13.3 },   // FARTCOIN ≈ $5.00
+
+    // Political Trump pump – election/news beta
+    { mint: '6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN', amount: 81 },   // MAGA ≈ $5.00
+
+    // Biden satire – counter-political dumps
+    { mint: '3psH1Mj1f7yUfaD5gh6Zj7epE8hhrMkMETgv5TshQA4o', amount: 3_370 },   // BODEN ≈ $5.00
 ];
 
 export default function SurvivalTestPage() {
