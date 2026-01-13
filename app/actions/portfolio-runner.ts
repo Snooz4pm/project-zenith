@@ -321,48 +321,49 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                     }
                     // ==========================================================================
                 }
-
-                const analysisResult: PortfolioAnalysisResult = {
-                    mint: token.mint,
-                    symbol: token.symbol,
-                    decimals: token.decimals || 6,
-                    metrics: {
-                        price: token.price && isFinite(token.price) ? token.price : 0,
-                        liquidityUSD: token.liquidityUSD && isFinite(token.liquidityUSD) ? token.liquidityUSD : 0,
-                        volume5m: token.volume5m && isFinite(token.volume5m) ? token.volume5m : 0,
-                        volumeState: (token.volume5m || 0) > 2000 ? 'expanding' : (token.volume5m || 0) < 500 ? 'collapsing' : 'stagnant',
-                        riskLevel: token.riskLevel
-                    },
-                    verdict: {
-                        action,
-                        reason,
-                        riskScore,
-                        isSafe
-                    },
-                    frictionReason: currentFrictionReason,
-                    exitPlan: exitPlan || undefined
-                };
-
-                if (isHeld) {
-                    portfolioResults.push(analysisResult);
-                } else if (action === 'BUY') {
-                    discoveryResults.push(analysisResult);
-                }
             }
 
-            console.log(`[PortfolioRunner] Analysis complete. Returning ${portfolioResults.length} portfolio items and ${discoveryResults.length} discovery gems.`);
-            return {
-                success: true,
-                results: portfolioResults,
-                discoveryResults: discoveryResults.slice(0, 5) // Return top 5 gems
+            const analysisResult: PortfolioAnalysisResult = {
+                mint: token.mint,
+                symbol: token.symbol,
+                decimals: token.decimals || 6,
+                metrics: {
+                    price: token.price && isFinite(token.price) ? token.price : 0,
+                    liquidityUSD: token.liquidityUSD && isFinite(token.liquidityUSD) ? token.liquidityUSD : 0,
+                    volume5m: token.volume5m && isFinite(token.volume5m) ? token.volume5m : 0,
+                    volumeState: (token.volume5m || 0) > 2000 ? 'expanding' : (token.volume5m || 0) < 500 ? 'collapsing' : 'stagnant',
+                    riskLevel: token.riskLevel
+                },
+                verdict: {
+                    action,
+                    reason,
+                    riskScore,
+                    isSafe
+                },
+                frictionReason: currentFrictionReason,
+                exitPlan: exitPlan || undefined
             };
-        } catch (globalErr: any) {
-            console.error(`[PortfolioRunner] CRITICAL GLOBAL ERROR:`, globalErr);
-            // Do not throw, return safe object to avoid Next.js production masking
-            return {
-                success: false,
-                error: globalErr.message || 'Unknown Server Error',
-                diagnostic: globalErr.stack
-            };
+
+            if (isHeld) {
+                portfolioResults.push(analysisResult);
+            } else if (action === 'BUY') {
+                discoveryResults.push(analysisResult);
+            }
         }
+
+        console.log(`[PortfolioRunner] Analysis complete. Returning ${portfolioResults.length} portfolio items and ${discoveryResults.length} discovery gems.`);
+        return {
+            success: true,
+            results: portfolioResults,
+            discoveryResults: discoveryResults.slice(0, 5) // Return top 5 gems
+        };
+    } catch (globalErr: any) {
+        console.error(`[PortfolioRunner] CRITICAL GLOBAL ERROR:`, globalErr);
+        // Do not throw, return safe object to avoid Next.js production masking
+        return {
+            success: false,
+            error: globalErr.message || 'Unknown Server Error',
+            diagnostic: globalErr.stack
+        };
     }
+}
