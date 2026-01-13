@@ -15,6 +15,7 @@ import { getJupiterQuote } from '@/lib/solana/jupiter';
 export interface Position {
     mint: string;
     amount: number;
+    entryPriceSOL?: number; // Added for PnL tracking
 }
 
 export interface PortfolioAnalysisResult {
@@ -29,7 +30,7 @@ export interface PortfolioAnalysisResult {
         riskLevel: VolumeRiskLevel;
     };
     verdict: {
-        action: 'HOLD' | 'SELL' | 'SWAP' | 'OBSERVE';
+        action: 'HOLD' | 'SELL' | 'SWAP' | 'OBSERVE' | 'BUY';
         reason: string;
         riskScore: number;
         isSafe: boolean;
@@ -50,6 +51,7 @@ export interface PortfolioAnalysisResult {
 export interface PortfolioAnalysisResponse {
     success: boolean;
     results?: PortfolioAnalysisResult[];
+    discoveryResults?: PortfolioAnalysisResult[];
     error?: string;
     diagnostic?: string;
 }
@@ -117,8 +119,20 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
         }
 
         // 2. Initialize Agent Physics (The Physics)
-        console.log(`[PortfolioRunner] Step 2: Running Physics Engine...`);
-        const candidates: TokenCandidate[] = marketData.map(t => ({
+        console.log(`[PortfolioRunner] Step 2: Running Physics Engine on ${marketData.length + broadMarketData.length} tokens...`);
+
+        // Combine portfolio and broad market for evaluation
+        const allRelevantMints = new Set([...mints, ...broadMarketData.map(t => t.mint)]);
+        const evaluationData = [...marketData];
+
+        // Add broad market tokens that aren't already in marketData
+        for (const bt of broadMarketData) {
+            if (!evaluationData.some(m => m.mint === bt.mint)) {
+                evaluationData.push(bt);
+            }
+        }
+
+        const candidates: TokenCandidate[] = evaluationData.map(t => ({
             symbol: t.symbol,
             mint: t.mint,
             tokenClass: classifyToken(t.symbol, t.mint),
@@ -132,16 +146,16 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
         // Run Pillar 10 Logic (Newtonian momentum + Brain v2 Memory)
         await predictFunnel(funnelState);
 
-        const results: PortfolioAnalysisResult[] = [];
+        const portfolioResults: PortfolioAnalysisResult[] = [];
+        const discoveryResults: PortfolioAnalysisResult[] = [];
 
-        console.log(`[PortfolioRunner] Step 3: Analyzing results and finding exits...`);
-        for (const token of marketData) {
+        console.log(`[PortfolioRunner] Step 3: Analyzing results...`);
+        for (const token of evaluationData) {
             const position = positions.find(p => p.mint === token.mint);
-            if (!position) continue;
-
+            const isHeld = !!position && position.amount > 0;
             const candidate = funnelState.tokens.find(c => c.mint === token.mint);
 
-            let action: 'HOLD' | 'SELL' | 'SWAP' | 'OBSERVE' = 'HOLD';
+            let action: 'HOLD' | 'SELL' | 'SWAP' | 'OBSERVE' | 'BUY' = 'OBSERVE';
             let reason = 'Analyzing physics...';
             let isSafe = true;
             let riskScore = 0;
@@ -151,13 +165,23 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                 const pred = candidate.prediction;
 
                 if (pred === 'UP') {
-                    action = 'HOLD';
-                    reason = `Momentum positive. Agent holding for growth.`;
+                    if (isHeld) {
+                        action = 'HOLD';
+                        reason = `Momentum positive. Agent holding for growth.`;
+                    } else {
+                        action = 'BUY';
+                        reason = `Discovery: Momentum surge detected. Entry proposed.`;
+                    }
                     isSafe = true;
                     riskScore = 10;
                 } else if (pred === 'DOWN') {
-                    action = 'SELL';
-                    reason = `Negative momentum. Survival protocol triggered.`;
+                    if (isHeld) {
+                        action = 'SELL';
+                        reason = `Negative momentum. Survival protocol triggered.`;
+                    } else {
+                        action = 'OBSERVE';
+                        reason = `Market decaying. No entry.`;
+                    }
                     isSafe = false;
                     riskScore = 80;
                 } else {
@@ -171,149 +195,174 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
             // 3. Execution Pathfinding (The Hands)
             let exitPlan = null;
 
-            if ((action === 'SELL' || action === 'SWAP') && token.mint !== SOL_MINT && position.amount > 0) {
-                console.log(`[PortfolioRunner] Evaluating Real EXIT for ${token.symbol}...`);
+            // Handle SELL/SWAP/BUY planning
+            if (isHeld && (action === 'SELL' || action === 'SWAP') && position.amount > 0) {
+                console.log(`[PortfolioRunner] Evaluating EXIT for ${token.symbol}...`);
 
-                const tokenPrice = token.price && isFinite(token.price) ? token.price : 0;
-                const universe: SearchableToken[] = [
-                    {
-                        mint: token.mint,
-                        symbol: token.symbol,
-                        valueInSOL: tokenPrice / solPrice,
-                        hasRoute: true,
-                        isStable: false,
-                        tier: 'RANKABLE',
-                        liquidityScore: 1,
-                        volatility: 0,
-                        alphaScore: 0,
-                        source: undefined,
-                        roundTripLoss: 0,
-                        isAlpha: true
-                    },
-                    ...broadUniverse
-                ];
-
-                const goal: BrainGoal = {
-                    startToken: token.mint,
-                    targetToken: SOL_MINT,
-                    startAmountSOL: (position.amount * tokenPrice) / solPrice,
-                    targetAmountSOL: 0.000001, // Zero-friction: Accept any exit amount
-                    maxHops: 10,               // Increase hops for deep liquidity discovery
-                    maxTotalRTL: 100,         // Unbounded loss tolerance for exits
-                    maxPerHopRTL: 100         // Unbounded loss tolerance for exits
-                };
-
-                try {
-                    const comparison = await ScenarioRunner.runAll(universe, goal);
-
-                    if (comparison.best && comparison.best.found) {
-                        const amountRaw = Math.floor(position.amount * Math.pow(10, token.decimals || 6)).toString();
-
-                        const liveQuote = await getJupiterQuote({
-                            inputMint: token.mint,
-                            outputMint: SOL_MINT,
-                            amount: amountRaw,
-                            slippageBps: 200 // Higher slippage tolerance for "Do whatever you want" mode
-                        });
-
-                        if (liveQuote) {
-                            const grossSOL = parseFloat(liveQuote.outAmount) / 1e9;
-                            const priceImpact = parseFloat(liveQuote.priceImpactPct) || 0;
-                            const platformFee = liveQuote.platformFee ? parseFloat(liveQuote.platformFee.amount) / 1e9 : 0;
-
-                            exitPlan = {
-                                targetToken: 'SOL',
-                                targetSymbol: 'SOL',
-                                grossSOL: isFinite(grossSOL) ? grossSOL : 0,
-                                slippagePct: isFinite(priceImpact) ? priceImpact : 0,
-                                feesSOL: isFinite(platformFee) ? platformFee + 0.000005 : 0.000005,
-                                netSOL: isFinite(grossSOL) ? grossSOL - platformFee - 0.000005 : 0,
-                                routeSummary: `${liveQuote.routePlan.length} hops via Jupiter`,
-                                scenarioUsed: comparison.best.config.name
-                            };
-                        }
-                    } else {
-                        // FALLBACK: Brute force direct quote if pathfinder fails
-                        console.log(`[PortfolioRunner] Pathfinder failed for ${token.symbol}. Attempting BRUTE FORCE exit...`);
-                        const amountRaw = Math.floor(position.amount * Math.pow(10, token.decimals || 6)).toString();
-                        const directQuote = await getJupiterQuote({
-                            inputMint: token.mint,
-                            outputMint: SOL_MINT,
-                            amount: amountRaw,
-                            slippageBps: 500 // 5% slippage tolerance for emergency exit
-                        });
-
-                        if (directQuote) {
-                            const grossSOL = parseFloat(directQuote.outAmount) / 1e9;
-                            exitPlan = {
-                                targetToken: 'SOL',
-                                targetSymbol: 'SOL',
-                                grossSOL: isFinite(grossSOL) ? grossSOL : 0,
-                                slippagePct: parseFloat(directQuote.priceImpactPct) || 0,
-                                feesSOL: 0.000005,
-                                netSOL: isFinite(grossSOL) ? grossSOL - 0.000005 : 0,
-                                routeSummary: "Direct Jupiter Fallback",
-                                scenarioUsed: "BRUTE_FORCE"
-                            };
-                        } else {
-                            currentFrictionReason = "Jupiter API refused even a direct high-slippage quote.";
-                        }
-                    }
-                } catch (err: any) {
-                    console.error(`[PortfolioRunner] Real quote failed for ${token.symbol}`, err);
-                    currentFrictionReason = err.message || "Jupiter Quote Failed";
-                }
-
-                // ============ VIRTUAL EXECUTION FALLBACK (Simulation Strength) ============
-                if (!exitPlan) {
-                    console.log(`[PortfolioRunner] Using VIRTUAL FALLBACK for ${token.symbol} exit simulation.`);
-                    const grossSOL = (position.amount * tokenPrice) / solPrice;
+                // 3.1: Special Case: SOL -> SOL (Direct Capital Exit)
+                if (token.mint === SOL_MINT) {
                     exitPlan = {
                         targetToken: 'SOL',
                         targetSymbol: 'SOL',
-                        grossSOL: isFinite(grossSOL) ? grossSOL : 0,
-                        slippagePct: 1.0,
-                        feesSOL: isFinite(grossSOL) ? grossSOL * 0.01 : 0,
-                        netSOL: isFinite(grossSOL) ? grossSOL * 0.98 : 0, // Apply 2% simulated penalty
-                        routeSummary: "Virtual Market Execution",
-                        scenarioUsed: "VIRTUAL_SIM"
+                        grossSOL: position.amount,
+                        slippagePct: 0,
+                        feesSOL: 0,
+                        netSOL: position.amount,
+                        routeSummary: "Direct Capital Move",
+                        scenarioUsed: "DIRECT"
                     };
-                    currentFrictionReason = undefined; // Clear friction as we have successfully simulated the trade
+                } else {
+                    // Regular cross-token exit pathfinding
+                    const tokenPrice = token.price && isFinite(token.price) ? token.price : 0;
+                    const universe: SearchableToken[] = [
+                        {
+                            mint: token.mint,
+                            symbol: token.symbol,
+                            valueInSOL: tokenPrice / solPrice,
+                            hasRoute: true,
+                            isStable: false,
+                            tier: 'RANKABLE',
+                            liquidityScore: 1,
+                            volatility: 0,
+                            alphaScore: 0,
+                            source: undefined,
+                            roundTripLoss: 0,
+                            isAlpha: true
+                        },
+                        ...broadUniverse
+                    ];
+
+                    const goal: BrainGoal = {
+                        startToken: token.mint,
+                        targetToken: SOL_MINT,
+                        startAmountSOL: (position.amount * tokenPrice) / solPrice,
+                        targetAmountSOL: 0.000001, // Zero-friction: Accept any exit amount
+                        maxHops: 10,               // Increase hops for deep liquidity discovery
+                        maxTotalRTL: 100,         // Unbounded loss tolerance for exits
+                        maxPerHopRTL: 100         // Unbounded loss tolerance for exits
+                    };
+
+                    try {
+                        const comparison = await ScenarioRunner.runAll(universe, goal);
+
+                        if (comparison.best && comparison.best.found) {
+                            const amountRaw = Math.floor(position.amount * Math.pow(10, token.decimals || 6)).toString();
+
+                            const liveQuote = await getJupiterQuote({
+                                inputMint: token.mint,
+                                outputMint: SOL_MINT,
+                                amount: amountRaw,
+                                slippageBps: 200 // Higher slippage tolerance for "Do whatever you want" mode
+                            });
+
+                            if (liveQuote) {
+                                const grossSOL = parseFloat(liveQuote.outAmount) / 1e9;
+                                const priceImpact = parseFloat(liveQuote.priceImpactPct) || 0;
+                                const platformFee = liveQuote.platformFee ? parseFloat(liveQuote.platformFee.amount) / 1e9 : 0;
+
+                                exitPlan = {
+                                    targetToken: 'SOL',
+                                    targetSymbol: 'SOL',
+                                    grossSOL: isFinite(grossSOL) ? grossSOL : 0,
+                                    slippagePct: isFinite(priceImpact) ? priceImpact : 0,
+                                    feesSOL: isFinite(platformFee) ? platformFee + 0.000005 : 0.000005,
+                                    netSOL: isFinite(grossSOL) ? grossSOL - platformFee - 0.000005 : 0,
+                                    routeSummary: `${liveQuote.routePlan.length} hops via Jupiter`,
+                                    scenarioUsed: comparison.best.config.name
+                                };
+                            }
+                        } else {
+                            // FALLBACK: Brute force direct quote if pathfinder fails
+                            console.log(`[PortfolioRunner] Pathfinder failed for ${token.symbol}. Attempting BRUTE FORCE exit...`);
+                            const amountRaw = Math.floor(position.amount * Math.pow(10, token.decimals || 6)).toString();
+                            const directQuote = await getJupiterQuote({
+                                inputMint: token.mint,
+                                outputMint: SOL_MINT,
+                                amount: amountRaw,
+                                slippageBps: 500 // 5% slippage tolerance for emergency exit
+                            });
+
+                            if (directQuote) {
+                                const grossSOL = parseFloat(directQuote.outAmount) / 1e9;
+                                exitPlan = {
+                                    targetToken: 'SOL',
+                                    targetSymbol: 'SOL',
+                                    grossSOL: isFinite(grossSOL) ? grossSOL : 0,
+                                    slippagePct: parseFloat(directQuote.priceImpactPct) || 0,
+                                    feesSOL: 0.000005,
+                                    netSOL: isFinite(grossSOL) ? grossSOL - 0.000005 : 0,
+                                    routeSummary: "Direct Jupiter Fallback",
+                                    scenarioUsed: "BRUTE_FORCE"
+                                };
+                            } else {
+                                currentFrictionReason = "Jupiter API refused even a direct high-slippage quote.";
+                            }
+                        }
+                    } catch (err: any) {
+                        console.error(`[PortfolioRunner] Real quote failed for ${token.symbol}`, err);
+                        currentFrictionReason = err.message || "Jupiter Quote Failed";
+                    }
+
+                    // ============ VIRTUAL EXECUTION FALLBACK (Simulation Strength) ============
+                    if (!exitPlan) {
+                        console.log(`[PortfolioRunner] Using VIRTUAL FALLBACK for ${token.symbol} exit simulation.`);
+                        const grossSOL = (position.amount * tokenPrice) / solPrice;
+                        exitPlan = {
+                            targetToken: 'SOL',
+                            targetSymbol: 'SOL',
+                            grossSOL: isFinite(grossSOL) ? grossSOL : 0,
+                            slippagePct: 1.0,
+                            feesSOL: isFinite(grossSOL) ? grossSOL * 0.01 : 0,
+                            netSOL: isFinite(grossSOL) ? grossSOL * 0.98 : 0, // Apply 2% simulated penalty
+                            routeSummary: "Virtual Market Execution",
+                            scenarioUsed: "VIRTUAL_SIM"
+                        };
+                        currentFrictionReason = undefined; // Clear friction as we have successfully simulated the trade
+                    }
+                    // ==========================================================================
                 }
-                // ==========================================================================
+
+                const analysisResult: PortfolioAnalysisResult = {
+                    mint: token.mint,
+                    symbol: token.symbol,
+                    decimals: token.decimals || 6,
+                    metrics: {
+                        price: token.price && isFinite(token.price) ? token.price : 0,
+                        liquidityUSD: token.liquidityUSD && isFinite(token.liquidityUSD) ? token.liquidityUSD : 0,
+                        volume5m: token.volume5m && isFinite(token.volume5m) ? token.volume5m : 0,
+                        volumeState: (token.volume5m || 0) > 2000 ? 'expanding' : (token.volume5m || 0) < 500 ? 'collapsing' : 'stagnant',
+                        riskLevel: token.riskLevel
+                    },
+                    verdict: {
+                        action,
+                        reason,
+                        riskScore,
+                        isSafe
+                    },
+                    frictionReason: currentFrictionReason,
+                    exitPlan: exitPlan || undefined
+                };
+
+                if (isHeld) {
+                    portfolioResults.push(analysisResult);
+                } else if (action === 'BUY') {
+                    discoveryResults.push(analysisResult);
+                }
             }
 
-            results.push({
-                mint: token.mint,
-                symbol: token.symbol,
-                decimals: token.decimals || 6,
-                metrics: {
-                    price: token.price && isFinite(token.price) ? token.price : 0,
-                    liquidityUSD: token.liquidityUSD && isFinite(token.liquidityUSD) ? token.liquidityUSD : 0,
-                    volume5m: token.volume5m && isFinite(token.volume5m) ? token.volume5m : 0,
-                    volumeState: (token.volume5m || 0) > 2000 ? 'expanding' : (token.volume5m || 0) < 500 ? 'collapsing' : 'stagnant',
-                    riskLevel: token.riskLevel
-                },
-                verdict: {
-                    action,
-                    reason,
-                    riskScore,
-                    isSafe
-                },
-                frictionReason: currentFrictionReason,
-                exitPlan: exitPlan || undefined
-            });
+            console.log(`[PortfolioRunner] Analysis complete. Returning ${portfolioResults.length} portfolio items and ${discoveryResults.length} discovery gems.`);
+            return {
+                success: true,
+                results: portfolioResults,
+                discoveryResults: discoveryResults.slice(0, 5) // Return top 5 gems
+            };
+        } catch (globalErr: any) {
+            console.error(`[PortfolioRunner] CRITICAL GLOBAL ERROR:`, globalErr);
+            // Do not throw, return safe object to avoid Next.js production masking
+            return {
+                success: false,
+                error: globalErr.message || 'Unknown Server Error',
+                diagnostic: globalErr.stack
+            };
         }
-
-        console.log(`[PortfolioRunner] Analysis complete. Returning ${results.length} results.`);
-        return { success: true, results };
-    } catch (globalErr: any) {
-        console.error(`[PortfolioRunner] CRITICAL GLOBAL ERROR:`, globalErr);
-        // Do not throw, return safe object to avoid Next.js production masking
-        return {
-            success: false,
-            error: globalErr.message || 'Unknown Server Error',
-            diagnostic: globalErr.stack
-        };
     }
-}
