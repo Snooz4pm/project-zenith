@@ -20,7 +20,7 @@ import {
     ScenarioType,
     BrainRoadmap
 } from '@/types/LiquidityFilter';
-import { searchForPath, convertPathToRoadmap } from '@/lib/smartswap/liquidityFilter';
+import { searchForPath, convertPathToRoadmap } from '@/lib/execution-engine/liquidityFilter';
 
 // ... (Existing SCENARIOS config)
 

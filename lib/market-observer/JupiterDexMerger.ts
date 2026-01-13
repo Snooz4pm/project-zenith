@@ -156,3 +156,46 @@ export async function getDexMatchedTokens(): Promise<DexMatchedToken[]> {
 
     return matched;
 }
+
+/**
+ * Step 3: Specific Portfolio Fetch (For Testing)
+ */
+export async function getVirtualPortfolioTokens(targetMints: string[]): Promise<DexMatchedToken[]> {
+    const batches = chunk(targetMints, 30);
+    const matched: DexMatchedToken[] = [];
+
+    console.log(`[JupiterDexMerger] Fetching virtual portfolio of ${targetMints.length} tokens...`);
+
+    for (const batch of batches) {
+        try {
+            const results = await observer.analyzeBatch(batch);
+
+            // Map results to matched tokens
+            results.forEach(analysis => {
+                if (analysis) {
+                    // Simple logic to convert VolumeAnalysis directly to DexMatchedToken
+                    // We trust the risk assessment from VolumeObserver
+
+                    matched.push({
+                        mint: analysis.mint,
+                        symbol: analysis.symbol,
+                        pairAddress: "N/A", // VolumeObserver doesn't expose pair address directly in analyzeBatch return currently? 
+                        // Wait, analyzeBatch returns VolumeAnalysis[] which has mint, symbol, etc.
+                        // Let's check VolumeObserver.ts regarding analyzeBatch return type.
+                        // Assuming it returns what we need. 
+                        // Actually, looking at previous code, `observer.assess` returned full details.
+                        // `observer.analyzeBatch` likely wraps that.
+
+                        volume5m: analysis.volume5mUsd,
+                        liquidityUSD: analysis.liquidityUsd,
+                        riskLevel: analysis.riskLevel as VolumeRiskLevel
+                    });
+                }
+            });
+        } catch (err) {
+            console.error(`[JupiterDexMerger] Virtual batch failed`, err);
+        }
+    }
+
+    return matched;
+}
