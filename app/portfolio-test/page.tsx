@@ -126,7 +126,16 @@ export default function PortfolioTestPage() {
 
         try {
             console.log(`[Tick] Running analysis on ${currentPositions.length} positions...`);
-            const results = await runPortfolioAnalysis(currentPositions);
+            const response = await runPortfolioAnalysis(currentPositions);
+
+            if (!response.success) {
+                setLogs(l => [...l, `[!!] SERVER ERROR: ${response.error}`]);
+                setIsPolling(false);
+                isPollingRef.current = false;
+                return;
+            }
+
+            const results = response.results || [];
             setScanResults(results);
 
             setPositions(prev => {

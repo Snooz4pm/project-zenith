@@ -17,31 +17,11 @@ export interface Position {
     amount: number;
 }
 
-export interface PortfolioAnalysisResult {
-    mint: string;
-    symbol: string;
-    metrics: {
-        price: number;
-        liquidityUSD: number;
-        volume5m: number;
-        volumeState: 'expanding' | 'collapsing' | 'stagnant' | 'unknown';
-        riskLevel: VolumeRiskLevel;
-    };
-    verdict: {
-        action: 'HOLD' | 'SELL' | 'SWAP' | 'OBSERVE';
-        reason: string;
-        riskScore: number;
-        isSafe: boolean;
-    };
-    exitPlan?: {
-        targetToken: string;
-        grossSOL: number;
-        slippagePct: number;
-        feesSOL: number;
-        netSOL: number;
-        routeSummary: string;
-        scenarioUsed: string;
-    };
+export interface PortfolioAnalysisResponse {
+    success: boolean;
+    results?: PortfolioAnalysisResult[];
+    error?: string;
+    diagnostic?: string;
 }
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
@@ -50,7 +30,7 @@ const SOL_MINT = 'So11111111111111111111111111111111111111112';
  * Fair Real-World Portfolio Test
  * Strictly deterministic, zero-hindsight.
  */
-export async function runPortfolioAnalysis(positions: Position[]): Promise<PortfolioAnalysisResult[]> {
+export async function runPortfolioAnalysis(positions: Position[]): Promise<PortfolioAnalysisResponse> {
     try {
         const mints = positions.map(p => p.mint);
         console.log(`[PortfolioRunner] Starting Fair Test on ${mints.length} mints...`);
@@ -66,16 +46,17 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
 
         if (marketData.length === 0) {
             console.warn(`[PortfolioRunner] No market data found for portfolio tokens.`);
-            return [];
+            return { success: true, results: [] };
         }
 
-        const solPrice = marketData.find(m => m.symbol === 'SOL')?.price || 140;
+        const rawSolPrice = marketData.find(m => m.symbol === 'SOL')?.price || 140;
+        const solPrice = isFinite(rawSolPrice) && rawSolPrice > 0 ? rawSolPrice : 140;
 
         // Build the "Agent's Vision" (Broad Universe)
         const broadUniverse: SearchableToken[] = broadMarketData.map(t => ({
             mint: t.mint,
             symbol: t.symbol,
-            valueInSOL: (t.price || 0) / solPrice,
+            valueInSOL: (t.price && isFinite(t.price) ? t.price : 0) / solPrice,
             hasRoute: true,
             isStable: ['USDC', 'USDT', 'PYUSD'].includes(t.symbol),
             tier: t.riskLevel === 'LOW' ? 'SAFE' : 'RANKABLE',
@@ -93,7 +74,7 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
             symbol: t.symbol,
             mint: t.mint,
             tokenClass: classifyToken(t.symbol, t.mint),
-            priceAtStart: t.price || 0,
+            priceAtStart: t.price && isFinite(t.price) ? t.price : 0,
             score: 0,
             flatStreak: 0
         }));
@@ -139,16 +120,17 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
             }
 
             // 3. Execution Pathfinding (The Hands)
-            let exitPlan = undefined;
+            let exitPlan = null;
 
             if ((action === 'SELL' || action === 'SWAP') && token.mint !== SOL_MINT && position.amount > 0) {
                 console.log(`[PortfolioRunner] Evaluating Real EXIT for ${token.symbol}...`);
 
+                const tokenPrice = token.price && isFinite(token.price) ? token.price : 0;
                 const universe: SearchableToken[] = [
                     {
                         mint: token.mint,
                         symbol: token.symbol,
-                        valueInSOL: (token.price || 0) / solPrice,
+                        valueInSOL: tokenPrice / solPrice,
                         hasRoute: true,
                         isStable: false,
                         tier: 'RANKABLE',
@@ -165,8 +147,8 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                 const goal: BrainGoal = {
                     startToken: token.mint,
                     targetToken: SOL_MINT,
-                    startAmountSOL: (position.amount * (token.price || 0)) / solPrice,
-                    targetAmountSOL: ((position.amount * (token.price || 0)) / solPrice) * 1.01,
+                    startAmountSOL: (position.amount * tokenPrice) / solPrice,
+                    targetAmountSOL: ((position.amount * tokenPrice) / solPrice) * 1.01,
                     maxHops: 3,
                     maxTotalRTL: 10,
                     maxPerHopRTL: 5
@@ -192,10 +174,10 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
 
                             exitPlan = {
                                 targetToken: 'SOL',
-                                grossSOL,
-                                slippagePct: priceImpact,
-                                feesSOL: platformFee + 0.000005,
-                                netSOL: grossSOL - platformFee - 0.000005,
+                                grossSOL: isFinite(grossSOL) ? grossSOL : 0,
+                                slippagePct: isFinite(priceImpact) ? priceImpact : 0,
+                                feesSOL: isFinite(platformFee) ? platformFee + 0.000005 : 0.000005,
+                                netSOL: isFinite(grossSOL) ? grossSOL - platformFee - 0.000005 : 0,
                                 routeSummary: `${liveQuote.routePlan.length} hops via Jupiter`,
                                 scenarioUsed: comparison.best.config.name
                             };
@@ -210,9 +192,9 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                 mint: token.mint,
                 symbol: token.symbol,
                 metrics: {
-                    price: token.price || 0,
-                    liquidityUSD: token.liquidityUSD || 0,
-                    volume5m: token.volume5m || 0,
+                    price: token.price && isFinite(token.price) ? token.price : 0,
+                    liquidityUSD: token.liquidityUSD && isFinite(token.liquidityUSD) ? token.liquidityUSD : 0,
+                    volume5m: token.volume5m && isFinite(token.volume5m) ? token.volume5m : 0,
                     volumeState: (token.volume5m || 0) > 2000 ? 'expanding' : (token.volume5m || 0) < 500 ? 'collapsing' : 'stagnant',
                     riskLevel: token.riskLevel
                 },
@@ -222,14 +204,19 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                     riskScore,
                     isSafe
                 },
-                exitPlan
+                exitPlan: exitPlan || undefined
             });
         }
 
         console.log(`[PortfolioRunner] Analysis complete. Returning ${results.length} results.`);
-        return results;
+        return { success: true, results };
     } catch (globalErr: any) {
         console.error(`[PortfolioRunner] CRITICAL GLOBAL ERROR:`, globalErr);
-        throw new Error(`Portfolio analysis failed: ${globalErr.message}`);
+        // Do not throw, return safe object to avoid Next.js production masking
+        return {
+            success: false,
+            error: globalErr.message || 'Unknown Server Error',
+            diagnostic: globalErr.stack
+        };
     }
 }
