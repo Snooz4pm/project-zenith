@@ -20,17 +20,26 @@ interface ExecutedTrade {
     fees: number;
     reason: string;
     scenario: string;
+    targetSymbol: string;
     timestamp: number;
 }
 
 // --- INITIAL PORTFOLIO (Fair Test: Mint/Amount Only) ---
 const INITIAL_POSITIONS: Position[] = [
-    { mint: 'So11111111111111111111111111111111111111112', amount: 0.14 },
-    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', amount: 8 },
-    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', amount: 800_000 },
-    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr', amount: 20 },
-    { mint: 'MEW1gQWJ3nEXg2qgPMIZuXaZCKam1oJ55Jk1hJp', amount: 160 },
-    { mint: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', amount: 1600 },
+    // Blue-chip base (SOL) – small but meaningful exposure
+    { mint: 'So11111111111111111111111111111111111111112', amount: 0.20 },   // ≈ $28
+
+    // Classic memecoin – high volume, very volatile
+    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', amount: 3_000_000 },   // BONK ≈ $33
+
+    // High-beta dog memecoin leader
+    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', amount: 60 },   // WIF ≈ $23
+
+    // Popular cat memecoin
+    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr', amount: 180 },   // POPCAT ≈ $17–18
+
+    // Another volatile cat play
+    { mint: 'MEW1gQWJ3nEXg2qgPMIZuXaZCKam1oJ55Jk1hJp', amount: 25_000 },   // MEW ≈ $25
 ];
 
 export default function PortfolioTestPage() {
@@ -157,6 +166,7 @@ export default function PortfolioTestPage() {
                                 fees: plan.feesSOL,
                                 reason: result.verdict.reason,
                                 scenario: plan.scenarioUsed,
+                                targetSymbol: plan.targetSymbol,
                                 timestamp: Date.now()
                             }, ...trades]);
 
@@ -171,7 +181,7 @@ export default function PortfolioTestPage() {
                                 return now;
                             });
 
-                            setLogs(l => [...l, `[Hands] EXITED ${result.symbol} via ${plan.scenarioUsed} | +${plan.netSOL.toFixed(4)} SOL`]);
+                            setLogs(l => [...l, `[Hands] EXITED ${result.symbol} to ${plan.targetSymbol} via ${plan.scenarioUsed} | +${plan.netSOL.toFixed(4)} SOL`]);
                         } else {
                             setBlockedFriction(b => b + 1);
                             setLogs(l => [...l, `[Friction] ${result.symbol} exit blocked (slippage/liq).`]);

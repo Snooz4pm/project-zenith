@@ -13,6 +13,7 @@ export interface JupiterToken {
     mint: string;
     symbol: string;
     name?: string;
+    decimals: number;
 }
 
 export interface DexMatchedToken {
@@ -23,6 +24,7 @@ export interface DexMatchedToken {
     liquidityUSD: number | null;
     riskLevel: VolumeRiskLevel;
     price?: number;
+    decimals: number;
 }
 
 const JUPITER_PROXY_URL = 'https://jupiter-proxy-production.up.railway.app';
@@ -45,20 +47,20 @@ export async function fetchJupiterTokens(): Promise<JupiterToken[]> {
         const data = await res.json();
 
         if (!data.tokens || !Array.isArray(data.tokens)) {
-            if (Array.isArray(data)) {
-                return data.map((t: any) => ({
-                    mint: t.address,
-                    symbol: t.symbol,
-                    name: t.name,
-                }));
-            }
-            return [];
+            const rawArray = Array.isArray(data) ? data : [];
+            return rawArray.map((t: any) => ({
+                mint: t.address || t.mint,
+                symbol: t.symbol,
+                name: t.name,
+                decimals: t.decimals || 6,
+            }));
         }
 
         return data.tokens.map((t: any) => ({
-            mint: t.address,
+            mint: t.address || t.mint,
             symbol: t.symbol,
             name: t.name,
+            decimals: t.decimals || 6,
         }));
     } catch (error) {
         console.error("JupiterDexMerger: Fetch failed", error);
@@ -128,7 +130,8 @@ export async function getDexMatchedTokens(): Promise<DexMatchedToken[]> {
                         volume5m: assessment.volume5mUsd,
                         liquidityUSD: assessment.liquidityUsd,
                         riskLevel: assessment.riskLevel,
-                        price: assessment.priceUsd
+                        price: assessment.priceUsd,
+                        decimals: jupiterTokens.find(jt => jt.mint === assessment.mint)?.decimals || 6
                     });
                 }
             } catch (err) {
@@ -155,30 +158,25 @@ export async function getVirtualPortfolioTokens(targetMints: string[]): Promise<
 
     console.log(`[JupiterDexMerger] Fetching virtual portfolio of ${targetMints.length} tokens...`);
 
+    // We also need decimals for the portfolio fetch
+    const jupiterTokens = await fetchJupiterTokens();
+
     for (const batch of batches) {
         try {
             const results = await observer.analyzeBatch(batch);
 
-            // Map results to matched tokens
             results.forEach(analysis => {
                 if (analysis) {
-                    // Simple logic to convert VolumeAnalysis directly to DexMatchedToken
-                    // We trust the risk assessment from VolumeObserver
-
+                    const jupInfo = jupiterTokens.find(jt => jt.mint === analysis.mint);
                     matched.push({
                         mint: analysis.mint,
                         symbol: analysis.symbol,
-                        pairAddress: "N/A", // VolumeObserver doesn't expose pair address directly in analyzeBatch return currently? 
-                        // Wait, analyzeBatch returns VolumeAnalysis[] which has mint, symbol, etc.
-                        // Let's check VolumeObserver.ts regarding analyzeBatch return type.
-                        // Assuming it returns what we need. 
-                        // Actually, looking at previous code, `observer.assess` returned full details.
-                        // `observer.analyzeBatch` likely wraps that.
-
+                        pairAddress: "N/A",
                         volume5m: analysis.volume5mUsd,
                         liquidityUSD: analysis.liquidityUsd,
                         riskLevel: analysis.riskLevel as VolumeRiskLevel,
-                        price: analysis.priceUsd
+                        price: analysis.priceUsd,
+                        decimals: jupInfo?.decimals || 6
                     });
                 }
             });

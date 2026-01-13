@@ -17,6 +17,35 @@ export interface Position {
     amount: number;
 }
 
+export interface PortfolioAnalysisResult {
+    mint: string;
+    symbol: string;
+    decimals: number;
+    metrics: {
+        price: number;
+        liquidityUSD: number;
+        volume5m: number;
+        volumeState: 'expanding' | 'collapsing' | 'stagnant' | 'unknown';
+        riskLevel: VolumeRiskLevel;
+    };
+    verdict: {
+        action: 'HOLD' | 'SELL' | 'SWAP' | 'OBSERVE';
+        reason: string;
+        riskScore: number;
+        isSafe: boolean;
+    };
+    exitPlan?: {
+        targetToken: string;
+        targetSymbol: string;
+        grossSOL: number;
+        slippagePct: number;
+        feesSOL: number;
+        netSOL: number;
+        routeSummary: string;
+        scenarioUsed: string;
+    };
+}
+
 export interface PortfolioAnalysisResponse {
     success: boolean;
     results?: PortfolioAnalysisResult[];
@@ -158,7 +187,7 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                     const comparison = await ScenarioRunner.runAll(universe, goal);
 
                     if (comparison.best && comparison.best.found) {
-                        const amountRaw = Math.floor(position.amount * 1e6).toString();
+                        const amountRaw = Math.floor(position.amount * Math.pow(10, token.decimals || 6)).toString();
 
                         const liveQuote = await getJupiterQuote({
                             inputMint: token.mint,
@@ -174,6 +203,7 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
 
                             exitPlan = {
                                 targetToken: 'SOL',
+                                targetSymbol: 'SOL',
                                 grossSOL: isFinite(grossSOL) ? grossSOL : 0,
                                 slippagePct: isFinite(priceImpact) ? priceImpact : 0,
                                 feesSOL: isFinite(platformFee) ? platformFee + 0.000005 : 0.000005,
@@ -191,6 +221,7 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
             results.push({
                 mint: token.mint,
                 symbol: token.symbol,
+                decimals: token.decimals || 6,
                 metrics: {
                     price: token.price && isFinite(token.price) ? token.price : 0,
                     liquidityUSD: token.liquidityUSD && isFinite(token.liquidityUSD) ? token.liquidityUSD : 0,
