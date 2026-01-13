@@ -13,7 +13,7 @@ import {
 // ============================================================================
 const SESSION_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 const POLLING_INTERVAL_MS = 10_000;         // 10 second ticks
-const INITIAL_CAPITAL_SOL = 1.0;            // Starting wallet
+const INITIAL_CAPITAL_SOL = 0.35;           // ~$50 starting wallet (10 positions @ $5 each)
 
 // Chaos mode settings
 const CHAOS_CONFIG = {
