@@ -183,8 +183,9 @@ export default function PortfolioTestPage() {
 
                             setLogs(l => [...l, `[Hands] EXITED ${result.symbol} to ${plan.targetSymbol} via ${plan.scenarioUsed} | +${plan.netSOL.toFixed(4)} SOL`]);
                         } else {
+                            const reason = result.frictionReason || "slippage/liq";
                             setBlockedFriction(b => b + 1);
-                            setLogs(l => [...l, `[Friction] ${result.symbol} exit blocked (slippage/liq).`]);
+                            setLogs(l => [...l, `[Friction] ${result.symbol} exit blocked: ${reason}`]);
                         }
                     }
                 }

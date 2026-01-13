@@ -34,6 +34,7 @@ export interface PortfolioAnalysisResult {
         riskScore: number;
         isSafe: boolean;
     };
+    frictionReason?: string;
     exitPlan?: {
         targetToken: string;
         targetSymbol: string;
@@ -126,6 +127,7 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
             let reason = 'Analyzing physics...';
             let isSafe = true;
             let riskScore = 0;
+            let currentFrictionReason = undefined;
 
             if (candidate) {
                 const pred = candidate.prediction;
@@ -212,9 +214,12 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                                 scenarioUsed: comparison.best.config.name
                             };
                         }
+                    } else {
+                        currentFrictionReason = "No feasible route found by Agent Hands";
                     }
-                } catch (err) {
+                } catch (err: any) {
                     console.error(`[PortfolioRunner] Real quote failed for ${token.symbol}`, err);
+                    currentFrictionReason = err.message || "Jupiter Quote Failed";
                 }
             }
 
@@ -235,6 +240,7 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                     riskScore,
                     isSafe
                 },
+                frictionReason: currentFrictionReason,
                 exitPlan: exitPlan || undefined
             });
         }

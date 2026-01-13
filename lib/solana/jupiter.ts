@@ -89,7 +89,7 @@ export async function getJupiterQuote(params: JupiterQuoteRequest): Promise<Jupi
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[Jupiter] Quote error:', errorText);
-      throw new Error(`Jupiter API error: ${response.status}`);
+      throw new Error(`Jupiter API error (${response.status}): ${errorText}`);
     }
 
     const quote: JupiterQuoteResponse = await response.json();
@@ -297,10 +297,10 @@ export async function hasJupiterRoute(outputMint: string): Promise<boolean> {
     }
 
     const data = await res.json();
-    
+
     // Jupiter returns routePlan array if route exists
     const hasRoute = Array.isArray(data.routePlan) && data.routePlan.length > 0;
-    
+
     routeCache.set(outputMint, { valid: hasRoute, ts: Date.now() });
     return hasRoute;
   } catch (err) {
@@ -337,11 +337,11 @@ export async function validateTokenRoutes(
   console.log(`[Jupiter] Validating ${toValidate.length} tokens...`);
 
   const validMints = new Set<string>();
-  
+
   // Process in batches to avoid rate limits
   for (let i = 0; i < toValidate.length; i += concurrency) {
     const batch = toValidate.slice(i, i + concurrency);
-    
+
     const results = await Promise.all(
       batch.map(async (t) => {
         const valid = await hasJupiterRoute(t.mint);

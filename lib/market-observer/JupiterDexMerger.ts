@@ -28,39 +28,53 @@ export interface DexMatchedToken {
 }
 
 const JUPITER_PROXY_URL = 'https://jupiter-proxy-production.up.railway.app';
+const JUP_TOKEN_LIST_URL = 'https://token.jup.ag/all'; // More complete than strict
 const MIN_VOLUME_24H = 1000; // $1k daily volume
 const MIN_LIQUIDITY = 5000; // $5k liquidity
 
 const observer = new VolumeObserver();
+
+// Hardcoded decimals for common tokens to ensure test stability if token list fetch fails
+const COMMON_DECIMALS: Record<string, number> = {
+    'So11111111111111111111111111111111111111112': 9, // SOL
+    'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263': 5, // BONK
+    'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm': 6, // WIF
+    '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr': 9, // POPCAT
+    'MEW1gQWJ3nEXg2qgPMIZuXaZCKam1oJ55Jk1hJp': 6,     // MEW
+    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': 6, // USDC
+    'Es9vMFrzaDCSTuNv6S69P7Ra3SPfPLB26gh5pXB9ftx': 6, // USDT
+};
 
 /**
  * Step 1: Fetch Jupiter Universe
  */
 export async function fetchJupiterTokens(): Promise<JupiterToken[]> {
     try {
-        const res = await fetch(`${JUPITER_PROXY_URL}/tokens`);
+        // Direct fetch from Jupiter to ensure latest data and decimals
+        const res = await fetch(JUP_TOKEN_LIST_URL);
 
         if (!res.ok) {
-            throw new Error(`Failed to fetch Jupiter universe: ${res.statusText}`);
-        }
-
-        const data = await res.json();
-
-        if (!data.tokens || !Array.isArray(data.tokens)) {
-            const rawArray = Array.isArray(data) ? data : [];
-            return rawArray.map((t: any) => ({
+            console.warn(`[JupiterDexMerger] Failed to fetch jup token list. Using proxy fallback.`);
+            const proxyRes = await fetch(`${JUPITER_PROXY_URL}/tokens`);
+            if (!proxyRes.ok) return [];
+            const proxyData = await proxyRes.json();
+            const raw = Array.isArray(proxyData) ? proxyData : (proxyData.tokens || []);
+            return raw.map((t: any) => ({
                 mint: t.address || t.mint,
                 symbol: t.symbol,
                 name: t.name,
-                decimals: t.decimals || 6,
+                decimals: t.decimals || COMMON_DECIMALS[t.address || t.mint] || 6
             }));
         }
 
-        return data.tokens.map((t: any) => ({
+        const data = await res.json();
+        const tokensArray = Array.isArray(data) ? data : (data.tokens || []);
+
+        return tokensArray.map((t: any) => ({
             mint: t.address || t.mint,
             symbol: t.symbol,
             name: t.name,
-            decimals: t.decimals || 6,
+            decimals: t.decimals || COMMON_DECIMALS[t.address || t.mint] || 6,
         }));
     } catch (error) {
         console.error("JupiterDexMerger: Fetch failed", error);
@@ -131,7 +145,7 @@ export async function getDexMatchedTokens(): Promise<DexMatchedToken[]> {
                         liquidityUSD: assessment.liquidityUsd,
                         riskLevel: assessment.riskLevel,
                         price: assessment.priceUsd,
-                        decimals: jupiterTokens.find(jt => jt.mint === assessment.mint)?.decimals || 6
+                        decimals: jupiterTokens.find(jt => jt.mint === assessment.mint)?.decimals || COMMON_DECIMALS[assessment.mint] || 6
                     });
                 }
             } catch (err) {
@@ -176,7 +190,7 @@ export async function getVirtualPortfolioTokens(targetMints: string[]): Promise<
                         liquidityUSD: analysis.liquidityUsd,
                         riskLevel: analysis.riskLevel as VolumeRiskLevel,
                         price: analysis.priceUsd,
-                        decimals: jupInfo?.decimals || 6
+                        decimals: jupInfo?.decimals || COMMON_DECIMALS[analysis.mint] || 6
                     });
                 }
             });
