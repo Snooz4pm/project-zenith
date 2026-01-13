@@ -1,7 +1,7 @@
 'use server';
 
-import { getVirtualPortfolioTokens } from '@/lib/market-observer/JupiterDexMerger';
-import { ScenarioRunner } from '@/lib/execution-engine/scenarios/ScenarioRunner';
+import { getVirtualPortfolioTokens, getDexMatchedTokens } from '@/lib/market-observer/JupiterDexMerger';
+import { MarketScanner } from '@/lib/execution-engine/simulation/MarketScanner';
 import { BrainGoal, SearchableToken } from '@/types/LiquidityFilter';
 import { VolumeRiskLevel } from '@/lib/market-observer/VolumeObserver';
 
@@ -31,6 +31,8 @@ export interface PortfolioAnalysisResult {
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+const RAY_MINT = '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S4nFj8H2MZ7Y3R';
 
 /**
  * Run Full Physics Analysis on a Portfolio of Mints
@@ -38,8 +40,30 @@ const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 export async function runPortfolioAnalysis(mints: string[]): Promise<PortfolioAnalysisResult[]> {
     console.log(`[PortfolioRunner] Analyzing ${mints.length} tokens...`);
 
-    // 1. Fetch Live Market Data (Jupiter + DexScreener)
-    const marketData = await getVirtualPortfolioTokens(mints);
+    // 1. Fetch Live Market Data (Portfolio + Broad Market Context)
+    // We launch both fetches in parallel for speed.
+    // "Broad Market" satisfies the "Intutition" requirement - seeing the rest of the market.
+    const [marketData, broadMarketData] = await Promise.all([
+        getVirtualPortfolioTokens(mints),
+        getDexMatchedTokens() // Scans ~1000 tokens per user request
+    ]);
+
+    // Convert Broad Market to Searchable Universe once (for efficiency)
+    const broadUniverse: SearchableToken[] = broadMarketData.map(t => ({
+        mint: t.mint,
+        symbol: t.symbol,
+        valueInSOL: (t.price || 0) / 140, // Approx SOL value
+        hasRoute: true,
+        isStable: ['USDC', 'USDT', 'PYUSD'].includes(t.symbol),
+        tier: t.riskLevel === 'LOW' ? 'SAFE' : 'RANKABLE',
+        liquidityScore: 1,
+        volatility: t.riskLevel === 'HIGH' ? 0.8 : 0.2, // Rough heuristic
+        alphaScore: 0,
+        source: undefined,
+        roundTripLoss: 0,
+        isAlpha: t.riskLevel !== 'LOW'
+    }));
+
     const results: PortfolioAnalysisResult[] = [];
 
     for (const token of marketData) {
@@ -55,51 +79,36 @@ export async function runPortfolioAnalysis(mints: string[]): Promise<PortfolioAn
         let isSafe = true;
         let riskScore = 0;
 
-        // --- PHYSICS ENGINE LOGIC ---
-        if (token.riskLevel === 'CRITICAL') {
-            action = 'SELL';
-            reason = 'CRITICAL RISK: Potential rug pull or collapsed liquidity.';
-            isSafe = false;
-            riskScore = 100;
-        } else if (token.riskLevel === 'HIGH') {
-            // High risk but maybe tradeable?
-            // If stablecoin, this is weird. If meme, check volume.
-            if (['USDC', 'USDT', 'PYUSD'].includes(token.symbol)) {
-                action = 'HOLD';
-                reason = 'Stablecoin (ignoring high volume).';
-                isSafe = true;
-                riskScore = 10;
-            } else {
-                action = 'SELL'; // Panic unless explicitly whitelisted
-                reason = 'High volatility/risk detected. Exiting to safety.';
+        // --- PURE PHYSICS ENGINE LOGIC ---
+        // "Let the pillars run the test."
+        // We strictly obey the VolumeObserver's Risk Level. No manual overrides.
+
+        switch (token.riskLevel) {
+            case 'CRITICAL':
+                action = 'SELL';
+                reason = 'CRITICAL RISK: Volume collapse or liquidity drain.';
+                isSafe = false;
+                riskScore = 100;
+                break;
+            case 'HIGH':
+                action = 'SELL';
+                reason = 'HIGH RISK: Volatility exceeds safety threshold.';
                 isSafe = false;
                 riskScore = 80;
-            }
-        } else if (token.riskLevel === 'MEDIUM') {
-            // "Tradeable" zone for memes
-            if (['USDC', 'USDT', 'PYUSD'].includes(token.symbol)) {
+                break;
+            case 'MEDIUM':
+                action = 'OBSERVE';
+                reason = 'MEDIUM RISK: Monitoring for directional break.';
+                isSafe = false;
+                riskScore = 50;
+                break;
+            case 'LOW':
+            default:
                 action = 'HOLD';
+                reason = 'LOW RISK: Asset healthy.';
                 isSafe = true;
-            } else {
-                action = 'OBSERVE'; // Watch closely
-                reason = 'Medium risk. Holding but monitoring.';
-                isSafe = false; // Not "Safe" safe, but not sell yet
-                riskScore = 40;
-            }
-        } else {
-            // LOW Risk
-            action = 'HOLD';
-            reason = 'Low risk. Asset is healthy.';
-            isSafe = true;
-            riskScore = 0;
-        }
-
-        // Special handling for SOL (Fuel)
-        if (token.symbol === 'SOL') {
-            action = 'HOLD';
-            reason = 'Native fuel.';
-            isSafe = true;
-            riskScore = 0;
+                riskScore = 10;
+                break;
         }
 
         // --- EXECUTION ENGINE LOGIC (PATHFINDING) ---
@@ -108,12 +117,13 @@ export async function runPortfolioAnalysis(mints: string[]): Promise<PortfolioAn
         if (action === 'SELL' || action === 'SWAP') {
             console.log(`[PortfolioRunner] Planning exit for ${token.symbol}...`);
 
-            // Construct simulated universe for Pathfinder
+            // Construct simulated universe for Pathfinder (Portfolio Asset + Broad Market)
+            // We combine the current token + SOL + The entire monitored universe.
             const universe: SearchableToken[] = [
                 {
                     mint: token.mint,
                     symbol: token.symbol,
-                    valueInSOL: 0,
+                    valueInSOL: (token.metrics.price || 0) / 140, // Normalize to SOL
                     hasRoute: true,
                     isStable: false,
                     tier: 'RANKABLE',
@@ -137,7 +147,8 @@ export async function runPortfolioAnalysis(mints: string[]): Promise<PortfolioAn
                     source: undefined,
                     roundTripLoss: 0,
                     isAlpha: false
-                }
+                },
+                ...broadUniverse // Integrate the 1000 scanned tokens as potential route hops
             ];
 
             // Define Goal: Exit to SOL
@@ -179,7 +190,8 @@ export async function runPortfolioAnalysis(mints: string[]): Promise<PortfolioAn
             mint: token.mint,
             symbol: token.symbol,
             metrics: {
-                price: 0, // TODO: Add price fetch if needed for UI, currently inferred
+                slippagePct: 0.005, // Conservative defalt
+                price: token.price || 0,
                 liquidityUSD: token.liquidityUSD || 0,
                 volume5m: token.volume5m || 0,
                 riskLevel: token.riskLevel

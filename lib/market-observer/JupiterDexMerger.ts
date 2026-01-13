@@ -91,7 +91,9 @@ export async function getDexMatchedTokens(): Promise<DexMatchedToken[]> {
     // User didn't specify, but "Market Scanner" usually implies full.
     // However, fetching 10k tokens against DexScreener is heavy.
     // Let's stick to the subset pattern for the "Observer" slice but maybe bump it to 100.
-    const subsetTokens = jupiterTokens.slice(0, 100);
+    // [DEBUG] Limit to 1000 tokens for "Real Life Test"
+    // Fetching 1000 tokens against DexScreener is heavy but necessary for full pathfinding.
+    const subsetTokens = jupiterTokens.slice(0, 1000);
 
     const matched: DexMatchedToken[] = [];
     const mints = subsetTokens.map(t => t.mint);
