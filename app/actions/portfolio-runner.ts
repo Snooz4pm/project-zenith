@@ -197,10 +197,10 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                     startToken: token.mint,
                     targetToken: SOL_MINT,
                     startAmountSOL: (position.amount * tokenPrice) / solPrice,
-                    targetAmountSOL: ((position.amount * tokenPrice) / solPrice) * 0.98,
-                    maxHops: 3,
-                    maxTotalRTL: 10,
-                    maxPerHopRTL: 5
+                    targetAmountSOL: 0.000001, // Zero-friction: Accept any exit amount
+                    maxHops: 10,               // Increase hops for deep liquidity discovery
+                    maxTotalRTL: 100,         // Unbounded loss tolerance for exits
+                    maxPerHopRTL: 100         // Unbounded loss tolerance for exits
                 };
 
                 try {
@@ -213,7 +213,7 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                             inputMint: token.mint,
                             outputMint: SOL_MINT,
                             amount: amountRaw,
-                            slippageBps: 50
+                            slippageBps: 200 // Higher slippage tolerance for "Do whatever you want" mode
                         });
 
                         if (liveQuote) {
@@ -233,7 +233,31 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                             };
                         }
                     } else {
-                        currentFrictionReason = `No feasible 3-hop route to SOL within 10% RTL budget (Trying to salvage ${(goal.targetAmountSOL).toFixed(4)} SOL)`;
+                        // FALLBACK: Brute force direct quote if pathfinder fails
+                        console.log(`[PortfolioRunner] Pathfinder failed for ${token.symbol}. Attempting BRUTE FORCE exit...`);
+                        const amountRaw = Math.floor(position.amount * Math.pow(10, token.decimals || 6)).toString();
+                        const directQuote = await getJupiterQuote({
+                            inputMint: token.mint,
+                            outputMint: SOL_MINT,
+                            amount: amountRaw,
+                            slippageBps: 500 // 5% slippage tolerance for emergency exit
+                        });
+
+                        if (directQuote) {
+                            const grossSOL = parseFloat(directQuote.outAmount) / 1e9;
+                            exitPlan = {
+                                targetToken: 'SOL',
+                                targetSymbol: 'SOL',
+                                grossSOL: isFinite(grossSOL) ? grossSOL : 0,
+                                slippagePct: parseFloat(directQuote.priceImpactPct) || 0,
+                                feesSOL: 0.000005,
+                                netSOL: isFinite(grossSOL) ? grossSOL - 0.000005 : 0,
+                                routeSummary: "Direct Jupiter Fallback",
+                                scenarioUsed: "BRUTE_FORCE"
+                            };
+                        } else {
+                            currentFrictionReason = "Jupiter API refused even a direct high-slippage quote.";
+                        }
                     }
                 } catch (err: any) {
                     console.error(`[PortfolioRunner] Real quote failed for ${token.symbol}`, err);
