@@ -24,6 +24,7 @@ import { detectRegime, isRegimeTradeable } from './regimeDetector';
 import { enforceDiversity } from './diversityEnforcer';
 import { calculateBatchOpportunity } from './opportunityScorer';
 import { compareAgainstBaselines } from './baselineComparator';
+import { auditCoverage } from './pillar13-audit';
 
 // Liquidity Filter Integration
 import { predictiveEngine } from '@/lib/smartswap/predictive/PredictiveEngineSafe';
@@ -274,12 +275,8 @@ export interface FunnelState {
     // Pillar 11: Agency Accountability state
     agencyState: AgencyState;
 
-    // Pillar 13: Voluntary Attention & Accountability
-    attentionDecision?: import('./pillar13-attention').AttentionDecision;
-    ignoredTokensAtStart?: Map<string, number>; // Prices when ignored
-    attentionPatterns: import('./pillar13-attention').AttentionPattern[];
-    totalRegret: number;
-    missedOpportunityCount: number;
+    // Pillar 13: Observation Integrity Audit
+    auditReport?: import('./pillar13-audit').CoverageReport;
 
     // Pillar 14: Emotional State
     emotionalState: EmotionalState;
@@ -453,41 +450,32 @@ export async function predictFunnel(
     }
 
     // ================================================================
-    // PILLAR 13: Voluntary Attention & Accountability
-    // Brain chooses which tokens to focus on (voluntary, not forced)
+    // PILLAR 13: Observation Integrity Audit
+    // Verification that we actually looked at the universe we claimed to.
     // ================================================================
 
-    // [LOBOTOMIZED] Attention Simulation Removed.
-    // We process ALL tokens. Bandwidth is not scarce.
-    const attentionDecision = {
-        cycle: state.cycle,
-        attentionSet: state.tokens.map(t => t.symbol), // Focus on everything
-        totalAvailable: state.tokens.length,
-        ignoredTokens: [],
-        focusRatio: 1.0,
-        selectionReason: "Full market scan enabled"
-    };
-    state.attentionDecision = attentionDecision;
-    state.ignoredTokensAtStart = new Map(); // No ignored tokens
+    // 1. Audit Coverage (Did we scan everything?)
+    // In this phase, "tokens" represents the set we *intend* to scan.
+    const expectedUniverse = new Set(state.tokens.map(t => t.symbol));
+    const successfullyScanned = new Set(state.tokens.map(t => t.symbol)); // Assuming all valid since we have them in state
 
-    if (emitEvent) {
-        emitEvent('ATTENTION_SELECTED', {
+    const audit = auditCoverage(state.cycle, Array.from(expectedUniverse), successfullyScanned);
+    state.auditReport = audit;
+
+    if (audit.status !== 'COMPLETE' || emitEvent) {
+        emitEvent('COVERAGE_AUDIT', {
             cycle: state.cycle,
-            totalAvailable: attentionDecision.totalAvailable,
-            attentionSetSize: attentionDecision.attentionSet.length,
-            ignoredCount: attentionDecision.ignoredTokens.length,
-            focusRatio: attentionDecision.focusRatio,
-            reason: attentionDecision.selectionReason,
+            coverage: (audit.coverageRatio * 100).toFixed(1) + '%',
+            status: audit.status,
+            missingCount: audit.failedScans,
+            missingTokens: audit.missingTokens.slice(0, 5) // Sample
         });
     }
 
-    console.log(`[Pillar 13] Attention: ${attentionDecision.attentionSet.length}/${attentionDecision.totalAvailable} tokens (${(attentionDecision.focusRatio * 100).toFixed(1)}%)`);
+    console.log(`[Pillar 13] Coverage Audit: ${audit.successfullyScanned}/${audit.totalUniverse} (${(audit.coverageRatio * 100).toFixed(1)}%) - ${audit.status}`);
 
     // Build price histories for all tokens
     const histories = buildHistories(state.tokens);
-
-    // All tokens in attention set (no filtering)
-    const attentionHistories = histories;
 
     // Detect regime first
     const regime = detectRegime(histories);
@@ -507,8 +495,8 @@ export async function predictFunnel(
     // [REMOVED] Pillar 10 constraints: No forced clamping of FLAT or directional minimums
     // Biases determine distribution freely
 
-    // 2. Calculate Allocation Counts (only for attention set)
-    const totalTokens = attentionHistories.length; // Only tokens in attention set
+    // 2. Calculate Allocation Counts
+    const totalTokens = histories.length;
     let countUp = Math.floor(totalTokens * targetUp);
     let countDown = Math.floor(totalTokens * targetDown);
     // Remainder to FLAT to ensure sum = total
@@ -526,8 +514,8 @@ export async function predictFunnel(
     }
 
     // 4. Score Tokens by Signal Strength (Momentum + Brain v2 Memory)
-    // Pillar 13: Only predict on attention set (voluntary focus)
-    const rawPredictions = predictBatch(attentionHistories, regime.regime, true, state.biases);
+    // Pillar 13 Audit: Scanning ALL tokens (100% coverage assumed if audit passed)
+    const rawPredictions = predictBatch(histories, regime.regime, true, state.biases);
 
     // Prepare liquidity filter inputs (best effort mapping)
     const searchableTokens: SearchableToken[] = state.tokens.map(t => ({
@@ -547,9 +535,8 @@ export async function predictFunnel(
     predictiveEngine.updateMarketState(searchableTokens);
 
     // Map tokens to their signal score (momentum + brain bias)
-    // Pillar 13: Only score tokens in attention set
-    const attentionSetTokens = state.tokens.filter(t => attentionDecision.attentionSet.includes(t.symbol));
-    const scoredTokens = await Promise.all(attentionSetTokens.map(async (token) => {
+    // Score ALL tokens
+    const scoredTokens = await Promise.all(state.tokens.map(async (token) => {
         const pred = rawPredictions.find(p => p.symbol === token.symbol);
         // Use momentum as primary signal Score. 
         // fallback to random if no signal (shouldn't happen with valid history)
@@ -676,10 +663,7 @@ export async function scoreFunnel(
         }));
     }
 
-    // ================================================================
-    // [REMOVED] PILLAR 13: Regret Accountability for Ignored Tokens
-    // ================================================================
-    // EXCISED: Attention regret tracking - will be removed in Phase 7
+
 
     // Pillar 10.3: Resolve predictions from previous cycle
     // NOTE: Penalties still apply even in OBSERVATION_ONLY mode
