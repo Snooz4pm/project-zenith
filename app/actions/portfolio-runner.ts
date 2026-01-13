@@ -98,6 +98,24 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
             isAlpha: t.riskLevel !== 'LOW'
         }));
 
+        // Ensure SOL is in the vision (it's the exit target)
+        if (!broadUniverse.some(u => u.mint === SOL_MINT)) {
+            broadUniverse.push({
+                mint: SOL_MINT,
+                symbol: 'SOL',
+                valueInSOL: 1,
+                hasRoute: true,
+                isStable: false,
+                tier: 'SAFE',
+                liquidityScore: 1,
+                volatility: 0,
+                alphaScore: 0,
+                source: undefined,
+                roundTripLoss: 0,
+                isAlpha: false
+            });
+        }
+
         // 2. Initialize Agent Physics (The Physics)
         console.log(`[PortfolioRunner] Step 2: Running Physics Engine...`);
         const candidates: TokenCandidate[] = marketData.map(t => ({
@@ -179,7 +197,7 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                     startToken: token.mint,
                     targetToken: SOL_MINT,
                     startAmountSOL: (position.amount * tokenPrice) / solPrice,
-                    targetAmountSOL: ((position.amount * tokenPrice) / solPrice) * 1.01,
+                    targetAmountSOL: ((position.amount * tokenPrice) / solPrice) * 0.98,
                     maxHops: 3,
                     maxTotalRTL: 10,
                     maxPerHopRTL: 5
@@ -215,7 +233,7 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                             };
                         }
                     } else {
-                        currentFrictionReason = "No feasible route found by Agent Hands";
+                        currentFrictionReason = `No feasible 3-hop route to SOL within 10% RTL budget (Trying to salvage ${(goal.targetAmountSOL).toFixed(4)} SOL)`;
                     }
                 } catch (err: any) {
                     console.error(`[PortfolioRunner] Real quote failed for ${token.symbol}`, err);
