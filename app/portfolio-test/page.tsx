@@ -34,13 +34,14 @@ interface ExecutedTrade {
 
 // --- INITIAL PORTFOLIO (Lobotomy Challenge: $100 Total) ---
 const INITIAL_POSITIONS: Position[] = [
-    { mint: 'So11111111111111111111111111111111111111112', symbol: 'SOL', amount: 0.14, entryPrice: 140 },
-    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', symbol: 'WIF', amount: 8, entryPrice: 2.0 },
-    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', symbol: 'BONK', amount: 800_000, entryPrice: 0.00002 },
-    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr', symbol: 'POPCAT', amount: 20, entryPrice: 0.8 },
-    { mint: 'MEW1gQWJ3nEXg2qgPMIZuXaZCKam1oJ55Jk1hJp', symbol: 'MEW', amount: 160, entryPrice: 0.1 },
-    { mint: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', symbol: 'BOME', amount: 1600, entryPrice: 0.01 },
+    { mint: 'So11111111111111111111111111111111111111112', symbol: 'SOL', amount: 0.14, entryPrice: 0 },
+    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', symbol: 'WIF', amount: 8, entryPrice: 0 },
+    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', symbol: 'BONK', amount: 800_000, entryPrice: 0 },
+    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr', symbol: 'POPCAT', amount: 20, entryPrice: 0 },
+    { mint: 'MEW1gQWJ3nEXg2qgPMIZuXaZCKam1oJ55Jk1hJp', symbol: 'MEW', amount: 160, entryPrice: 0 },
+    { mint: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', symbol: 'BOME', amount: 1600, entryPrice: 0 },
 ];
+
 
 export default function PortfolioTestPage() {
     const [running, setRunning] = useState(false);
@@ -235,8 +236,8 @@ export default function PortfolioTestPage() {
 
                             return (
                                 <div key={pos.mint} className={`border p-4 rounded-lg flex flex-col justify-between transition-all ${result.verdict.isSafe ? 'border-zinc-800 bg-zinc-900/30' :
-                                        result.verdict.action === 'OBSERVE' ? 'border-yellow-900/30 bg-yellow-900/10' :
-                                            'border-red-900/50 bg-red-900/10'
+                                    result.verdict.action === 'OBSERVE' ? 'border-yellow-900/30 bg-yellow-900/10' :
+                                        'border-red-900/50 bg-red-900/10'
                                     }`}>
                                     <div className="flex justify-between items-start mb-2">
                                         <div>
@@ -244,8 +245,8 @@ export default function PortfolioTestPage() {
                                             <div className="text-xs text-zinc-500">{pos.amount.toLocaleString()} units</div>
                                         </div>
                                         <div className={`text-xs font-bold px-2 py-1 rounded ${result.verdict.action === 'SELL' ? 'bg-red-500/20 text-red-500' :
-                                                result.verdict.action === 'OBSERVE' ? 'bg-yellow-500/20 text-yellow-500' :
-                                                    'bg-green-500/10 text-zinc-400'
+                                            result.verdict.action === 'OBSERVE' ? 'bg-yellow-500/20 text-yellow-500' :
+                                                'bg-green-500/10 text-zinc-400'
                                             }`}>
                                             {result.verdict.action}
                                         </div>
@@ -298,10 +299,7 @@ export default function PortfolioTestPage() {
                 </div>
             </div>
 
-            <style jsx global>{`
-                .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-            `}</style>
+
         </div>
     );
 }

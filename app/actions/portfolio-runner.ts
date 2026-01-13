@@ -37,10 +37,6 @@ export interface PortfolioAnalysisResult {
 }
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
-const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
-const RAY_MINT = '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S4nFj8H2MZ7Y3R';
-
 /**
  * Run Full Physics Analysis on a Portfolio of Mints
  */
@@ -138,7 +134,7 @@ export async function runPortfolioAnalysis(mints: string[]): Promise<PortfolioAn
                 {
                     mint: token.mint,
                     symbol: token.symbol,
-                    valueInSOL: (token.metrics.price || 0) / 140, // Normalize to SOL
+                    valueInSOL: (token.price || 0) / 140, // Normalize to SOL
                     hasRoute: true,
                     isStable: false,
                     tier: 'RANKABLE',
