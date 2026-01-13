@@ -145,9 +145,10 @@ export default function PortfolioTestPage() {
             }
 
             setPositions(newPositions);
-        } catch (err) {
+        } catch (err: any) {
             console.error("Tick failed", err);
-            setLogs(l => [...l, '[!!] MARKET ACCESS ERROR (Check connectivity)']);
+            const msg = err.message || "Unknown error";
+            setLogs(l => [...l, `[!!] MARKET ACCESS ERROR: ${msg}`]);
         } finally {
             setIsPolling(false);
         }
@@ -252,8 +253,8 @@ export default function PortfolioTestPage() {
                                             </td>
                                             <td className="p-4 text-xs capitalize">
                                                 <span className={`px-2 py-0.5 rounded-full text-[9px] font-black tracking-tight ${result.metrics.volumeState === 'expanding' ? 'bg-green-500/10 text-green-500' :
-                                                        result.metrics.volumeState === 'collapsing' ? 'bg-red-500/10 text-red-500 border border-red-900/30' :
-                                                            'bg-zinc-800 text-zinc-500'
+                                                    result.metrics.volumeState === 'collapsing' ? 'bg-red-500/10 text-red-500 border border-red-900/30' :
+                                                        'bg-zinc-800 text-zinc-500'
                                                     }`}>
                                                     {result.metrics.volumeState}
                                                 </span>
