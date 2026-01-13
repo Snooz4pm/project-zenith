@@ -1,7 +1,6 @@
 'use server';
 
 import { getVirtualPortfolioTokens, getDexMatchedTokens } from '@/lib/market-observer/JupiterDexMerger';
-import { MarketScanner } from '@/lib/execution-engine/simulation/MarketScanner';
 import { ScenarioRunner } from '@/lib/execution-engine/scenarios/ScenarioRunner';
 import {
     createFunnelState,
