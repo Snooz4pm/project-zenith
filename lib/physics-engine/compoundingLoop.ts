@@ -395,21 +395,68 @@ export async function freezeUniverse(limit: number = 1000): Promise<TokenCandida
 
 /**
  * Build price histories from candidates
+ * Uses deterministic seeding based on token properties to create varied momentum patterns
  */
 function buildHistories(candidates: TokenCandidate[]): TokenPriceHistory[] {
     const now = Date.now();
-    return candidates.map(c => ({
-        symbol: c.symbol,
-        mint: c.mint,
-        prices: [
-            { timestamp: now - 5 * 60 * 1000, price: c.priceAtStart * 0.99, volume: 1000 },
-            { timestamp: now - 4 * 60 * 1000, price: c.priceAtStart * 0.995, volume: 1000 },
-            { timestamp: now - 3 * 60 * 1000, price: c.priceAtStart * 1.0, volume: 1000 },
-            { timestamp: now - 2 * 60 * 1000, price: c.priceAtStart * 1.005, volume: 1000 },
-            { timestamp: now - 1 * 60 * 1000, price: c.priceAtStart * 1.01, volume: 1000 },
-            { timestamp: now, price: c.priceAtStart, volume: 1000 },
-        ],
-    }));
+
+    return candidates.map((c, index) => {
+        // Create deterministic but varied momentum based on token properties
+        // Use mint hash and index to create unique patterns per token
+        const mintHash = c.mint.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const seed = (mintHash + index) % 100;
+
+        // Distribute tokens into momentum buckets:
+        // ~30% upward momentum (gems)
+        // ~40% flat momentum  
+        // ~30% downward momentum
+        let pattern: number[];
+
+        if (seed < 30) {
+            // UPWARD momentum pattern (discovery gems)
+            const strength = 0.005 + (seed / 100) * 0.02; // 0.5% to 2.5% gain
+            pattern = [
+                1.0 - strength * 2,
+                1.0 - strength * 1.5,
+                1.0 - strength,
+                1.0 - strength * 0.3,
+                1.0 + strength * 0.5,
+                1.0 + strength  // Current price showing upward momentum
+            ];
+        } else if (seed < 70) {
+            // FLAT momentum pattern (sideways)
+            const wobble = 0.002;
+            pattern = [
+                1.0 - wobble,
+                1.0 + wobble,
+                1.0,
+                1.0 - wobble * 0.5,
+                1.0 + wobble * 0.5,
+                1.0
+            ];
+        } else {
+            // DOWNWARD momentum pattern (avoid)
+            const decline = 0.005 + ((seed - 70) / 30) * 0.02;
+            pattern = [
+                1.0 + decline * 2,
+                1.0 + decline * 1.5,
+                1.0 + decline,
+                1.0 + decline * 0.3,
+                1.0 - decline * 0.5,
+                1.0 - decline
+            ];
+        }
+
+        return {
+            symbol: c.symbol,
+            mint: c.mint,
+            prices: pattern.map((mult, i) => ({
+                timestamp: now - (5 - i) * 60 * 1000,
+                price: c.priceAtStart * mult,
+                volume: 1000 + seed * 10 // Varied volume
+            })),
+        };
+    });
 }
 
 /**
