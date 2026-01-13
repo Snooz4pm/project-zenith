@@ -110,7 +110,7 @@ export default function SurvivalTestPage() {
 
     // Portfolio state
     const [positions, setPositions] = useState<Position[]>(INITIAL_POSITIONS);
-    const [availableSol, setAvailableSol] = useState(INITIAL_CAPITAL_SOL - 0.30);
+    const [availableSol, setAvailableSol] = useState(0.035); // Only the SOL reserve - no safety net
     const [scanResults, setScanResults] = useState<PortfolioAnalysisResult[]>([]);
     const [discoveryGems, setDiscoveryGems] = useState<PortfolioAnalysisResult[]>([]);
 
