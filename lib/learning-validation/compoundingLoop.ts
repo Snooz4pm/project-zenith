@@ -685,216 +685,106 @@ export async function scoreFunnel(
     // NOTE: Penalties still apply even in OBSERVATION_ONLY mode
     const resolvedScores = resolvePredictions(state, currentPrices, 1.0, emitEvent);
 
-// ================================================================
-// EXPOSURE-GATED ACCURACY: Only calculated if narrowing allowed
-// OBSERVATION_ONLY mode = no accuracy credit, no funnel progress
-// ================================================================
-let accuracy = 0;
-let correctCount = 0;
+    // ================================================================
+    // EXPOSURE-GATED ACCURACY: Only calculated if narrowing allowed
+    // OBSERVATION_ONLY mode = no accuracy credit, no funnel progress
+    // ================================================================
+    let accuracy = 0;
+    let correctCount = 0;
 
-// Always update actual directions for observational data
-for (const token of state.tokens) {
-    if (!token.priceAtEnd) token.priceAtEnd = token.priceAtStart;
-    const priceChange = ((token.priceAtEnd - token.priceAtStart) / token.priceAtStart);
-    token.actual = determineActualDirection(priceChange * 100);
-
-    // Update cumulative score from resolved predictions (penalties still apply)
-    const resolvedScore = resolvedScores.get(token.symbol) || 0;
-    token.score = resolvedScore;
-}
-
-// Only count accuracy when narrowing is allowed (directional commitment made)
-if (narrowingAllowed) {
+    // Always update actual directions for observational data
     for (const token of state.tokens) {
-        token.correct = token.prediction === token.actual;
-        if (token.correct) correctCount++;
+        if (!token.priceAtEnd) token.priceAtEnd = token.priceAtStart;
+        const priceChange = ((token.priceAtEnd - token.priceAtStart) / token.priceAtStart);
+        token.actual = determineActualDirection(priceChange * 100);
+
+        // Update cumulative score from resolved predictions (penalties still apply)
+        const resolvedScore = resolvedScores.get(token.symbol) || 0;
+        token.score = resolvedScore;
     }
-    accuracy = tokensBefore > 0 ? correctCount / tokensBefore : 0;
-} else {
-    // OBSERVATION_ONLY: No accuracy credit - funnel doesn't progress on FLAT
-    if (emitEvent) {
-        emitEvent('ACCURACY_BLOCKED', {
-            mode: 'OBSERVATION_ONLY',
-            reason: 'No directional commitment = no accuracy credit',
-        });
+
+    // Only count accuracy when narrowing is allowed (directional commitment made)
+    if (narrowingAllowed) {
+        for (const token of state.tokens) {
+            token.correct = token.prediction === token.actual;
+            if (token.correct) correctCount++;
+        }
+        accuracy = tokensBefore > 0 ? correctCount / tokensBefore : 0;
+    } else {
+        // OBSERVATION_ONLY: No accuracy credit - funnel doesn't progress on FLAT
+        if (emitEvent) {
+            emitEvent('ACCURACY_BLOCKED', {
+                mode: 'OBSERVATION_ONLY',
+                reason: 'No directional commitment = no accuracy credit',
+            });
+        }
+        // Mark all as "not correct" for observation purposes (no credit)
+        for (const token of state.tokens) {
+            token.correct = false; // No credit without commitment
+        }
     }
-    // Mark all as "not correct" for observation purposes (no credit)
+
+    // ================================================================
+    // NARROWING: Only happens if allowed (not in OBSERVATION_ONLY mode)
+    // ================================================================
+    let survivors = state.tokens;
+    let eliminated: TokenCandidate[] = [];
+
+    if (narrowingAllowed) {
+        // Narrow to survivors based on cumulative scores
+        survivors = state.tokens
+            .filter(t => t.score > -5) // Eliminate tokens with very bad scores
+            .sort((a, b) => b.score - a.score)
+            .slice(0, Math.ceil(state.tokens.length * PILLAR_10_CONFIG.NARROWING_RATIO));
+
+        eliminated = state.tokens.filter(t => !survivors.includes(t));
+
+        // Update state
+        state.eliminated.push(...eliminated);
+        state.tokens = survivors;
+
+        // Check termination conditions (only when narrowing)
+        if (survivors.length < PILLAR_10_CONFIG.SURVIVOR_THRESHOLD) {
+            state.funnelComplete = true;
+            // Find UP predictions for execution
+            state.executionCandidates = survivors.filter(t => t.prediction === 'UP' && t.score > 0);
+        }
+
+        if (survivors.length === 0) {
+            state.funnelCollapsed = true;
+        }
+    } else {
+        // OBSERVATION_ONLY mode: No narrowing, but still score
+        if (emitEvent) {
+            emitEvent('NARROWING_SKIPPED', { mode: 'OBSERVATION_ONLY', tokens: state.tokens.length });
+        }
+    }
+
+    // Increment cycle
+    state.cycle++;
+
+    // Reset for next cycle
     for (const token of state.tokens) {
-        token.correct = false; // No credit without commitment
-    }
-}
-
-// ================================================================
-// NARROWING: Only happens if allowed (not in OBSERVATION_ONLY mode)
-// ================================================================
-let survivors = state.tokens;
-let eliminated: TokenCandidate[] = [];
-
-if (narrowingAllowed) {
-    // Narrow to survivors based on cumulative scores
-    survivors = state.tokens
-        .filter(t => t.score > -5) // Eliminate tokens with very bad scores
-        .sort((a, b) => b.score - a.score)
-        .slice(0, Math.ceil(state.tokens.length * PILLAR_10_CONFIG.NARROWING_RATIO));
-
-    eliminated = state.tokens.filter(t => !survivors.includes(t));
-
-    // Update state
-    state.eliminated.push(...eliminated);
-    state.tokens = survivors;
-
-    // Check termination conditions (only when narrowing)
-    if (survivors.length < PILLAR_10_CONFIG.SURVIVOR_THRESHOLD) {
-        state.funnelComplete = true;
-        // Find UP predictions for execution
-        state.executionCandidates = survivors.filter(t => t.prediction === 'UP' && t.score > 0);
-    }
-
-    if (survivors.length === 0) {
-        state.funnelCollapsed = true;
-    }
-} else {
-    // OBSERVATION_ONLY mode: No narrowing, but still score
-    if (emitEvent) {
-        emitEvent('NARROWING_SKIPPED', { mode: 'OBSERVATION_ONLY', tokens: state.tokens.length });
-    }
-}
-
-// Increment cycle
-state.cycle++;
-
-// Reset for next cycle
-for (const token of state.tokens) {
-    token.priceAtStart = token.priceAtEnd || token.priceAtStart;
-    token.priceAtEnd = undefined;
-    token.prediction = undefined;
-    token.actual = undefined;
-    token.correct = undefined;
-}
-
-return {
-    cycle: state.cycle,
-    tokensBefore,
-    tokensAfter: survivors.length,
-    accuracy,
-    regime: state.regime,
-    survivors,
-    eliminated,
-    timestamp: Date.now(),
-};
-}
-
-/**
- * Create initial funnel state
- */
-export function createFunnelState(tokens: TokenCandidate[]): FunnelState {
-    // Initialize flatStreak on all tokens
-    for (const token of tokens) {
-        token.flatStreak = 0;
+        token.priceAtStart = token.priceAtEnd || token.priceAtStart;
+        token.priceAtEnd = undefined;
+        token.prediction = undefined;
+        token.actual = undefined;
+        token.correct = undefined;
     }
 
     return {
-        cycle: 0,
-        startedAt: Date.now(),
-        initialTokenCount: tokens.length,
-        tokens,
-        eliminated: [],
-        predictions: new Map(),
-        regime: 'UNKNOWN',
-        funnelComplete: false,
-        funnelCollapsed: false,
-        executionCandidates: [],
-        predictionStorage: new Map(),
-
-        // Pillar 10.5: Behavioral Adaptation
-        biases: { upBias: 1.0, downBias: 1.0, flatBias: 1.0 },
-
-        // Pillar 10.6: FLAT DEBT tracking
-        consecutiveFlatDominanceCycles: 0,
-        explorationModeActive: false,
-
-        // Pillar 10.7: FLAT Watchlist
-        flatWatchlist: [],
-        totalMissedOpportunityPenalty: 0,
-
-        // Pillar 11: Agency Accountability
-        agencyState: {
-            totalDirectionalPredictions: 0,
-            cyclesWithDirection: 0,
-            agencyQuotaMet: false,
-            firstAgencyTime: null,
-            egoDebt: 0,
-            egoClockExpired: false,
-            recoveryModeActive: false,
-        },
-
-        // Pillar 13: Voluntary Attention & Accountability
-        attentionPatterns: [],
-        totalRegret: 0,
-        missedOpportunityCount: 0,
-
-        // Pillar 14: Emotional State
-        emotionalState: {
-            fear: 0,
-            confidence: 0.5,
-            regret: 0,
-        },
+        cycle: state.cycle,
+        tokensBefore,
+        tokensAfter: survivors.length,
+        accuracy,
+        regime: state.regime,
+        survivors,
+        eliminated,
+        timestamp: Date.now(),
     };
 }
 
-/**
- * Check if funnel should continue
- */
-export function shouldContinueFunnel(state: FunnelState): boolean {
-    const elapsed = Date.now() - state.startedAt;
-    const maxMs = PILLAR_10_CONFIG.MAX_DURATION_MINUTES * 60 * 1000;
 
-    if (elapsed >= maxMs) return false;
-    if (state.funnelComplete) return false;
-    if (state.funnelCollapsed) return false;
-    if (state.tokens.length === 0) return false;
-
-    return true;
-}
-
-/**
- * Get execution decision from funnel
- */
-export function getFunnelVerdict(state: FunnelState): {
-    shouldExecute: boolean;
-    reason: string;
-    candidates: TokenCandidate[];
-} {
-    if (state.funnelCollapsed) {
-        return {
-            shouldExecute: false,
-            reason: 'Funnel collapsed - all tokens eliminated. NO TRADE = PASS.',
-            candidates: [],
-        };
-    }
-
-    if (!state.funnelComplete) {
-        return {
-            shouldExecute: false,
-            reason: 'Funnel not complete - still narrowing.',
-            candidates: [],
-        };
-    }
-
-    if (state.executionCandidates.length === 0) {
-        return {
-            shouldExecute: false,
-            reason: 'No UP candidates survived. NO TRADE = PASS.',
-            candidates: [],
-        };
-    }
-
-    return {
-        shouldExecute: true,
-        reason: `Funnel complete: ${state.executionCandidates.length} UP candidates ready.`,
-        candidates: state.executionCandidates,
-    };
-}
 
 /**
  * ========================================
@@ -1382,4 +1272,6 @@ export function evaluateMissedOpportunities(
     return result;
 }
 
-export { DirectionBias };
+export type { DirectionBias };
+export type { PredictionDirection };
+

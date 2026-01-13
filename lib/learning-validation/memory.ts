@@ -104,52 +104,27 @@ export function archiveToken(
     if (priceChange > epsilon) actualDirection = 'UP';
     else if (priceChange < -epsilon) actualDirection = 'DOWN';
 
-    // Generate teaching lesson
-    const { lesson, type } = generateLesson(
-        token.prediction || 'FLAT',
-        actualDirection,
-        priceChange
-    );
-
-    const archived: ArchivedToken = {
-        token: token.symbol,
-        mint: token.mint,
-        cycle,
-        brainPrediction: token.prediction || 'FLAT',
-        priceAtPrediction: token.priceAtStart,
-        finalPrice,
-        actualDirection,
-        priceChange,
-        lesson,
-        timestamp: Date.now(),
-        runId: currentRunMemory!.runId,
-    };
-
-    currentRunMemory!.archivedTokens.push(archived);
-
+    // [LOBOTOMIZED] No teaching. No lessons.
     const teaching: TeachingEvent = {
         token: token.symbol,
         cycle,
         prediction: token.prediction || 'FLAT',
         actual: actualDirection,
         priceChange,
-        lesson,
-        type,
+        lesson: "Observation only.",
+        type: 'CORRECT_FLAT',
     };
 
-    currentRunMemory!.teachingEvents.push(teaching);
-
-    if (emitEvent) {
+    currentRunMemory!.teachingEvents.push(teaching); if (emitEvent) {
         emitEvent('MEMORY_TEACHING', {
             token: token.symbol,
             prediction: token.prediction,
             actual: actualDirection,
-            priceChange: (priceChange * 100).toFixed(2) + '%',
-            lesson,
-            type,
+            priceChange: `${(priceChange * 100).toFixed(2)}%`,
+            lesson: teaching.lesson,
+            type: teaching.type,
         });
     }
-
     return teaching;
 }
 
@@ -264,18 +239,14 @@ export function endLearningRun(
         emitEvent('MEMORY_RUN_COMPLETE', {
             runId: currentRunMemory.runId,
             totalArchived: currentRunMemory.archivedTokens.length,
-            missedOpportunities,
-            directionalErrors,
-            correctCalls,
             biasAdjustments: currentRunMemory.biasAdjustments,
         });
     }
-
-    // Archive to history
-    memoryHistory.push(currentRunMemory);
-
     const result = currentRunMemory;
     currentRunMemory = null;
+
+    // [LOBOTOMIZED] Do not save to history.
+    // memoryHistory.push(currentRunMemory);
 
     return result;
 }

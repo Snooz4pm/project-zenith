@@ -35,16 +35,11 @@ export class PredictiveEngineSafe {
     /**
      * Initialize - load learnings from Neon
      */
+    /**
+     * Initialize - [LOBOTOMIZED] Do not load learnings.
+     */
     async initialize(): Promise<void> {
-        try {
-            const learnings = await neonStorage.getAllLearnings({ minConfidence: 0.3, limit: 200 });
-            learnings.forEach(learning => {
-                this.learningCache.set(learning.mint, learning);
-            });
-            console.log(`[PredictiveEngine] Loaded ${learnings.length} token learnings from Neon`);
-        } catch (error) {
-            console.error('[PredictiveEngine] Error initializing:', error);
-        }
+        console.log('[PredictiveEngine] Memory Center Lobotomized. No learnings loaded.');
     }
 
     /**
@@ -85,74 +80,44 @@ export class PredictiveEngineSafe {
     /**
      * Learn from session comparison - DIRECTIONAL ONLY
      */
+    /**
+     * Learn from session comparison - [LOBOTOMIZED]
+     */
     async learnFromComparison(comparison: SessionComparison): Promise<void> {
-        const learning = await this.getLearning(comparison.token);
-
-        // Update direction accuracy
-        const directionCorrect = comparison.actualDirection === comparison.predictedDirection;
-        const learningRate = 0.1;
-        learning.directionAccuracy = learning.directionAccuracy * 0.9 + (directionCorrect ? 1 : 0) * learningRate;
-
-        // Update magnitude bucket accuracy
-        const bucketCorrect = comparison.actualBucket === comparison.predictedBucket;
-        learning.magnitudeBucketAccuracy = learning.magnitudeBucketAccuracy * 0.9 + (bucketCorrect ? 1 : 0) * learningRate;
-
-        // Update overall confidence
-        const wasAccurate = directionCorrect || bucketCorrect;
-        learning.confidenceScore = Math.max(0, Math.min(1,
-            learning.confidenceScore * 0.95 + (wasAccurate ? 0.05 : -0.02)
-        ));
-
-        learning.lastUpdated = Date.now();
-        learning.learningCount++;
-
-        // Save to cache and Neon
-        this.learningCache.set(comparison.token, learning);
-        await neonStorage.updateTokenLearning(learning);
-        await neonStorage.recordSessionComparison(comparison);
+        // [LOBOTOMIED] Do nothing. Do not save. Do not learn.
+        return;
     }
 
     /**
      * Get search bias for a token - NOT price prediction
      */
+    /**
+     * Get search bias for a token - [LOBOTOMIZED] Neutral Only
+     */
     async getSearchBias(token: SearchableToken): Promise<SearchBias> {
-        const learning = await this.getLearning(token.mint);
-        const ageFactor = this.getAgeFactor(learning.lastUpdated);
-
-        // Bias components (all 0-1)
-        const directionalTrust = learning.directionAccuracy * ageFactor;
-        const magnitudeTrust = learning.magnitudeBucketAccuracy * ageFactor;
-        const confidence = learning.confidenceScore * ageFactor;
-
-        // Apply market regime adjustments
-        const regimeBoost = this.getRegimeBoost(token, this.marketState.regime);
-
+        // [LOBOTOMIZED] Always return neutral bias.
         return {
-            explorationPriority: Math.min(1, (directionalTrust * 0.6 + magnitudeTrust * 0.4) * regimeBoost),
-            constraintRelaxation: Math.min(0.3, confidence * 0.3), // Max 30% relaxation
-            holdConfidence: directionalTrust > 0.7 ? directionalTrust : 0,
-            beamBoost: Math.min(2, 1 + (confidence * 0.5)),
+            explorationPriority: 0.5, // Neutral
+            constraintRelaxation: 0.0, // No relaxation
+            holdConfidence: 0,
+            beamBoost: 1.0, // No boost
         };
     }
 
     /**
      * Apply bias to search constraints - THE CORE CONNECTION
      */
+    /**
+     * Apply bias to search constraints - [LOBOTOMIZED] No Relaxation
+     */
     applyBiasToConstraints(
         baseConstraints: SearchConstraints,
         bias: SearchBias,
         token: SearchableToken
     ): SearchConstraints {
-        // ONLY relax constraints, never tighten them
-        return {
-            maxHops: Math.ceil(baseConstraints.maxHops * (1 + bias.constraintRelaxation * 0.3)),
-            maxTotalRTL: baseConstraints.maxTotalRTL * (1 + bias.constraintRelaxation * 0.4),
-            maxPerHopRTL: token.isAlpha
-                ? baseConstraints.maxPerHopRTL * (1 + bias.constraintRelaxation * 0.5)
-                : baseConstraints.maxPerHopRTL * (1 + bias.constraintRelaxation * 0.2),
-            beamWidth: Math.ceil(baseConstraints.beamWidth * bias.beamBoost),
-            maxRevisits: bias.explorationPriority > 0.7 ? 1 : 0,
-        };
+        // [LOBOTOMIZED] Return constraints exactly as they are.
+        // Adaptive constraints are DEAD.
+        return baseConstraints;
     }
 
     /**
