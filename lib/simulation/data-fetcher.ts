@@ -6,7 +6,7 @@
  */
 
 import type { SearchableToken } from '@/types/LiquidityFilter';
-import type { TokenPriceHistory } from '@/lib/learning-validation/types';
+import type { TokenPriceHistory } from '@/lib/physics-engine/types';
 
 const JUPITER_PROXY_API = 'https://jupiter-proxy-production.up.railway.app';
 const SOL_MINT = 'So11111111111111111111111111111111111111112';

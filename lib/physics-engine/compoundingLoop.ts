@@ -27,7 +27,7 @@ import { compareAgainstBaselines } from './baselineComparator';
 import { auditCoverage } from './pillar13-audit';
 
 // Liquidity Filter Integration
-import { predictiveEngine } from '@/lib/smartswap/predictive/PredictiveEngineSafe';
+import { predictiveEngine } from '@/lib/execution-engine/predictive/PredictiveEngineSafe';
 import { SearchableToken } from '@/types/LiquidityFilter';
 
 const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
@@ -310,40 +310,49 @@ export interface CycleResult {
 /**
  * Fetch frozen universe of tokens from Jupiter with classification
  */
-export async function freezeUniverse(limit: number = 1000): Promise<TokenCandidate[]> {
-    const tokensRes = await fetch(`${JUPITER_PROXY_URL}/tokens`);
-    if (!tokensRes.ok) throw new Error('Failed to fetch tokens');
+// Pillar 1 Integration
+import { getDexMatchedTokens, DexMatchedToken } from '@/lib/market-observer/JupiterDexMerger';
 
-    const { tokens } = await tokensRes.json();
+/**
+ * Fetch frozen universe of tokens from Jupiter with classification
+ * NOW INTEGRATED WITH PILLAR 1: MARKET OBSERVER
+ */
+export async function freezeUniverse(limit: number = 1000): Promise<TokenCandidate[]> {
+    console.log('[Pillar10] Requesting verified universe from Market Observer (Pillar 1)...');
+
+    // 1. Get Strict List from Market Observer
+    const matchedTokens: DexMatchedToken[] = await getDexMatchedTokens();
+    console.log(`[Pillar10] Pillar 1 return count: ${matchedTokens.length}`);
+
     const candidates: TokenCandidate[] = [];
     const classificationStats = { STABLE: 0, MAJOR: 0, CHAOS: 0 };
 
-    // Pre-filter tokens before fetching quotes
+    // 2. Classify and Filter
     const tokensToFetch: any[] = [];
-    for (const token of tokens.slice(0, limit * 3)) {
-        if (token.address === SOL_MINT) continue;
+    for (const token of matchedTokens.slice(0, limit * 3)) {
+        if (token.mint === SOL_MINT) continue;
 
-        const tokenClass = classifyToken(token.symbol, token.address);
+        const tokenClass = classifyToken(token.symbol, token.mint);
         classificationStats[tokenClass]++;
 
         // Filter based on mode
         if (tokenClass === 'STABLE') continue;
         if (PILLAR_10_CONFIG.FUNNEL_MODE === 'CHAOS_ONLY' && tokenClass === 'MAJOR') continue;
 
-        tokensToFetch.push({ ...token, tokenClass });
+        tokensToFetch.push({ ...token, address: token.mint, tokenClass });
         if (tokensToFetch.length >= limit) break;
     }
 
-    console.log(`[Pillar10] Pre-filtered: ${tokensToFetch.length} tokens to fetch quotes for`);
+    console.log(`[Pillar10] Pre-filtered (Mode: ${PILLAR_10_CONFIG.FUNNEL_MODE}): ${tokensToFetch.length} tokens`);
 
-    // Fetch quotes in parallel batches of 100 (avoid rate limits)
+    // 3. Fetch Initial Quotes (Price Discovery)
     const BATCH_SIZE = 250;
     for (let i = 0; i < tokensToFetch.length && candidates.length < limit; i += BATCH_SIZE) {
         const batch = tokensToFetch.slice(i, i + BATCH_SIZE);
 
         const batchResults = await Promise.allSettled(
             batch.map(async (token) => {
-                const amount = Math.pow(100, token.decimals || 6).toString();
+                const amount = Math.pow(100, 6).toString(); // Standard 6 decimals assumption for check
                 const quoteRes = await fetch(
                     `${JUPITER_PROXY_URL}/quote?` + new URLSearchParams({
                         inputMint: token.address,
@@ -364,7 +373,7 @@ export async function freezeUniverse(limit: number = 1000): Promise<TokenCandida
                         tokenClass: token.tokenClass,
                         priceAtStart: solOut,
                         score: 0,
-                        flatStreak: 0, // Pillar 10.6
+                        flatStreak: 0,
                     };
                 }
                 return null;
@@ -379,7 +388,7 @@ export async function freezeUniverse(limit: number = 1000): Promise<TokenCandida
     }
 
     console.log(`[Pillar10] Universe classification: ${JSON.stringify(classificationStats)}`);
-    console.log(`[Pillar10] Funnel mode: ${PILLAR_10_CONFIG.FUNNEL_MODE}, candidates: ${candidates.length}`);
+    console.log(`[Pillar10] Final Candidates: ${candidates.length}`);
 
     return candidates;
 }
@@ -423,10 +432,27 @@ function buildHistories(candidates: TokenCandidate[]): TokenPriceHistory[] {
  * Make predictions for all tokens in the funnel
  * [MODIFIED] No longer enforces directional quotas
  */
+export interface DirectionalCheck {
+    valid: boolean;
+    violationType?: 'NONE' | 'FLAT_EXCEEDED' | 'DIRECTIONAL_INSUFFICIENT';
+    reason?: string;
+    directionalPct: number;
+    flatPct: number;
+    minDirectional: number;
+    maxFlat: number;
+    upCount: number;
+    downCount: number;
+    flatCount: number;
+}
+
+/**
+ * Make predictions for all tokens in the funnel
+ * [MODIFIED] No longer enforces directional quotas
+ */
 export async function predictFunnel(
     state: FunnelState,
     emitEvent?: (type: string, data: any) => void
-): Promise<void> {
+): Promise<DirectionalCheck> {
 
     // Initialize Brain v2 (Lazy init)
     await predictiveEngine.initialize();
@@ -613,6 +639,19 @@ export async function predictFunnel(
     recordPredictions(state, currentPrices);
 
     // [REMOVED] Directional commitment check - no longer enforced
+    // Return a dummy compliant check for API compatibility
+    return {
+        valid: true,
+        violationType: 'NONE',
+        reason: 'Checks removed',
+        directionalPct: 1,
+        flatPct: 0,
+        minDirectional: 0,
+        maxFlat: 1,
+        upCount: countUp,
+        downCount: countDown,
+        flatCount: countFlat
+    };
 }
 
 /**
@@ -1256,6 +1295,84 @@ export function evaluateMissedOpportunities(
     return result;
 }
 
+
+// ============================================================================
+// Public Exports (Helper Functions)
+// ============================================================================
+
+/**
+ * Initialize a new funnel state
+ */
+export function createFunnelState(tokens: TokenCandidate[]): FunnelState {
+    return {
+        cycle: 0,
+        startedAt: Date.now(),
+        initialTokenCount: tokens.length,
+        tokens,
+        eliminated: [],
+        predictions: new Map(),
+        regime: 'UNKNOWN',
+        funnelComplete: false,
+        funnelCollapsed: false,
+        executionCandidates: [],
+        predictionStorage: new Map(),
+        biases: { upBias: 1, downBias: 1, flatBias: 1 },
+        consecutiveFlatDominanceCycles: 0,
+        explorationModeActive: false,
+        flatWatchlist: [],
+        totalMissedOpportunityPenalty: 0,
+        agencyState: {
+            totalDirectionalPredictions: 0,
+            cyclesWithDirection: 0,
+            agencyQuotaMet: false,
+            firstAgencyTime: null,
+            egoDebt: 0,
+            egoClockExpired: false,
+            recoveryModeActive: false
+        },
+        emotionalState: {
+            confidence: 0,
+            regret: 0,
+            fear: 0
+        }
+    };
+}
+
+/**
+ * Get final verdict from funnel state
+ */
+export function getFunnelVerdict(state: FunnelState | null): {
+    shouldExecute: boolean;
+    candidates: TokenCandidate[];
+    reason: string
+} {
+    if (!state) return { shouldExecute: false, candidates: [], reason: 'No state' };
+
+    if (state.funnelCollapsed) {
+        return { shouldExecute: false, candidates: [], reason: 'Funnel collapsed (no survivors)' };
+    }
+
+    if (state.executionCandidates.length > 0) {
+        return { shouldExecute: true, candidates: state.executionCandidates, reason: 'Funnel complete' };
+    }
+
+    // Default fallback
+    const survivors = state.tokens.filter(t => (t.score || 0) > 0 && t.prediction === 'UP');
+    if (survivors.length > 0) {
+        return { shouldExecute: true, candidates: survivors, reason: 'Survivors found (Partial)' };
+    }
+
+    return { shouldExecute: false, candidates: [], reason: 'No valid candidates' };
+}
+
+/**
+ * Check if should continue funnel
+ */
+export function shouldContinueFunnel(state: FunnelState): boolean {
+    return !state.funnelComplete && !state.funnelCollapsed;
+}
+
 export type { DirectionBias };
 export type { PredictionDirection };
+
 

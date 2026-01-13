@@ -24,9 +24,9 @@ import {
     PILLAR_10_CONFIG,
     FunnelState,
     TokenCandidate,
-} from '@/lib/learning-validation/compoundingLoop';
-import { detectRegime, isRegimeTradeable } from '@/lib/learning-validation/regimeDetector';
-import { enforceDiversity } from '@/lib/learning-validation/diversityEnforcer';
+} from '@/lib/physics-engine/compoundingLoop';
+import { detectRegime, isRegimeTradeable } from '@/lib/physics-engine/regimeDetector';
+import { enforceDiversity } from '@/lib/physics-engine/diversityEnforcer';
 import { evaluateTrust } from '@/lib/trust-engine/trustEvaluator';
 
 export const dynamic = 'force-dynamic';
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
                     }
 
                     // Make predictions for ALL tokens, passing emit for 10.5 logs
-                    const entropyCheck = predictFunnel(state.funnel, emit);
+                    const entropyCheck = await predictFunnel(state.funnel, emit);
 
                     const upCount = Array.from(state.funnel.predictions.values()).filter(p => p === 'UP').length;
                     const downCount = Array.from(state.funnel.predictions.values()).filter(p => p === 'DOWN').length;

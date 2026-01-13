@@ -9,7 +9,7 @@
  */
 
 import { SmartToken } from './SmartToken';
-import { V1HoldCheckpoint } from '@/lib/smartswap/hold/V1Constants';
+import { V1HoldCheckpoint } from '@/lib/execution-engine/hold/V1Constants';
 
 // ============================================================================
 // SEARCH GOAL (USER INPUT)

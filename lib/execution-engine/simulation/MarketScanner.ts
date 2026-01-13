@@ -27,12 +27,12 @@ import {
     TokenCandidate,
     PILLAR_10_CONFIG,
     getFunnelVerdict,
-} from '@/lib/learning-validation/compoundingLoop';
+} from '@/lib/physics-engine/compoundingLoop';
 import {
     startLearningRun,
     archiveTokens,
     endLearningRun,
-} from '@/lib/learning-validation/memory';
+} from '@/lib/physics-engine/memory';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 

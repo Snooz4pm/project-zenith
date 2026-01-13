@@ -26,7 +26,7 @@ import {
     PILLAR_10_CONFIG,
     FunnelState,
     DirectionalCheck,
-} from '@/lib/learning-validation/compoundingLoop';
+} from '@/lib/physics-engine/compoundingLoop';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes max (allow for multiple cycles)
@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
 
                     // Step 2: Make predictions
                     sendEvent(controller, 'PREDICTING', { tokenCount: state.tokens.length });
-                    const directionalCheck = predictFunnel(state);
+                    const directionalCheck = await predictFunnel(state);
 
                     // Adjust thresholds for EXPLORATION mode
                     if (mode === 'EXPLORATION') {

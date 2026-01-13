@@ -7,11 +7,11 @@
  * Execution gate: Can say NO and abort Brain v2 execution
  */
 
-import { runValidation } from '../lib/learning-validation/verdictEngine';
-import type { ValidationReport, FinalVerdict } from '../lib/learning-validation/types';
-import { TokenPriceHistory, TokenOutcome } from '../lib/learning-validation/types';
-import { determineActualDirection } from '../lib/learning-validation/scorer';
-import { saveToFile, getRunSummary } from '../lib/learning-validation/eventEmitter';
+import { runValidation } from '../lib/physics-engine/verdictEngine';
+import type { ValidationReport, FinalVerdict } from '../lib/physics-engine/types';
+import { TokenPriceHistory, TokenOutcome } from '../lib/physics-engine/types';
+import { determineActualDirection } from '../lib/physics-engine/scorer';
+import { saveToFile, getRunSummary } from '../lib/physics-engine/eventEmitter';
 
 const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
