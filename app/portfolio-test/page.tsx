@@ -61,9 +61,13 @@ export default function PortfolioTestPage() {
         ]);
     }, []);
 
+    const runningRef = useRef(false);
+    const isPollingRef = useRef(false);
+
     const startSession = () => {
         if (running) return;
         setRunning(true);
+        runningRef.current = true;
         setTimeLeft(SESSION_DURATION_MS);
         setSolSalvaged(0);
         setExecutedTrades([]);
@@ -82,75 +86,99 @@ export default function PortfolioTestPage() {
             });
         }, 1000);
 
-        runTick();
-        pollRef.current = setInterval(runTick, POLLING_INTERVAL_MS);
+        // Recursive setTimeout for ticks to avoid overlap and stale state
+        const tickLoop = async () => {
+            if (!runningRef.current) return;
+            await runTick();
+            if (runningRef.current) {
+                pollRef.current = setTimeout(tickLoop, POLLING_INTERVAL_MS);
+            }
+        };
+
+        tickLoop();
     };
 
     const stopSession = () => {
         setRunning(false);
-        timerRef.current && clearInterval(timerRef.current);
-        pollRef.current && clearInterval(pollRef.current);
+        runningRef.current = false;
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (pollRef.current) clearTimeout(pollRef.current);
         setLogs(l => [...l, '<<< TEST COMPLETED']);
     };
 
+    const positionsRef = useRef(positions);
+    useEffect(() => {
+        positionsRef.current = positions;
+    }, [positions]);
+
     const runTick = async () => {
-        if (positions.length === 0) {
+        if (!runningRef.current || isPollingRef.current) return;
+
+        const currentPositions = positionsRef.current;
+        if (currentPositions.length === 0) {
             setLogs(l => [...l, '[System] All positions exited. Ending test early.']);
             stopSession();
             return;
         }
+
         setIsPolling(true);
+        isPollingRef.current = true;
 
         try {
-            const results = await runPortfolioAnalysis(positions);
+            console.log(`[Tick] Running analysis on ${currentPositions.length} positions...`);
+            const results = await runPortfolioAnalysis(currentPositions);
             setScanResults(results);
 
-            let newPositions = [...positions];
-            let tickExits = 0;
+            setPositions(prev => {
+                let newPos = [...prev];
+                let tickExits = 0;
 
-            for (const result of results) {
-                if (result.verdict.action === 'SELL' || result.verdict.action === 'SWAP') {
-                    if (result.exitPlan) {
-                        const plan = result.exitPlan;
+                for (const result of results) {
+                    if (result.verdict.action === 'SELL' || result.verdict.action === 'SWAP') {
+                        if (result.exitPlan) {
+                            const plan = result.exitPlan;
 
-                        // Execute simulated exit
-                        setSolSalvaged(s => s + plan.netSOL);
-                        setExecutedTrades(prev => [{
-                            symbol: result.symbol,
-                            mint: result.mint,
-                            grossSOL: plan.grossSOL,
-                            netSOL: plan.netSOL,
-                            slippage: plan.slippagePct,
-                            fees: plan.feesSOL,
-                            reason: result.verdict.reason,
-                            scenario: plan.scenarioUsed,
-                            timestamp: Date.now()
-                        }, ...prev]);
+                            setSolSalvaged(s => s + plan.netSOL);
+                            setExecutedTrades(trades => [{
+                                symbol: result.symbol,
+                                mint: result.mint,
+                                grossSOL: plan.grossSOL,
+                                netSOL: plan.netSOL,
+                                slippage: plan.slippagePct,
+                                fees: plan.feesSOL,
+                                reason: result.verdict.reason,
+                                scenario: plan.scenarioUsed,
+                                timestamp: Date.now()
+                            }, ...trades]);
 
-                        newPositions = newPositions.filter(p => p.mint !== result.mint);
-                        tickExits++;
+                            newPos = newPos.filter(p => p.mint !== result.mint);
+                            tickExits++;
 
-                        const now = Date.now();
-                        if (lastExitTime && (now - lastExitTime) < 30000) {
-                            setDisciplineMet(false); // Flag over-trading if 2 exits within 30s
+                            const now = Date.now();
+                            setLastExitTime(prevTime => {
+                                if (prevTime && (now - prevTime) < 30000) {
+                                    setDisciplineMet(false);
+                                }
+                                return now;
+                            });
+
+                            setLogs(l => [...l, `[Hands] EXITED ${result.symbol} via ${plan.scenarioUsed} | +${plan.netSOL.toFixed(4)} SOL`]);
+                        } else {
+                            setBlockedFriction(b => b + 1);
+                            setLogs(l => [...l, `[Friction] ${result.symbol} exit blocked (slippage/liq).`]);
                         }
-                        setLastExitTime(now);
-
-                        setLogs(l => [...l, `[Hands] EXITED ${result.symbol} via ${plan.scenarioUsed} | +${plan.netSOL.toFixed(4)} SOL`]);
-                    } else {
-                        setBlockedFriction(b => b + 1);
-                        setLogs(l => [...l, `[Friction] ${result.symbol} exit blocked (slippage/liq).`]);
                     }
                 }
-            }
+                return newPos;
+            });
 
-            setPositions(newPositions);
         } catch (err: any) {
             console.error("Tick failed", err);
             const msg = err.message || "Unknown error";
             setLogs(l => [...l, `[!!] MARKET ACCESS ERROR: ${msg}`]);
         } finally {
             setIsPolling(false);
+            isPollingRef.current = false;
         }
     };
 

@@ -81,82 +81,68 @@ function chunk<T>(arr: T[], size: number): T[][] {
  * Step 2: Merge with VolumeObserver
  */
 export async function getDexMatchedTokens(): Promise<DexMatchedToken[]> {
+    const startTime = Date.now();
     // 1. Jupiter = source of truth
     const jupiterTokens = await fetchJupiterTokens();
 
-    // [DEBUG] Limit to 50 tokens for fast verification if needed, 
-    // but in production we might want more. 
-    // Keeping the subset logic from previous version for consistency 
-    // unless user wants full scan. Let's keep a larger subset or full?
-    // User didn't specify, but "Market Scanner" usually implies full.
-    // However, fetching 10k tokens against DexScreener is heavy.
-    // Let's stick to the subset pattern for the "Observer" slice but maybe bump it to 100.
-    // [DEBUG] Limit to 1000 tokens for "Real Life Test"
-    // Fetching 1000 tokens against DexScreener is heavy but necessary for full pathfinding.
     const subsetTokens = jupiterTokens.slice(0, 1000);
-
     const matched: DexMatchedToken[] = [];
     const mints = subsetTokens.map(t => t.mint);
 
-    // Batch fetch from DexScreener (max 30 per request is safe)
     const batches = chunk(mints, 30);
+    console.log(`[JupiterDexMerger] Processing ${batches.length} batches for discovery...`);
 
-    for (const batch of batches) {
-        try {
-            const ids = batch.join(',');
-            const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${ids}`);
-            const data = await res.json();
-            const pairs = data.pairs || [];
+    // Process batches in parallel chunks of 5 to avoid overwhelming DexScreener but stay fast
+    const CONCURRENCY = 5;
+    for (let i = 0; i < batches.length; i += CONCURRENCY) {
+        const currentGroup = batches.slice(i, i + CONCURRENCY);
 
-            // Process each requested mint
-            for (const mint of batch) {
-                // Find all pairs for this mint
-                const tokenPairs = pairs.filter((p: any) => p.baseToken.address === mint);
-
-                if (tokenPairs.length === 0) continue;
-
-                // Pick best pair (highest liquidity)
-                tokenPairs.sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
-                const bestPair = tokenPairs[0];
-
-                // Assess volume risk
-                const assessment = observer.assess(bestPair);
-
-                // Apply Hard Filters
-                // 1. Critical Risk (Rug pulls)
-                if (assessment.riskLevel === 'CRITICAL') continue;
-
-                // 2. Minimum Viable Stats
-                if (assessment.volume24hUsd < MIN_VOLUME_24H) continue;
-                if (assessment.liquidityUsd < MIN_LIQUIDITY) continue;
-
-                // 3. Stagnation Check (Medium Risk) - Optional: Do we exclude Medium?
-                // Previously we were strict. Let's exclude "High" risk too?
-                // The prompt for VolumeObserver had HIGH for "thin market" or "collapse".
-                // We probably want to exclude HIGH too for a "Safe" merger.
-                if (assessment.riskLevel === 'HIGH') continue;
-
-                matched.push({
-                    mint: assessment.mint,
-                    symbol: assessment.symbol,
-                    pairAddress: bestPair.pairAddress,
-                    volume5m: assessment.volume5mUsd,
-                    liquidityUSD: assessment.liquidityUsd,
-                    riskLevel: assessment.riskLevel
+        await Promise.all(currentGroup.map(async (batch) => {
+            try {
+                const ids = batch.join(',');
+                const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${ids}`, {
+                    signal: AbortSignal.timeout(5000)
                 });
+                if (!res.ok) return;
+
+                const data = await res.json();
+                const pairs = data.pairs || [];
+
+                for (const mint of batch) {
+                    const tokenPairs = pairs.filter((p: any) => p.baseToken.address === mint);
+                    if (tokenPairs.length === 0) continue;
+
+                    tokenPairs.sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
+                    const bestPair = tokenPairs[0];
+                    const assessment = observer.assess(bestPair);
+
+                    if (assessment.riskLevel === 'CRITICAL') continue;
+                    if (assessment.volume24hUsd < MIN_VOLUME_24H) continue;
+                    if (assessment.liquidityUsd < MIN_LIQUIDITY) continue;
+                    if (assessment.riskLevel === 'HIGH') continue;
+
+                    matched.push({
+                        mint: assessment.mint,
+                        symbol: assessment.symbol,
+                        pairAddress: bestPair.pairAddress,
+                        volume5m: assessment.volume5mUsd,
+                        liquidityUSD: assessment.liquidityUsd,
+                        riskLevel: assessment.riskLevel,
+                        price: assessment.priceUsd
+                    });
+                }
+            } catch (err) {
+                console.error(`[JupiterDexMerger] Batch failed`, err);
             }
+        }));
 
-            // Respect rate limits slightly
-            await new Promise(r => setTimeout(r, 200));
-
-        } catch (err) {
-            console.error(`[JupiterDexMerger] Batch fetch failed`, err);
+        // Very small delay between groups
+        if (i + CONCURRENCY < batches.length) {
+            await new Promise(r => setTimeout(r, 50));
         }
     }
 
-    console.log(`[JupiterDexMerger] Input: ${subsetTokens.length} tokens`);
-    console.log(`[JupiterDexMerger] Verified: ${matched.length} tokens`);
-
+    console.log(`[JupiterDexMerger] Discovery complete in ${Date.now() - startTime}ms. Found ${matched.length} tokens.`);
     return matched;
 }
 
