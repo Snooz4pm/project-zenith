@@ -47,17 +47,17 @@ export function auditCoverage(
     scannedTokens: Set<string>
 ): CoverageReport {
     const total = totalUniverseTokens.length;
-    const scanned = scannedTokens.size;
+    const scannedCount = scannedTokens.size;
     const missing: string[] = [];
 
     // Identify who was missed
     for (const token of totalUniverseTokens) {
-        if (!scanned.has(token)) {
+        if (!scannedTokens.has(token)) {
             missing.push(token);
         }
     }
 
-    const coverageRatio = total > 0 ? scanned / total : 0;
+    const coverageRatio = total > 0 ? scannedCount / total : 0;
 
     let status: 'COMPLETE' | 'PARTIAL' | 'CRITICAL_FAILURE' = 'COMPLETE';
     if (coverageRatio < INTEGRITY_CONFIG.CRITICAL_THRESHOLD) {
