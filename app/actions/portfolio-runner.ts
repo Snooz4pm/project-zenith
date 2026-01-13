@@ -2,6 +2,14 @@
 
 import { getVirtualPortfolioTokens, getDexMatchedTokens } from '@/lib/market-observer/JupiterDexMerger';
 import { MarketScanner } from '@/lib/execution-engine/simulation/MarketScanner';
+import { ScenarioRunner } from '@/lib/execution-engine/scenarios/ScenarioRunner';
+import {
+    createFunnelState,
+    predictFunnel,
+    getFunnelVerdict,
+    classifyToken,
+    TokenCandidate
+} from '@/lib/physics-engine/compoundingLoop';
 import { BrainGoal, SearchableToken } from '@/types/LiquidityFilter';
 import { VolumeRiskLevel } from '@/lib/market-observer/VolumeObserver';
 
@@ -66,49 +74,57 @@ export async function runPortfolioAnalysis(mints: string[]): Promise<PortfolioAn
 
     const results: PortfolioAnalysisResult[] = [];
 
+    // 2. Initialize Machine State (Pillar 10)
+    // We treat the current portfolio as the "Funnel" to judge.
+    const candidates: TokenCandidate[] = marketData.map(t => ({
+        symbol: t.symbol,
+        mint: t.mint,
+        tokenClass: classifyToken(t.symbol, t.mint),
+        priceAtStart: t.price || 0,
+        score: 0,
+        flatStreak: 0
+    }));
+
+    const funnelState = createFunnelState(candidates);
+
+    // 3. Run Pillar 10 Logic (Newtonian momentum + Brain v2 Memory)
+    await predictFunnel(funnelState);
+
+    // 4. Get Agent Verdict
+    // This helper decides if a trade is earned based on the Pillars.
+    const verdictSummary = getFunnelVerdict(funnelState);
+
     for (const token of marketData) {
         console.log(`[PortfolioRunner] Processing ${token.symbol}...`);
 
-        // 2. Physics Evaluation (MarketScanner Logic)
-        // We manually reconstruct the logic here or use MarketScanner if it exposes a helper.
-        // Since MarketScanner is mostly a loop, we'll implement the "Evaluation Logic" directly here
-        // using the Physics Engine principles (Safety First).
+        // --- THE ACTUAL AGENT DECISION ---
+        const candidate = funnelState.tokens.find(c => c.mint === token.mint);
 
         let action: 'HOLD' | 'SELL' | 'SWAP' | 'OBSERVE' = 'HOLD';
-        let reason = 'Safe asset.';
+        let reason = 'Agent analyzing...';
         let isSafe = true;
         let riskScore = 0;
 
-        // --- PURE PHYSICS ENGINE LOGIC ---
-        // "Let the pillars run the test."
-        // We strictly obey the VolumeObserver's Risk Level. No manual overrides.
+        if (candidate) {
+            const pred = candidate.prediction;
 
-        switch (token.riskLevel) {
-            case 'CRITICAL':
-                action = 'SELL';
-                reason = 'CRITICAL RISK: Volume collapse or liquidity drain.';
-                isSafe = false;
-                riskScore = 100;
-                break;
-            case 'HIGH':
-                action = 'SELL';
-                reason = 'HIGH RISK: Volatility exceeds safety threshold.';
-                isSafe = false;
-                riskScore = 80;
-                break;
-            case 'MEDIUM':
-                action = 'OBSERVE';
-                reason = 'MEDIUM RISK: Monitoring for directional break.';
-                isSafe = false;
-                riskScore = 50;
-                break;
-            case 'LOW':
-            default:
+            // Map actual Pillar 10/11/14 predictions to Actions
+            if (pred === 'UP') {
                 action = 'HOLD';
-                reason = 'LOW RISK: Asset healthy.';
+                reason = `Momentum upward. Agent holding for growth.`;
                 isSafe = true;
                 riskScore = 10;
-                break;
+            } else if (pred === 'DOWN') {
+                action = 'SELL';
+                reason = `Negative momentum detected. Survival logic triggered.`;
+                isSafe = false;
+                riskScore = 80;
+            } else {
+                action = 'OBSERVE';
+                reason = `Sideways volume. Minimal conviction.`;
+                isSafe = false;
+                riskScore = 50;
+            }
         }
 
         // --- EXECUTION ENGINE LOGIC (PATHFINDING) ---
