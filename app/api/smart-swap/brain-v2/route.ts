@@ -8,7 +8,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { searchForPath } from '@/lib/smartswap/liquidityFilter';
+import { searchForPath } from '@/lib/execution-engine/liquidityFilter';
 import { BrainGoal, SearchableToken } from '@/types/LiquidityFilter';
 import { SmartToken } from '@/types/SmartToken';
 

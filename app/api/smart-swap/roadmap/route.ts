@@ -7,7 +7,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { findRoadmaps } from '@/lib/smartswap/pathfinder';
+import { findRoadmaps } from '@/lib/execution-engine/pathfinder';
 import { SmartToken } from '@/types/SmartToken';
 
 export const dynamic = 'force-dynamic';

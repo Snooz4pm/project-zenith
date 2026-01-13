@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { SmartSwapService } from '@/lib/smartswap/service';
+import { SmartSwapService } from '@/lib/execution-engine/service';
 
 export async function POST(request: Request) {
     try {

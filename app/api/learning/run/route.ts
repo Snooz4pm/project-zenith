@@ -7,10 +7,10 @@
  */
 
 import { NextRequest } from 'next/server';
-import { runValidation } from '@/lib/learning-validation/verdictEngine';
-import { TokenPriceHistory, TokenOutcome } from '@/lib/learning-validation/types';
-import { determineActualDirection } from '@/lib/learning-validation/scorer';
-import { getEvents, subscribe } from '@/lib/learning-validation/eventEmitter';
+import { runValidation } from '@/lib/physics-engine/verdictEngine';
+import { TokenPriceHistory, TokenOutcome } from '@/lib/physics-engine/types';
+import { determineActualDirection } from '@/lib/physics-engine/scorer';
+import { getEvents, subscribe } from '@/lib/physics-engine/eventEmitter';
 
 export const dynamic = 'force-dynamic';
 
