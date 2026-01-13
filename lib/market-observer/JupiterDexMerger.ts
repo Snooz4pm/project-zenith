@@ -22,6 +22,7 @@ export interface DexMatchedToken {
     volume5m: number | null;
     liquidityUSD: number | null;
     riskLevel: VolumeRiskLevel;
+    price?: number;
 }
 
 const JUPITER_PROXY_URL = 'https://jupiter-proxy-production.up.railway.app';
@@ -188,7 +189,8 @@ export async function getVirtualPortfolioTokens(targetMints: string[]): Promise<
 
                         volume5m: analysis.volume5mUsd,
                         liquidityUSD: analysis.liquidityUsd,
-                        riskLevel: analysis.riskLevel as VolumeRiskLevel
+                        riskLevel: analysis.riskLevel as VolumeRiskLevel,
+                        price: analysis.priceUsd
                     });
                 }
             });

@@ -2,7 +2,6 @@
 
 import { getVirtualPortfolioTokens } from '@/lib/market-observer/JupiterDexMerger';
 import { MarketScanner } from '@/lib/execution-engine/simulation/MarketScanner';
-import { ScenarioRunner } from '@/lib/execution-engine/scenarios/ScenarioRunner';
 import { BrainGoal, SearchableToken } from '@/types/LiquidityFilter';
 import { VolumeRiskLevel } from '@/lib/market-observer/VolumeObserver';
 
@@ -10,6 +9,7 @@ export interface PortfolioAnalysisResult {
     mint: string;
     symbol: string;
     metrics: {
+        slippagePct: number;
         price: number;
         liquidityUSD: number;
         volume5m: number;
@@ -108,76 +108,13 @@ export async function runPortfolioAnalysis(mints: string[]): Promise<PortfolioAn
         if (action === 'SELL' || action === 'SWAP') {
             console.log(`[PortfolioRunner] Planning exit for ${token.symbol}...`);
 
-            // Construct simulated universe for Pathfinder
-            // We need at least the token, SOL, and USDC
-            const universe: SearchableToken[] = [
-                {
-                    mint: token.mint,
-                    symbol: token.symbol,
-                    valueInSOL: 0, // Need to fetch price? MarketData has liquidity but not price? 
-                    // Wait, DexMatchedToken doesn't have price. 
-                    // We need price to run pathfinder effectively? 
-                    // Actually ScenarioRunner runs 'searchForPath' which internally uses 'getJupiterQuote'.
-                    // So we just need valid Mint IDs.
-                    hasRoute: true,
-                    isStable: false,
-                    tier: 'RANKABLE',
-                    liquidityScore: 1,
-                    volatility: 0,
-                    alphaScore: 0,
-                    source: undefined,
-                    roundTripLoss: 0, // unknown
-                    isAlpha: true
-                },
-                {
-                    mint: SOL_MINT,
-                    symbol: 'SOL',
-                    valueInSOL: 1,
-                    hasRoute: true,
-                    isStable: false,
-                    tier: 'SAFE',
-                    liquidityScore: 1,
-                    volatility: 0,
-                    alphaScore: 0,
-                    source: undefined,
-                    roundTripLoss: 0,
-                    isAlpha: false
-                }
-            ];
-
-            // Define Goal: Exit to SOL
-            const goal: BrainGoal = {
-                startToken: token.mint,
-                targetToken: SOL_MINT,
-                startAmountSOL: 1, // Normalized assumption
-                targetAmountSOL: 1.01, // Target break-even or better
-                maxHops: 3,
-                maxTotalRTL: 5,
-                maxPerHopRTL: 2
+            // CONSERVATIVE MODE: No Pathfinding, Direct Exit Only
+            exitPlan = {
+                targetToken: 'SOL',
+                expectedROI: 0, // Market Price
+                routeSummary: 'Direct Swap (Conservative)',
+                scenarioUsed: 'DIRECT_MARKET_EXIT'
             };
-
-            try {
-                // Run Best Effort Scenario
-                const comparison = await ScenarioRunner.runAll(universe, goal);
-
-                if (comparison.best && comparison.best.found) {
-                    exitPlan = {
-                        targetToken: 'SOL',
-                        expectedROI: comparison.best.roiPct,
-                        routeSummary: `${comparison.best.hops} hops via ${comparison.best.config.name}`,
-                        scenarioUsed: comparison.best.config.name
-                    };
-                } else {
-                    exitPlan = {
-                        targetToken: 'SOL',
-                        expectedROI: 0,
-                        routeSummary: 'Direct Swap (Emergency)',
-                        scenarioUsed: 'EMERGENCY_DUMP'
-                    };
-                }
-            } catch (err) {
-                console.error(`[PortfolioRunner] Pathfinding failed for ${token.symbol}`, err);
-            }
         }
 
         results.push({
