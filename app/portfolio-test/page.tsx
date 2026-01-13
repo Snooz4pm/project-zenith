@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { runPortfolioAnalysis, PortfolioAnalysisResult } from '@/app/actions/portfolio-runner';
 import {
     Shield, Terminal, Play, Loader2, StopCircle, Clock,
-    Activity, TrendingUp, CheckCircle
+    Activity, TrendingUp, CheckCircle, BrainCircuit
 } from 'lucide-react';
 
 const SESSION_DURATION_MS = 30 * 60 * 1000;
@@ -27,21 +27,25 @@ interface ExecutedTrade {
     mint: string;
     netSOL: number;
     reason: string;
+    scenario: string;     // Pathfinding strategy used
     timestamp: number;
 }
 
-// --- INITIAL PORTFOLIO ---
+// --- INITIAL PORTFOLIO (Lobotomy Challenge: $100 Total, No Stables) ---
+// Total Target: ~$100
+// - $20 SOL (Fuel)
+// - $80 Volatile Memes (Risk)
 const INITIAL_POSITIONS: Position[] = [
-    // Stables
-    { mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', amount: 5, entryPrice: 1 },
-    { mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', amount: 5, entryPrice: 1 },
+    // Fuel (Fees & Survival)
+    // 0.14 SOL @ ~$140 = $19.60
+    { mint: 'So11111111111111111111111111111111111111112', amount: 0.14, entryPrice: 140 },
 
-    // Memes
-    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', amount: 3, entryPrice: 1.0 },     // WIF
-    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', amount: 2_000_000, entryPrice: 0.0000015 }, // BONK
-    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr', amount: 15, entryPrice: 0.2 },    // POPCAT
-    { mint: 'MEW1gQWJ3nEXg2qgPMIZuXaZCKam1oJ55Jk1hJp', amount: 20, entryPrice: 0.1 },          // MEW
-    { mint: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', amount: 200, entryPrice: 0.01 },    // BOME
+    // Risk Assets ($80 split across 5 memes = ~$16 each)
+    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', amount: 8, entryPrice: 2.0 },        // WIF
+    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', amount: 800_000, entryPrice: 0.00002 }, // BONK
+    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr', amount: 20, entryPrice: 0.8 },       // POPCAT
+    { mint: 'MEW1gQWJ3nEXg2qgPMIZuXaZCKam1oJ55Jk1hJp', amount: 160, entryPrice: 0.1 },           // MEW
+    { mint: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', amount: 1600, entryPrice: 0.01 },     // BOME
 ];
 
 export default function PortfolioTestPage() {
@@ -49,7 +53,7 @@ export default function PortfolioTestPage() {
     const [timeLeft, setTimeLeft] = useState(SESSION_DURATION_MS);
 
     const [positions, setPositions] = useState<Position[]>(INITIAL_POSITIONS);
-    const [solBalance, setSolBalance] = useState(0);
+    const [solBalance, setSolBalance] = useState(0); // This tracks *realized* gains, separate from the SOL position
     const [scanResults, setScanResults] = useState<PortfolioAnalysisResult[]>([]);
     const [executedTrades, setExecutedTrades] = useState<ExecutedTrade[]>([]);
     const [logs, setLogs] = useState<string[]>([]);
@@ -59,8 +63,9 @@ export default function PortfolioTestPage() {
 
     useEffect(() => {
         setLogs([
-            '[System] Portfolio physics engine ready.',
-            '[System] No emotions. No bias. No predictions.',
+            '[System] Lobotomy Challenge initialized.',
+            '[System] Portfolio: $20 SOL (Fuel) + $80 Memes (Risk).',
+            '[System] No Safe Havens (USDC). Pure Physics & Pathfinding.',
         ]);
     }, []);
 
@@ -71,7 +76,7 @@ export default function PortfolioTestPage() {
         setSolBalance(0);
         setExecutedTrades([]);
         setPositions(INITIAL_POSITIONS);
-        setLogs(l => [...l, '[System] SESSION STARTED (30m)']);
+        setLogs(l => [...l, '[System] SESSION STARTED. PILLARS ACTIVE.']);
 
         timerRef.current = setInterval(() => {
             setTimeLeft(t => {
@@ -104,7 +109,10 @@ export default function PortfolioTestPage() {
         let updatedPositions = [...positions];
 
         for (const result of data) {
-            if (result.verdict.action !== 'SELL') continue;
+            if (result.verdict.action !== 'SELL' && result.verdict.action !== 'SWAP') continue;
+
+            // Don't sell the fuel (SOL) unless critical? Actually SOL shouldn't be sold for SOL.
+            if (result.symbol === 'SOL') continue;
 
             const position = updatedPositions.find(p => p.mint === result.mint);
             if (!position) continue;
@@ -112,32 +120,20 @@ export default function PortfolioTestPage() {
             const price = result.metrics.price;
             if (!price || price <= 0) continue;
 
-            // Convert amount -> USD -> SOL
+            // Convert amount -> USD -> SOL (approx)
             const grossUSD = position.amount * price;
-            const grossSOL = grossUSD / price; // This is tautological in math but represents "Value in SOL terms"
-
-            // Better: If we have Price in USD, we need SOL Price in USD to get SOL amount.
-            // Simplified Assumption: Price of 1 Unit of Asset in SOL terms?
-            // Wait, result.metrics.price is "priceUsd" from VolumeObserver.
-            // We don't have SOL price here easily without fetching it.
-            // Hack: Assume SOL = $140 for estimation or use a relative price if available?
-            // Better Hack: Fetch SOL price via runPortfolioAnalysis too?
-            // For now, let's normalize everything to USD value and then "Simulate" SOL outcome by dividing by fixed SOL Price $140?
-            // OR just display "Cash Out Value ($)".
-            // User asked for "SOL Balance".
-            // Let's assume SOL Price = $140 constant for this simulation or fetch it.
-            // Actually, we can just say `grossSOL` = `grossUSD / 140`.
-
-            const SOL_PRICE_USD = 140;
-            const valueInSOL = grossUSD / SOL_PRICE_USD;
+            // Normalize to SOL value (assuming $140 reference for simplicity of simulation math)
+            // Ideally we'd scan SOL price too, but fixed ref ensures consistent behavior for "Simulation"
+            const SOL_REF_PRICE = 140;
+            const valueInSOL = grossUSD / SOL_REF_PRICE;
 
             const slippage = valueInSOL * (result.metrics.slippagePct ?? SLIPPAGE_BUFFER_PCT);
             const dexFee = valueInSOL * DEX_FEE_PCT;
 
             const netSOL = valueInSOL - slippage - dexFee - NETWORK_FEE_SOL;
 
-            if (netSOL <= 0.001) { // Min dust
-                setLogs(l => [...l, `[HOLD] ${result.symbol} exit blocked (dust value)`]);
+            if (netSOL <= 0.001) {
+                setLogs(l => [...l, `[HOLD] ${result.symbol} exit blocked (dust/loss).`]);
                 continue;
             }
 
@@ -145,16 +141,19 @@ export default function PortfolioTestPage() {
             updatedPositions = updatedPositions.filter(p => p.mint !== position.mint);
             setSolBalance(s => s + netSOL);
 
+            const scenarioName = result.exitPlan?.scenarioUsed || 'UNKNOWN_PATH';
+
             setExecutedTrades(t => [{
                 symbol: result.symbol,
                 mint: result.mint,
                 netSOL,
                 reason: result.verdict.reason,
+                scenario: scenarioName,
                 timestamp: Date.now(),
             }, ...t]);
 
             setLogs(l => [...l,
-            `[EXIT] ${result.symbol} (${position.amount.toLocaleString()} units) → ${netSOL.toFixed(4)} SOL | ${result.verdict.reason}`
+            `[EXIT] ${result.symbol} → ${netSOL.toFixed(4)} SOL via ${scenarioName}`
             ]);
         }
 
@@ -167,81 +166,133 @@ export default function PortfolioTestPage() {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white p-6 font-mono">
-            <div className="max-w-7xl mx-auto mb-6 flex justify-between items-center">
+        <div className="min-h-screen bg-zinc-950 text-white p-6 font-mono">
+            <div className="max-w-7xl mx-auto mb-6 flex justify-between items-center bg-black/40 p-4 rounded-xl border border-zinc-900">
                 <div>
-                    <h1 className="text-2xl font-bold flex gap-2 items-center">
-                        <Activity className="text-cyan-400" /> PHYSICS PORTFOLIO TEST
+                    <h1 className="text-2xl font-bold flex gap-3 items-center text-cyan-400">
+                        <BrainCircuit className="w-8 h-8" />
+                        LOBOTOMY CHALLENGE
                     </h1>
-                    <div className="text-sm text-zinc-400 flex gap-4 mt-1">
-                        <span><Clock className="inline w-4" /> {formatTime(timeLeft)}</span>
-                        <span><TrendingUp className="inline w-4" /> {solBalance.toFixed(4)} SOL</span>
+                    <div className="text-sm text-zinc-500 flex gap-6 mt-2">
+                        <span className="flex items-center gap-2"><Clock className="w-4" /> {formatTime(timeLeft)}</span>
+                        <span className="flex items-center gap-2 text-green-400"><TrendingUp className="w-4" /> +{solBalance.toFixed(4)} SOL (Salvaged)</span>
                     </div>
                 </div>
 
                 {!running ? (
-                    <button onClick={startSession} className="px-6 py-3 bg-green-600 rounded-lg font-bold">
-                        <Play className="inline w-4" /> START
+                    <button onClick={startSession} className="px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-black rounded-lg font-bold transition-all shadow-lg shadow-cyan-900/20">
+                        <Play className="inline w-5 mr-2" /> START TEST
                     </button>
                 ) : (
-                    <button onClick={stopSession} className="px-6 py-3 bg-red-600 rounded-lg font-bold">
-                        <StopCircle className="inline w-4" /> STOP
+                    <button onClick={stopSession} className="px-8 py-4 bg-red-900/50 text-red-400 hover:bg-red-900/70 rounded-lg font-bold border border-red-800 transition-all">
+                        <StopCircle className="inline w-5 mr-2" /> ABORT
                     </button>
                 )}
             </div>
 
-            <div className="max-w-7xl mx-auto grid grid-cols-2 gap-6">
-                <div>
-                    <h2 className="text-xs text-zinc-500 mb-2">ACTIVE POSITIONS</h2>
-                    {positions.length === 0 && (
-                        <div className="text-zinc-600 italic">All assets exited.</div>
-                    )}
-                    {scanResults.map(r => {
-                        const pos = positions.find(p => p.mint === r.mint);
-                        if (!pos) return null;
+            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
 
-                        return (
-                            <div key={r.mint} className="border border-zinc-800 p-3 mb-2 rounded flex justify-between items-center">
-                                <div>
-                                    <div className="font-bold">{r.symbol}</div>
-                                    <div className="text-xs text-zinc-500">{pos.amount.toLocaleString()} units</div>
-                                    <div className="text-xs text-zinc-600 italic">{r.metrics.riskLevel}</div>
+                {/* ACTIVE POSITIONS */}
+                <div className="lg:col-span-2 bg-black/20 border border-zinc-900 rounded-xl p-6 overflow-y-auto">
+                    <h2 className="text-xs text-zinc-500 font-bold tracking-widest mb-4 flex gap-2 items-center">
+                        <Shield className="w-4" /> ACTIVE UNIVERSE
+                    </h2>
+
+                    {positions.length === 0 && (
+                        <div className="text-zinc-700 italic text-center mt-20">All assets liquidated to SOL.</div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {scanResults.map(r => {
+                            const pos = positions.find(p => p.mint === r.mint);
+                            if (!pos) return null;
+
+                            const isSafe = r.verdict.isSafe;
+                            // Special styling for SOL
+                            if (r.symbol === 'SOL') {
+                                return (
+                                    <div key={r.mint} className="border border-cyan-900/30 bg-cyan-900/10 p-4 rounded-lg flex justify-between items-center">
+                                        <div>
+                                            <div className="font-bold text-cyan-400">SOL (Fuel)</div>
+                                            <div className="text-xs text-cyan-600/70">{pos.amount.toFixed(2)} units</div>
+                                        </div>
+                                        <div className="text-xs bg-cyan-900/30 text-cyan-400 px-2 py-1 rounded">SAFE</div>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div key={r.mint} className={`border p-4 rounded-lg flex flex-col justify-between transition-all ${isSafe ? 'border-zinc-800 bg-zinc-900/30' :
+                                        r.verdict.action === 'OBSERVE' ? 'border-yellow-900/30 bg-yellow-900/10' :
+                                            'border-red-900/50 bg-red-900/10'
+                                    }`}>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <div className="font-bold text-lg">{r.symbol}</div>
+                                            <div className="text-xs text-zinc-500">{pos.amount.toLocaleString()} units</div>
+                                        </div>
+                                        <div className={`text-xs font-bold px-2 py-1 rounded ${r.verdict.action === 'SELL' ? 'bg-red-500/20 text-red-500' :
+                                                r.verdict.action === 'OBSERVE' ? 'bg-yellow-500/20 text-yellow-500' :
+                                                    'bg-green-500/10 text-zinc-400'
+                                            }`}>
+                                            {r.verdict.action}
+                                        </div>
+                                    </div>
+                                    <div className="bg-black/30 p-2 rounded text-[10px] text-zinc-400 mt-2 h-10 overflow-hidden">
+                                        {r.verdict.reason}
+                                    </div>
                                 </div>
-                                <div className="text-right">
-                                    <span className={`text-xs font-bold px-2 py-1 rounded ${r.verdict.action === 'SELL' ? 'bg-red-500/20 text-red-500' :
-                                            r.verdict.action === 'OBSERVE' ? 'bg-yellow-500/20 text-yellow-500' :
-                                                'bg-green-500/20 text-green-500'
-                                        }`}>
-                                        {r.verdict.action}
-                                    </span>
-                                </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
                 </div>
 
-                <div>
-                    <h2 className="text-xs text-zinc-500 mb-2">EXECUTIONS</h2>
-                    {executedTrades.map((t, i) => (
-                        <div key={i} className="border border-zinc-800 p-3 mb-2 rounded">
-                            <div className="flex justify-between">
-                                <span>{t.symbol}</span>
-                                <span className="text-green-400">+{t.netSOL.toFixed(4)} SOL</span>
-                            </div>
-                            <div className="text-xs text-zinc-500">{t.reason}</div>
+                {/* EXECUTIONS & PATHFINDING */}
+                <div className="bg-black/20 border border-zinc-900 rounded-xl p-6 flex flex-col h-full">
+                    <h2 className="text-xs text-zinc-500 font-bold tracking-widest mb-4 flex gap-2 items-center">
+                        <BrainCircuit className="w-4" /> PATHFINDING LOG
+                    </h2>
+
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                        {executedTrades.length === 0 ? (
+                            <div className="text-zinc-800 text-center italic mt-20">No exits triggered yet.</div>
+                        ) : (
+                            executedTrades.map((t, i) => (
+                                <div key={i} className="bg-zinc-900/40 border border-zinc-800 p-3 rounded-lg border-l-2 border-l-cyan-500">
+                                    <div className="flex justify-between mb-1">
+                                        <span className="font-bold text-sm text-zinc-300">{t.symbol}</span>
+                                        <span className="text-green-400 text-sm font-mono">+{t.netSOL.toFixed(3)} SOL</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-[10px] text-zinc-500 mb-2">
+                                        <span>via {t.scenario}</span>
+                                        <span>{new Date(t.timestamp).toLocaleTimeString()}</span>
+                                    </div>
+                                    <div className="text-[10px] text-zinc-600 italic border-t border-zinc-800/50 pt-1 mt-1">
+                                        "{t.reason}"
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* SYSTEM LOG */}
+            <div className="max-w-7xl mx-auto mt-6">
+                <div className="bg-black border border-zinc-900 rounded-xl p-4 h-32 overflow-y-auto text-xs font-mono text-zinc-500 shadow-inner">
+                    {logs.map((l, i) => (
+                        <div key={i} className="mb-0.5 border-b border-zinc-900/30 pb-0.5 last:border-0">
+                            <span className="text-cyan-800 mr-2 opacity-50">{new Date().toLocaleTimeString()}</span>
+                            {l}
                         </div>
                     ))}
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto mt-6">
-                <h2 className="text-xs text-zinc-500 mb-2 flex gap-2 items-center">
-                    <Terminal className="w-3" /> SYSTEM LOG
-                </h2>
-                <div className="bg-zinc-950 border border-zinc-800 p-3 h-40 overflow-y-auto text-xs">
-                    {logs.map((l, i) => <div key={i}>{l}</div>)}
-                </div>
-            </div>
+            <style jsx global>{`
+                .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+            `}</style>
         </div>
     );
 }
