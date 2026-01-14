@@ -68,37 +68,40 @@ interface SurvivalMetrics {
     averageHoldTimeMs: number;
 }
 
-// --- INITIAL PORTFOLIO (Brutal Chaos Test - 10 High-Risk Memecoins) ---
+// --- INITIAL PORTFOLIO (10 Solana Memecoins + 0.1 SOL for Fees) ---
 const INITIAL_POSITIONS: Position[] = [
-    // Minimal base SOL for some "stability" amid chaos
-    { mint: 'So11111111111111111111111111111111111111112', amount: 0.035, entryPriceSOL: 1 },   // ≈ $4.90
+    // SOL reserve for transaction fees
+    { mint: 'So11111111111111111111111111111111111111112', amount: 0.1, entryPriceSOL: 1, entryTimestamp: Date.now(), state: 'OBSERVING' },
 
-    // OG memecoin king – massive volume, frequent dumps
-    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', amount: 477_000 },   // BONK ≈ $5.00
+    // 1. BONK - OG memecoin king
+    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', amount: 500_000, entryTimestamp: Date.now(), state: 'OBSERVING' },
 
-    // Dog meta leader – beta swings like crazy
-    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', amount: 13.4 },   // WIF ≈ $5.00
+    // 2. WIF - Dog meta leader
+    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', amount: 15, entryTimestamp: Date.now(), state: 'OBSERVING' },
 
-    // Cat meta contender – narrative flips
-    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr', amount: 51.6 },   // POPCAT ≈ $5.00
+    // 3. POPCAT - Cat meta contender
+    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr', amount: 55, entryTimestamp: Date.now(), state: 'OBSERVING' },
 
-    // Anti-dog cat play – high rug potential
-    { mint: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5', amount: 5_020 },   // MEW ≈ $5.00
+    // 4. MEW - Anti-dog cat play
+    { mint: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5', amount: 5_500, entryTimestamp: Date.now(), state: 'OBSERVING' },
 
-    // AI/viral goat – extreme pumps from narratives
-    { mint: 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump', amount: 133 },   // GOAT ≈ $5.00
+    // 5. GOAT - AI/viral narrative
+    { mint: 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump', amount: 150, entryTimestamp: Date.now(), state: 'OBSERVING' },
 
-    // Squirrel tragedy meme – sentiment-driven volatility
-    { mint: '2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump', amount: 61 },   // PNUT ≈ $5.00
+    // 6. PNUT - Squirrel tragedy meme
+    { mint: '2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump', amount: 70, entryTimestamp: Date.now(), state: 'OBSERVING' },
 
-    // Absurd fart meta – pure degeneracy swings
-    { mint: '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump', amount: 13.3 },   // FARTCOIN ≈ $5.00
+    // 7. FARTCOIN - Absurd fart meta
+    { mint: '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump', amount: 15, entryTimestamp: Date.now(), state: 'OBSERVING' },
 
-    // Political Trump pump – election/news beta
-    { mint: '6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN', amount: 81 },   // MAGA ≈ $5.00
+    // 8. MAGA - Political Trump pump
+    { mint: '6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN', amount: 90, entryTimestamp: Date.now(), state: 'OBSERVING' },
 
-    // Biden satire – counter-political dumps
-    { mint: '3psH1Mj1f7yUfaD5gh6Zj7epE8hhrMkMETgv5TshQA4o', amount: 3_370 },   // BODEN ≈ $5.00
+    // 9. BODEN - Biden satire
+    { mint: '3psH1Mj1f7yUfaD5gh6Zj7epE8hhrMkMETgv5TshQA4o', amount: 3_500, entryTimestamp: Date.now(), state: 'OBSERVING' },
+
+    // 10. JUP - Jupiter governance (stable anchor)
+    { mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', amount: 10, entryTimestamp: Date.now(), state: 'OBSERVING' },
 ];
 
 export default function SurvivalTestPage() {
@@ -110,7 +113,7 @@ export default function SurvivalTestPage() {
 
     // Portfolio state
     const [positions, setPositions] = useState<Position[]>(INITIAL_POSITIONS);
-    const [availableSol, setAvailableSol] = useState(0.035); // Only the SOL reserve - no safety net
+    const [availableSol, setAvailableSol] = useState(0.1); // 0.1 SOL for fees
     const [scanResults, setScanResults] = useState<PortfolioAnalysisResult[]>([]);
     const [discoveryGems, setDiscoveryGems] = useState<PortfolioAnalysisResult[]>([]);
 
@@ -309,6 +312,32 @@ export default function SurvivalTestPage() {
 
             setScanResults(results);
             setDiscoveryGems(gems);
+
+            // ============================================================================
+            // FAIR TEST: Initialize entry prices from FIRST observed market price
+            // This ensures zero-hindsight PnL tracking
+            // ============================================================================
+            const solPrice = results.find(r => r.symbol === 'SOL')?.metrics.price || 140;
+
+            setPositions(prevPos => {
+                let updated = false;
+                const newPos = prevPos.map(pos => {
+                    const marketData = results.find(r => r.mint === pos.mint);
+                    if (marketData && pos.entryPriceSOL === undefined) {
+                        // First observation - capture live price as entry (FAIR TEST)
+                        updated = true;
+                        const priceInSOL = marketData.metrics.price / solPrice;
+                        addLog(`[FAIR] ${marketData.symbol} entry price set: ${priceInSOL.toFixed(8)} SOL`);
+                        return {
+                            ...pos,
+                            entryPriceSOL: priceInSOL,
+                            entryTimestamp: pos.entryTimestamp || Date.now()
+                        };
+                    }
+                    return pos;
+                });
+                return updated ? newPos : prevPos;
+            });
 
             // 2. CHAOS: Simulate market threats
             const threat = simulateThreat(currentPositions, results);
@@ -711,10 +740,20 @@ export default function SurvivalTestPage() {
 
                     {/* System Logs */}
                     <div className="bg-black/60 border border-zinc-800/50 rounded-2xl overflow-hidden backdrop-blur-sm h-80">
-                        <div className="p-4 border-b border-zinc-800/50 bg-zinc-900/10">
+                        <div className="p-4 border-b border-zinc-800/50 bg-zinc-900/10 flex justify-between items-center">
                             <h2 className="text-xs font-black text-zinc-400 tracking-widest flex items-center gap-3">
                                 <Terminal className="w-4 h-4 text-cyan-500" /> SYSTEM HEARTBEAT
                             </h2>
+                            <button
+                                onClick={() => {
+                                    const logText = logs.join('\n');
+                                    navigator.clipboard.writeText(logText);
+                                    addLog('[SYSTEM] Log copied to clipboard');
+                                }}
+                                className="text-[9px] text-cyan-500 hover:text-cyan-400 border border-cyan-800 px-2 py-1 rounded hover:bg-cyan-900/20 transition-all"
+                            >
+                                📋 COPY LOG
+                            </button>
                         </div>
                         <div className="h-[calc(100%-52px)] overflow-y-auto p-3 font-mono text-[9px] space-y-1">
                             {logs.slice().reverse().map((l, i) => (

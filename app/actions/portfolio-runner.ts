@@ -11,11 +11,24 @@ import {
 import { BrainGoal, SearchableToken } from '@/types/LiquidityFilter';
 import { VolumeRiskLevel } from '@/lib/market-observer/VolumeObserver';
 import { getJupiterQuote } from '@/lib/solana/jupiter';
+import {
+    PositionState,
+    TrackedPosition,
+    evaluatePositionState,
+    createTrackedPosition,
+    formatObservationRemaining,
+    MIN_OBSERVATION_MS,
+    SCOUTING_THRESHOLD_PCT,
+    EXECUTION_THRESHOLD_PCT
+} from '@/lib/execution-engine/PositionStateTracker';
 
 export interface Position {
     mint: string;
     amount: number;
-    entryPriceSOL?: number; // Added for PnL tracking
+    entryPriceSOL?: number;
+    entryTimestamp?: number;      // State machine: when position was entered
+    state?: PositionState;        // State machine: current state
+    accumulatedLossPct?: number;  // State machine: accumulated loss
 }
 
 export interface PortfolioAnalysisResult {
@@ -34,6 +47,8 @@ export interface PortfolioAnalysisResult {
         reason: string;
         riskScore: number;
         isSafe: boolean;
+        positionState?: PositionState;      // NEW: State machine state
+        observationRemaining?: string;      // NEW: Time remaining in observation
     };
     frictionReason?: string;
     exitPlan?: {
@@ -160,43 +175,92 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
             let isSafe = true;
             let riskScore = 0;
             let currentFrictionReason = undefined;
+            let positionState: PositionState | undefined = undefined;
+            let observationRemaining: string | undefined = undefined;
 
-            if (candidate) {
+            // ============================================================================
+            // STATE MACHINE LOGIC (Replaces instant selling)
+            // ============================================================================
+            if (isHeld && position) {
+                const tokenPrice = token.price && isFinite(token.price) ? token.price : 0;
+                const tokenPriceSOL = tokenPrice / solPrice;
+                const entryPriceSOL = position.entryPriceSOL || tokenPriceSOL;
+                const entryTimestamp = position.entryTimestamp || Date.now();
+
+                // Create tracked position for state machine evaluation
+                const trackedPos: TrackedPosition = {
+                    mint: token.mint,
+                    symbol: token.symbol,
+                    amount: position.amount,
+                    entryTimestamp,
+                    entryPriceSOL,
+                    currentPriceSOL: tokenPriceSOL,
+                    currentLiquidityUSD: token.liquidityUSD || 0,
+                    smoothedPnLPct: 0,
+                    accumulatedLossPct: position.accumulatedLossPct || 0,
+                    state: position.state || 'OBSERVING',
+                    stateEnteredAt: entryTimestamp
+                };
+
+                // Evaluate state machine
+                const stateResult = evaluatePositionState(
+                    trackedPos,
+                    tokenPriceSOL,
+                    token.liquidityUSD || 0
+                );
+
+                positionState = stateResult.newState;
+                observationRemaining = formatObservationRemaining(trackedPos);
+
+                // Update position with new state (will be sent back to frontend)
+                position.state = stateResult.newState;
+                position.accumulatedLossPct = trackedPos.accumulatedLossPct;
+                position.entryPriceSOL = entryPriceSOL;
+                position.entryTimestamp = entryTimestamp;
+
+                // Determine action based on state machine result
+                if (stateResult.shouldExecute) {
+                    // State machine says EXECUTE
+                    action = 'SELL';
+                    reason = stateResult.reason;
+                    isSafe = false;
+                    riskScore = stateResult.isCriticalRug ? 100 : 90;
+                } else if (stateResult.shouldCallScenarioRunner) {
+                    // Transition to SCOUTING - prepare paths but don't execute yet
+                    action = 'OBSERVE';
+                    reason = `SCOUTING: ${stateResult.reason}`;
+                    isSafe = false;
+                    riskScore = 70;
+                } else {
+                    // Keep observing (including during minimum observation window)
+                    action = 'HOLD';
+                    reason = stateResult.reason;
+                    isSafe = stateResult.newState === 'OBSERVING';
+                    riskScore = trackedPos.accumulatedLossPct > 0 ? Math.min(50, trackedPos.accumulatedLossPct * 10) : 10;
+                }
+
+                console.log(`[StateMachine] ${token.symbol}: ${stateResult.previousState} → ${stateResult.newState} | ${stateResult.reason}`);
+            } else if (candidate) {
+                // Non-held token: use physics prediction for discovery
                 const pred = candidate.prediction;
 
                 if (pred === 'UP') {
-                    if (isHeld) {
-                        action = 'HOLD';
-                        reason = `Momentum positive. Agent holding for growth.`;
-                    } else {
-                        action = 'BUY';
-                        reason = `Discovery: Momentum surge detected. Entry proposed.`;
-                    }
+                    action = 'BUY';
+                    reason = `Discovery: Momentum surge detected. Entry proposed.`;
                     isSafe = true;
                     riskScore = 10;
-                } else if (pred === 'DOWN') {
-                    if (isHeld) {
-                        action = 'SELL';
-                        reason = `Negative momentum. Survival protocol triggered.`;
-                    } else {
-                        action = 'OBSERVE';
-                        reason = `Market decaying. No entry.`;
-                    }
-                    isSafe = false;
-                    riskScore = 80;
                 } else {
                     action = 'OBSERVE';
-                    reason = `Sideways volume. Minimal conviction.`;
+                    reason = pred === 'DOWN' ? `Market decaying. No entry.` : `Sideways volume. Minimal conviction.`;
                     isSafe = false;
-                    riskScore = 50;
+                    riskScore = pred === 'DOWN' ? 80 : 50;
                 }
             }
 
-            // 3. Execution Pathfinding (The Hands)
+            // 3. Execution Pathfinding (The Hands) - ONLY when state machine says EXECUTE
             let exitPlan = null;
 
-            // Handle SELL/SWAP/BUY planning
-            if (isHeld && (action === 'SELL' || action === 'SWAP') && position.amount > 0) {
+            if (isHeld && action === 'SELL' && position.amount > 0) {
                 console.log(`[PortfolioRunner] Evaluating EXIT for ${token.symbol}...`);
 
                 // 3.1: Special Case: SOL -> SOL (Direct Capital Exit)
@@ -338,7 +402,9 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                     action,
                     reason,
                     riskScore,
-                    isSafe
+                    isSafe,
+                    positionState,
+                    observationRemaining
                 },
                 frictionReason: currentFrictionReason,
                 exitPlan: exitPlan || undefined
