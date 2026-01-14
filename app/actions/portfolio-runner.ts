@@ -18,9 +18,10 @@ import {
     createTrackedPosition,
     formatObservationRemaining,
     MIN_OBSERVATION_MS,
-    SCOUTING_THRESHOLD_PCT,
+    ENTER_SCOUTING_THRESHOLD_PCT,
     EXECUTION_THRESHOLD_PCT
 } from '@/lib/execution-engine/PositionStateTracker';
+import { SnapManager, SnapPool } from '@/lib/execution-engine/SnapManager';
 
 export interface Position {
     mint: string;
@@ -29,6 +30,8 @@ export interface Position {
     entryTimestamp?: number;      // State machine: when position was entered
     state?: PositionState;        // State machine: current state
     accumulatedLossPct?: number;  // State machine: accumulated loss
+    preScoutPrepared?: boolean;   // State machine: pre-scout flag
+    snapPool?: SnapPool;          // State machine: Safety Net Asset Pool
 }
 
 export interface PortfolioAnalysisResult {
@@ -74,54 +77,24 @@ export interface PortfolioAnalysisResponse {
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
-// ============================================================================
-// SAFE ROTATION CONFIG
-// ============================================================================
-const SAFE_ROTATION_CONFIG = {
-    // Minimum liquidity (USD) for a safe rotation target
-    MIN_LIQUIDITY_SAFE: 100_000,  // $100k minimum liquidity
-
-    // Maximum volatility score (0-100) for safe assets
-    MAX_VOLATILITY_SAFE: 30,
-
-    // Multiplier: target liquidity must be >= position_size * this
-    LIQUIDITY_MULTIPLIER: 10,
-
-    // Whitelisted stable/blue-chip symbols (always considered safe candidates)
-    SAFE_SYMBOLS: ['USDC', 'USDT', 'SOL', 'JUP', 'RAY', 'BONK'],
-
-    // Whitelisted mints for safe rotation
-    SAFE_MINTS: [
-        'So11111111111111111111111111111111111111112',  // SOL
-        'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-        '9vMJfxuKxXBoEa7rM12mYLMwTacLMLDJqHozw96WQL8i', // UST (if available)
-        'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',  // JUP
-    ]
-};
+// Whitelisted symbols from SafeRotationConfig
+const SAFE_SYMBOLS = ['USDC', 'USDT', 'SOL', 'JUP', 'RAY', 'BONK'];
 
 /**
- * Check if a token is a safe rotation target
+ * Jupiter Quote with Retries
+ * Hardens against one-shot quote failure (Risk 2)
  */
-function isSafeRotationTarget(
-    token: { symbol: string; mint: string; liquidityUSD?: number | null; riskLevel?: string | null },
-    positionValueUSD: number
-): boolean {
-    const liquidity = token.liquidityUSD || 0;
-    const minRequired = positionValueUSD * SAFE_ROTATION_CONFIG.LIQUIDITY_MULTIPLIER;
-
-    // Check if symbol or mint is whitelisted
-    const isWhitelisted =
-        SAFE_ROTATION_CONFIG.SAFE_SYMBOLS.includes(token.symbol) ||
-        SAFE_ROTATION_CONFIG.SAFE_MINTS.includes(token.mint);
-
-    // Check liquidity requirements
-    const hasEnoughLiquidity = liquidity >= SAFE_ROTATION_CONFIG.MIN_LIQUIDITY_SAFE &&
-        liquidity >= minRequired;
-
-    // Check risk level (if available)
-    const isLowRisk = !token.riskLevel || token.riskLevel === 'LOW';
-
-    return isWhitelisted || (hasEnoughLiquidity && isLowRisk);
+async function getJupiterQuoteWithRetries(params: any, retries = 3, delayMs = 500): Promise<any | null> {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const quote = await getJupiterQuote(params);
+            if (quote) return quote;
+        } catch (err: any) {
+            console.warn(`[QuoteRetry] Attempt ${i + 1} failed: ${err.message}`);
+            if (i < retries - 1) await new Promise(r => setTimeout(r, delayMs));
+        }
+    }
+    return null;
 }
 
 /**
@@ -129,6 +102,7 @@ function isSafeRotationTarget(
  * Strictly deterministic, zero-hindsight.
  */
 export async function runPortfolioAnalysis(positions: Position[]): Promise<PortfolioAnalysisResponse> {
+    const uiLogs: string[] = [];
     try {
         const mints = positions.map(p => p.mint);
         console.log(`[PortfolioRunner] Starting Fair Test on ${mints.length} mints...`);
@@ -143,55 +117,18 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
         console.log(`[PortfolioRunner] Market data fetched in ${Date.now() - marketStartTime}ms. Portfolio: ${marketData.length}, Broad: ${broadMarketData.length}`);
 
         if (marketData.length === 0) {
-            console.warn(`[PortfolioRunner] No market data found for portfolio tokens.`);
-            return { success: true, results: [] };
+            uiLogs.push(`[!! BUG] MarketData: No data fetched for portfolio tokens.`);
+            return { success: true, results: [], logs: uiLogs };
         }
 
         const rawSolPrice = marketData.find(m => m.symbol === 'SOL')?.price || 140;
         const solPrice = isFinite(rawSolPrice) && rawSolPrice > 0 ? rawSolPrice : 140;
 
-        // Build the "Agent's Vision" (Broad Universe)
-        const broadUniverse: SearchableToken[] = broadMarketData.map(t => ({
-            mint: t.mint,
-            symbol: t.symbol,
-            valueInSOL: (t.price && isFinite(t.price) ? t.price : 0) / solPrice,
-            hasRoute: true,
-            isStable: ['USDC', 'USDT', 'PYUSD'].includes(t.symbol),
-            tier: t.riskLevel === 'LOW' ? 'SAFE' : 'RANKABLE',
-            liquidityScore: 1,
-            volatility: t.riskLevel === 'HIGH' ? 0.8 : 0.2,
-            alphaScore: 0,
-            source: undefined,
-            roundTripLoss: 0,
-            isAlpha: t.riskLevel !== 'LOW'
-        }));
-
-        // Ensure SOL is in the vision (it's the exit target)
-        if (!broadUniverse.some(u => u.mint === SOL_MINT)) {
-            broadUniverse.push({
-                mint: SOL_MINT,
-                symbol: 'SOL',
-                valueInSOL: 1,
-                hasRoute: true,
-                isStable: false,
-                tier: 'SAFE',
-                liquidityScore: 1,
-                volatility: 0,
-                alphaScore: 0,
-                source: undefined,
-                roundTripLoss: 0,
-                isAlpha: false
-            });
-        }
-
         // 2. Initialize Agent Physics (The Physics)
         console.log(`[PortfolioRunner] Step 2: Running Physics Engine on ${marketData.length + broadMarketData.length} tokens...`);
 
         // Combine portfolio and broad market for evaluation
-        const allRelevantMints = new Set([...mints, ...broadMarketData.map(t => t.mint)]);
         const evaluationData = [...marketData];
-
-        // Add broad market tokens that aren't already in marketData
         for (const bt of broadMarketData) {
             if (!evaluationData.some(m => m.mint === bt.mint)) {
                 evaluationData.push(bt);
@@ -208,13 +145,13 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
         }));
 
         const funnelState = createFunnelState(candidates);
-
-        // Run Pillar 10 Logic (Newtonian momentum + Brain v2 Memory)
+        if (broadMarketData.length === 0) {
+            uiLogs.push(`[!! BUG] MarketData: Broad universe is empty. SNAP pre-scouting disabled.`);
+        }
         await predictFunnel(funnelState);
 
         const portfolioResults: PortfolioAnalysisResult[] = [];
         const discoveryResults: PortfolioAnalysisResult[] = [];
-        const uiLogs: string[] = [];  // Collect logs for frontend UI display
 
         console.log(`[PortfolioRunner] Step 3: Analyzing results...`);
         for (const token of evaluationData) {
@@ -226,26 +163,27 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
             let reason = 'Analyzing physics...';
             let isSafe = true;
             let riskScore = 0;
-            let currentFrictionReason = undefined;
+            let currentFrictionReason: string | undefined = undefined;
             let positionState: PositionState | undefined = undefined;
             let observationRemaining: string | undefined = undefined;
+            let exitPlan = null;
 
             // ============================================================================
-            // STATE MACHINE LOGIC (Replaces instant selling)
+            // STATE MACHINE & SNAP LOGIC
             // ============================================================================
             if (isHeld && position) {
                 const tokenPrice = token.price && isFinite(token.price) ? token.price : 0;
                 const tokenPriceSOL = tokenPrice / solPrice;
                 const entryPriceSOL = position.entryPriceSOL || tokenPriceSOL;
                 const entryTimestamp = position.entryTimestamp || Date.now();
+                const positionValueUSD = position.amount * tokenPrice;
 
-                // CRITICAL: If liquidity is missing/0, use Infinity to PREVENT false rug detection
-                // Only trigger critical rug when we KNOW liquidity is low, not when data is missing
+                // CRITICAL Rug Protection: use high liquidity if missing
                 const safeLiquidityUSD = (token.liquidityUSD && token.liquidityUSD > 0)
                     ? token.liquidityUSD
-                    : Infinity; // Missing data = assume safe, don't trigger rug
+                    : Infinity;
 
-                // Create tracked position for state machine evaluation
+                // Create tracked position
                 const trackedPos: TrackedPosition = {
                     mint: token.mint,
                     symbol: token.symbol,
@@ -257,298 +195,215 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                     smoothedPnLPct: 0,
                     accumulatedLossPct: position.accumulatedLossPct || 0,
                     state: position.state || 'OBSERVING',
-                    stateEnteredAt: entryTimestamp
+                    stateEnteredAt: entryTimestamp,
+                    snapPool: position.snapPool
                 };
 
-                // Evaluate state machine
-                const stateResult = evaluatePositionState(
-                    trackedPos,
-                    tokenPriceSOL,
-                    safeLiquidityUSD
-                );
+                // Evaluate State machine
+                const stateResult = evaluatePositionState(trackedPos, tokenPriceSOL, safeLiquidityUSD);
 
+                // SNAP SURVIVAL ENGINE: Pre-arm candidates and quotes
+                if (stateResult.newState === 'OBSERVING' || stateResult.newState === 'SCOUTING') {
+                    // Trigger refresh if we are in SCOUTING or have a PRE-SCOUT flag
+                    const shouldDeepScan = stateResult.newState === 'SCOUTING' || trackedPos.preScoutPrepared;
+
+                    if (shouldDeepScan) {
+                        try {
+                            // 1. Refresh Pool
+                            trackedPos.snapPool = await SnapManager.refreshSNAP(
+                                trackedPos.snapPool,
+                                evaluationData,
+                                positionValueUSD,
+                                solPrice,
+                                uiLogs
+                            );
+
+                            // 2. Pre-fetch Quotes
+                            if (trackedPos.snapPool.candidates.length > 0) {
+                                await SnapManager.preFetchQuotes(
+                                    trackedPos.snapPool,
+                                    token.mint,
+                                    position.amount,
+                                    token.decimals || 6,
+                                    solPrice,
+                                    uiLogs
+                                );
+
+                                if (trackedPos.snapPool.bestCandidate) {
+                                    // Log refresh to UI periodically
+                                    if (Date.now() % 10000 < 2000) { // Throttle logs
+                                        uiLogs.push(`[SNAP] Ready: ${trackedPos.snapPool.bestCandidate.symbol} via ${trackedPos.snapPool.bestCandidate.routeSummary}`);
+                                    }
+                                }
+                            }
+                        } catch (err: any) {
+                            console.error(`[SNAP] Error refreshing for ${token.symbol}:`, err.message);
+                        }
+                    }
+                }
+
+                // Update Position State
                 positionState = stateResult.newState;
                 observationRemaining = formatObservationRemaining(trackedPos);
 
-                // Update position with new state (will be sent back to frontend)
                 position.state = stateResult.newState;
                 position.accumulatedLossPct = trackedPos.accumulatedLossPct;
                 position.entryPriceSOL = entryPriceSOL;
                 position.entryTimestamp = entryTimestamp;
+                position.snapPool = trackedPos.snapPool;
 
-                // Determine action based on state machine result
+                // Determine High-Level Action
                 if (stateResult.shouldExecute) {
-                    // State machine says EXECUTE
                     action = 'SELL';
                     reason = stateResult.reason;
                     isSafe = false;
                     riskScore = stateResult.isCriticalRug ? 100 : 90;
-                    uiLogs.push(`[EXECUTING] ${token.symbol}: Triggering exit | ${stateResult.reason}`);
+                    uiLogs.push(`[EXECUTING] ${token.symbol}: Triggering RUTHLESS EXIT | ${stateResult.reason}`);
                 } else if (stateResult.shouldCallScenarioRunner) {
-                    // Transition to SCOUTING - prepare paths but don't execute yet
                     action = 'OBSERVE';
                     reason = `SCOUTING: ${stateResult.reason}`;
                     isSafe = false;
                     riskScore = 70;
-                    uiLogs.push(`[SCOUTING] ${token.symbol}: AccLoss ${trackedPos.accumulatedLossPct.toFixed(2)}% | ${stateResult.reason}`);
                 } else {
-                    // Keep observing (including during minimum observation window)
                     action = 'HOLD';
                     reason = stateResult.reason;
                     isSafe = stateResult.newState === 'OBSERVING';
                     riskScore = trackedPos.accumulatedLossPct > 0 ? Math.min(50, trackedPos.accumulatedLossPct * 10) : 10;
-                    // Only log state changes, not every tick
+
                     if (stateResult.previousState !== stateResult.newState) {
-                        uiLogs.push(`[OBSERVING] ${token.symbol}: ${stateResult.newState} | ${observationRemaining || 'watching'}`);
+                        uiLogs.push(`[STATE] ${token.symbol}: → ${stateResult.newState}`);
+                    }
+                }
+
+                // ============================================================================
+                // RUTHLESS EXECUTION (The Hands)
+                // ============================================================================
+                if (action === 'SELL' && position.amount > 0) {
+                    // RANK 1: SNAP FIRE
+                    const snapTarget = position.snapPool?.bestCandidate;
+                    const isSnapFresh = snapTarget && (Date.now() - snapTarget.lastQuoteTs < 30_000);
+
+                    if (snapTarget && isSnapFresh && snapTarget.quote) {
+                        const quote = snapTarget.quote;
+                        exitPlan = {
+                            targetToken: snapTarget.mint,
+                            targetSymbol: snapTarget.symbol,
+                            grossSOL: snapTarget.expectedOutSOL,
+                            slippagePct: parseFloat(quote.priceImpactPct) || 1.0,
+                            feesSOL: 0.000005,
+                            netSOL: snapTarget.expectedOutSOL - 0.000005,
+                            routeSummary: `SNAP FIRE: ${snapTarget.routeSummary}`,
+                            scenarioUsed: 'SNAP_SURVIVAL'
+                        };
+                        reason = `Ruthless SNAP rotation to ${snapTarget.symbol}`;
+                        uiLogs.push(`[SNAP] ✓ FIRE: ${token.symbol} → ${snapTarget.symbol}`);
+                    } else {
+                        // RANK 2: Emergency SOL Exit
+                        try {
+                            const amountRaw = Math.floor(position.amount * Math.pow(10, token.decimals || 6)).toString();
+                            const liveQuote = await getJupiterQuoteWithRetries({
+                                inputMint: token.mint,
+                                outputMint: SOL_MINT,
+                                amount: amountRaw,
+                                slippageBps: 300
+                            });
+
+                            if (liveQuote) {
+                                const grossSOL = parseFloat(liveQuote.outAmount) / 1e9;
+                                exitPlan = {
+                                    targetToken: 'SOL',
+                                    targetSymbol: 'SOL',
+                                    grossSOL: grossSOL,
+                                    slippagePct: parseFloat(liveQuote.priceImpactPct) || 0,
+                                    feesSOL: 0.000005,
+                                    netSOL: grossSOL - 0.000005,
+                                    routeSummary: `EMERGENCY: ${liveQuote.routePlan.length} hops to SOL`,
+                                    scenarioUsed: 'EMERGENCY_SOL'
+                                };
+                                uiLogs.push(`[SNAP] ✓ FALLBACK: ${token.symbol} → SOL`);
+                            }
+                        } catch (err: any) {
+                            console.error(`[Execution] Emergency exit failed:`, err.message);
+                        }
+                    }
+
+                    // RANK 3: Virtual Fallback (Safety net for sim)
+                    if (!exitPlan) {
+                        const fallbackTokenPrice = token.price && isFinite(token.price) ? token.price : 0;
+                        const grossSOL = (position.amount * fallbackTokenPrice) / solPrice;
+                        exitPlan = {
+                            targetToken: 'SOL',
+                            targetSymbol: 'SOL',
+                            grossSOL: grossSOL,
+                            slippagePct: 1.0,
+                            feesSOL: grossSOL * 0.01,
+                            netSOL: grossSOL * 0.98,
+                            routeSummary: "Virtual Market Execution",
+                            scenarioUsed: "VIRTUAL_SIM"
+                        };
                     }
                 }
             } else if (candidate) {
-                // Non-held token: use physics prediction for discovery
+                // Discovery Logic
                 const pred = candidate.prediction;
-
                 if (pred === 'UP') {
                     action = 'BUY';
-                    reason = `Discovery: Momentum surge detected. Entry proposed.`;
+                    reason = `Momentum surge detected.`;
                     isSafe = true;
                     riskScore = 10;
-                    uiLogs.push(`[DISCOVERY] ${token.symbol}: BUY signal | Momentum surge`);
                 } else {
                     action = 'OBSERVE';
-                    reason = pred === 'DOWN' ? `Market decaying. No entry.` : `Sideways volume. Minimal conviction.`;
+                    reason = pred === 'DOWN' ? `Decaying momentum.` : `Sideways.`;
                     isSafe = false;
                     riskScore = pred === 'DOWN' ? 80 : 50;
                 }
             }
 
-            // 3. Execution Pathfinding (The Hands) - ONLY when state machine says EXECUTE
-            let exitPlan = null;
+            // Pack Result
+            const analysisResult: PortfolioAnalysisResult = {
+                mint: token.mint,
+                symbol: token.symbol,
+                decimals: token.decimals || 6,
+                metrics: {
+                    price: token.price && isFinite(token.price) ? token.price : 0,
+                    liquidityUSD: token.liquidityUSD && isFinite(token.liquidityUSD) ? token.liquidityUSD : 0,
+                    volume5m: token.volume5m && isFinite(token.volume5m) ? token.volume5m : 0,
+                    volumeState: (token.volume5m || 0) > 2000 ? 'expanding' : (token.volume5m || 0) < 500 ? 'collapsing' : 'stagnant',
+                    riskLevel: token.riskLevel as VolumeRiskLevel
+                },
+                verdict: {
+                    action,
+                    reason,
+                    riskScore,
+                    isSafe,
+                    positionState,
+                    observationRemaining
+                },
+                frictionReason: currentFrictionReason,
+                exitPlan: exitPlan || undefined
+            };
 
-            if (isHeld && action === 'SELL' && position.amount > 0) {
-                console.log(`[PortfolioRunner] Evaluating EXIT for ${token.symbol}...`);
-
-                // 3.1: Special Case: SOL -> SOL (Direct Capital Exit)
-                if (token.mint === SOL_MINT) {
-                    exitPlan = {
-                        targetToken: 'SOL',
-                        targetSymbol: 'SOL',
-                        grossSOL: position.amount,
-                        slippagePct: 0,
-                        feesSOL: 0,
-                        netSOL: position.amount,
-                        routeSummary: "Direct Capital Move",
-                        scenarioUsed: "DIRECT"
-                    };
-                } else {
-                    // Regular cross-token exit pathfinding
-                    const tokenPrice = token.price && isFinite(token.price) ? token.price : 0;
-                    const positionValueUSD = (position.amount * tokenPrice);
-                    const positionValueSOL = positionValueUSD / solPrice;
-
-                    // ================================================================
-                    // SAFE ROTATION: Find best safe target before falling back to SOL
-                    // ================================================================
-                    console.log(`[SafeRotation] Evaluating safe targets for ${token.symbol} exit...`);
-
-                    // Build list of safe rotation candidates from market data
-                    const safeTargets = evaluationData
-                        .filter(t => t.mint !== token.mint) // Not the current token
-                        .filter(t => isSafeRotationTarget(t, positionValueUSD))
-                        .sort((a, b) => (b.liquidityUSD || 0) - (a.liquidityUSD || 0)); // Sort by liquidity
-
-                    console.log(`[SafeRotation] Found ${safeTargets.length} safe candidates: ${safeTargets.map(t => t.symbol).join(', ')}`);
-
-                    let rotationSucceeded = false;
-
-                    // Try each safe target until one works
-                    for (const targetToken of safeTargets) {
-                        if (rotationSucceeded) break;
-
-                        console.log(`[SafeRotation] Attempting ${token.symbol} → ${targetToken.symbol}...`);
-
-                        try {
-                            const amountRaw = Math.floor(position.amount * Math.pow(10, token.decimals || 6)).toString();
-
-                            // Use Conservative scenario for safe rotation
-                            const liveQuote = await getJupiterQuote({
-                                inputMint: token.mint,
-                                outputMint: targetToken.mint,
-                                amount: amountRaw,
-                                slippageBps: 100 // Tight slippage for safe rotation
-                            });
-
-                            if (liveQuote) {
-                                const outDecimals = targetToken.decimals || 6;
-                                const grossAmount = parseFloat(liveQuote.outAmount) / Math.pow(10, outDecimals);
-                                const priceImpact = parseFloat(liveQuote.priceImpactPct) || 0;
-
-                                // Only accept if price impact is reasonable (< 5%)
-                                if (priceImpact < 5) {
-                                    // Convert to SOL value for tracking
-                                    const targetPriceUSD = targetToken.price || 0;
-                                    const grossSOL = (grossAmount * targetPriceUSD) / solPrice;
-
-                                    exitPlan = {
-                                        targetToken: targetToken.mint,
-                                        targetSymbol: targetToken.symbol,
-                                        grossSOL: isFinite(grossSOL) ? grossSOL : 0,
-                                        slippagePct: priceImpact,
-                                        feesSOL: 0.000005,
-                                        netSOL: isFinite(grossSOL) ? grossSOL - 0.000005 : 0,
-                                        routeSummary: `SAFE ROTATION: ${liveQuote.routePlan.length} hops to ${targetToken.symbol}`,
-                                        scenarioUsed: 'CONSERVATIVE_ROTATION'
-                                    };
-
-                                    reason = `Safe rotation: ${token.symbol} → ${targetToken.symbol}`;
-                                    rotationSucceeded = true;
-                                    console.log(`[SafeRotation] ✓ SUCCESS: ${token.symbol} → ${targetToken.symbol} via ${liveQuote.routePlan.length} hops`);
-                                } else {
-                                    console.log(`[SafeRotation] ✗ ${targetToken.symbol} rejected: price impact ${priceImpact.toFixed(2)}% > 5%`);
-                                }
-                            }
-                        } catch (err: any) {
-                            console.log(`[SafeRotation] ✗ ${targetToken.symbol} quote failed: ${err.message}`);
-                        }
-                    }
-
-                    // ================================================================
-                    // FALLBACK: Emergency exit to SOL if no safe rotation possible
-                    // ================================================================
-                    if (!rotationSucceeded) {
-                        console.log(`[SafeRotation] No safe rotation found. FALLBACK to SOL emergency exit.`);
-
-                        const universe: SearchableToken[] = [
-                            {
-                                mint: token.mint,
-                                symbol: token.symbol,
-                                valueInSOL: tokenPrice / solPrice,
-                                hasRoute: true,
-                                isStable: false,
-                                tier: 'RANKABLE',
-                                liquidityScore: 1,
-                                volatility: 0,
-                                alphaScore: 0,
-                                source: undefined,
-                                roundTripLoss: 0,
-                                isAlpha: true
-                            },
-                            ...broadUniverse
-                        ];
-
-                        const goal: BrainGoal = {
-                            startToken: token.mint,
-                            targetToken: SOL_MINT,
-                            startAmountSOL: positionValueSOL,
-                            targetAmountSOL: 0.000001,
-                            maxHops: 10,
-                            maxTotalRTL: 100,
-                            maxPerHopRTL: 100
-                        };
-
-                        try {
-                            const comparison = await ScenarioRunner.runAll(universe, goal);
-
-                            if (comparison.best && comparison.best.found) {
-                                const amountRaw = Math.floor(position.amount * Math.pow(10, token.decimals || 6)).toString();
-
-                                const liveQuote = await getJupiterQuote({
-                                    inputMint: token.mint,
-                                    outputMint: SOL_MINT,
-                                    amount: amountRaw,
-                                    slippageBps: 300 // Higher slippage for emergency exit
-                                });
-
-                                if (liveQuote) {
-                                    const grossSOL = parseFloat(liveQuote.outAmount) / 1e9;
-                                    const priceImpact = parseFloat(liveQuote.priceImpactPct) || 0;
-                                    const platformFee = liveQuote.platformFee ? parseFloat(liveQuote.platformFee.amount) / 1e9 : 0;
-
-                                    exitPlan = {
-                                        targetToken: 'SOL',
-                                        targetSymbol: 'SOL',
-                                        grossSOL: isFinite(grossSOL) ? grossSOL : 0,
-                                        slippagePct: isFinite(priceImpact) ? priceImpact : 0,
-                                        feesSOL: isFinite(platformFee) ? platformFee + 0.000005 : 0.000005,
-                                        netSOL: isFinite(grossSOL) ? grossSOL - platformFee - 0.000005 : 0,
-                                        routeSummary: `EMERGENCY: ${liveQuote.routePlan.length} hops to SOL`,
-                                        scenarioUsed: comparison.best.config.name
-                                    };
-                                    reason = `Emergency exit to SOL (no safe rotation available)`;
-                                }
-                            }
-                        } catch (err: any) {
-                            console.log(`[SafeRotation] Emergency SOL exit also failed: ${err.message}`);
-                            currentFrictionReason = `All exit routes failed`;
-                        }
-                    }
-                }
-            } catch (err: any) {
-                console.error(`[PortfolioRunner] Real quote failed for ${token.symbol}`, err);
-                currentFrictionReason = err.message || "Jupiter Quote Failed";
+            if (isHeld) {
+                portfolioResults.push(analysisResult);
+            } else if (action === 'BUY') {
+                discoveryResults.push(analysisResult);
             }
-
-            // ============ VIRTUAL EXECUTION FALLBACK (Simulation Strength) ============
-            if (!exitPlan) {
-                console.log(`[PortfolioRunner] Using VIRTUAL FALLBACK for ${token.symbol} exit simulation.`);
-                const grossSOL = (position.amount * tokenPrice) / solPrice;
-                exitPlan = {
-                    targetToken: 'SOL',
-                    targetSymbol: 'SOL',
-                    grossSOL: isFinite(grossSOL) ? grossSOL : 0,
-                    slippagePct: 1.0,
-                    feesSOL: isFinite(grossSOL) ? grossSOL * 0.01 : 0,
-                    netSOL: isFinite(grossSOL) ? grossSOL * 0.98 : 0, // Apply 2% simulated penalty
-                    routeSummary: "Virtual Market Execution",
-                    scenarioUsed: "VIRTUAL_SIM"
-                };
-                currentFrictionReason = undefined; // Clear friction as we have successfully simulated the trade
-            }
-            // ==========================================================================
         }
 
-        const analysisResult: PortfolioAnalysisResult = {
-            mint: token.mint,
-            symbol: token.symbol,
-            decimals: token.decimals || 6,
-            metrics: {
-                price: token.price && isFinite(token.price) ? token.price : 0,
-                liquidityUSD: token.liquidityUSD && isFinite(token.liquidityUSD) ? token.liquidityUSD : 0,
-                volume5m: token.volume5m && isFinite(token.volume5m) ? token.volume5m : 0,
-                volumeState: (token.volume5m || 0) > 2000 ? 'expanding' : (token.volume5m || 0) < 500 ? 'collapsing' : 'stagnant',
-                riskLevel: token.riskLevel
-            },
-            verdict: {
-                action,
-                reason,
-                riskScore,
-                isSafe,
-                positionState,
-                observationRemaining
-            },
-            frictionReason: currentFrictionReason,
-            exitPlan: exitPlan || undefined
+        console.log(`[PortfolioRunner] Analysis complete. Portfolio: ${portfolioResults.length}, Gems: ${discoveryResults.length}`);
+        return {
+            success: true,
+            results: portfolioResults,
+            discoveryResults: discoveryResults.slice(0, 5),
+            logs: uiLogs
         };
-
-        if (isHeld) {
-            portfolioResults.push(analysisResult);
-        } else if (action === 'BUY') {
-            discoveryResults.push(analysisResult);
-        }
-    }  // End of for (const token of evaluationData) loop
-
-        console.log(`[PortfolioRunner] Analysis complete. Returning ${portfolioResults.length} portfolio items and ${discoveryResults.length} discovery gems.`);
-    return {
-        success: true,
-        results: portfolioResults,
-        discoveryResults: discoveryResults.slice(0, 5), // Return top 5 gems
-        logs: uiLogs  // State machine logs for UI display
-    };
-} catch (globalErr: any) {
-    console.error(`[PortfolioRunner] CRITICAL GLOBAL ERROR:`, globalErr);
-    // Do not throw, return safe object to avoid Next.js production masking
-    return {
-        success: false,
-        error: globalErr.message || 'Unknown Server Error',
-        diagnostic: globalErr.stack
-    };
-}
+    } catch (globalErr: any) {
+        console.error(`[PortfolioRunner] CRITICAL GLOBAL ERROR:`, globalErr);
+        return {
+            success: false,
+            error: globalErr.message || 'Unknown Server Error',
+            diagnostic: globalErr.stack,
+            logs: uiLogs
+        };
+    }
 }

@@ -621,20 +621,78 @@ export default function SurvivalTestPage() {
                                         const isSOL = pos.mint === 'So11111111111111111111111111111111111111112';
 
                                         return (
-                                            <tr key={pos.mint} className="hover:bg-zinc-800/10 transition-colors">
-                                                <td className="p-3">
-                                                    <div className="font-bold text-sm text-white">{result?.symbol || (isSOL ? 'SOL' : pos.mint.slice(0, 6))}</div>
-                                                    <div className="text-[8px] text-zinc-600">{pos.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-                                                </td>
-                                                <td className="p-3 text-xs text-zinc-400">{pos.amount.toFixed(4)}</td>
-                                                <td className="p-3 text-xs font-bold text-cyan-400">{valueSOL.toFixed(4)}</td>
-                                                <td className="p-3">
-                                                    <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${result?.verdict.action === 'HOLD' ? 'bg-green-900/20 text-green-500' :
-                                                        result?.verdict.action === 'SELL' ? 'bg-red-900/20 text-red-500' :
-                                                            'bg-zinc-800 text-zinc-500'
-                                                        }`}>
-                                                        {result?.verdict.action || 'LOADING'}
-                                                    </span>
+                                            <tr key={pos.mint} className="border-b border-zinc-900/50">
+                                                <td colSpan={4} className="p-0">
+                                                    <div className="hover:bg-zinc-800/10 transition-colors p-3 grid grid-cols-4 items-center">
+                                                        <div className="flex items-center gap-3">
+                                                            <div>
+                                                                <div className="font-bold text-sm text-white">{result?.symbol || (isSOL ? 'SOL' : pos.mint.slice(0, 6))}</div>
+                                                                <div className="text-[8px] text-zinc-600">{pos.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-xs text-zinc-400">
+                                                            <div>{pos.amount.toFixed(4)}</div>
+                                                            <div className="text-[9px] text-zinc-500 italic">{pos.state || 'INITIALIZING'}</div>
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs font-bold text-cyan-400">{valueSOL.toFixed(4)} SOL</span>
+                                                            <span className={`text-[9px] font-black ${result?.verdict.riskScore && result.verdict.riskScore > 70 ? 'text-red-500' : 'text-zinc-500'}`}>
+                                                                RISK: {result?.verdict.riskScore || 0}/100
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex flex-col gap-1 items-end">
+                                                            <span className={`text-[10px] font-black uppercase px-2 py-1 rounded w-fit ${result?.verdict.action === 'HOLD' ? 'bg-green-900/20 text-green-500' :
+                                                                result?.verdict.action === 'SELL' ? 'bg-red-900/20 text-red-500' :
+                                                                    'bg-zinc-800 text-zinc-500'
+                                                                }`}>
+                                                                {result?.verdict.action || 'LOADING'}
+                                                            </span>
+                                                            {pos.snapPool?.bestCandidate && (
+                                                                <span className="text-[8px] font-bold text-cyan-500 flex items-center gap-1">
+                                                                    <Zap className="w-2 h-2" /> SNAP READY
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* SURVIVAL TELEMETRY SUB-ROW */}
+                                                    {(pos.state === 'SCOUTING' || pos.state === 'OBSERVING') && (
+                                                        <div className="px-3 pb-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            <div className="bg-zinc-900/30 rounded-lg p-2 border border-zinc-800/40">
+                                                                <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1 tracking-widest flex items-center gap-1">
+                                                                    <BrainCircuit className="w-2 h-2" /> Scouting Progress
+                                                                </div>
+                                                                <div className="flex items-center justify-between text-[9px] text-zinc-400">
+                                                                    <span>State: {pos.state}</span>
+                                                                    <span>{result?.verdict.observationRemaining || 'Analyzing...'}</span>
+                                                                </div>
+                                                                <div className="mt-1 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                                                                    <div
+                                                                        className={`h-full transition-all duration-1000 ${pos.state === 'SCOUTING' ? 'bg-orange-500 w-[75%]' : 'bg-green-500 w-[30%]'}`}
+                                                                    ></div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="bg-cyan-950/10 rounded-lg p-2 border border-cyan-900/20">
+                                                                <div className="text-[8px] text-cyan-600 font-bold uppercase mb-1 tracking-widest flex items-center gap-1">
+                                                                    <Shield className="w-2 h-2" /> Survival Pool (Top Candidates)
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                    {pos.snapPool?.candidates?.length ? pos.snapPool.candidates.slice(0, 2).map((cand: any, idx: number) => (
+                                                                        <div key={idx} className="flex items-center justify-between text-[8px]">
+                                                                            <span className="text-white font-bold">{cand.symbol}</span>
+                                                                            <div className="flex gap-2">
+                                                                                <span className="text-zinc-500">Liq: ${Math.round(cand.liquidityUSD / 1000)}k</span>
+                                                                                <span className={cand.riskScore < 20 ? 'text-green-500' : 'text-orange-500'}>Score: {cand.riskScore}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    )) : (
+                                                                        <div className="text-[8px] text-zinc-600 italic">No safe havens identified yet...</div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );
@@ -756,10 +814,11 @@ export default function SurvivalTestPage() {
                             {logs.slice().reverse().map((l, i) => (
                                 <div key={i} className={`flex gap-2 ${l.includes('[DISCOVERY]') ? 'text-cyan-400/80' :
                                     l.includes('[EXIT]') ? 'text-green-400/80' :
-                                        l.includes('[!!]') || l.includes('[THREAT]') ? 'text-red-400/80' :
-                                            l.includes('[SURVIVAL]') ? 'text-yellow-400/80' :
-                                                l.includes('[RESULT]') ? 'text-white' :
-                                                    'text-zinc-500'
+                                        l.includes('[!! BUG]') || l.includes('[THREAT]') ? 'text-red-500 font-bold' :
+                                            l.includes('[SNAP]') ? 'text-cyan-400 font-bold' :
+                                                l.includes('[SURVIVAL]') ? 'text-yellow-400/80' :
+                                                    l.includes('[RESULT]') ? 'text-white' :
+                                                        'text-zinc-500'
                                     }`}>
                                     <span className="text-zinc-700">{new Date().toLocaleTimeString([], { hour12: false })}</span>
                                     <span>{l}</span>
