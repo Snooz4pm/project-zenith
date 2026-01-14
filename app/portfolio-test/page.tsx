@@ -81,12 +81,12 @@ const INITIAL_POSITIONS: Position[] = [
     { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr', amount: 45, state: 'OBSERVING' },        // POPCAT
 
     // 🔴 Mid-Cap Chaos
-    { mint: 'MEW1gQWJ3nEXg2qgPMIZuXaZCKam1oJ55Jk1hJp', amount: 180, state: 'OBSERVING' },
-    { mint: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', amount: 1_800, state: 'OBSERVING' },
-    { mint: 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump', amount: 140, state: 'OBSERVING' },
+    { mint: 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk', amount: 180, state: 'OBSERVING' },
+    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', amount: 1_800, state: 'OBSERVING' },
+    { mint: 'METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL', amount: 140, state: 'OBSERVING' },
 
     // ☠️ Trash Grenade
-    { mint: '2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump', amount: 65, state: 'OBSERVING' },
+    { mint: '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump', amount: 65, state: 'OBSERVING' },
 ];
 
 export default function SurvivalTestPage() {
