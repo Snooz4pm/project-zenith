@@ -238,11 +238,6 @@ export async function runPortfolioAnalysis(
                 // Evaluate State machine
                 const stateResult = evaluatePositionState(trackedPos, tokenPriceSOL, safeLiquidityUSD);
 
-                // Propagate results to pack
-                positionState = stateResult.newState;
-                observationRemaining = formatObservationRemaining(stateResult.observationRemaining);
-                token.accumulatedLossPct = trackedPos.accumulatedLossPct; // Propagate for Pack Result
-
                 // SNAP SURVIVAL ENGINE: Pre-arm candidates and quotes
                 if (stateResult.newState === 'OBSERVING' || stateResult.newState === 'SCOUTING') {
                     const shouldDeepScan = stateResult.newState === 'SCOUTING' || position.preScoutPrepared;

@@ -69,7 +69,29 @@ export interface TrackedPosition {
     bestPath?: ScoutedPath;
 }
 
-// ... (PreScoutCandidate, ScoutedPath, StateTransitionResult interfaces remain same)
+export interface PreScoutCandidate {
+    mint: string;
+    symbol: string;
+    utility: number;
+}
+
+export interface ScoutedPath {
+    targetToken: string;
+    targetSymbol: string;
+    utility: number;
+    expectedOutSOL: number;
+}
+
+export interface StateTransitionResult {
+    previousState: PositionState;
+    newState: PositionState;
+    reason: string;
+    action: 'HOLD' | 'SCOUT' | 'EXECUTE' | 'RESET';
+    shouldCallScenarioRunner: boolean;
+    shouldExecute: boolean;
+    isCriticalRug: boolean;
+    observationRemaining?: number; // In MS
+}
 
 // ============================================================================
 // STATE MACHINE LOGIC
@@ -399,7 +421,8 @@ export function createTrackedPosition(
     };
 }
 
-export function formatObservationRemaining(position: TrackedPosition): string {
+export function formatObservationRemaining(position?: TrackedPosition): string {
+    if (!position) return "---";
     if (position.state === 'LOCKOUT') {
         const elapsed = Date.now() - position.stateEnteredAt;
         const remaining = Math.max(0, 60_000 - elapsed);
