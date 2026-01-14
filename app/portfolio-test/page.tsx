@@ -13,16 +13,16 @@ import {
 // ============================================================================
 const SESSION_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 const POLLING_INTERVAL_MS = 10_000;         // 10 second ticks
-const INITIAL_CAPITAL_SOL = 0.35;           // ~$50 starting wallet (10 positions @ $5 each)
+const INITIAL_CAPITAL_SOL = 0.71;           // ~$100 starting wallet
 
-// Chaos mode settings
+// Chaos mode settings: RUTHLESS EDITION
 const CHAOS_CONFIG = {
-    THREAT_PROBABILITY: 0.15,    // 15% chance per tick for a threat event
-    RUG_PROBABILITY: 0.05,       // 5% chance a held token rugs
-    PUMP_PROBABILITY: 0.10,      // 10% chance a token pumps
-    MAX_POSITIONS: 8,            // Max concurrent positions
-    MIN_TRADE_SIZE_SOL: 0.05,    // Minimum trade
-    MAX_TRADE_SIZE_SOL: 0.20,    // Maximum trade per position
+    THREAT_PROBABILITY: 0.40,    // 40% chance per tick for a threat event (Aggressive)
+    RUG_PROBABILITY: 0.15,       // 15% chance a held token rugs (Lethal)
+    PUMP_PROBABILITY: 0.05,      // 5% chance a token pumps
+    MAX_POSITIONS: 10,           // More targets
+    MIN_TRADE_SIZE_SOL: 0.05,
+    MAX_TRADE_SIZE_SOL: 0.15,
 };
 
 // ============================================================================
@@ -68,25 +68,19 @@ interface SurvivalMetrics {
     averageHoldTimeMs: number;
 }
 
-// --- INITIAL PORTFOLIO (10 Solana Memecoins + 0.1 SOL for Fees) ---
+// --- INITIAL PORTFOLIO (10 Solana Trash/Meme Coins) ---
 const INITIAL_POSITIONS: Position[] = [
-    // 🟢 Safety Anchors
-    { mint: 'So11111111111111111111111111111111111111112', amount: 0.05, state: 'OBSERVING' },
-    { mint: 'B2oW2hMKZKpRV1VP8toiFbvcM1ZMoGNhJJxjEf1nvT4A', amount: 6.0, state: 'OBSERVING' },
-    { mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', amount: 12, state: 'OBSERVING' },
-
-    // 🟡 High Liquidity Memes
-    { mint: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', amount: 9000, state: 'OBSERVING' },        // WIF
-    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', amount: 900_000, state: 'OBSERVING' }, // BONK
-    { mint: 'Cm6fNnMk7NfzStP9CZpsQA2v3jjzbcYGAxdJySmHpump', amount: 45, state: 'OBSERVING' },        // POPCAT
-
-    // 🔴 Mid-Cap Chaos
-    { mint: 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk', amount: 180, state: 'OBSERVING' },
-    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', amount: 1_800, state: 'OBSERVING' },
-    { mint: 'METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL', amount: 140, state: 'OBSERVING' },
-
-    // ☠️ Trash Grenade
-    { mint: '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump', amount: 65, state: 'OBSERVING' },
+    // ☠️ High Volatility Trash Net
+    { mint: '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump', amount: 3500, state: 'OBSERVING' },  // TRASH 1
+    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', amount: 18000, state: 'OBSERVING' }, // TRASH 2
+    { mint: 'METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL', amount: 1400, state: 'OBSERVING' },   // TRASH 3
+    { mint: 'Cm6fNnMk7NfzStP9CZpsQA2v3jjzbcYGAxdJySmHpump', amount: 450, state: 'OBSERVING' },    // TRASH 4
+    { mint: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', amount: 9000, state: 'OBSERVING' },   // TRASH 5
+    { mint: 'HeLp6SST7VSc3L81pXLbS188oYAKy3fF2p8yqYq6N6Q6', amount: 100000, state: 'OBSERVING' },// TRASH 6
+    { mint: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R', amount: 250, state: 'OBSERVING' },    // TRASH 7
+    { mint: '6ogEbwwy9zAr37m3Ggn78J8Mv99Xm73C2C5xT8b5pump', amount: 1500, state: 'OBSERVING' },   // TRASH 8
+    { mint: 'A8C3Ar3X4HrkpU4Wp6mG4oP9KqK3m6Wp6oP9KqK3mWp', amount: 800, state: 'OBSERVING' },     // TRASH 9
+    { mint: 'B2oW2hMKZKpRV1VP8toiFbvcM1ZMoGNhJJxjEf1nvT4A', amount: 60, state: 'OBSERVING' },     // TRASH 10
 ];
 
 export default function SurvivalTestPage() {
