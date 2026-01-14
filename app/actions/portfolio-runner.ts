@@ -187,6 +187,12 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                 const entryPriceSOL = position.entryPriceSOL || tokenPriceSOL;
                 const entryTimestamp = position.entryTimestamp || Date.now();
 
+                // CRITICAL: If liquidity is missing/0, use Infinity to PREVENT false rug detection
+                // Only trigger critical rug when we KNOW liquidity is low, not when data is missing
+                const safeLiquidityUSD = (token.liquidityUSD && token.liquidityUSD > 0)
+                    ? token.liquidityUSD
+                    : Infinity; // Missing data = assume safe, don't trigger rug
+
                 // Create tracked position for state machine evaluation
                 const trackedPos: TrackedPosition = {
                     mint: token.mint,
@@ -195,7 +201,7 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                     entryTimestamp,
                     entryPriceSOL,
                     currentPriceSOL: tokenPriceSOL,
-                    currentLiquidityUSD: token.liquidityUSD || 0,
+                    currentLiquidityUSD: safeLiquidityUSD,
                     smoothedPnLPct: 0,
                     accumulatedLossPct: position.accumulatedLossPct || 0,
                     state: position.state || 'OBSERVING',
@@ -206,7 +212,7 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                 const stateResult = evaluatePositionState(
                     trackedPos,
                     tokenPriceSOL,
-                    token.liquidityUSD || 0
+                    safeLiquidityUSD
                 );
 
                 positionState = stateResult.newState;
@@ -244,11 +250,15 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                 // Non-held token: use physics prediction for discovery
                 const pred = candidate.prediction;
 
+                // DEBUG: Log what's being scanned
+                console.log(`[Discovery] Scanning ${token.symbol}: prediction=${pred}, score=${candidate.score}`);
+
                 if (pred === 'UP') {
                     action = 'BUY';
                     reason = `Discovery: Momentum surge detected. Entry proposed.`;
                     isSafe = true;
                     riskScore = 10;
+                    console.log(`[Discovery] >>> ${token.symbol} marked as BUY opportunity!`);
                 } else {
                     action = 'OBSERVE';
                     reason = pred === 'DOWN' ? `Market decaying. No entry.` : `Sideways volume. Minimal conviction.`;
