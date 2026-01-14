@@ -500,7 +500,7 @@ export default function SurvivalTestPage() {
             setExecutedTrades(prev => [...tradesThisTick, ...prev]);
 
             // 5. Calculate portfolio value (Deterministic SOL mapping)
-            const portfolioValue = workingPositions.reduce((acc, pos) => {
+            const portfolioValue = newPositions.reduce((acc, pos) => {
                 const res = results.find(r => r.mint === pos.mint);
                 if (!res) return acc;
                 const tokenValSOL = (pos.amount * res.metrics.price) / solPrice;

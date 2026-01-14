@@ -139,6 +139,14 @@ export async function runPortfolioAnalysis(
         // 2. Initialize Agent Physics (The Physics)
         console.log(`[PortfolioRunner] Step 2: Running Physics Engine on ${marketData.length + broadMarketData.length} tokens...`);
 
+        // Combine portfolio and broad market for evaluation
+        const evaluationData = [...marketData];
+        for (const bt of broadMarketData) {
+            if (!evaluationData.some(m => m.mint === bt.mint)) {
+                evaluationData.push(bt);
+            }
+        }
+
         // 3. CAPTURE CLEAN PRICES (Before Simulation Chaos)
         // This prevents baseline corruption when initializing entry prices
         const cleanPrices = new Map<string, number>();
