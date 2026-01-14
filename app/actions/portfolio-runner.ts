@@ -108,11 +108,11 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
         console.log(`[PortfolioRunner] Starting Fair Test on ${mints.length} mints...`);
 
         // 1. Fetch Market Truth (The Eyes)
-        console.log(`[PortfolioRunner] Step 1: Fetching market data...`);
+        uiLogs.push(`[SYSTEM] Starting analytical tick...`);
         const marketStartTime = Date.now();
         const [marketData, broadMarketData] = await Promise.all([
-            getVirtualPortfolioTokens(mints),
-            getDexMatchedTokens()
+            getVirtualPortfolioTokens(mints, uiLogs),
+            getDexMatchedTokens(uiLogs)
         ]);
         console.log(`[PortfolioRunner] Market data fetched in ${Date.now() - marketStartTime}ms. Portfolio: ${marketData.length}, Broad: ${broadMarketData.length}`);
 
