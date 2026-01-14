@@ -79,8 +79,8 @@ const INITIAL_POSITIONS: Position[] = [
     // 2. WIF - Dog meta leader
     { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', amount: 15, entryTimestamp: Date.now(), state: 'OBSERVING' },
 
-    // 3. POPCAT - Cat meta contender
-    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr', amount: 55, entryTimestamp: Date.now(), state: 'OBSERVING' },
+    // 3. POPCAT - Cat meta contender (verified mint)
+    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', amount: 55, entryTimestamp: Date.now(), state: 'OBSERVING' },
 
     // 4. MEW - Anti-dog cat play
     { mint: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5', amount: 5_500, entryTimestamp: Date.now(), state: 'OBSERVING' },
@@ -310,31 +310,40 @@ export default function SurvivalTestPage() {
             setScanResults(results);
             setDiscoveryGems(gems);
 
+            // Log that we're scanning
+            if (gems.length > 0) {
+                addLog(`[SCAN] Found ${gems.length} discovery opportunities`);
+            }
+
             // ============================================================================
             // FAIR TEST: Initialize entry prices from FIRST observed market price
             // This ensures zero-hindsight PnL tracking
             // ============================================================================
             const solPrice = results.find(r => r.symbol === 'SOL')?.metrics.price || 140;
 
-            setPositions(prevPos => {
-                let updated = false;
-                const newPos = prevPos.map(pos => {
-                    const marketData = results.find(r => r.mint === pos.mint);
-                    if (marketData && pos.entryPriceSOL === undefined) {
-                        // First observation - capture live price as entry (FAIR TEST)
-                        updated = true;
-                        const priceInSOL = marketData.metrics.price / solPrice;
-                        addLog(`[FAIR] ${marketData.symbol} entry price set: ${priceInSOL.toFixed(8)} SOL`);
-                        return {
-                            ...pos,
-                            entryPriceSOL: priceInSOL,
-                            entryTimestamp: pos.entryTimestamp || Date.now()
-                        };
-                    }
-                    return pos;
-                });
-                return updated ? newPos : prevPos;
+            // Use positionsRef to get current state and update it directly
+            let positionsNeedUpdate = false;
+            const updatedPositions = positionsRef.current.map(pos => {
+                const marketData = results.find(r => r.mint === pos.mint);
+                if (marketData && pos.entryPriceSOL === undefined) {
+                    // First observation - capture live price as entry (FAIR TEST)
+                    positionsNeedUpdate = true;
+                    const priceInSOL = marketData.metrics.price / solPrice;
+                    addLog(`[FAIR] ${marketData.symbol} entry price set: ${priceInSOL.toFixed(8)} SOL`);
+                    return {
+                        ...pos,
+                        entryPriceSOL: priceInSOL,
+                        entryTimestamp: pos.entryTimestamp || Date.now()
+                    };
+                }
+                return pos;
             });
+
+            // Update both state and ref if changes were made
+            if (positionsNeedUpdate) {
+                positionsRef.current = updatedPositions;
+                setPositions(updatedPositions);
+            }
 
             // 2. CHAOS: Simulate market threats
             const threat = simulateThreat(currentPositions, results);
