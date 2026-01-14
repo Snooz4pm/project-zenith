@@ -70,35 +70,23 @@ interface SurvivalMetrics {
 
 // --- INITIAL PORTFOLIO (10 Solana Memecoins + 0.1 SOL for Fees) ---
 const INITIAL_POSITIONS: Position[] = [
-    // SOL reserve for transaction fees
-    { mint: 'So11111111111111111111111111111111111111112', amount: 0.1, entryPriceSOL: 1, entryTimestamp: Date.now(), state: 'OBSERVING' },
+    // 🟢 Safety Anchors
+    { mint: 'So11111111111111111111111111111111111111112', amount: 0.05, state: 'OBSERVING' },
+    { mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', amount: 6.0, state: 'OBSERVING' },
+    { mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', amount: 12, state: 'OBSERVING' },
 
-    // 1. BONK - OG memecoin king
-    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', amount: 500_000, entryTimestamp: Date.now(), state: 'OBSERVING' },
+    // 🟡 High Liquidity Memes
+    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', amount: 9, state: 'OBSERVING' },        // WIF
+    { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', amount: 900_000, state: 'OBSERVING' }, // BONK
+    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr', amount: 45, state: 'OBSERVING' },        // POPCAT
 
-    // 2. WIF - Dog meta leader
-    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', amount: 15, entryTimestamp: Date.now(), state: 'OBSERVING' },
+    // 🔴 Mid-Cap Chaos
+    { mint: 'MEW1gQWJ3nEXg2qgPMIZuXaZCKam1oJ55Jk1hJp', amount: 180, state: 'OBSERVING' },
+    { mint: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', amount: 1_800, state: 'OBSERVING' },
+    { mint: 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump', amount: 140, state: 'OBSERVING' },
 
-    // 3. POPCAT - Cat meta contender (verified mint)
-    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', amount: 55, entryTimestamp: Date.now(), state: 'OBSERVING' },
-
-    // 4. MEW - Anti-dog cat play
-    { mint: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5', amount: 5_500, entryTimestamp: Date.now(), state: 'OBSERVING' },
-
-    // 5. GOAT - AI/viral narrative
-    { mint: 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump', amount: 150, entryTimestamp: Date.now(), state: 'OBSERVING' },
-
-    // 6. PNUT - Squirrel tragedy meme
-    { mint: '2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump', amount: 70, entryTimestamp: Date.now(), state: 'OBSERVING' },
-
-    // 7. FARTCOIN - Absurd fart meta
-    { mint: '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump', amount: 15, entryTimestamp: Date.now(), state: 'OBSERVING' },
-
-    // 8. BODEN - Biden satire
-    { mint: '3psH1Mj1f7yUfaD5gh6Zj7epE8hhrMkMETgv5TshQA4o', amount: 3_500, entryTimestamp: Date.now(), state: 'OBSERVING' },
-
-    // 9. JUP - Jupiter governance (stable anchor)
-    { mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', amount: 10, entryTimestamp: Date.now(), state: 'OBSERVING' },
+    // ☠️ Trash Grenade
+    { mint: '2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump', amount: 65, state: 'OBSERVING' },
 ];
 
 export default function SurvivalTestPage() {
@@ -317,17 +305,16 @@ export default function SurvivalTestPage() {
 
             // ============================================================================
             // FAIR TEST: Initialize entry prices from FIRST observed market price
-            // This ensures zero-hindsight PnL tracking
+            // This ensures zero-hindsight PnL tracking (ONLY ONCE per position lifecycle)
             // ============================================================================
             const solPrice = results.find(r => r.symbol === 'SOL')?.metrics.price || 140;
 
-            // Use positionsRef to get current state and update it directly
-            let positionsNeedUpdate = false;
-            const updatedPositions = positionsRef.current.map(pos => {
+            // Get the CURRENT positions from ref (this has persisted entry prices)
+            let workingPositions = positionsRef.current.map(pos => {
+                // ONLY initialize if entryPriceSOL is undefined AND state is not RESET
                 const marketData = results.find(r => r.mint === pos.mint);
                 if (marketData && pos.entryPriceSOL === undefined) {
                     // First observation - capture live price as entry (FAIR TEST)
-                    positionsNeedUpdate = true;
                     const priceInSOL = marketData.metrics.price / solPrice;
                     addLog(`[FAIR] ${marketData.symbol} entry price set: ${priceInSOL.toFixed(8)} SOL`);
                     return {
@@ -339,14 +326,11 @@ export default function SurvivalTestPage() {
                 return pos;
             });
 
-            // Update both state and ref if changes were made
-            if (positionsNeedUpdate) {
-                positionsRef.current = updatedPositions;
-                setPositions(updatedPositions);
-            }
+            // CRITICAL: Update the ref immediately so entry prices persist
+            positionsRef.current = workingPositions;
 
-            // 2. CHAOS: Simulate market threats
-            const threat = simulateThreat(currentPositions, results);
+            // 2. CHAOS: Simulate market threats (use workingPositions, not currentPositions)
+            const threat = simulateThreat(workingPositions, results);
             if (threat) {
                 setThreatEvents(prev => [threat, ...prev]);
                 addLog(`[⚠️ THREAT] ${threat.type}: ${threat.symbol} | Impact: ${threat.impactPct.toFixed(1)}%`);
@@ -359,10 +343,10 @@ export default function SurvivalTestPage() {
                 }));
             }
 
-            // 3. Process Agent Decisions
+            // 3. Process Agent Decisions (use workingPositions which has entry prices)
             let tempCapital = currentCap;
             let tradesThisTick: ExecutedTrade[] = [];
-            let newPositions = [...currentPositions];
+            let newPositions = [...workingPositions]; // NOW using positions WITH entry prices
             let wins = 0;
             let losses = 0;
             let totalPnL = 0;
@@ -457,7 +441,8 @@ export default function SurvivalTestPage() {
                 }
             }
 
-            // 4. Update State
+            // 4. Update State - CRITICAL: Update BOTH state and ref for persistence
+            positionsRef.current = newPositions;
             setPositions(newPositions);
             setAvailableSol(tempCapital);
             setExecutedTrades(prev => [...tradesThisTick, ...prev]);
