@@ -99,6 +99,7 @@ export default function SurvivalTestPage() {
     // Trade & Event tracking
     const [executedTrades, setExecutedTrades] = useState<ExecutedTrade[]>([]);
     const [threatEvents, setThreatEvents] = useState<ThreatEvent[]>([]);
+    const [activeSimulationThreats, setActiveSimulationThreats] = useState<{ mint: string, impactPct: number }[]>([]);
     const [logs, setLogs] = useState<string[]>([]);
 
     // Metrics
@@ -189,6 +190,34 @@ export default function SurvivalTestPage() {
         };
     }, []);
 
+    const triggerManualRug = useCallback((mint: string, symbol: string) => {
+        const impactPct = -90 - Math.random() * 8;
+        addLog(`[SIM] Manual Rug Triggered: ${symbol} | Impact: ${impactPct.toFixed(1)}%`);
+
+        setActiveSimulationThreats(prev => [
+            ...prev.filter(t => t.mint !== mint),
+            { mint, impactPct }
+        ]);
+
+        // Also add a threat event so the UI shows the red alert
+        const threat: ThreatEvent = {
+            id: generateId(),
+            type: 'RUG_PULL',
+            symbol,
+            mint,
+            impactPct,
+            timestamp: Date.now(),
+            survived: false
+        };
+        setThreatEvents(prev => [threat, ...prev]);
+
+        setMetrics(m => ({
+            ...m,
+            threatsEncountered: m.threatsEncountered + 1,
+            rugsPulled: m.rugsPulled + 1,
+        }));
+    }, [addLog, setThreatEvents, setMetrics]);
+
     // ========================================================================
     // SESSION CONTROL
     // ========================================================================
@@ -206,6 +235,7 @@ export default function SurvivalTestPage() {
         setDiscoveryGems([]);
         setExecutedTrades([]);
         setThreatEvents([]);
+        setActiveSimulationThreats([]);
         setPnlHistory([{ tick: 0, value: INITIAL_CAPITAL_SOL }]);
         setMetrics({
             startingCapitalSOL: INITIAL_CAPITAL_SOL,
@@ -278,8 +308,8 @@ export default function SurvivalTestPage() {
         setTick(t => t + 1);
 
         try {
-            // 1. Fetch market data & physics analysis
-            const response = await runPortfolioAnalysis(currentPositions);
+            // 1. Fetch market data & physics analysis (Pass persistent threats)
+            const response = await runPortfolioAnalysis(currentPositions, activeSimulationThreats);
 
             if (!response.success) {
                 addLog(`[!!] SERVER ERROR: ${response.error}`);
@@ -334,6 +364,12 @@ export default function SurvivalTestPage() {
             if (threat) {
                 setThreatEvents(prev => [threat, ...prev]);
                 addLog(`[⚠️ THREAT] ${threat.type}: ${threat.symbol} | Impact: ${threat.impactPct.toFixed(1)}%`);
+
+                // PERSIST the threat damage so future ticks see it
+                setActiveSimulationThreats(prev => [
+                    ...prev.filter(t => t.mint !== threat.mint),
+                    { mint: threat.mint, impactPct: threat.impactPct }
+                ]);
 
                 // Update metrics
                 setMetrics(m => ({
@@ -641,6 +677,15 @@ export default function SurvivalTestPage() {
                                                                 }`}>
                                                                 {result?.verdict.action || 'LOADING'}
                                                             </span>
+                                                            {pos.amount > 0 && !isSOL && (
+                                                                <button
+                                                                    onClick={() => triggerManualRug(pos.mint, result?.symbol || '???')}
+                                                                    className="text-white bg-red-600 hover:bg-red-700 font-bold py-1 px-3 rounded-md text-[10px] transition-all flex items-center gap-1 mt-1"
+                                                                    title="Simulate Rug Pull"
+                                                                >
+                                                                    <Skull className="w-3 h-3" /> EXPLODE
+                                                                </button>
+                                                            )}
                                                             {pos.snapPool?.bestCandidate && (
                                                                 <span className="text-[8px] font-bold text-cyan-500 flex items-center gap-1">
                                                                     <Zap className="w-2 h-2" /> SNAP READY

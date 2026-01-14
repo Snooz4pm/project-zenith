@@ -34,6 +34,14 @@ export interface Position {
     snapPool?: SnapPool;          // State machine: Safety Net Asset Pool
 }
 
+/**
+ * Simulation: Active Threat Injection
+ */
+export interface SimulationThreat {
+    mint: string;
+    impactPct: number; // e.g., -95 for a 95% price crash
+}
+
 export interface PortfolioAnalysisResult {
     mint: string;
     symbol: string;
@@ -101,7 +109,10 @@ async function getJupiterQuoteWithRetries(params: any, retries = 3, delayMs = 50
  * Fair Real-World Portfolio Test
  * Strictly deterministic, zero-hindsight.
  */
-export async function runPortfolioAnalysis(positions: Position[]): Promise<PortfolioAnalysisResponse> {
+export async function runPortfolioAnalysis(
+    positions: Position[],
+    activeThreats: SimulationThreat[] = []
+): Promise<PortfolioAnalysisResponse> {
     const uiLogs: string[] = [];
     try {
         const mints = positions.map(p => p.mint);
@@ -132,6 +143,20 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
         for (const bt of broadMarketData) {
             if (!evaluationData.some(m => m.mint === bt.mint)) {
                 evaluationData.push(bt);
+            }
+        }
+
+        // --- SIMULATION: Apply Synthetic Threats (The Chaos) ---
+        for (const threat of activeThreats) {
+            const target = evaluationData.find(t => t.mint === threat.mint);
+            if (target) {
+                const multiplier = (1 + threat.impactPct / 100);
+                target.price = (target.price || 0) * multiplier;
+
+                // If it's a severe rug, also drain the liquidity visually for the state machine
+                if (threat.impactPct <= -80) {
+                    target.liquidityUSD = Math.min(target.liquidityUSD || 0, 500);
+                }
             }
         }
 
