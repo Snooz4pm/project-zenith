@@ -76,9 +76,9 @@ const INITIAL_POSITIONS: Position[] = [
     { mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', amount: 12, state: 'OBSERVING' },
 
     // 🟡 High Liquidity Memes
-    { mint: 'Gzr4UJotKM5eybqRnTbShS2Q7U1EdGN1tQFwFfsHpump', amount: 9, state: 'OBSERVING' },        // WIF
+    { mint: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', amount: 9000, state: 'OBSERVING' },        // WIF
     { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', amount: 900_000, state: 'OBSERVING' }, // BONK
-    { mint: '8yz1XdPPWi8YVsZ6w2mPVjA7jm2XZKNr5u4ic7v3pump', amount: 45, state: 'OBSERVING' },        // POPCAT
+    { mint: 'Cm6fNnMk7NfzStP9CZpsQA2v3jjzbcYGAxdJySmHpump', amount: 45, state: 'OBSERVING' },        // POPCAT
 
     // 🔴 Mid-Cap Chaos
     { mint: 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk', amount: 180, state: 'OBSERVING' },
@@ -294,13 +294,19 @@ export default function SurvivalTestPage() {
 
             const results = response.results || [];
             const gems = response.discoveryResults || [];
+            const serverLogs = response.logs || [];
 
             setScanResults(results);
             setDiscoveryGems(gems);
 
-            // Log that we're scanning
+            // Display state machine logs in UI
+            serverLogs.forEach(log => addLog(log));
+
+            // Log scan summary
             if (gems.length > 0) {
                 addLog(`[SCAN] Found ${gems.length} discovery opportunities`);
+            } else {
+                addLog(`[SCAN] No opportunities found this tick`);
             }
 
             // ============================================================================
