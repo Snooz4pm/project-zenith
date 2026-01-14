@@ -56,10 +56,11 @@ export interface PortfolioAnalysisResult {
     verdict: {
         action: 'HOLD' | 'SELL' | 'SWAP' | 'OBSERVE' | 'BUY';
         reason: string;
+        state?: PositionState;
+        accumulatedLossPct?: number;
         riskScore: number;
         isSafe: boolean;
-        positionState?: PositionState;      // NEW: State machine state
-        observationRemaining?: string;      // NEW: Time remaining in observation
+        observationRemaining?: string;
     };
     frictionReason?: string;
     exitPlan?: {
@@ -138,12 +139,11 @@ export async function runPortfolioAnalysis(
         // 2. Initialize Agent Physics (The Physics)
         console.log(`[PortfolioRunner] Step 2: Running Physics Engine on ${marketData.length + broadMarketData.length} tokens...`);
 
-        // Combine portfolio and broad market for evaluation
-        const evaluationData = [...marketData];
-        for (const bt of broadMarketData) {
-            if (!evaluationData.some(m => m.mint === bt.mint)) {
-                evaluationData.push(bt);
-            }
+        // 3. CAPTURE CLEAN PRICES (Before Simulation Chaos)
+        // This prevents baseline corruption when initializing entry prices
+        const cleanPrices = new Map<string, number>();
+        for (const t of evaluationData) {
+            cleanPrices.set(t.mint, t.price || 0);
         }
 
         // --- SIMULATION: Apply Synthetic Threats (The Chaos) ---
@@ -202,16 +202,16 @@ export async function runPortfolioAnalysis(
             if (isHeld && position) {
                 const tokenPrice = token.price && isFinite(token.price) ? token.price : 0;
                 const tokenPriceSOL = tokenPrice / solPrice;
-                const entryPriceSOL = position.entryPriceSOL || tokenPriceSOL;
+
+                // Sync baseline using clean prices if unavailable (Simulation hardening)
+                const cleanPrice = cleanPrices.get(position.mint) || tokenPrice;
+                const cleanPriceSOL = cleanPrice / solPrice;
+
+                const entryPriceSOL = position.entryPriceSOL || cleanPriceSOL;
                 const entryTimestamp = position.entryTimestamp || Date.now();
-                const positionValueUSD = position.amount * tokenPrice;
+                const safeLiquidityUSD = (token.liquidityUSD && token.liquidityUSD > 0) ? token.liquidityUSD : Infinity;
 
-                // CRITICAL Rug Protection: use high liquidity if missing
-                const safeLiquidityUSD = (token.liquidityUSD && token.liquidityUSD > 0)
-                    ? token.liquidityUSD
-                    : Infinity;
-
-                // Create tracked position
+                // Initialize TrackedPosition for state machine
                 const trackedPos: TrackedPosition = {
                     mint: token.mint,
                     symbol: token.symbol,
@@ -220,30 +220,34 @@ export async function runPortfolioAnalysis(
                     entryPriceSOL,
                     currentPriceSOL: tokenPriceSOL,
                     currentLiquidityUSD: safeLiquidityUSD,
-                    smoothedPnLPct: 0,
+                    smoothedPnLPct: 0, // Will be calculated by evaluatePositionState
                     accumulatedLossPct: position.accumulatedLossPct || 0,
                     state: position.state || 'OBSERVING',
-                    stateEnteredAt: entryTimestamp,
+                    stateEnteredAt: entryTimestamp, // Will be updated by evaluatePositionState if state changes
                     snapPool: position.snapPool
                 };
 
                 // Evaluate State machine
                 const stateResult = evaluatePositionState(trackedPos, tokenPriceSOL, safeLiquidityUSD);
 
+                // Propagate results to pack
+                positionState = stateResult.newState;
+                observationRemaining = formatObservationRemaining(stateResult.observationRemaining);
+                token.accumulatedLossPct = trackedPos.accumulatedLossPct; // Propagate for Pack Result
+
                 // SNAP SURVIVAL ENGINE: Pre-arm candidates and quotes
                 if (stateResult.newState === 'OBSERVING' || stateResult.newState === 'SCOUTING') {
-                    // Trigger refresh if we are in SCOUTING or have a PRE-SCOUT flag
-                    const shouldDeepScan = stateResult.newState === 'SCOUTING' || trackedPos.preScoutPrepared;
+                    const shouldDeepScan = stateResult.newState === 'SCOUTING' || position.preScoutPrepared;
 
                     if (shouldDeepScan) {
                         try {
-                            const positionValueUSD = (position.amount * token.price) / Math.pow(10, token.decimals || 6);
+                            const posValueUSD = position.amount * tokenPrice;
 
                             // 1. Refresh Pool
                             trackedPos.snapPool = await SnapManager.refreshSNAP(
                                 trackedPos.snapPool,
                                 evaluationData,
-                                positionValueUSD,
+                                posValueUSD,
                                 solPrice,
                                 uiLogs
                             );
@@ -252,31 +256,25 @@ export async function runPortfolioAnalysis(
                             if (trackedPos.snapPool.candidates.length > 0) {
                                 await SnapManager.preFetchQuotes(
                                     trackedPos.snapPool,
-                                    token.mint,
-                                    position.amount,
-                                    token.decimals || 6,
                                     solPrice,
-                                    uiLogs,
-                                    quoteBudget
+                                    quoteBudget,
+                                    uiLogs
                                 );
-
-                                if (trackedPos.snapPool.bestCandidate) {
-                                    // Log refresh to UI periodically
-                                    if (Date.now() % 10000 < 2000) { // Throttle logs
-                                        uiLogs.push(`[SNAP] Ready: ${trackedPos.snapPool.bestCandidate.symbol} via ${trackedPos.snapPool.bestCandidate.routeSummary}`);
-                                    }
-                                }
+                                // Save back to ref-like structure for pack
+                                position.snapPool = trackedPos.snapPool;
                             }
                         } catch (err: any) {
-                            console.error(`[SNAP] Error refreshing for ${token.symbol}:`, err.message);
+                            console.error(`[SNAP] Pre-scout fail for ${token.symbol}:`, err.message);
                         }
                     }
                 }
 
-                // Update Position State
+                // Update Local Scoping for Pack Result
                 positionState = stateResult.newState;
                 observationRemaining = formatObservationRemaining(trackedPos);
+                token.accumulatedLossPct = trackedPos.accumulatedLossPct;
 
+                // Sync back to the positions array (passed to pack)
                 position.state = stateResult.newState;
                 position.accumulatedLossPct = trackedPos.accumulatedLossPct;
                 position.entryPriceSOL = entryPriceSOL;
@@ -407,7 +405,8 @@ export async function runPortfolioAnalysis(
                     reason,
                     riskScore,
                     isSafe,
-                    positionState,
+                    state: positionState,
+                    accumulatedLossPct: isHeld ? token.accumulatedLossPct : undefined,
                     observationRemaining
                 },
                 frictionReason: currentFrictionReason,

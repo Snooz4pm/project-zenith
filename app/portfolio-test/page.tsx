@@ -334,26 +334,42 @@ export default function SurvivalTestPage() {
             }
 
             // ============================================================================
-            // FAIR TEST: Initialize entry prices from FIRST observed market price
-            // This ensures zero-hindsight PnL tracking (ONLY ONCE per position lifecycle)
+            // FIXED: Initialize entry prices exactly ONCE
             // ============================================================================
-            const solPrice = results.find(r => r.symbol === 'SOL')?.metrics.price || 140;
+            const solData = results.find(r => r.symbol === 'SOL');
+            const solPrice = solData?.metrics.price || 140;
 
-            // Get the CURRENT positions from ref (this has persisted entry prices)
             let workingPositions = positionsRef.current.map(pos => {
-                // ONLY initialize if entryPriceSOL is undefined AND state is not RESET
                 const marketData = results.find(r => r.mint === pos.mint);
+
+                // If we don't have an entry price yet, lock it now
                 if (marketData && pos.entryPriceSOL === undefined) {
-                    // First observation - capture live price as entry (FAIR TEST)
                     const priceInSOL = marketData.metrics.price / solPrice;
-                    addLog(`[FAIR] ${marketData.symbol} entry price set: ${priceInSOL.toFixed(8)} SOL`);
+                    addLog(`[FAIR] ${marketData.symbol} entry price locked: ${priceInSOL.toFixed(8)} SOL`);
                     return {
                         ...pos,
                         entryPriceSOL: priceInSOL,
                         entryTimestamp: pos.entryTimestamp || Date.now()
                     };
                 }
+
+                // If held, SYNC the state and loss from the server analysis
+                if (marketData) {
+                    return {
+                        ...pos,
+                        state: marketData.verdict.state || pos.state,
+                        accumulatedLossPct: marketData.verdict.accumulatedLossPct ?? pos.accumulatedLossPct
+                    };
+                }
+
                 return pos;
+            });
+
+            // Log debug for "exploded" tokens to verify damage propagation
+            workingPositions.forEach(pos => {
+                if (pos.accumulatedLossPct && pos.accumulatedLossPct > 1 && Math.random() < 0.2) {
+                    // console.log(`[DEBUG] ${pos.symbol} loss: ${pos.accumulatedLossPct.toFixed(1)}% | State: ${pos.state}`);
+                }
             });
 
             // CRITICAL: Update the ref immediately so entry prices persist
@@ -483,20 +499,23 @@ export default function SurvivalTestPage() {
             setAvailableSol(tempCapital);
             setExecutedTrades(prev => [...tradesThisTick, ...prev]);
 
-            // 5. Calculate portfolio value
-            const portfolioValue = newPositions.reduce((acc, pos) => {
+            // 5. Calculate portfolio value (Deterministic SOL mapping)
+            const portfolioValue = workingPositions.reduce((acc, pos) => {
                 const res = results.find(r => r.mint === pos.mint);
                 if (!res) return acc;
-                const solPrice = results.find(r => r.symbol === 'SOL')?.metrics.price || 140;
-                return acc + (pos.amount * res.metrics.price) / solPrice;
+                const tokenValSOL = (pos.amount * res.metrics.price) / solPrice;
+                return acc + tokenValSOL;
             }, 0) + tempCapital;
+
+            // Update PnL history with clean valuation
+            setPnlHistory(prev => [...prev, { tick: prev.length, value: portfolioValue }]);
 
             // 6. Update Metrics
             setMetrics(m => {
                 const newTotalTrades = m.totalTradesExecuted + tradesThisTick.length;
                 const newWins = m.winningTrades + wins;
                 const newLosses = m.losingTrades + losses;
-                const newTotalPnL = m.totalPnLSOL + totalPnL;
+                const newTotalPnL = portfolioValue - INITIAL_CAPITAL_SOL; // Global accounting
                 const newPeak = Math.max(m.peakCapitalSOL, portfolioValue);
                 const newTrough = Math.min(m.troughCapitalSOL, portfolioValue);
                 const drawdown = newPeak > 0 ? ((newPeak - portfolioValue) / newPeak) * 100 : 0;
@@ -515,9 +534,6 @@ export default function SurvivalTestPage() {
                     successfulExits: m.successfulExits + wins,
                 };
             });
-
-            // 7. Update PnL chart
-            setPnlHistory(prev => [...prev, { tick: prev.length, value: portfolioValue }]);
 
         } catch (err: any) {
             addLog(`[!!] ERROR: ${err.message}`);
