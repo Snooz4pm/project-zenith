@@ -72,13 +72,13 @@ interface SurvivalMetrics {
 const INITIAL_POSITIONS: Position[] = [
     // 🟢 Safety Anchors
     { mint: 'So11111111111111111111111111111111111111112', amount: 0.05, state: 'OBSERVING' },
-    { mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', amount: 6.0, state: 'OBSERVING' },
+    { mint: 'B2oW2hMKZKpRV1VP8toiFbvcM1ZMoGNhJJxjEf1nvT4A', amount: 6.0, state: 'OBSERVING' },
     { mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', amount: 12, state: 'OBSERVING' },
 
     // 🟡 High Liquidity Memes
-    { mint: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', amount: 9, state: 'OBSERVING' },        // WIF
+    { mint: 'Gzr4UJotKM5eybqRnTbShS2Q7U1EdGN1tQFwFfsHpump', amount: 9, state: 'OBSERVING' },        // WIF
     { mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', amount: 900_000, state: 'OBSERVING' }, // BONK
-    { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYkW2hr', amount: 45, state: 'OBSERVING' },        // POPCAT
+    { mint: '8yz1XdPPWi8YVsZ6w2mPVjA7jm2XZKNr5u4ic7v3pump', amount: 45, state: 'OBSERVING' },        // POPCAT
 
     // 🔴 Mid-Cap Chaos
     { mint: 'Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk', amount: 180, state: 'OBSERVING' },
