@@ -48,17 +48,22 @@ const COMMON_DECIMALS: Record<string, number> = {
 /**
  * Step 1: Fetch Jupiter Universe
  */
-export async function fetchJupiterTokens(): Promise<JupiterToken[]> {
+export async function fetchJupiterTokens(uiLogs?: string[]): Promise<JupiterToken[]> {
     try {
+        const start = Date.now();
         // Direct fetch from Jupiter to ensure latest data and decimals
-        const res = await fetch(JUP_TOKEN_LIST_URL);
+        const res = await fetch(JUPITER_PROXY_URL, { signal: AbortSignal.timeout(10000) });
 
         if (!res.ok) {
-            console.warn(`[JupiterDexMerger] Failed to fetch jup token list. Using proxy fallback.`);
-            const proxyRes = await fetch(`${JUPITER_PROXY_URL}/tokens`);
-            if (!proxyRes.ok) return [];
+            uiLogs?.push(`[!! BUG] Jupiter: Token list fetch failed (${res.status}). Using proxy...`);
+            const proxyRes = await fetch(`${JUPITER_PROXY_URL}/tokens`, { signal: AbortSignal.timeout(10000) });
+            if (!proxyRes.ok) {
+                uiLogs?.push(`[!! BUG] Jupiter: Proxy also failed (${proxyRes.status}).`);
+                return [];
+            }
             const proxyData = await proxyRes.json();
             const raw = Array.isArray(proxyData) ? proxyData : (proxyData.tokens || []);
+            uiLogs?.push(`[INFRA] Jupiter Proxy: Loaded ${raw.length} tokens in ${Date.now() - start}ms`);
             return raw.map((t: any) => ({
                 mint: t.address || t.mint,
                 symbol: t.symbol,
@@ -69,6 +74,7 @@ export async function fetchJupiterTokens(): Promise<JupiterToken[]> {
 
         const data = await res.json();
         const tokensArray = Array.isArray(data) ? data : (data.tokens || []);
+        uiLogs?.push(`[INFRA] Jupiter: Loaded ${tokensArray.length} tokens in ${Date.now() - start}ms`);
 
         return tokensArray.map((t: any) => ({
             mint: t.address || t.mint,
@@ -76,8 +82,8 @@ export async function fetchJupiterTokens(): Promise<JupiterToken[]> {
             name: t.name,
             decimals: t.decimals || COMMON_DECIMALS[t.address || t.mint] || 6,
         }));
-    } catch (error) {
-        console.error("JupiterDexMerger: Fetch failed", error);
+    } catch (error: any) {
+        uiLogs?.push(`[!! BUG] Jupiter: Fetch exception: ${error.message}`);
         return [];
     }
 }
@@ -96,10 +102,15 @@ function chunk<T>(arr: T[], size: number): T[][] {
 /**
  * Step 2: Merge with VolumeObserver
  */
-export async function getDexMatchedTokens(): Promise<DexMatchedToken[]> {
+export async function getDexMatchedTokens(uiLogs?: string[]): Promise<DexMatchedToken[]> {
     const startTime = Date.now();
     // 1. Jupiter = source of truth
-    const jupiterTokens = await fetchJupiterTokens();
+    const jupiterTokens = await fetchJupiterTokens(uiLogs);
+
+    if (jupiterTokens.length === 0) {
+        uiLogs?.push(`[!! BUG] Discovery: Jupiter Universe is empty. Market scan aborted.`);
+        return [];
+    }
 
     const whitelistMints = [
         'So11111111111111111111111111111111111111112', // SOL
@@ -137,7 +148,7 @@ export async function getDexMatchedTokens(): Promise<DexMatchedToken[]> {
                 });
 
                 if (!res.ok) {
-                    console.warn(`[JupiterDexMerger] DexScreener batch failed: ${res.status}`);
+                    uiLogs?.push(`[!! BUG] DexScreener: Batch failed (${res.status}). Tokens: ${batch.length}`);
                     return;
                 }
 
@@ -150,14 +161,21 @@ export async function getDexMatchedTokens(): Promise<DexMatchedToken[]> {
 
                 for (const mint of batch) {
                     const tokenPairs = pairs.filter((p: any) => p.baseToken.address === mint);
-                    if (tokenPairs.length === 0) continue;
+
+                    // Whitelisted tokens get a lower bar for liquidity/volume in discovery
+                    const isWhitelisted = whitelistMints.includes(mint);
+
+                    if (tokenPairs.length === 0) {
+                        // If WHITELISTED is missing from DexScreener, it's a critical bug or extreme lag
+                        if (isWhitelisted) {
+                            uiLogs?.push(`[!! BUG] INFRA: Whitelisted token ${mint.slice(0, 6)} missing from DexScreener pairs.`);
+                        }
+                        continue;
+                    }
 
                     tokenPairs.sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
                     const bestPair = tokenPairs[0];
                     const assessment = observer.assess(bestPair);
-
-                    // Whitelisted tokens get a lower bar for liquidity/volume in discovery
-                    const isWhitelisted = whitelistMints.includes(mint);
 
                     if (!isWhitelisted) {
                         if (assessment.riskLevel === 'CRITICAL') continue;
@@ -178,7 +196,7 @@ export async function getDexMatchedTokens(): Promise<DexMatchedToken[]> {
                     });
                 }
             } catch (err: any) {
-                console.error(`[JupiterDexMerger] Batch failed: ${err.message}`);
+                uiLogs?.push(`[!! BUG] DexScreener: Batch exception: ${err.message}`);
             }
         }));
 
@@ -188,21 +206,21 @@ export async function getDexMatchedTokens(): Promise<DexMatchedToken[]> {
         }
     }
 
-    console.log(`[JupiterDexMerger] Discovery complete in ${Date.now() - startTime}ms. Found ${matched.length} tokens.`);
+    uiLogs?.push(`[INFRA] Discovery: Matched ${matched.length}/${mints.length} tokens in ${Date.now() - startTime}ms`);
     return matched;
 }
 
 /**
  * Step 3: Specific Portfolio Fetch (For Testing)
  */
-export async function getVirtualPortfolioTokens(targetMints: string[]): Promise<DexMatchedToken[]> {
+export async function getVirtualPortfolioTokens(targetMints: string[], uiLogs?: string[]): Promise<DexMatchedToken[]> {
     const batches = chunk(targetMints, 30);
     const matched: DexMatchedToken[] = [];
 
-    console.log(`[JupiterDexMerger] Fetching virtual portfolio of ${targetMints.length} tokens...`);
+    uiLogs?.push(`[INFRA] Portfolio: Fetching data for ${targetMints.length} positions...`);
 
     // We also need decimals for the portfolio fetch
-    const jupiterTokens = await fetchJupiterTokens();
+    const jupiterTokens = await fetchJupiterTokens(uiLogs);
 
     for (const batch of batches) {
         try {
@@ -223,8 +241,8 @@ export async function getVirtualPortfolioTokens(targetMints: string[]): Promise<
                     });
                 }
             });
-        } catch (err) {
-            console.error(`[JupiterDexMerger] Virtual batch failed`, err);
+        } catch (err: any) {
+            uiLogs?.push(`[!! BUG] Portfolio: Batch exception: ${err.message}`);
         }
     }
 
