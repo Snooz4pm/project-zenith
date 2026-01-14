@@ -710,21 +710,45 @@ export default function SurvivalTestPage() {
                             </h2>
                             <span className="text-[9px] text-cyan-600">{discoveryGems.length} opportunities</span>
                         </div>
-                        <div className="overflow-x-auto max-h-48">
+                        <div className="overflow-x-auto max-h-64">
                             <table className="w-full text-left">
                                 <thead className="text-[9px] text-zinc-600 font-black uppercase tracking-wider border-b border-zinc-800/30 sticky top-0 bg-zinc-900/80">
-                                    <tr><th className="p-3">Asset</th><th className="p-3">Price</th><th className="p-3">Liq (USD)</th><th className="p-3">Signal</th></tr>
+                                    <tr>
+                                        <th className="p-3">Asset</th>
+                                        <th className="p-3">Price</th>
+                                        <th className="p-3">Liq (USD)</th>
+                                        <th className="p-3">Risk/Score</th>
+                                        <th className="p-3 text-right">Action</th>
+                                    </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-800/30">
                                     {discoveryGems.length === 0 ? (
-                                        <tr><td colSpan={4} className="p-6 text-center text-zinc-700 italic">Agent scanning for opportunities...</td></tr>
+                                        <tr><td colSpan={5} className="p-12 text-center">
+                                            <div className="flex flex-col items-center gap-2">
+                                                <Loader2 className="w-4 h-4 animate-spin text-cyan-800" />
+                                                <span className="text-zinc-700 text-[10px] italic">Agent scanning broad universe for opportunities...</span>
+                                            </div>
+                                        </td></tr>
                                     ) : discoveryGems.map(gem => (
                                         <tr key={gem.mint} className="hover:bg-cyan-500/5 transition-colors border-l-2 border-l-transparent hover:border-l-cyan-500">
-                                            <td className="p-3 font-bold text-white text-xs">{gem.symbol}</td>
-                                            <td className="p-3 text-xs text-zinc-500">${gem.metrics.price.toFixed(6)}</td>
+                                            <td className="p-3">
+                                                <div className="font-bold text-white text-xs">{gem.symbol}</div>
+                                                <div className="text-[8px] text-zinc-600">{gem.mint.slice(0, 4)}...{gem.mint.slice(-4)}</div>
+                                            </td>
+                                            <td className="p-3 text-xs text-zinc-400 font-mono">${gem.metrics.price.toFixed(6)}</td>
                                             <td className="p-3 text-xs text-zinc-500 font-bold">${(gem.metrics.liquidityUSD / 1000).toFixed(0)}k</td>
                                             <td className="p-3">
-                                                <span className="text-[10px] font-black text-cyan-400 bg-cyan-900/20 px-2 py-1 rounded">BUY</span>
+                                                <div className="flex flex-col gap-1">
+                                                    <span className={`text-[9px] font-bold ${gem.verdict.riskScore > 50 ? 'text-red-500' : 'text-green-500'}`}>
+                                                        R: {gem.verdict.riskScore}/100
+                                                    </span>
+                                                    <span className="text-[8px] text-zinc-600">PHY: VETTED</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-3 text-right">
+                                                <span className={`text-[10px] font-black px-2 py-1 rounded ${gem.verdict.action === 'BUY' ? 'bg-cyan-900/20 text-cyan-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                                                    {gem.verdict.action}
+                                                </span>
                                             </td>
                                         </tr>
                                     ))}

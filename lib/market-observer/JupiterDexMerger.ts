@@ -101,7 +101,23 @@ export async function getDexMatchedTokens(): Promise<DexMatchedToken[]> {
     // 1. Jupiter = source of truth
     const jupiterTokens = await fetchJupiterTokens();
 
-    const subsetTokens = jupiterTokens.slice(0, 1000);
+    const whitelistMints = [
+        'So11111111111111111111111111111111111111112', // SOL
+        'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+        'Es9vMFrzaDCSTuNv6S69P7Ra3SPfPLB26gh5pXB9ftx', // USDT
+        'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', // JUP
+        'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', // WIF
+    ];
+
+    // Take top 1000 + ensure whitelist is included
+    let subsetTokens = jupiterTokens.slice(0, 1000);
+    for (const wm of whitelistMints) {
+        if (!subsetTokens.some(t => t.mint === wm)) {
+            const wt = jupiterTokens.find(t => t.mint === wm);
+            if (wt) subsetTokens.push(wt);
+        }
+    }
+
     const matched: DexMatchedToken[] = [];
     const mints = subsetTokens.map(t => t.mint);
 
@@ -119,10 +135,18 @@ export async function getDexMatchedTokens(): Promise<DexMatchedToken[]> {
                 const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${ids}`, {
                     signal: AbortSignal.timeout(5000)
                 });
-                if (!res.ok) return;
+
+                if (!res.ok) {
+                    console.warn(`[JupiterDexMerger] DexScreener batch failed: ${res.status}`);
+                    return;
+                }
 
                 const data = await res.json();
                 const pairs = data.pairs || [];
+
+                if (pairs.length === 0 && batch.some(m => whitelistMints.includes(m))) {
+                    // console.log(`[JupiterDexMerger] Info: Whitelisted tokens in batch but no pairs found on DexScreener.`);
+                }
 
                 for (const mint of batch) {
                     const tokenPairs = pairs.filter((p: any) => p.baseToken.address === mint);
@@ -132,10 +156,15 @@ export async function getDexMatchedTokens(): Promise<DexMatchedToken[]> {
                     const bestPair = tokenPairs[0];
                     const assessment = observer.assess(bestPair);
 
-                    if (assessment.riskLevel === 'CRITICAL') continue;
-                    if (assessment.volume24hUsd < MIN_VOLUME_24H) continue;
-                    if (assessment.liquidityUsd < MIN_LIQUIDITY) continue;
-                    if (assessment.riskLevel === 'HIGH') continue;
+                    // Whitelisted tokens get a lower bar for liquidity/volume in discovery
+                    const isWhitelisted = whitelistMints.includes(mint);
+
+                    if (!isWhitelisted) {
+                        if (assessment.riskLevel === 'CRITICAL') continue;
+                        if (assessment.volume24hUsd < MIN_VOLUME_24H) continue;
+                        if (assessment.liquidityUsd < MIN_LIQUIDITY) continue;
+                        if (assessment.riskLevel === 'HIGH') continue;
+                    }
 
                     matched.push({
                         mint: assessment.mint,
@@ -148,8 +177,8 @@ export async function getDexMatchedTokens(): Promise<DexMatchedToken[]> {
                         decimals: jupiterTokens.find(jt => jt.mint === assessment.mint)?.decimals || COMMON_DECIMALS[assessment.mint] || 6
                     });
                 }
-            } catch (err) {
-                console.error(`[JupiterDexMerger] Batch failed`, err);
+            } catch (err: any) {
+                console.error(`[JupiterDexMerger] Batch failed: ${err.message}`);
             }
         }));
 

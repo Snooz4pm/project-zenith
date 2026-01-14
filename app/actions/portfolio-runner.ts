@@ -140,9 +140,9 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
             mint: t.mint,
             tokenClass: classifyToken(t.symbol, t.mint),
             priceAtStart: t.price && isFinite(t.price) ? t.price : 0,
-            score: 0,
-            flatStreak: 0
         }));
+
+        uiLogs.push(`[SCAN] Physics Engine engaged on ${candidates.length} candidates...`);
 
         const funnelState = createFunnelState(candidates);
         if (broadMarketData.length === 0) {
@@ -391,6 +391,13 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
         }
 
         console.log(`[PortfolioRunner] Analysis complete. Portfolio: ${portfolioResults.length}, Gems: ${discoveryResults.length}`);
+
+        if (discoveryResults.length > 0) {
+            uiLogs.push(`[SCAN] Found ${discoveryResults.length} gems passing physics filters.`);
+        } else {
+            uiLogs.push(`[SCAN] No high-conviction gems identified this tick.`);
+        }
+
         return {
             success: true,
             results: portfolioResults,
