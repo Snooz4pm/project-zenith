@@ -94,13 +94,10 @@ const INITIAL_POSITIONS: Position[] = [
     // 7. FARTCOIN - Absurd fart meta
     { mint: '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump', amount: 15, entryTimestamp: Date.now(), state: 'OBSERVING' },
 
-    // 8. MAGA - Political Trump pump
-    { mint: '6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN', amount: 90, entryTimestamp: Date.now(), state: 'OBSERVING' },
-
-    // 9. BODEN - Biden satire
+    // 8. BODEN - Biden satire
     { mint: '3psH1Mj1f7yUfaD5gh6Zj7epE8hhrMkMETgv5TshQA4o', amount: 3_500, entryTimestamp: Date.now(), state: 'OBSERVING' },
 
-    // 10. JUP - Jupiter governance (stable anchor)
+    // 9. JUP - Jupiter governance (stable anchor)
     { mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', amount: 10, entryTimestamp: Date.now(), state: 'OBSERVING' },
 ];
 
