@@ -153,6 +153,9 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
         const portfolioResults: PortfolioAnalysisResult[] = [];
         const discoveryResults: PortfolioAnalysisResult[] = [];
 
+        // Initialize Quote Budget (To prevent overwhelming RPC)
+        const quoteBudget = { remaining: 15 };
+
         console.log(`[PortfolioRunner] Step 3: Analyzing results...`);
         for (const token of evaluationData) {
             const position = positions.find(p => p.mint === token.mint);
@@ -209,6 +212,8 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
 
                     if (shouldDeepScan) {
                         try {
+                            const positionValueUSD = (position.amount * token.price) / Math.pow(10, token.decimals || 6);
+
                             // 1. Refresh Pool
                             trackedPos.snapPool = await SnapManager.refreshSNAP(
                                 trackedPos.snapPool,
@@ -226,7 +231,8 @@ export async function runPortfolioAnalysis(positions: Position[]): Promise<Portf
                                     position.amount,
                                     token.decimals || 6,
                                     solPrice,
-                                    uiLogs
+                                    uiLogs,
+                                    quoteBudget
                                 );
 
                                 if (trackedPos.snapPool.bestCandidate) {

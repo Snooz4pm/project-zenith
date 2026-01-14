@@ -134,16 +134,20 @@ export class SnapManager {
         sourceAmount: number,
         sourceDecimals: number,
         solPrice: number,
-        uiLogs: string[]
+        uiLogs: string[],
+        quoteBudget: { remaining: number } // Added to prevent overwhelming RPC
     ): Promise<void> {
         const now = Date.now();
         const amountRaw = Math.floor(sourceAmount * Math.pow(10, sourceDecimals)).toString();
 
         for (const candidate of pool.candidates) {
-            // Already have a fresh quote? Skip.
-            if (candidate.routeReady && (now - candidate.lastQuoteTs < 15_000)) continue;
+            if (quoteBudget.remaining <= 0) break;
+
+            // Already have a fresh quote (< 5s as per user req)? Skip.
+            if (candidate.routeReady && (now - candidate.lastQuoteTs < 5_000)) continue;
 
             try {
+                quoteBudget.remaining--;
                 const quote = await getJupiterQuote({
                     inputMint: sourceMint,
                     outputMint: candidate.mint,
@@ -161,11 +165,14 @@ export class SnapManager {
                     candidate.expectedOutSOL = outValueUSD / solPrice;
                     candidate.routeSummary = `${quote.routePlan.length} hops to ${candidate.symbol}`;
                 } else {
-                    uiLogs.push(`[!! BUG] SNAP: Jupiter returned null route for ${candidate.symbol}`);
+                    candidate.routeReady = false;
+                    // Soft fail: no log noise, just mark as unready
                 }
             } catch (err: any) {
                 candidate.routeReady = false;
-                uiLogs.push(`[!! BUG] SNAP: Quote failed for ${candidate.symbol} | ${err.message}`);
+                // Soft fail: physics continues, no spam logs
+                // console.warn(`[SnapManager] Quote failed for ${candidate.symbol}: ${err.message}`);
+                candidate.riskScore += 5; // Light penalty for being "unquoted" or illiquid
             }
         }
 
