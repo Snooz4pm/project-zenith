@@ -254,26 +254,71 @@ export default function SurvivalTestPage() {
             mint: victim.mint,
             impactPct,
             timestamp: Date.now(),
-            survived: false, // Will be updated based on agent response
+            survived: false,
         };
     }, []);
 
-    const triggerManualRug = useCallback((mint: string, symbol: string) => {
-        const impactPct = -90 - Math.random() * 8;
-        addLog(`[SIM] Manual Rug Triggered: ${symbol} | Impact: ${impactPct.toFixed(1)}%`);
+    // ========================================================================
+    // REALISTIC RUG SIMULATIONS (Staged Decay)
+    // ========================================================================
+    type RugType = 'LIQUIDITY_DRAIN' | 'DEV_DUMP' | 'FAKE_STABILITY' | 'BLACK_SWAN';
 
+    const [activeRugSequences, setActiveRugSequences] = useState<Map<string, { type: RugType; step: number; totalSteps: number }>>(new Map());
+
+    const RUG_PATTERNS: Record<RugType, { priceImpact: number; liquidityDrain: number }[]> = {
+        // Type A: Liquidity Drain (Most common - 4 ticks)
+        'LIQUIDITY_DRAIN': [
+            { priceImpact: -5, liquidityDrain: -25 },
+            { priceImpact: -12, liquidityDrain: -50 },
+            { priceImpact: -25, liquidityDrain: -70 },
+            { priceImpact: -40, liquidityDrain: -85 },
+        ],
+        // Type B: Dev Dump Cascade (4 ticks)
+        'DEV_DUMP': [
+            { priceImpact: -12, liquidityDrain: -10 },
+            { priceImpact: -18, liquidityDrain: -20 },
+            { priceImpact: -30, liquidityDrain: -40 },
+            { priceImpact: -45, liquidityDrain: -60 },
+        ],
+        // Type C: Fake Stability (3 ticks)
+        'FAKE_STABILITY': [
+            { priceImpact: -15, liquidityDrain: -30 },
+            { priceImpact: -40, liquidityDrain: -60 },
+            { priceImpact: -70, liquidityDrain: -90 },
+        ],
+        // ☢️ BLACK SWAN: Instant nuke for accounting/recovery testing
+        'BLACK_SWAN': [
+            { priceImpact: -95, liquidityDrain: -99 },
+        ],
+    };
+
+    const triggerStagedRug = useCallback((mint: string, symbol: string, rugType: RugType) => {
+        const pattern = RUG_PATTERNS[rugType];
+        const step = 0;
+        const impact = pattern[step];
+
+        addLog(`[☠️ RUG] ${symbol}: ${rugType} initiated (Step 1/${pattern.length})`);
+        addLog(`  ↳ Price: ${impact.priceImpact}% | Liquidity: ${impact.liquidityDrain}%`);
+
+        // Start the sequence
+        setActiveRugSequences(prev => {
+            const next = new Map(prev);
+            next.set(mint, { type: rugType, step: 0, totalSteps: pattern.length });
+            return next;
+        });
+
+        // Apply first step impact
         setActiveSimulationThreats(prev => [
             ...prev.filter(t => t.mint !== mint),
-            { mint, impactPct }
+            { mint, impactPct: impact.priceImpact }
         ]);
 
-        // Also add a threat event so the UI shows the red alert
         const threat: ThreatEvent = {
             id: generateId(),
-            type: 'RUG_PULL',
+            type: rugType === 'BLACK_SWAN' ? 'RUG_PULL' : 'LIQUIDITY_DRAIN',
             symbol,
             mint,
-            impactPct,
+            impactPct: impact.priceImpact,
             timestamp: Date.now(),
             survived: false
         };
@@ -282,9 +327,38 @@ export default function SurvivalTestPage() {
         setMetrics(m => ({
             ...m,
             threatsEncountered: m.threatsEncountered + 1,
-            rugsPulled: m.rugsPulled + 1,
+            rugsPulled: m.rugsPulled + (rugType === 'BLACK_SWAN' ? 1 : 0),
         }));
-    }, [addLog, setThreatEvents, setMetrics]);
+    }, [addLog, RUG_PATTERNS]);
+
+    // Progress staged rugs each tick
+    const progressStagedRugs = useCallback(() => {
+        setActiveRugSequences(prev => {
+            const next = new Map(prev);
+            prev.forEach((seq, mint) => {
+                const pattern = RUG_PATTERNS[seq.type];
+                const nextStep = seq.step + 1;
+
+                if (nextStep < pattern.length) {
+                    const impact = pattern[nextStep];
+                    addLog(`[☠️ RUG] Progressing (Step ${nextStep + 1}/${pattern.length})`);
+                    addLog(`  ↳ Price: ${impact.priceImpact}% | Liquidity: ${impact.liquidityDrain}%`);
+
+                    setActiveSimulationThreats(p => [
+                        ...p.filter(t => t.mint !== mint),
+                        { mint, impactPct: impact.priceImpact }
+                    ]);
+
+                    next.set(mint, { ...seq, step: nextStep });
+                } else {
+                    addLog(`[☠️ RUG] Sequence complete. Token destroyed.`);
+                    next.delete(mint);
+                }
+            });
+            return next;
+        });
+    }, [addLog, RUG_PATTERNS]);
+
 
     // ========================================================================
     // LIFECYCLE PHASE TOGGLE (Manual Override for Testing)
@@ -434,6 +508,38 @@ export default function SurvivalTestPage() {
             successfulExits: 0,
             averageHoldTimeMs: 0,
         });
+
+        // Add demo entries for visibility testing
+        const demoMint = INITIAL_POSITIONS[0].mint;
+        const demoSymbol = 'DEMO';
+        setLifecycleOpportunities([{
+            mint: demoMint,
+            symbol: demoSymbol,
+            phase: 'OBSERVING',
+            shadowPnl: 2.5,
+            seedSize: 0.05,
+            currentSize: 0,
+            entryPrice: 0.00001,
+            currentPrice: 0.000012,
+            unrealizedPnl: 0,
+            slippage: 0,
+            blacklisted: false,
+            cooldownUntil: null,
+            createdAt: Date.now()
+        }]);
+
+        setDecisions([{
+            id: 'demo-1',
+            token: demoSymbol,
+            mint: demoMint,
+            action: 'ENTER',
+            phase: 'OBSERVING',
+            reasons: ['Volume +35% in 5m', 'Liquidity stable', 'Holder distribution healthy'],
+            risks: ['Meme volatility high', 'Low market cap'],
+            expectation: { targetPct: 6, stopPct: 2 },
+            sizeSOL: 0.05,
+            timestamp: Date.now()
+        }]);
 
         addLog('>>> SURVIVAL TEST STARTED <<<');
         addLog('[CHAOS] Agent exposed to real market conditions...');
