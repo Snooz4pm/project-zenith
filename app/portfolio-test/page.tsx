@@ -50,6 +50,27 @@ interface ThreatEvent {
     survived: boolean;
 }
 
+// ============================================================================
+// LIFECYCLE PHASE TYPES (5-Phase Capital Lifecycle)
+// ============================================================================
+type LifecyclePhase = 'OBSERVING' | 'SEEDING' | 'SCALING' | 'HARVESTING' | 'RECYCLE';
+
+interface LifecycleOpportunity {
+    mint: string;
+    symbol: string;
+    phase: LifecyclePhase;
+    shadowPnl: number;
+    seedSize: number;
+    currentSize: number;
+    entryPrice: number;
+    currentPrice: number;
+    unrealizedPnl: number;
+    slippage: number;
+    blacklisted: boolean;
+    cooldownUntil: number | null;
+    createdAt: number;
+}
+
 interface SurvivalMetrics {
     startingCapitalSOL: number;
     currentCapitalSOL: number;
@@ -101,6 +122,11 @@ export default function SurvivalTestPage() {
     const [threatEvents, setThreatEvents] = useState<ThreatEvent[]>([]);
     const [activeSimulationThreats, setActiveSimulationThreats] = useState<{ mint: string, impactPct: number }[]>([]);
     const [logs, setLogs] = useState<string[]>([]);
+
+    // Lifecycle tracking (5-Phase Capital Lifecycle)
+    const [lifecycleOpportunities, setLifecycleOpportunities] = useState<LifecycleOpportunity[]>([]);
+    const [freeCapital, setFreeCapital] = useState(INITIAL_CAPITAL_SOL * 0.85); // 85% available for trading
+    const [allocatedCapital, setAllocatedCapital] = useState(INITIAL_CAPITAL_SOL * 0.15); // 15% initially allocated
 
     // Metrics
     const [metrics, setMetrics] = useState<SurvivalMetrics>({
@@ -219,6 +245,45 @@ export default function SurvivalTestPage() {
     }, [addLog, setThreatEvents, setMetrics]);
 
     // ========================================================================
+    // LIFECYCLE PHASE TOGGLE (Manual Override for Testing)
+    // ========================================================================
+    const PHASE_ORDER: LifecyclePhase[] = ['OBSERVING', 'SEEDING', 'SCALING', 'HARVESTING', 'RECYCLE'];
+
+    const toggleLifecyclePhase = useCallback((mint: string) => {
+        setLifecycleOpportunities(prev => prev.map(opp => {
+            if (opp.mint !== mint) return opp;
+            const currentIndex = PHASE_ORDER.indexOf(opp.phase);
+            const nextPhase = PHASE_ORDER[(currentIndex + 1) % PHASE_ORDER.length];
+            addLog(`[LIFECYCLE] ${opp.symbol}: ${opp.phase} → ${nextPhase} (Manual Toggle)`);
+            return { ...opp, phase: nextPhase };
+        }));
+    }, [addLog]);
+
+    const promoteToLifecycle = useCallback((mint: string, symbol: string, price: number) => {
+        if (lifecycleOpportunities.some(o => o.mint === mint)) return;
+
+        const seedSize = Math.min(freeCapital * 0.15, INITIAL_CAPITAL_SOL * 0.02);
+        const newOpp: LifecycleOpportunity = {
+            mint,
+            symbol,
+            phase: 'OBSERVING',
+            shadowPnl: 0,
+            seedSize,
+            currentSize: 0,
+            entryPrice: price,
+            currentPrice: price,
+            unrealizedPnl: 0,
+            slippage: 0,
+            blacklisted: false,
+            cooldownUntil: null,
+            createdAt: Date.now()
+        };
+
+        setLifecycleOpportunities(prev => [...prev, newOpp]);
+        addLog(`[LIFECYCLE] NEW: ${symbol} → OBSERVING phase | Seed ready: ${seedSize.toFixed(4)} SOL`);
+    }, [lifecycleOpportunities, freeCapital, addLog]);
+
+    // ========================================================================
     // SESSION CONTROL
     // ========================================================================
     const startSession = () => {
@@ -237,6 +302,12 @@ export default function SurvivalTestPage() {
         setThreatEvents([]);
         setActiveSimulationThreats([]);
         setPnlHistory([{ tick: 0, value: INITIAL_CAPITAL_SOL }]);
+
+        // Reset lifecycle state
+        setLifecycleOpportunities([]);
+        setFreeCapital(INITIAL_CAPITAL_SOL * 0.85);
+        setAllocatedCapital(INITIAL_CAPITAL_SOL * 0.15);
+
         setMetrics({
             startingCapitalSOL: INITIAL_CAPITAL_SOL,
             currentCapitalSOL: INITIAL_CAPITAL_SOL,
@@ -628,17 +699,79 @@ export default function SurvivalTestPage() {
                 </div>
 
                 {/* Max Drawdown */}
-                <div className="bg-zinc-900/30 border border-red-900/30 p-4 rounded-xl">
-                    <div className="text-[9px] text-zinc-600 font-bold mb-1 tracking-widest uppercase flex items-center gap-1"><TrendingDown className="w-3 h-3 text-red-500" /> DRAWDOWN</div>
-                    <div className="text-2xl font-black text-red-400">-{metrics.maxDrawdownPct.toFixed(1)}%</div>
+                <div className="bg-zinc-900/30 border border-zinc-800/40 p-4 rounded-xl">
+                    <div className="text-[9px] text-zinc-600 font-bold mb-1 tracking-widest uppercase flex items-center gap-1"><BarChart3 className="w-3 h-3" /> MAX DD</div>
+                    <div className={`text-2xl font-black ${metrics.maxDrawdownPct > 15 ? 'text-red-500' : metrics.maxDrawdownPct > 5 ? 'text-orange-400' : 'text-green-500'}`}>
+                        -{metrics.maxDrawdownPct.toFixed(1)}%
+                    </div>
                     <div className="text-[10px] text-zinc-500">Peak to Trough</div>
                 </div>
+            </div>
 
-                {/* Threats */}
-                <div className="bg-zinc-900/30 border border-orange-900/30 p-4 rounded-xl">
-                    <div className="text-[9px] text-zinc-600 font-bold mb-1 tracking-widest uppercase flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-orange-500" /> THREATS</div>
-                    <div className="text-2xl font-black text-orange-400">{metrics.threatsSurvived}/{metrics.threatsEncountered}</div>
-                    <div className="text-[10px] text-zinc-500">Survived</div>
+            {/* 5-PHASE LIFECYCLE PANEL */}
+            <div className="max-w-7xl mx-auto mb-6">
+                <div className="bg-zinc-900/40 border border-purple-900/30 rounded-xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-zinc-800/50 flex items-center justify-between">
+                        <h2 className="text-sm font-black text-purple-400 flex items-center gap-2">
+                            <Award className="w-4 h-4" /> 5-PHASE LIFECYCLE ({lifecycleOpportunities.length} Opportunities)
+                        </h2>
+                        <div className="text-[10px] text-zinc-500 flex gap-4">
+                            <span>Free: <span className="text-cyan-400 font-bold">{freeCapital.toFixed(4)} SOL</span></span>
+                            <span>Allocated: <span className="text-orange-400 font-bold">{allocatedCapital.toFixed(4)} SOL</span></span>
+                        </div>
+                    </div>
+
+                    {lifecycleOpportunities.length === 0 ? (
+                        <div className="p-8 text-center text-zinc-600 text-sm">
+                            No opportunities tracked yet. Founded gems will appear here.
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-zinc-800/30">
+                            {lifecycleOpportunities.map(opp => {
+                                const phaseColors: Record<LifecyclePhase, string> = {
+                                    'OBSERVING': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+                                    'SEEDING': 'bg-green-500/20 text-green-400 border-green-500/30',
+                                    'SCALING': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+                                    'HARVESTING': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+                                    'RECYCLE': 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'
+                                };
+
+                                return (
+                                    <div key={opp.mint} className="px-4 py-3 grid grid-cols-6 gap-4 items-center hover:bg-zinc-800/20 transition-all">
+                                        <div className="col-span-2">
+                                            <div className="text-sm font-bold text-white">{opp.symbol}</div>
+                                            <div className="text-[9px] text-zinc-500 font-mono">{opp.mint.slice(0, 8)}...</div>
+                                        </div>
+                                        <div>
+                                            <button
+                                                onClick={() => toggleLifecyclePhase(opp.mint)}
+                                                className={`text-[10px] font-black uppercase px-3 py-1 rounded border ${phaseColors[opp.phase]} hover:brightness-125 transition-all`}
+                                            >
+                                                {opp.phase}
+                                            </button>
+                                        </div>
+                                        <div className="text-xs">
+                                            <div className="text-zinc-500">Shadow PnL</div>
+                                            <div className={`font-bold ${opp.shadowPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                {opp.shadowPnl >= 0 ? '+' : ''}{opp.shadowPnl.toFixed(2)}%
+                                            </div>
+                                        </div>
+                                        <div className="text-xs">
+                                            <div className="text-zinc-500">Seed Size</div>
+                                            <div className="font-bold text-cyan-400">{opp.seedSize.toFixed(4)} SOL</div>
+                                        </div>
+                                        <div className="text-xs text-right">
+                                            {opp.blacklisted ? (
+                                                <span className="text-red-500 font-bold">BLACKLISTED</span>
+                                            ) : (
+                                                <span className="text-zinc-500">Active</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -907,6 +1040,6 @@ export default function SurvivalTestPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

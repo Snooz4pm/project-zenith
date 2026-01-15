@@ -686,3 +686,116 @@ model TrustViolation {
   @@index([timestamp(sort: Desc)])
   @@index([severity])
 }
+
+// =============================================================================
+// ENGINE MEMORY DB (5-Phase Capital Lifecycle)
+// =============================================================================
+// Layer 2 — Capital Brain. Persistent truth for portfolio and lifecycle.
+// Invariant: free_capital + allocated_capital = total_equity
+// =============================================================================
+
+model EnginePortfolio {
+  id               String   @id @default("main")
+  baseAsset        String   @default("SOL") // SOL or USDC
+  initialCapital   Float
+  freeCapital      Float
+  allocatedCapital Float
+  realizedPnl      Float    @default(0)
+  unrealizedPnl    Float    @default(0)
+  maxRiskPct       Float    @default(15) // Max single position %
+  mode             String   @default("sim") // sim | live
+  updatedAt        DateTime @updatedAt
+
+  @@index([mode])
+}
+
+model EngineOpportunity {
+  id                String   @id @default(uuid())
+  mint              String   @unique
+  symbol            String
+  phase             String   @default("OBSERVING") // OBSERVING | SEEDING | SCALING | HARVESTING | RECYCLE
+  
+  // Reputation (OBSERVING)
+  shadowPnl         Float    @default(0)
+  fakeoutCount      Int      @default(0)
+  signalMatchScore  Float    @default(0)
+  blacklisted       Boolean  @default(false)
+  
+  // Seeding
+  seedEntryPrice    Float?
+  probingSlippage   Float?
+  probingAllocationPct Float @default(15)
+  
+  // Scaling
+  fullAllocationPct Float?
+  maxAdverseExcursion Float?
+  
+  // Harvesting
+  harvestThreshold  Float?
+  moonbagSize       Float?
+  
+  // Recycle
+  cooldownUntil     DateTime?
+  yieldToReinvest   Float?
+  
+  // Metadata
+  detectedAt        DateTime @default(now())
+  lastTransitionAt  DateTime @updatedAt
+  
+  positions         EnginePosition[]
+  capitalMovements  CapitalMovement[]
+
+  @@index([phase])
+  @@index([blacklisted])
+  @@index([mint])
+}
+
+model EnginePosition {
+  id              String   @id @default(uuid())
+  mint            String
+  symbol          String
+  size            Float
+  entryPrice      Float
+  currentPrice    Float
+  unrealizedPnl   Float    @default(0)
+  phase           String   // Mirrors opportunity phase
+  openedAt        DateTime @default(now())
+  
+  opportunityId   String?
+  opportunity     EngineOpportunity? @relation(fields: [opportunityId], references: [id])
+
+  @@index([mint])
+  @@index([phase])
+}
+
+model CapitalMovement {
+  id              String   @id @default(uuid())
+  type            String   // seed | scale | harvest | recycle | fee | loss | profit
+  amount          Float
+  fromBucket      String   // free | allocated | external
+  toBucket        String   // free | allocated | external
+  reason          String?
+  
+  opportunityId   String?
+  opportunity     EngineOpportunity? @relation(fields: [opportunityId], references: [id])
+  
+  timestamp       DateTime @default(now())
+
+  @@index([type])
+  @@index([timestamp(sort: Desc)])
+}
+
+// =============================================================================
+// TOKEN BLACKLIST (Rug Fingerprinting - Persists across restarts)
+// =============================================================================
+
+model TokenBlacklist {
+  id          String   @id @default(uuid())
+  mint        String   @unique
+  symbol      String?
+  reason      String   // rug_detected | fake_liquidity | manual
+  fingerprint Json?    // { volume, depth, concentration } at time of rug
+  detectedAt  DateTime @default(now())
+
+  @@index([mint])
+}

@@ -22,6 +22,13 @@ import {
     EXECUTION_THRESHOLD_PCT
 } from '@/lib/execution-engine/PositionStateTracker';
 import { SnapManager, SnapPool } from '@/lib/execution-engine/SnapManager';
+import {
+    LifecyclePhase,
+    evaluateObserving,
+    calculateSeedSize,
+    recordCapitalMovement,
+    DEFAULT_LIFECYCLE_CONFIG
+} from '@/lib/execution-engine/CapitalLifecycleManager';
 
 export interface Position {
     mint: string;
@@ -383,6 +390,10 @@ export async function runPortfolioAnalysis(
                     reason = `Momentum surge detected.`;
                     isSafe = true;
                     riskScore = 10;
+
+                    // === FOUNDED GEM: LIFECYCLE PROMOTION ===
+                    // This token qualifies for the Capital Lifecycle
+                    uiLogs.push(`[LIFECYCLE] Founded Gem: ${token.symbol} | Triggering OBSERVING phase`);
                 } else {
                     action = 'OBSERVE';
                     reason = pred === 'DOWN' ? `Decaying momentum.` : `Sideways.`;
