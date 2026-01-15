@@ -11,6 +11,7 @@ import {
 import { BrainGoal, SearchableToken } from '@/types/LiquidityFilter';
 import { VolumeRiskLevel } from '@/lib/market-observer/VolumeObserver';
 import { getJupiterQuote } from '@/lib/solana/jupiter';
+import { getJupiterTokens, JupiterToken as JupToken } from '@/lib/market-observer/JupiterDexMerger';
 import {
     PositionState,
     TrackedPosition,
@@ -89,6 +90,19 @@ export interface PortfolioAnalysisResponse {
     logs?: string[];  // UI-visible logs for state machine visibility
     error?: string;
     diagnostic?: string;
+}
+
+/**
+ * Server Action: Fetch Jupiter Token Metadata
+ * Used by the frontend to enrich wallet holdings without client-side DNS issues.
+ */
+export async function getMetadata(): Promise<JupToken[]> {
+    try {
+        return await getJupiterTokens();
+    } catch (err) {
+        console.error('[MetadataAction] Failed:', err);
+        return [];
+    }
 }
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';

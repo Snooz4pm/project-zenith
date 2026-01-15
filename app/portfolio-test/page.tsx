@@ -5,7 +5,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
-import { runPortfolioAnalysis, PortfolioAnalysisResult, Position } from '@/app/actions/portfolio-runner';
+import { runPortfolioAnalysis, PortfolioAnalysisResult, Position, getMetadata } from '@/app/actions/portfolio-runner';
 import {
     Shield, Loader2, Activity, TrendingUp, TrendingDown, BrainCircuit, RefreshCw,
     AlertTriangle, Zap, Target, Flame, Award, Wallet, Eye, Play, StopCircle,
@@ -17,7 +17,6 @@ import {
 // ============================================================================
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-const JUPITER_TOKEN_LIST = 'https://token.jup.ag/all';
 const REFRESH_INTERVAL_MS = 15000; // 15 seconds
 
 // ============================================================================
@@ -100,13 +99,18 @@ export default function AgentDashboard() {
     // Refs
     const autoRefreshRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Fetch Jupiter Metadata
+    // Fetch Jupiter Metadata (Server Action)
     const fetchMetadata = useCallback(async () => {
         try {
-            const res = await fetch(JUPITER_TOKEN_LIST);
-            const tokens: JupiterToken[] = await res.json();
+            const tokens = await getMetadata();
             const map = new Map<string, JupiterToken>();
-            tokens.forEach(t => map.set(t.address, t));
+            tokens.forEach(t => map.set(t.mint, {
+                address: t.mint,
+                symbol: t.symbol,
+                name: t.name || 'Protected Asset',
+                logoURI: `https://token.jup.ag/all/logo/${t.mint}`, // Fallback pattern
+                decimals: t.decimals
+            }));
             setJupiterTokenMap(map);
             addLog(`Initialized metadata engine: ${tokens.length} assets mapped`);
         } catch (err) {
@@ -322,8 +326,8 @@ export default function AgentDashboard() {
                                         <div key={phase} className="relative">
                                             <div className="flex items-center gap-4 mb-4">
                                                 <div className={`text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full bg-zinc-800 border border-zinc-700 ${phase === 'SEEDING' ? 'text-purple-400 border-purple-500/20' :
-                                                        phase === 'SCALING' ? 'text-cyan-400 border-cyan-500/20' :
-                                                            'text-emerald-400 border-emerald-500/20'
+                                                    phase === 'SCALING' ? 'text-cyan-400 border-cyan-500/20' :
+                                                        'text-emerald-400 border-emerald-500/20'
                                                     }`}>
                                                     {phase}
                                                 </div>
@@ -396,8 +400,8 @@ export default function AgentDashboard() {
                                         decisions.slice(0, 5).map(dec => (
                                             <div key={dec.id} className="flex items-start gap-4 p-4 rounded-2xl bg-zinc-800/20 border border-zinc-800/50 group hover:border-zinc-700/50 transition-all">
                                                 <div className={`mt-1 p-2 rounded-lg ${dec.action === 'SELL' ? 'bg-rose-500/10 text-rose-400' :
-                                                        dec.action === 'WATCH' ? 'bg-amber-500/10 text-amber-400' :
-                                                            'bg-emerald-500/10 text-emerald-400'
+                                                    dec.action === 'WATCH' ? 'bg-amber-500/10 text-amber-400' :
+                                                        'bg-emerald-500/10 text-emerald-400'
                                                     }`}>
                                                     {dec.action === 'SELL' ? <Skull size={16} /> : dec.action === 'WATCH' ? <Eye size={16} /> : <ShieldCheck size={16} />}
                                                 </div>
