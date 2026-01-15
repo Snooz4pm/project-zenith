@@ -48,6 +48,51 @@ const COMMON_DECIMALS: Record<string, number> = {
 };
 
 /**
+ * Helius Metadata Fallback (The Trench Scanner)
+ */
+async function fetchHeliusMetadata(mint: string): Promise<JupiterToken | null> {
+    const HELIUS_KEY = process.env.HELIUS_API_KEY;
+    if (!HELIUS_KEY) return null;
+
+    const HELIUS_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
+
+    try {
+        const body = {
+            jsonrpc: "2.0",
+            id: "metadata",
+            method: "getAsset",
+            params: {
+                id: mint,
+                displayOptions: { showFungible: true }
+            }
+        };
+
+        const res = await fetch(HELIUS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            signal: AbortSignal.timeout(3000)
+        });
+
+        if (!res.ok) return null;
+        const json = await res.json();
+        const asset = json.result;
+
+        if (!asset) return null;
+
+        return {
+            mint: asset.id,
+            symbol: asset.token_info?.symbol || asset.content?.metadata?.symbol || "UNKNOWN",
+            name: asset.content?.metadata?.name || asset.id,
+            decimals: asset.token_info?.decimals || 6
+        };
+    } catch (e) {
+        console.error(`[HeliusMeta] Failed for ${mint}:`, e);
+        return null;
+    }
+}
+
+/**
  * Step 1: Fetch Jupiter Universe (Cached Singleton)
  */
 export async function fetchJupiterTokens(uiLogs?: string[]): Promise<JupiterToken[]> {
@@ -153,11 +198,12 @@ export async function getDexMatchedTokens(uiLogs?: string[]): Promise<DexMatched
                     const bestPair = tokenPairs[0];
                     const assessment = observer.assess(bestPair);
 
+                    // RELAXED: We allow "Shit Tokens" (Trenches) through.
+                    // Risk engine will still flag them, but we don't block them from discovery.
                     if (!isWhitelisted) {
-                        if (assessment.riskLevel === 'CRITICAL') continue;
-                        if (assessment.volume24hUsd < MIN_VOLUME_24H) continue;
-                        if (assessment.liquidityUsd < MIN_LIQUIDITY) continue;
-                        if (assessment.riskLevel === 'HIGH') continue;
+                        // Only block absolute zero liquidity/volume ghosts
+                        if (assessment.volume24hUsd < 100) continue;
+                        if (assessment.liquidityUsd < 500) continue;
                     }
 
                     matched.push({
@@ -218,22 +264,46 @@ export async function getVirtualPortfolioTokens(targetMints: string[], uiLogs?: 
         try {
             const results = await observer.analyzeBatch(batch);
 
-            results.forEach(analysis => {
+            for (let idx = 0; idx < batch.length; idx++) {
+                const mint = batch[idx];
+                const analysis = results[idx];
+
+                // FIND METADATA (Multi-Step Fallback)
+                let jupInfo = jupiterTokens.find(jt => jt.mint === mint);
+
+                // If not in Jupiter, try Helius DAS (The Trench Scanner)
+                if (!jupInfo) {
+                    jupInfo = await fetchHeliusMetadata(mint);
+                }
+
                 if (analysis) {
-                    const jupInfo = jupiterTokens.find(jt => jt.mint === analysis.mint);
                     matched.push({
                         mint: analysis.mint,
-                        symbol: analysis.symbol,
+                        symbol: analysis.symbol || jupInfo?.symbol || mint.slice(0, 6),
                         pairAddress: "N/A",
                         volume5m: analysis.volume5mUsd,
                         liquidityUSD: analysis.liquidityUsd,
                         riskLevel: analysis.riskLevel as VolumeRiskLevel,
                         riskScore: analysis.riskScore,
                         price: analysis.priceUsd,
-                        decimals: jupInfo?.decimals || COMMON_DECIMALS[analysis.mint] || 6
+                        decimals: jupInfo?.decimals || COMMON_DECIMALS[mint] || 6
+                    });
+                } else {
+                    // STUB INJECTION: Ensure holdings NEVER disappear
+                    uiLogs?.push(`[DATA] ${mint.slice(0, 6)}: Market data missing. Injecting STUB.`);
+                    matched.push({
+                        mint,
+                        symbol: jupInfo?.symbol || mint.slice(0, 6),
+                        pairAddress: "STUB_MISSING_DATA",
+                        volume5m: 0,
+                        liquidityUSD: 0,
+                        riskLevel: 'HIGH',
+                        riskScore: 99,
+                        price: 0,
+                        decimals: jupInfo?.decimals || COMMON_DECIMALS[mint] || 6
                     });
                 }
-            });
+            }
         } catch (err: any) {
             uiLogs?.push(`[!! BUG] Portfolio: Batch exception: ${err.message}`);
         }

@@ -240,6 +240,8 @@ export async function runPortfolioAnalysis(
                 const entryTimestamp = position.entryTimestamp || Date.now();
                 const safeLiquidityUSD = (token.liquidityUSD && token.liquidityUSD > 0) ? token.liquidityUSD : Infinity;
 
+                const isStub = token.pairAddress === 'STUB_MISSING_DATA';
+
                 // Initialize TrackedPosition for state machine
                 const trackedPos: TrackedPosition = {
                     mint: token.mint,
@@ -248,16 +250,30 @@ export async function runPortfolioAnalysis(
                     entryTimestamp,
                     entryPriceSOL,
                     currentPriceSOL: tokenPriceSOL,
-                    currentLiquidityUSD: safeLiquidityUSD,
-                    smoothedPnLPct: 0, // Will be calculated by evaluatePositionState
+                    currentLiquidityUSD: safeLiquidityUSD === Infinity ? 0 : safeLiquidityUSD, // Clean up Infinity
+                    smoothedPnLPct: 0,
                     accumulatedLossPct: position.accumulatedLossPct || 0,
                     state: position.state || 'OBSERVING',
-                    stateEnteredAt: entryTimestamp, // Will be updated by evaluatePositionState if state changes
+                    stateEnteredAt: entryTimestamp,
                     snapPool: position.snapPool
                 };
 
-                // Evaluate State machine
-                const stateResult = evaluatePositionState(trackedPos, tokenPriceSOL, safeLiquidityUSD);
+                // DATA INTEGRITY GUARD: If it's a stub or 0 price, we don't calculate PnL exits
+                let stateResult: StateTransitionResult;
+                if (isStub || tokenPrice === 0) {
+                    currentFrictionReason = "MARKET_DATA_OFFLINE";
+                    stateResult = {
+                        previousState: trackedPos.state,
+                        newState: trackedPos.state,
+                        reason: isStub ? "Waiting for DexScreener index..." : "Price feed unresponsive",
+                        action: 'HOLD',
+                        shouldCallScenarioRunner: false,
+                        shouldExecute: false,
+                        isCriticalRug: false
+                    };
+                } else {
+                    stateResult = evaluatePositionState(trackedPos, tokenPriceSOL, safeLiquidityUSD);
+                }
 
                 // SNAP SURVIVAL ENGINE: Pre-arm candidates and quotes
                 if (stateResult.newState === 'OBSERVING' || stateResult.newState === 'SCOUTING') {
