@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, VersionedTransaction } from '@solana/web3.js';
+import { computePortfolioUsd, computeSeedUsd } from '@/lib/engine/portfolio';
 import { runPortfolioAnalysis, PortfolioAnalysisResult, Position, getMetadata } from '@/app/actions/portfolio-runner';
 import {
     Shield, Loader2, Activity, TrendingUp, TrendingDown, BrainCircuit, RefreshCw,
@@ -16,9 +17,6 @@ import { ScaleQuickPanel } from '@/components/ScaleQuickPanel';
 import { HarvestQuickPanel } from '@/components/HarvestQuickPanel';
 import { RecycleQuickPanel } from '@/components/RecycleQuickPanel';
 
-// ============================================================================
-// CONFIGURATION
-// ============================================================================
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 const REFRESH_INTERVAL_MS = 20000;
@@ -58,6 +56,70 @@ interface LifecycleOpportunity {
     phase: LifecyclePhase;
     shadowPnL: number;
     seedSizeSOL: number;
+}
+
+function LifecycleRow({ op, wallet, executableTokens, onSeed }: {
+    op: LifecycleOpportunity,
+    wallet: any,
+    executableTokens: any[],
+    onSeed: (params: any) => Promise<void>
+}) {
+    const [activePhase, setActivePhase] = useState<LifecyclePhase>('OBS');
+
+    return (
+        <div className="relative">
+            <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-3">
+                    <Eye className="w-4 h-4 text-zinc-600" />
+                    <div>
+                        <div className="text-sm font-black text-white tracking-widest">{op.symbol}</div>
+                        <div className="text-[9px] text-zinc-700 font-mono tracking-widest">PROXIMITY_ALPHA_SCAN</div>
+                    </div>
+                </div>
+                <div className="text-right flex gap-8">
+                    <div>
+                        <div className="text-[9px] text-zinc-700 font-black uppercase tracking-widest mb-1">Shadow PnL</div>
+                        <div className="text-xs font-black text-green-500">+{op.shadowPnL.toFixed(2)}%</div>
+                    </div>
+                    <div>
+                        <div className="text-[9px] text-zinc-700 font-black uppercase tracking-widest mb-1">Seed</div>
+                        <div className="text-xs font-black text-cyan-400">{op.seedSizeSOL.toFixed(4)} SOL</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="relative flex justify-between items-center px-4">
+                <div className="absolute h-px bg-zinc-800 left-8 right-8 top-1/2 -z-10" />
+                {(['OBS', 'SEE', 'SCA', 'HAR', 'REC'] as LifecyclePhase[]).map((p, pi) => (
+                    <button
+                        key={p}
+                        onClick={() => setActivePhase(p)}
+                        className="flex flex-col items-center group outline-none"
+                    >
+                        <div className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all duration-300 ${p === op.phase ? (p === activePhase ? 'bg-cyan-500/20 border-cyan-400' : 'bg-cyan-600/10 border-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.3)] animate-pulse') : (p === activePhase ? 'bg-zinc-800 border-zinc-600' : 'bg-[#111] border-zinc-800 grayscale hover:grayscale-0 hover:border-zinc-700')
+                            }`}>
+                            {p === 'OBS' && <Eye className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
+                            {p === 'SEE' && <TrendingUp className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
+                            {p === 'SCA' && <Activity className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
+                            {p === 'HAR' && <Zap className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
+                            {p === 'REC' && <RefreshCw className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
+                        </div>
+                        <span className={`mt-2 text-[8px] font-black tracking-widest uppercase transition-colors ${p === op.phase || p === activePhase ? 'text-cyan-400' : 'text-zinc-800 group-hover:text-zinc-600'}`}>{p}</span>
+                    </button>
+                ))}
+            </div>
+
+            {/* Command Layer (Inline Panels) */}
+            <div className="mt-8 px-4">
+                {activePhase === 'OBS' && <ObserveQuickPanel />}
+                {activePhase === 'SEE' && <SeedQuickPanel wallet={wallet} executableTokens={executableTokens} onSeed={onSeed} />}
+                {activePhase === 'SCA' && <ScaleQuickPanel />}
+                {activePhase === 'HAR' && <HarvestQuickPanel />}
+                {activePhase === 'REC' && <RecycleQuickPanel />}
+            </div>
+        </div>
+    );
 }
 
 interface TokenHolding {
@@ -111,7 +173,8 @@ const DiscoveryRow = ({ gem, color }: { gem: PortfolioAnalysisResult, color: str
 );
 
 export default function SurvivalLegacyPage() {
-    const { publicKey, connected } = useWallet();
+    const { publicKey, connected, sendTransaction } = useWallet();
+    const { connection } = useConnection();
     const { setVisible } = useWalletModal();
 
     // State
@@ -124,9 +187,9 @@ export default function SurvivalLegacyPage() {
     const [holdings, setHoldings] = useState<TokenHolding[]>([]);
     const [discovery, setDiscovery] = useState<PortfolioAnalysisResult[]>([]);
     const [lifecycle, setLifecycle] = useState<LifecycleOpportunity[]>([]);
+    const [solPrice, setSolPrice] = useState(0);
     const [analysisResults, setAnalysisResults] = useState<PortfolioAnalysisResult[]>([]);
     const [logs, setLogs] = useState<string[]>([]);
-    const [activePhase, setActivePhase] = useState<LifecyclePhase>('OBS');
 
     const addLog = useCallback((msg: string) => {
         setLogs(prev => [...prev.slice(-30), `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -185,7 +248,15 @@ export default function SurvivalLegacyPage() {
                 };
             }).filter(h => h.amount > 0);
 
-            setHoldings(walletHoldings);
+            const holdingsWithUsd = walletHoldings.map(h => {
+                const result = analysisResults.find(r => r.mint === h.mint);
+                return {
+                    ...h,
+                    usdValue: h.amount * (result?.metrics.price || 0)
+                };
+            });
+
+            setHoldings(holdingsWithUsd);
 
             // 2. Prepare for Physics Engine
             const positions: Position[] = walletHoldings.map(h => ({
@@ -201,7 +272,7 @@ export default function SurvivalLegacyPage() {
             // 3. Execution Action
             const analysis = await runPortfolioAnalysis(positions, []);
             setAnalysisResults(analysis.results || []);
-            setDiscovery(analysis.discoveryResults || []);
+            setSolPrice(analysis.results?.find(r => r.mint === SOL_MINT)?.metrics.price || 0);
 
             // === LIFECYCLE SYNC ===
             if (analysis.discoveryResults && analysis.discoveryResults.length > 0) {
@@ -237,7 +308,78 @@ export default function SurvivalLegacyPage() {
         } finally {
             setAnalyzing(false);
         }
-    }, [publicKey, jupiterTokenMap, addLog]);
+    }, [publicKey, jupiterTokenMap, addLog, analysisResults]);
+
+    const handleSeed = useCallback(async ({ baseMint, targetMint, seedUsd }: any) => {
+        if (!publicKey) return;
+        addLog(`Kernel: Initiating Seed [${seedUsd.toFixed(2)} USD] -> ${targetMint.slice(0, 6)}`);
+
+        try {
+            // 1. Get prices
+            const findPrice = (m: string) => {
+                if (m === SOL_MINT) return solPrice;
+                return analysisResults.find(r => r.mint === m)?.metrics.price || 0;
+            };
+
+            const basePrice = findPrice(baseMint);
+            if (!basePrice) throw new Error(`Price unavailable for base asset ${baseMint}`);
+
+            const baseDecimals = baseMint === SOL_MINT ? 9 : holdings.find(h => h.mint === baseMint)?.decimals || 6;
+            const rawAmount = Math.floor((seedUsd / basePrice) * Math.pow(10, baseDecimals));
+
+            // 2. Fetch Jupiter Quote
+            const quoteRes = await fetch("/api/jupiter/quote", {
+                method: "POST",
+                body: JSON.stringify({
+                    inputMint: baseMint,
+                    outputMint: targetMint,
+                    amount: rawAmount.toString()
+                })
+            });
+            const quote = await quoteRes.json();
+
+            if (!quote?.routePlan?.length) {
+                throw new Error(quote.error || "No swap route available via Jupiter");
+            }
+
+            addLog(`Jupiter: Quote received. Impact: ${quote.priceImpactPct}%. Route steps: ${quote.routePlan.length}`);
+
+            // 3. Create Swap Transaction
+            const swapRes = await fetch("/api/jupiter/swap", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    quoteResponse: quote,
+                    userPublicKey: publicKey.toBase58()
+                })
+            });
+            const swapData = await swapRes.json();
+            if (swapData.error) throw new Error(swapData.error);
+
+            // 4. Sign and Send
+            const transaction = VersionedTransaction.deserialize(Buffer.from(swapData.swapTransaction, 'base64'));
+            const signature = await sendTransaction(transaction, connection);
+            addLog(`Kernel: Transaction sent. Waiting for confirmation...`);
+
+            await connection.confirmTransaction(signature, 'confirmed');
+            addLog(`✅ Seeded: ${signature.slice(0, 8)}... SUCCESS`);
+
+            // 5. Persist position
+            await fetch("/api/engine/positions", {
+                method: "POST",
+                body: JSON.stringify({
+                    baseMint,
+                    targetMint,
+                    investedUsd: seedUsd,
+                    entryPriceUsd: parseFloat(quote.outAmount) / parseFloat(quote.inAmount), // basic rate
+                    amount: parseFloat(quote.outAmount)
+                })
+            });
+
+        } catch (err: any) {
+            addLog(`Seed Failure: ${err.message}`);
+        }
+    }, [publicKey, solPrice, analysisResults, holdings, addLog, connection, sendTransaction]);
 
     // Initialize
     useEffect(() => {
@@ -446,58 +588,13 @@ export default function SurvivalLegacyPage() {
 
                             <div className="space-y-12">
                                 {lifecycle.map((op, i) => (
-                                    <div key={i} className="relative">
-                                        <div className="flex justify-between items-center mb-6">
-                                            <div className="flex items-center gap-3">
-                                                <Eye className="w-4 h-4 text-zinc-600" />
-                                                <div>
-                                                    <div className="text-sm font-black text-white tracking-widest">{op.symbol}</div>
-                                                    <div className="text-[9px] text-zinc-700 font-mono tracking-widest">PROXIMITY_ALPHA_SCAN</div>
-                                                </div>
-                                            </div>
-                                            <div className="text-right flex gap-8">
-                                                <div>
-                                                    <div className="text-[9px] text-zinc-700 font-black uppercase tracking-widest mb-1">Shadow PnL</div>
-                                                    <div className="text-xs font-black text-green-500">+{op.shadowPnL.toFixed(2)}%</div>
-                                                </div>
-                                                <div>
-                                                    <div className="text-[9px] text-zinc-700 font-black uppercase tracking-widest mb-1">Seed</div>
-                                                    <div className="text-xs font-black text-cyan-400">{op.seedSizeSOL.toFixed(4)} SOL</div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Progress Bar */}
-                                        <div className="relative flex justify-between items-center px-4">
-                                            <div className="absolute h-px bg-zinc-800 left-8 right-8 top-1/2 -z-10" />
-                                            {(['OBS', 'SEE', 'SCA', 'HAR', 'REC'] as LifecyclePhase[]).map((p, pi) => (
-                                                <button
-                                                    key={p}
-                                                    onClick={() => setActivePhase(p)}
-                                                    className="flex flex-col items-center group outline-none"
-                                                >
-                                                    <div className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all duration-300 ${p === op.phase ? (p === activePhase ? 'bg-cyan-500/20 border-cyan-400' : 'bg-cyan-600/10 border-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.3)] animate-pulse') : (p === activePhase ? 'bg-zinc-800 border-zinc-600' : 'bg-[#111] border-zinc-800 grayscale hover:grayscale-0 hover:border-zinc-700')
-                                                        }`}>
-                                                        {p === 'OBS' && <Eye className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
-                                                        {p === 'SEE' && <TrendingUp className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
-                                                        {p === 'SCA' && <Activity className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
-                                                        {p === 'HAR' && <Zap className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
-                                                        {p === 'REC' && <RefreshCw className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
-                                                    </div>
-                                                    <span className={`mt-2 text-[8px] font-black tracking-widest uppercase transition-colors ${p === op.phase || p === activePhase ? 'text-cyan-400' : 'text-zinc-800 group-hover:text-zinc-600'}`}>{p}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-
-                                        {/* Command Layer (Inline Panels) */}
-                                        <div className="mt-8 px-4">
-                                            {activePhase === 'OBS' && <ObserveQuickPanel />}
-                                            {activePhase === 'SEE' && <SeedQuickPanel />}
-                                            {activePhase === 'SCA' && <ScaleQuickPanel />}
-                                            {activePhase === 'HAR' && <HarvestQuickPanel />}
-                                            {activePhase === 'REC' && <RecycleQuickPanel />}
-                                        </div>
-                                    </div>
+                                    <LifecycleRow
+                                        key={i}
+                                        op={op}
+                                        wallet={{ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice }}
+                                        executableTokens={discovery}
+                                        onSeed={handleSeed}
+                                    />
                                 ))}
                             </div>
                         </div>
