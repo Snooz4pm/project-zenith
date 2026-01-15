@@ -71,6 +71,38 @@ interface LifecycleOpportunity {
     createdAt: number;
 }
 
+// ============================================================================
+// DECISION JOURNAL (WHY + OUTCOME Logging)
+// ============================================================================
+type DecisionAction = 'ENTER' | 'HOLD' | 'SKIP' | 'EXIT';
+type DecisionResult = 'GOOD' | 'BAD' | 'NEUTRAL' | 'PENDING';
+
+interface Decision {
+    id: string;
+    token: string;
+    mint: string;
+    action: DecisionAction;
+    phase: LifecyclePhase;
+    reasons: string[];
+    risks: string[];
+    expectation: {
+        targetPct: number;
+        stopPct: number;
+    };
+    sizeSOL: number;
+    timestamp: number;
+}
+
+interface Outcome {
+    decisionId: string;
+    token: string;
+    pnlPct: number;
+    durationMs: number;
+    result: DecisionResult;
+    notes: string;
+    timestamp: number;
+}
+
 interface SurvivalMetrics {
     startingCapitalSOL: number;
     currentCapitalSOL: number;
@@ -95,13 +127,7 @@ const INITIAL_POSITIONS: Position[] = [
     { mint: '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump', amount: 3500, state: 'OBSERVING' },  // TRASH 1
     { mint: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', amount: 18000, state: 'OBSERVING' }, // TRASH 2
     { mint: 'METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL', amount: 1400, state: 'OBSERVING' },   // TRASH 3
-    { mint: 'Cm6fNnMk7NfzStP9CZpsQA2v3jjzbcYGAxdJySmHpump', amount: 450, state: 'OBSERVING' },    // TRASH 4
-    { mint: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', amount: 9000, state: 'OBSERVING' },   // TRASH 5
-    { mint: 'HeLp6SST7VSc3L81pXLbS188oYAKy3fF2p8yqYq6N6Q6', amount: 100000, state: 'OBSERVING' },// TRASH 6
-    { mint: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R', amount: 250, state: 'OBSERVING' },    // TRASH 7
-    { mint: '6ogEbwwy9zAr37m3Ggn78J8Mv99Xm73C2C5xT8b5pump', amount: 1500, state: 'OBSERVING' },   // TRASH 8
-    { mint: 'A8C3Ar3X4HrkpU4Wp6mG4oP9KqK3m6Wp6oP9KqK3mWp', amount: 800, state: 'OBSERVING' },     // TRASH 9
-    { mint: 'B2oW2hMKZKpRV1VP8toiFbvcM1ZMoGNhJJxjEf1nvT4A', amount: 60, state: 'OBSERVING' },     // TRASH 10
+    { mint: 'Cm6fNnMk7NfzStP9CZpsQA2v3jjzbcYGAxdJySmHpump', amount: 450, state: 'OBSERVING' },    // TRASH 4     // TRASH 10
 ];
 
 export default function SurvivalTestPage() {
@@ -125,8 +151,12 @@ export default function SurvivalTestPage() {
 
     // Lifecycle tracking (5-Phase Capital Lifecycle)
     const [lifecycleOpportunities, setLifecycleOpportunities] = useState<LifecycleOpportunity[]>([]);
-    const [freeCapital, setFreeCapital] = useState(INITIAL_CAPITAL_SOL * 0.85); // 85% available for trading
-    const [allocatedCapital, setAllocatedCapital] = useState(INITIAL_CAPITAL_SOL * 0.15); // 15% initially allocated
+    const [freeCapital, setFreeCapital] = useState(INITIAL_CAPITAL_SOL * 0.85);
+    const [allocatedCapital, setAllocatedCapital] = useState(INITIAL_CAPITAL_SOL * 0.15);
+
+    // Decision Journal (WHY + OUTCOME)
+    const [decisions, setDecisions] = useState<Decision[]>([]);
+    const [outcomes, setOutcomes] = useState<Outcome[]>([]);
 
     // Metrics
     const [metrics, setMetrics] = useState<SurvivalMetrics>({
@@ -161,11 +191,23 @@ export default function SurvivalTestPage() {
 
     useEffect(() => {
         setLogs([
-            '[SURVIVAL TEST] === CHAOS MODE INITIALIZED ===',
-            '[SURVIVAL TEST] Exposure: Real market chaos enabled',
-            '[SURVIVAL TEST] Threats: Rug pulls, flash crashes, whale dumps',
-            `[SURVIVAL TEST] Starting Capital: ${INITIAL_CAPITAL_SOL.toFixed(2)} SOL`,
-            '[SURVIVAL TEST] Objective: SURVIVE.',
+            '═══════════════════════════════════════════════════',
+            '🔥 SURVIVAL GAUNTLET v1 🔥',
+            '═══════════════════════════════════════════════════',
+            'Mode: Adversarial Chaos',
+            `Capital: ${INITIAL_CAPITAL_SOL.toFixed(2)} SOL`,
+            'Threat Model:',
+            ' - Rug Pulls',
+            ' - Whale Traps',
+            ' - Liquidity Shocks',
+            ' - Data Poisoning',
+            ' - Psychological Traps',
+            '',
+            'Objective:',
+            'SURVIVE. PRESERVE CAPITAL. EXPLAIN EVERY MOVE.',
+            '',
+            'Failure = System Death',
+            '═══════════════════════════════════════════════════',
         ]);
     }, []);
 
@@ -284,6 +326,69 @@ export default function SurvivalTestPage() {
     }, [lifecycleOpportunities, freeCapital, addLog]);
 
     // ========================================================================
+    // DECISION JOURNAL HANDLER
+    // ========================================================================
+    const logDecision = useCallback((
+        token: string,
+        mint: string,
+        action: DecisionAction,
+        phase: LifecyclePhase,
+        reasons: string[],
+        risks: string[],
+        targetPct: number,
+        stopPct: number,
+        sizeSOL: number
+    ) => {
+        const decision: Decision = {
+            id: Math.random().toString(36).substring(2, 9),
+            token,
+            mint,
+            action,
+            phase,
+            reasons,
+            risks,
+            expectation: { targetPct, stopPct },
+            sizeSOL,
+            timestamp: Date.now()
+        };
+
+        setDecisions(prev => [decision, ...prev]);
+
+        // Print aggressive decision log
+        const reasonStr = reasons.join(' | ');
+        const riskStr = risks.join(' | ');
+        addLog(`[DECISION] ${token}: ${action} @ ${phase}`);
+        addLog(`  ↳ WHY: ${reasonStr}`);
+        addLog(`  ↳ RISK: ${riskStr}`);
+        addLog(`  ↳ TARGET: +${targetPct}% / STOP: -${stopPct}% / SIZE: ${sizeSOL.toFixed(4)} SOL`);
+
+        return decision.id;
+    }, [addLog]);
+
+    const logOutcome = useCallback((
+        decisionId: string,
+        token: string,
+        pnlPct: number,
+        durationMs: number,
+        notes: string
+    ) => {
+        const result: DecisionResult = pnlPct > 0 ? 'GOOD' : pnlPct < -2 ? 'BAD' : 'NEUTRAL';
+        const outcome: Outcome = {
+            decisionId,
+            token,
+            pnlPct,
+            durationMs,
+            result,
+            notes,
+            timestamp: Date.now()
+        };
+
+        setOutcomes(prev => [outcome, ...prev]);
+        addLog(`[OUTCOME] ${token}: ${result} | PnL: ${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(1)}% | ${notes}`);
+    }, [addLog]);
+
+
+    // ========================================================================
     // SESSION CONTROL
     // ========================================================================
     const startSession = () => {
@@ -307,6 +412,10 @@ export default function SurvivalTestPage() {
         setLifecycleOpportunities([]);
         setFreeCapital(INITIAL_CAPITAL_SOL * 0.85);
         setAllocatedCapital(INITIAL_CAPITAL_SOL * 0.15);
+
+        // Reset decision journal
+        setDecisions([]);
+        setOutcomes([]);
 
         setMetrics({
             startingCapitalSOL: INITIAL_CAPITAL_SOL,
@@ -782,10 +891,10 @@ export default function SurvivalTestPage() {
                                                         <button
                                                             onClick={() => toggleLifecyclePhase(opp.mint)}
                                                             className={`flex flex-col items-center justify-center px-2 py-2 rounded-lg transition-all ${isActive
-                                                                    ? `${colors.bg}/30 border-2 ${colors.border} shadow-lg shadow-${phase.toLowerCase()}-500/20`
-                                                                    : isPast
-                                                                        ? 'bg-zinc-800/50 border border-zinc-700/50 opacity-60'
-                                                                        : 'bg-zinc-900/30 border border-zinc-800/30 opacity-40'
+                                                                ? `${colors.bg}/30 border-2 ${colors.border} shadow-lg shadow-${phase.toLowerCase()}-500/20`
+                                                                : isPast
+                                                                    ? 'bg-zinc-800/50 border border-zinc-700/50 opacity-60'
+                                                                    : 'bg-zinc-900/30 border border-zinc-800/30 opacity-40'
                                                                 } hover:opacity-100 hover:scale-105`}
                                                             title={`Click to advance phase`}
                                                         >
@@ -800,6 +909,75 @@ export default function SurvivalTestPage() {
                                                     </div>
                                                 );
                                             })}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* DECISION JOURNAL PANEL */}
+            <div className="max-w-7xl mx-auto mb-6">
+                <div className="bg-zinc-900/40 border border-cyan-900/30 rounded-xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-zinc-800/50 flex items-center justify-between">
+                        <h2 className="text-sm font-black text-cyan-400 flex items-center gap-2">
+                            📋 DECISION JOURNAL ({decisions.length} Decisions)
+                        </h2>
+                        <div className="text-[10px] text-zinc-500 flex gap-4">
+                            <span className="text-green-400">{outcomes.filter(o => o.result === 'GOOD').length} GOOD</span>
+                            <span className="text-red-400">{outcomes.filter(o => o.result === 'BAD').length} BAD</span>
+                            <span className="text-zinc-400">{outcomes.filter(o => o.result === 'NEUTRAL').length} NEUTRAL</span>
+                        </div>
+                    </div>
+
+                    {decisions.length === 0 ? (
+                        <div className="p-8 text-center text-zinc-600 text-sm">
+                            No decisions logged yet. The journal will explain WHY every move is made.
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-zinc-800/30 max-h-64 overflow-y-auto">
+                            {decisions.slice(0, 10).map(dec => {
+                                const outcome = outcomes.find(o => o.decisionId === dec.id);
+                                const actionColors: Record<DecisionAction, string> = {
+                                    'ENTER': 'bg-green-500/20 text-green-400',
+                                    'HOLD': 'bg-blue-500/20 text-blue-400',
+                                    'SKIP': 'bg-zinc-500/20 text-zinc-400',
+                                    'EXIT': 'bg-red-500/20 text-red-400'
+                                };
+
+                                return (
+                                    <div key={dec.id} className="px-4 py-3 hover:bg-zinc-800/20 transition-all">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${actionColors[dec.action]}`}>
+                                                    {dec.action}
+                                                </span>
+                                                <span className="text-sm font-bold text-white">{dec.token}</span>
+                                                <span className="text-[9px] text-zinc-600">@ {dec.phase}</span>
+                                            </div>
+                                            {outcome && (
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${outcome.result === 'GOOD' ? 'bg-green-500/20 text-green-400' :
+                                                    outcome.result === 'BAD' ? 'bg-red-500/20 text-red-400' :
+                                                        'bg-zinc-500/20 text-zinc-400'
+                                                    }`}>
+                                                    {outcome.result} | {outcome.pnlPct >= 0 ? '+' : ''}{outcome.pnlPct.toFixed(1)}%
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 text-[10px]">
+                                            <div>
+                                                <div className="text-zinc-500 font-bold">WHY:</div>
+                                                <div className="text-zinc-400">{dec.reasons.slice(0, 2).join(' | ')}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-zinc-500 font-bold">RISK:</div>
+                                                <div className="text-orange-400">{dec.risks.slice(0, 2).join(' | ')}</div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-1 text-[9px] text-zinc-600">
+                                            Target: +{dec.expectation.targetPct}% | Stop: -{dec.expectation.stopPct}% | Size: {dec.sizeSOL.toFixed(4)} SOL
                                         </div>
                                     </div>
                                 );
