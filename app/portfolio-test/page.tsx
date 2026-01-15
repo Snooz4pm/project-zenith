@@ -23,9 +23,23 @@ const REFRESH_INTERVAL_MS = 20000;
 // ============================================================================
 
 async function fetchWalletFromApi(wallet: string) {
-    const res = await fetch(`/api/wallet?wallet=${wallet}`);
-    if (!res.ok) throw new Error("Wallet API fetch failed");
-    return res.json() as Promise<{ sol: number, tokens: { mint: string, amount: number, decimals: number }[] }>;
+    const res = await fetch(`/api/wallet/helius`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet })
+    });
+    if (!res.ok) throw new Error("Helius Wallet API fetch failed");
+    return res.json() as Promise<{
+        sol: number,
+        tokens: {
+            mint: string,
+            symbol: string,
+            name: string,
+            logo: string | null,
+            decimals: number,
+            amount: number
+        }[]
+    }>;
 }
 
 // ============================================================================
@@ -67,9 +81,9 @@ const PanelHeader = ({ title, icon: Icon, count, color = "cyan" }: any) => (
     <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/40">
         <div className="flex items-center gap-2">
             <Icon className={`w-4 h-4 text-${color}-400`} />
-            <span className={`text-xs font-black uppercase tracking-[0.2em] text-${color}-400`}>{title}</span>
+            <span className={`text-xs font-black uppercase tracking-widest text-${color}-400`}>{title}</span>
         </div>
-        {count !== undefined && <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">{count} opportunities</span>}
+        {count !== undefined && <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-tight">{count} ACTIVE_SIGNALS</span>}
     </div>
 );
 
@@ -104,9 +118,7 @@ export default function SurvivalLegacyPage() {
     const [solBalance, setSolBalance] = useState(0);
     const [holdings, setHoldings] = useState<TokenHolding[]>([]);
     const [discovery, setDiscovery] = useState<PortfolioAnalysisResult[]>([]);
-    const [lifecycle, setLifecycle] = useState<LifecycleOpportunity[]>([
-        { mint: 'demo', symbol: 'DEMO', phase: 'OBS', shadowPnL: 2.5, seedSizeSOL: 0.05 }
-    ]);
+    const [lifecycle, setLifecycle] = useState<LifecycleOpportunity[]>([]);
     const [analysisResults, setAnalysisResults] = useState<PortfolioAnalysisResult[]>([]);
     const [logs, setLogs] = useState<string[]>([]);
 
@@ -159,9 +171,9 @@ export default function SurvivalLegacyPage() {
                 const jup = jupiterTokenMap.get(t.mint);
                 return {
                     mint: t.mint,
-                    symbol: jup?.symbol || t.mint.slice(0, 6),
-                    name: jup?.name || 'Unknown',
-                    logoURI: jup?.logoURI || '',
+                    symbol: t.symbol || jup?.symbol || t.mint.slice(0, 6),
+                    name: t.name || jup?.name || 'Unknown',
+                    logoURI: t.logo || `https://token.jup.ag/all/logo/${t.mint}`,
                     amount: t.amount,
                     decimals: t.decimals
                 };
@@ -184,6 +196,29 @@ export default function SurvivalLegacyPage() {
             const analysis = await runPortfolioAnalysis(positions, []);
             setAnalysisResults(analysis.results || []);
             setDiscovery(analysis.discoveryResults || []);
+
+            // === LIFECYCLE SYNC ===
+            if (analysis.discoveryResults && analysis.discoveryResults.length > 0) {
+                setLifecycle(prev => {
+                    const next = [...prev];
+                    analysis.discoveryResults!.forEach(gem => {
+                        const exists = next.find(l => l.mint === gem.mint);
+                        if (!exists) {
+                            next.push({
+                                mint: gem.mint,
+                                symbol: gem.symbol,
+                                phase: 'OBS',
+                                shadowPnL: 0,
+                                seedSizeSOL: 0.05 // Baseline seed
+                            });
+                        } else {
+                            // Update existing (e.g. shadow PnL if we had price history)
+                            // For now just keep it simple
+                        }
+                    });
+                    return next.slice(-5); // Keep only the latest 5 gems in the lifecycle UI for density
+                });
+            }
 
             if (analysis.logs) {
                 analysis.logs.forEach(l => addLog(l));
@@ -341,13 +376,13 @@ export default function SurvivalLegacyPage() {
                                 <div className="flex flex-col">
                                     <div className="px-4 py-2 bg-green-500/5 border-b border-zinc-800 flex items-center justify-between">
                                         <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">🛡️ SAFE</span>
-                                        <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => g.verdict.riskScore <= 30).length} Opps</span>
+                                        <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => (g.verdict.riskScore || 0) <= 30).length} Opps</span>
                                     </div>
                                     <div className="divide-y divide-zinc-900 min-h-[300px]">
-                                        {discovery.filter(g => g.verdict.riskScore <= 30).length === 0 ? (
-                                            <div className="p-8 text-center text-zinc-800 italic uppercase text-[10px]">Scanning for stability...</div>
+                                        {discovery.filter(g => (g.verdict.riskScore || 0) <= 30).length === 0 ? (
+                                            <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Scanning Stable Assets...</div>
                                         ) : (
-                                            discovery.filter(g => g.verdict.riskScore <= 30).map((gem, i) => (
+                                            discovery.filter(g => (g.verdict.riskScore || 0) <= 30).map((gem, i) => (
                                                 <DiscoveryRow key={i} gem={gem} color="green" />
                                             ))
                                         )}
@@ -358,13 +393,13 @@ export default function SurvivalLegacyPage() {
                                 <div className="flex flex-col">
                                     <div className="px-4 py-2 bg-amber-500/5 border-b border-zinc-800 flex items-center justify-between">
                                         <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">⚡ MEDIUM</span>
-                                        <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => g.verdict.riskScore > 30 && g.verdict.riskScore <= 65).length} Opps</span>
+                                        <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).length} Opps</span>
                                     </div>
                                     <div className="divide-y divide-zinc-900 min-h-[300px]">
-                                        {discovery.filter(g => g.verdict.riskScore > 30 && g.verdict.riskScore <= 65).length === 0 ? (
-                                            <div className="p-8 text-center text-zinc-800 italic uppercase text-[10px]">Evaluating growth...</div>
+                                        {discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).length === 0 ? (
+                                            <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Awaiting Mid-Cap Physics...</div>
                                         ) : (
-                                            discovery.filter(g => g.verdict.riskScore > 30 && g.verdict.riskScore <= 65).map((gem, i) => (
+                                            discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).map((gem, i) => (
                                                 <DiscoveryRow key={i} gem={gem} color="amber" />
                                             ))
                                         )}
@@ -375,13 +410,13 @@ export default function SurvivalLegacyPage() {
                                 <div className="flex flex-col">
                                     <div className="px-4 py-2 bg-rose-500/5 border-b border-zinc-800 flex items-center justify-between">
                                         <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">🔥 MEME</span>
-                                        <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => g.verdict.riskScore > 65).length} Opps</span>
+                                        <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => (g.verdict.riskScore || 0) > 65).length} Opps</span>
                                     </div>
                                     <div className="divide-y divide-zinc-900 min-h-[300px]">
-                                        {discovery.filter(g => g.verdict.riskScore > 65).length === 0 ? (
-                                            <div className="p-8 text-center text-zinc-800 italic uppercase text-[10px]">Watching the trenches...</div>
+                                        {discovery.filter(g => (g.verdict.riskScore || 0) > 65).length === 0 ? (
+                                            <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Scouting the trenches...</div>
                                         ) : (
-                                            discovery.filter(g => g.verdict.riskScore > 65).map((gem, i) => (
+                                            discovery.filter(g => (g.verdict.riskScore || 0) > 65).map((gem, i) => (
                                                 <DiscoveryRow key={i} gem={gem} color="rose" />
                                             ))
                                         )}

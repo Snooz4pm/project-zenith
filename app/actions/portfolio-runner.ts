@@ -401,18 +401,18 @@ export async function runPortfolioAnalysis(
                 const pred = candidate.prediction;
                 if (pred === 'UP') {
                     action = 'BUY';
-                    reason = `Momentum surge detected. Target risk: ${token.riskScore}`;
-                    isSafe = token.riskScore <= 30;
-                    riskScore = token.riskScore;
+                    reason = `Momentum surge detected.`;
+                    isSafe = true;
+                    riskScore = 10;
 
                     // === FOUNDED GEM: LIFECYCLE PROMOTION ===
                     // This token qualifies for the Capital Lifecycle
                     uiLogs.push(`[LIFECYCLE] Founded Gem: ${token.symbol} | Triggering OBSERVING phase`);
                 } else {
                     action = 'OBSERVE';
-                    reason = pred === 'DOWN' ? `Decaying momentum.` : `Sideways or high risk (${token.riskScore}).`;
-                    isSafe = token.riskScore <= 30;
-                    riskScore = token.riskScore;
+                    reason = pred === 'DOWN' ? `Decaying momentum.` : `Sideways.`;
+                    isSafe = false;
+                    riskScore = pred === 'DOWN' ? 80 : 50;
                 }
             }
 
