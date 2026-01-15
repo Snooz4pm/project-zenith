@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { useConnection } from '@solana/wallet-adapter-react';
-import { PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey } from '@solana/web3.js';
 import { runPortfolioAnalysis, PortfolioAnalysisResult, Position, getMetadata } from '@/app/actions/portfolio-runner';
 import {
     Shield, Loader2, Activity, TrendingUp, TrendingDown, BrainCircuit, RefreshCw,
@@ -13,11 +12,47 @@ import {
 } from 'lucide-react';
 
 // ============================================================================
-// CONFIGURATION
+// CONFIGURATION & CONNECTION (Step 1)
 // ============================================================================
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-const REFRESH_INTERVAL_MS = 20000; // 20 seconds for the "Survial" loop
+const REFRESH_INTERVAL_MS = 20000;
+
+// Step 1: Create a Solana Connection (Enforcing Helius to bypass DNS blocks)
+const RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC || `https://mainnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_HELIUS_API_KEY}`;
+export const connection = new Connection(RPC_URL, "confirmed");
+
+// ============================================================================
+// DATA FETCHING (Step 2 & 3)
+// ============================================================================
+
+/**
+ * Fetch SOL Balance (Step 2)
+ */
+export async function fetchSolBalance(wallet: string) {
+    const pubkey = new PublicKey(wallet);
+    const lamports = await connection.getBalance(pubkey);
+    return lamports / 1e9;
+}
+
+/**
+ * Fetch Token Balances (Step 3)
+ */
+export async function fetchTokenBalances(wallet: string) {
+    const pubkey = new PublicKey(wallet);
+    const accounts = await connection.getParsedTokenAccountsByOwner(pubkey, {
+        programId: TOKEN_PROGRAM_ID,
+    });
+
+    return accounts.value.map(acc => {
+        const info = acc.account.data.parsed.info;
+        return {
+            mint: info.mint as string,
+            amount: Number(info.tokenAmount.uiAmount),
+            decimals: info.tokenAmount.decimals as number,
+        };
+    });
+}
 
 // ============================================================================
 // TYPES
@@ -67,7 +102,6 @@ const PanelHeader = ({ title, icon: Icon, count, color = "cyan" }: any) => (
 export default function SurvivalLegacyPage() {
     const { publicKey, connected } = useWallet();
     const { setVisible } = useWalletModal();
-    const { connection } = useConnection();
 
     // State
     const [loading, setLoading] = useState(false);
@@ -112,31 +146,30 @@ export default function SurvivalLegacyPage() {
 
     // Survival Loop Analysis
     const performAnalyticalTick = useCallback(async () => {
-        if (!publicKey || !connection || jupiterTokenMap.size === 0) return;
+        if (!publicKey || jupiterTokenMap.size === 0) return;
 
         setAnalyzing(true);
         addLog('System: Initiating analytical tick...');
 
         try {
-            // 1. Refresh Wallet
-            const lamports = await connection.getBalance(publicKey);
-            setSolBalance(lamports / 1e9);
+            // 1. Refresh Wallet (Using Steps 2 & 3)
+            const walletAddr = publicKey.toBase58();
+            const [sol, tokenResults] = await Promise.all([
+                fetchSolBalance(walletAddr),
+                fetchTokenBalances(walletAddr)
+            ]);
 
-            const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
-                publicKey,
-                { programId: TOKEN_PROGRAM_ID }
-            );
+            setSolBalance(sol);
 
-            const walletHoldings: TokenHolding[] = tokenAccounts.value.map(acc => {
-                const mint = acc.account.data.parsed.info.mint;
-                const jup = jupiterTokenMap.get(mint);
+            const walletHoldings: TokenHolding[] = tokenResults.map(t => {
+                const jup = jupiterTokenMap.get(t.mint);
                 return {
-                    mint,
-                    symbol: jup?.symbol || mint.slice(0, 6),
+                    mint: t.mint,
+                    symbol: jup?.symbol || t.mint.slice(0, 6),
                     name: jup?.name || 'Unknown',
                     logoURI: jup?.logoURI || '',
-                    amount: acc.account.data.parsed.info.tokenAmount.uiAmount,
-                    decimals: acc.account.data.parsed.info.tokenAmount.decimals
+                    amount: t.amount,
+                    decimals: t.decimals
                 };
             }).filter(h => h.amount > 0);
 
@@ -149,8 +182,8 @@ export default function SurvivalLegacyPage() {
                 state: 'OBSERVING'
             }));
 
-            if (lamports / 1e9 > 0.01) {
-                positions.unshift({ mint: SOL_MINT, amount: lamports / 1e9, state: 'OBSERVING' });
+            if (sol > 0.01) {
+                positions.unshift({ mint: SOL_MINT, amount: sol, state: 'OBSERVING' });
             }
 
             // 3. Execution Action
@@ -174,7 +207,15 @@ export default function SurvivalLegacyPage() {
     // Initialize
     useEffect(() => {
         fetchMetadata();
-    }, [fetchMetadata]);
+
+        // Step 4: Test It Manually (Temporarily run for verification)
+        if (connected && publicKey) {
+            const wallet = publicKey.toBase58();
+            console.log(`[TEST] Verifying balances for: ${wallet}`);
+            fetchSolBalance(wallet).then(sol => console.log(`[TEST] SOL: ${sol}`));
+            fetchTokenBalances(wallet).then(tokens => console.log(`[TEST] Tokens:`, tokens));
+        }
+    }, [fetchMetadata, connected, publicKey]);
 
     useEffect(() => {
         if (connected && publicKey && jupiterTokenMap.size > 0) {
@@ -284,8 +325,8 @@ export default function SurvivalLegacyPage() {
                                                 <div className="flex items-center justify-between mb-2">
                                                     <div className="font-black text-sm uppercase italic tracking-tight">{r.symbol}</div>
                                                     <div className={`text-[10px] font-black px-2 py-0.5 border rounded-full ${r.verdict.action === 'HOLD' ? 'border-green-500/30 text-green-500 bg-green-500/5' :
-                                                            r.verdict.action === 'SELL' ? 'border-rose-500/30 text-rose-500 bg-rose-500/5' :
-                                                                'border-zinc-500/30 text-zinc-500 bg-zinc-500/5'
+                                                        r.verdict.action === 'SELL' ? 'border-rose-500/30 text-rose-500 bg-rose-500/5' :
+                                                            'border-zinc-500/30 text-zinc-500 bg-zinc-500/5'
                                                         }`}>
                                                         {r.verdict.action}
                                                     </div>
@@ -425,7 +466,7 @@ export default function SurvivalLegacyPage() {
                 <div className="py-8 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-black text-zinc-700 uppercase tracking-[0.4em] border-t border-zinc-900">
                     <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
-                        Zenith Gauntlet Engine v1.0.4 - REAL_TIME_MODE
+                        Zenith Engine v1.0.4 - REAL_TIME_MODE
                     </div>
                     <div className="flex gap-8">
                         <span className="hover:text-cyan-400 cursor-pointer transition-colors">Documentation</span>
