@@ -178,7 +178,7 @@ export default function SurvivalLegacyPage() {
         } finally {
             setAnalyzing(false);
         }
-    }, [publicKey, connection, jupiterTokenMap, addLog]);
+    }, [publicKey, jupiterTokenMap, addLog]);
 
     // Initialize
     useEffect(() => {

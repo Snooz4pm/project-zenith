@@ -11,7 +11,7 @@ import {
 import { BrainGoal, SearchableToken } from '@/types/LiquidityFilter';
 import { VolumeRiskLevel } from '@/lib/market-observer/VolumeObserver';
 import { getJupiterQuote } from '@/lib/solana/jupiter';
-import { getJupiterTokens, JupiterToken as JupToken } from '@/lib/market-observer/JupiterDexMerger';
+import { fetchJupiterTokens, JupiterToken as JupToken } from '@/lib/market-observer/JupiterDexMerger';
 import {
     PositionState,
     TrackedPosition,
@@ -98,7 +98,7 @@ export interface PortfolioAnalysisResponse {
  */
 export async function getMetadata(): Promise<JupToken[]> {
     try {
-        return await getJupiterTokens();
+        return await fetchJupiterTokens();
     } catch (err) {
         console.error('[MetadataAction] Failed:', err);
         return [];
