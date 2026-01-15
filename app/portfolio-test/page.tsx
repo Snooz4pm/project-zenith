@@ -728,44 +728,78 @@ export default function SurvivalTestPage() {
                     ) : (
                         <div className="divide-y divide-zinc-800/30">
                             {lifecycleOpportunities.map(opp => {
-                                const phaseColors: Record<LifecyclePhase, string> = {
-                                    'OBSERVING': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-                                    'SEEDING': 'bg-green-500/20 text-green-400 border-green-500/30',
-                                    'SCALING': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-                                    'HARVESTING': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-                                    'RECYCLE': 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'
+                                const phases: LifecyclePhase[] = ['OBSERVING', 'SEEDING', 'SCALING', 'HARVESTING', 'RECYCLE'];
+                                const phaseIcons: Record<LifecyclePhase, string> = {
+                                    'OBSERVING': '👁️',
+                                    'SEEDING': '🌱',
+                                    'SCALING': '📈',
+                                    'HARVESTING': '🌾',
+                                    'RECYCLE': '♻️'
                                 };
+                                const phaseColors: Record<LifecyclePhase, { bg: string, text: string, border: string }> = {
+                                    'OBSERVING': { bg: 'bg-blue-500', text: 'text-blue-400', border: 'border-blue-500' },
+                                    'SEEDING': { bg: 'bg-green-500', text: 'text-green-400', border: 'border-green-500' },
+                                    'SCALING': { bg: 'bg-orange-500', text: 'text-orange-400', border: 'border-orange-500' },
+                                    'HARVESTING': { bg: 'bg-purple-500', text: 'text-purple-400', border: 'border-purple-500' },
+                                    'RECYCLE': { bg: 'bg-zinc-500', text: 'text-zinc-400', border: 'border-zinc-500' }
+                                };
+                                const currentPhaseIndex = phases.indexOf(opp.phase);
 
                                 return (
-                                    <div key={opp.mint} className="px-4 py-3 grid grid-cols-6 gap-4 items-center hover:bg-zinc-800/20 transition-all">
-                                        <div className="col-span-2">
-                                            <div className="text-sm font-bold text-white">{opp.symbol}</div>
-                                            <div className="text-[9px] text-zinc-500 font-mono">{opp.mint.slice(0, 8)}...</div>
-                                        </div>
-                                        <div>
-                                            <button
-                                                onClick={() => toggleLifecyclePhase(opp.mint)}
-                                                className={`text-[10px] font-black uppercase px-3 py-1 rounded border ${phaseColors[opp.phase]} hover:brightness-125 transition-all`}
-                                            >
-                                                {opp.phase}
-                                            </button>
-                                        </div>
-                                        <div className="text-xs">
-                                            <div className="text-zinc-500">Shadow PnL</div>
-                                            <div className={`font-bold ${opp.shadowPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                {opp.shadowPnl >= 0 ? '+' : ''}{opp.shadowPnl.toFixed(2)}%
+                                    <div key={opp.mint} className="px-4 py-4 hover:bg-zinc-800/20 transition-all">
+                                        {/* Header Row */}
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div>
+                                                <div className="text-sm font-bold text-white flex items-center gap-2">
+                                                    {phaseIcons[opp.phase]} {opp.symbol}
+                                                    {opp.blacklisted && <span className="text-[9px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded">BLACKLISTED</span>}
+                                                </div>
+                                                <div className="text-[9px] text-zinc-600 font-mono">{opp.mint.slice(0, 12)}...</div>
+                                            </div>
+                                            <div className="flex gap-4 text-xs">
+                                                <div className="text-right">
+                                                    <div className="text-zinc-500">Shadow PnL</div>
+                                                    <div className={`font-bold ${opp.shadowPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                        {opp.shadowPnl >= 0 ? '+' : ''}{opp.shadowPnl.toFixed(2)}%
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-zinc-500">Seed</div>
+                                                    <div className="font-bold text-cyan-400">{opp.seedSize.toFixed(4)} SOL</div>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="text-xs">
-                                            <div className="text-zinc-500">Seed Size</div>
-                                            <div className="font-bold text-cyan-400">{opp.seedSize.toFixed(4)} SOL</div>
-                                        </div>
-                                        <div className="text-xs text-right">
-                                            {opp.blacklisted ? (
-                                                <span className="text-red-500 font-bold">BLACKLISTED</span>
-                                            ) : (
-                                                <span className="text-zinc-500">Active</span>
-                                            )}
+
+                                        {/* 5-Phase Pipeline */}
+                                        <div className="flex items-center justify-between">
+                                            {phases.map((phase, idx) => {
+                                                const isActive = phase === opp.phase;
+                                                const isPast = idx < currentPhaseIndex;
+                                                const colors = phaseColors[phase];
+
+                                                return (
+                                                    <div key={phase} className="flex items-center flex-1">
+                                                        <button
+                                                            onClick={() => toggleLifecyclePhase(opp.mint)}
+                                                            className={`flex flex-col items-center justify-center px-2 py-2 rounded-lg transition-all ${isActive
+                                                                    ? `${colors.bg}/30 border-2 ${colors.border} shadow-lg shadow-${phase.toLowerCase()}-500/20`
+                                                                    : isPast
+                                                                        ? 'bg-zinc-800/50 border border-zinc-700/50 opacity-60'
+                                                                        : 'bg-zinc-900/30 border border-zinc-800/30 opacity-40'
+                                                                } hover:opacity-100 hover:scale-105`}
+                                                            title={`Click to advance phase`}
+                                                        >
+                                                            <span className="text-lg">{phaseIcons[phase]}</span>
+                                                            <span className={`text-[8px] font-bold uppercase ${isActive ? colors.text : 'text-zinc-500'}`}>
+                                                                {phase.slice(0, 3)}
+                                                            </span>
+                                                        </button>
+                                                        {idx < phases.length - 1 && (
+                                                            <div className={`flex-1 h-0.5 mx-1 ${idx < currentPhaseIndex ? colors.bg : 'bg-zinc-800'}`}></div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 );
