@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { runPortfolioAnalysis, PortfolioAnalysisResult, Position, getMetadata } from '@/app/actions/portfolio-runner';
 import {
     Shield, Loader2, Activity, TrendingUp, TrendingDown, BrainCircuit, RefreshCw,
@@ -12,46 +12,20 @@ import {
 } from 'lucide-react';
 
 // ============================================================================
-// CONFIGURATION & CONNECTION (Step 1)
+// CONFIGURATION
 // ============================================================================
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 const REFRESH_INTERVAL_MS = 20000;
 
-// Step 1: Create a Solana Connection (Enforcing Helius to bypass DNS blocks)
-const RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC || `https://mainnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_HELIUS_API_KEY}`;
-export const connection = new Connection(RPC_URL, "confirmed");
-
 // ============================================================================
-// DATA FETCHING (Step 2 & 3)
+// DATA FETCHING (Access via API to bypass CORS/DNS blocks)
 // ============================================================================
 
-/**
- * Fetch SOL Balance (Step 2)
- */
-export async function fetchSolBalance(wallet: string) {
-    const pubkey = new PublicKey(wallet);
-    const lamports = await connection.getBalance(pubkey);
-    return lamports / 1e9;
-}
-
-/**
- * Fetch Token Balances (Step 3)
- */
-export async function fetchTokenBalances(wallet: string) {
-    const pubkey = new PublicKey(wallet);
-    const accounts = await connection.getParsedTokenAccountsByOwner(pubkey, {
-        programId: TOKEN_PROGRAM_ID,
-    });
-
-    return accounts.value.map(acc => {
-        const info = acc.account.data.parsed.info;
-        return {
-            mint: info.mint as string,
-            amount: Number(info.tokenAmount.uiAmount),
-            decimals: info.tokenAmount.decimals as number,
-        };
-    });
+async function fetchWalletFromApi(wallet: string) {
+    const res = await fetch(`/api/wallet?wallet=${wallet}`);
+    if (!res.ok) throw new Error("Wallet API fetch failed");
+    return res.json() as Promise<{ sol: number, tokens: { mint: string, amount: number, decimals: number }[] }>;
 }
 
 // ============================================================================
@@ -146,22 +120,24 @@ export default function SurvivalLegacyPage() {
 
     // Survival Loop Analysis
     const performAnalyticalTick = useCallback(async () => {
-        if (!publicKey || jupiterTokenMap.size === 0) return;
+        if (!publicKey) return;
 
         setAnalyzing(true);
         addLog('System: Initiating analytical tick...');
 
         try {
-            // 1. Refresh Wallet (Using Steps 2 & 3)
-            const walletAddr = publicKey.toBase58();
-            const [sol, tokenResults] = await Promise.all([
-                fetchSolBalance(walletAddr),
-                fetchTokenBalances(walletAddr)
-            ]);
+            // 1. Refresh Wallet via Server API
+            const walletData = await fetchWalletFromApi(publicKey.toBase58());
+            setSolBalance(walletData.sol);
 
-            setSolBalance(sol);
+            // If metadata isn't ready, we can't enrich, but we can still show basic SOL
+            if (jupiterTokenMap.size === 0) {
+                addLog('System: Metadata pending. Enrichment paused.');
+                setAnalyzing(false);
+                return;
+            }
 
-            const walletHoldings: TokenHolding[] = tokenResults.map(t => {
+            const walletHoldings: TokenHolding[] = walletData.tokens.map(t => {
                 const jup = jupiterTokenMap.get(t.mint);
                 return {
                     mint: t.mint,
@@ -182,8 +158,8 @@ export default function SurvivalLegacyPage() {
                 state: 'OBSERVING'
             }));
 
-            if (sol > 0.01) {
-                positions.unshift({ mint: SOL_MINT, amount: sol, state: 'OBSERVING' });
+            if (walletData.sol > 0.01) {
+                positions.unshift({ mint: SOL_MINT, amount: walletData.sol, state: 'OBSERVING' });
             }
 
             // 3. Execution Action
@@ -208,22 +184,22 @@ export default function SurvivalLegacyPage() {
     useEffect(() => {
         fetchMetadata();
 
-        // Step 4: Test It Manually (Temporarily run for verification)
+        // Step 4: Test API Directly (Verification)
         if (connected && publicKey) {
-            const wallet = publicKey.toBase58();
-            console.log(`[TEST] Verifying balances for: ${wallet}`);
-            fetchSolBalance(wallet).then(sol => console.log(`[TEST] SOL: ${sol}`));
-            fetchTokenBalances(wallet).then(tokens => console.log(`[TEST] Tokens:`, tokens));
+            console.log(`[TEST] Verifying balances via API for: ${publicKey.toBase58()}`);
+            fetchWalletFromApi(publicKey.toBase58())
+                .then(data => console.log(`[TEST] API DATA:`, data))
+                .catch(err => console.error(`[TEST] API FAILED:`, err));
         }
     }, [fetchMetadata, connected, publicKey]);
 
     useEffect(() => {
-        if (connected && publicKey && jupiterTokenMap.size > 0) {
+        if (connected && publicKey) {
             performAnalyticalTick();
             autoRefreshRef.current = setInterval(performAnalyticalTick, REFRESH_INTERVAL_MS);
         }
         return () => { if (autoRefreshRef.current) clearInterval(autoRefreshRef.current); };
-    }, [connected, publicKey, jupiterTokenMap.size, performAnalyticalTick]);
+    }, [connected, publicKey, performAnalyticalTick]);
 
     return (
         <div className="min-h-screen bg-black text-white font-mono p-4 md:p-8 selection:bg-cyan-500/30">
@@ -233,13 +209,8 @@ export default function SurvivalLegacyPage() {
                 <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
                     {!connected ? (
                         <div className="flex-1 text-center py-4">
-                            <h2 className="text-xl font-black text-cyan-400 mb-2 tracking-tighter italic uppercase">Identity Link Required</h2>
-                            <button
-                                onClick={() => setVisible(true)}
-                                className="px-8 py-3 bg-cyan-600/10 border border-cyan-500/30 text-cyan-400 font-black uppercase tracking-widest hover:bg-cyan-600 hover:text-white transition-all rounded-lg"
-                            >
-                                Connect Wallet
-                            </button>
+                            <h2 className="text-xl font-black text-zinc-800 mb-2 tracking-tighter italic uppercase">Waiting for Identity Link...</h2>
+                            <p className="text-[10px] text-zinc-700 uppercase tracking-widest">Connect wallet in the top navbar to begin</p>
                         </div>
                     ) : (
                         <>
