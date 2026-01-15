@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useConnection } from '@solana/wallet-adapter-react';
+import { PublicKey } from '@solana/web3.js';
 import { runPortfolioAnalysis, PortfolioAnalysisResult, Position } from '@/app/actions/portfolio-runner';
 import {
     Shield, Loader2, Activity, TrendingUp, TrendingDown, BrainCircuit, RefreshCw,
@@ -11,7 +13,8 @@ import {
 
 // SOL mint address
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
-const HELIUS_RPC = process.env.NEXT_PUBLIC_HELIUS_RPC_URL || 'https://mainnet.helius-rpc.com/?api-key=YOUR_KEY';
+// Token program ID
+const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
 interface TokenHolding {
     mint: string;
@@ -25,6 +28,7 @@ export default function PortfolioTestPage() {
     // Wallet connection
     const { publicKey, connected } = useWallet();
     const { setVisible } = useWalletModal();
+    const { connection } = useConnection();
 
     // Loading states
     const [loadingWallet, setLoadingWallet] = useState(false);
@@ -43,56 +47,34 @@ export default function PortfolioTestPage() {
         setLogs(prev => [...prev.slice(-50), `[${new Date().toLocaleTimeString()}] ${msg}`]);
     }, []);
 
-    // Fetch wallet balances when connected
+    // Fetch wallet balances using the wallet adapter connection
     const fetchWalletBalances = useCallback(async () => {
-        if (!publicKey) return;
+        if (!publicKey || !connection) return;
 
         setLoadingWallet(true);
         addLog('Fetching wallet balances...');
 
         try {
-            // Fetch SOL balance
-            const solRes = await fetch(HELIUS_RPC, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    jsonrpc: '2.0',
-                    id: 1,
-                    method: 'getBalance',
-                    params: [publicKey.toBase58()]
-                })
-            });
-            const solData = await solRes.json();
-            const solBal = (solData.result?.value || 0) / 1e9;
+            // Fetch SOL balance using connection
+            const lamports = await connection.getBalance(publicKey);
+            const solBal = lamports / 1e9;
             setSolBalance(solBal);
             addLog(`SOL Balance: ${solBal.toFixed(4)} SOL`);
 
-            // Fetch token accounts
-            const tokenRes = await fetch(HELIUS_RPC, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    jsonrpc: '2.0',
-                    id: 2,
-                    method: 'getTokenAccountsByOwner',
-                    params: [
-                        publicKey.toBase58(),
-                        { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
-                        { encoding: 'jsonParsed' }
-                    ]
-                })
-            });
-            const tokenData = await tokenRes.json();
-            const accounts = tokenData.result?.value || [];
+            // Fetch token accounts using connection
+            const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
+                publicKey,
+                { programId: TOKEN_PROGRAM_ID }
+            );
 
-            const tokenHoldings: TokenHolding[] = accounts
-                .map((acc: { account: { data: { parsed: { info: { mint: string; tokenAmount: { uiAmount: number; decimals: number } } } } } }) => {
+            const tokenHoldings: TokenHolding[] = tokenAccounts.value
+                .map((acc) => {
                     const info = acc.account.data.parsed.info;
                     return {
-                        mint: info.mint,
-                        symbol: info.mint.slice(0, 6) + '...',
-                        amount: info.tokenAmount.uiAmount,
-                        decimals: info.tokenAmount.decimals
+                        mint: info.mint as string,
+                        symbol: (info.mint as string).slice(0, 6) + '...',
+                        amount: info.tokenAmount.uiAmount as number,
+                        decimals: info.tokenAmount.decimals as number
                     };
                 })
                 .filter((t: TokenHolding) => t.amount > 0);
@@ -105,7 +87,7 @@ export default function PortfolioTestPage() {
         } finally {
             setLoadingWallet(false);
         }
-    }, [publicKey, addLog]);
+    }, [publicKey, connection, addLog]);
 
     // Auto-fetch when wallet connects
     useEffect(() => {
@@ -285,8 +267,8 @@ export default function PortfolioTestPage() {
                                                     <div className="flex items-center justify-between mb-1">
                                                         <div className="font-bold">{r.symbol}</div>
                                                         <span className={`text-xs font-bold px-2 py-1 rounded ${r.verdict.action === 'HOLD' ? 'bg-green-500/20 text-green-400' :
-                                                                r.verdict.action === 'SELL' ? 'bg-red-500/20 text-red-400' :
-                                                                    'bg-zinc-500/20 text-zinc-400'
+                                                            r.verdict.action === 'SELL' ? 'bg-red-500/20 text-red-400' :
+                                                                'bg-zinc-500/20 text-zinc-400'
                                                             }`}>
                                                             {r.verdict.action}
                                                         </span>
