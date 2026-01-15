@@ -58,10 +58,9 @@ interface LifecycleOpportunity {
     seedSizeSOL: number;
 }
 
-function LifecycleRow({ op, wallet, executableTokens, onSeed }: {
+function LifecycleRow({ op, wallet, onSeed }: {
     op: LifecycleOpportunity,
     wallet: any,
-    executableTokens: any[],
     onSeed: (params: any) => Promise<void>
 }) {
     const [activePhase, setActivePhase] = useState<LifecyclePhase>('OBS');
@@ -113,7 +112,7 @@ function LifecycleRow({ op, wallet, executableTokens, onSeed }: {
             {/* Command Layer (Inline Panels) */}
             <div className="mt-8 px-4">
                 {activePhase === 'OBS' && <ObserveQuickPanel />}
-                {activePhase === 'SEE' && <SeedQuickPanel wallet={wallet} executableTokens={executableTokens} onSeed={onSeed} />}
+                {activePhase === 'SEE' && <SeedQuickPanel wallet={wallet} selectedGem={op} onSeed={onSeed} />}
                 {activePhase === 'SCA' && <ScaleQuickPanel />}
                 {activePhase === 'HAR' && <HarvestQuickPanel />}
                 {activePhase === 'REC' && <RecycleQuickPanel />}
@@ -310,41 +309,19 @@ export default function SurvivalLegacyPage() {
         }
     }, [publicKey, jupiterTokenMap, addLog, analysisResults]);
 
-    const handleSeed = useCallback(async ({ baseMint, targetMint, seedUsd }: any) => {
+    const handleSeed = useCallback(async ({ quote, baseMint, targetMint, seedUsd }: any) => {
         if (!publicKey) return;
         addLog(`Kernel: Initiating Seed [${seedUsd.toFixed(2)} USD] -> ${targetMint.slice(0, 6)}`);
 
         try {
-            // 1. Get prices
-            const findPrice = (m: string) => {
-                if (m === SOL_MINT) return solPrice;
-                return analysisResults.find(r => r.mint === m)?.metrics.price || 0;
-            };
-
-            const basePrice = findPrice(baseMint);
-            if (!basePrice) throw new Error(`Price unavailable for base asset ${baseMint}`);
-
-            const baseDecimals = baseMint === SOL_MINT ? 9 : holdings.find(h => h.mint === baseMint)?.decimals || 6;
-            const rawAmount = Math.floor((seedUsd / basePrice) * Math.pow(10, baseDecimals));
-
-            // 2. Fetch Jupiter Quote
-            const quoteRes = await fetch("/api/jupiter/quote", {
-                method: "POST",
-                body: JSON.stringify({
-                    inputMint: baseMint,
-                    outputMint: targetMint,
-                    amount: rawAmount.toString()
-                })
-            });
-            const quote = await quoteRes.json();
-
+            // 1. We already have the quote!
             if (!quote?.routePlan?.length) {
-                throw new Error(quote.error || "No swap route available via Jupiter");
+                throw new Error("Invalid or missing quote for swap execution");
             }
 
-            addLog(`Jupiter: Quote received. Impact: ${quote.priceImpactPct}%. Route steps: ${quote.routePlan.length}`);
+            addLog(`Jupiter: Quote confirmed. Impact: ${quote.priceImpactPct}%`);
 
-            // 3. Create Swap Transaction
+            // 2. Create Swap Transaction
             const swapRes = await fetch("/api/jupiter/swap", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -356,7 +333,7 @@ export default function SurvivalLegacyPage() {
             const swapData = await swapRes.json();
             if (swapData.error) throw new Error(swapData.error);
 
-            // 4. Sign and Send
+            // 3. Sign and Send
             const transaction = VersionedTransaction.deserialize(Buffer.from(swapData.swapTransaction, 'base64'));
             const signature = await sendTransaction(transaction, connection);
             addLog(`Kernel: Transaction sent. Waiting for confirmation...`);
@@ -364,7 +341,7 @@ export default function SurvivalLegacyPage() {
             await connection.confirmTransaction(signature, 'confirmed');
             addLog(`✅ Seeded: ${signature.slice(0, 8)}... SUCCESS`);
 
-            // 5. Persist position
+            // 4. Persist position
             await fetch("/api/engine/positions", {
                 method: "POST",
                 body: JSON.stringify({
@@ -379,7 +356,7 @@ export default function SurvivalLegacyPage() {
         } catch (err: any) {
             addLog(`Seed Failure: ${err.message}`);
         }
-    }, [publicKey, solPrice, analysisResults, holdings, addLog, connection, sendTransaction]);
+    }, [publicKey, addLog, connection, sendTransaction]);
 
     // Initialize
     useEffect(() => {
@@ -592,7 +569,6 @@ export default function SurvivalLegacyPage() {
                                         key={i}
                                         op={op}
                                         wallet={{ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice }}
-                                        executableTokens={discovery}
                                         onSeed={handleSeed}
                                     />
                                 ))}
