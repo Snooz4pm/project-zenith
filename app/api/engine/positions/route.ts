@@ -1,16 +1,28 @@
 import { NextResponse } from "next/server";
-import { upsertPosition } from "@/lib/engine/positionStore";
+import { upsertPosition, getPositions } from "@/lib/engine/positionStore";
+
+export async function GET() {
+    return NextResponse.json(getPositions());
+}
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
+        const { type, ...data } = await req.json();
+
+        // Map action types to phases
+        const phaseMap: Record<string, string> = {
+            "SEED": "SEE",
+            "SCALE": "SCA",
+            "HARVEST": "HAR",
+            "RECYCLE": "REC"
+        };
 
         upsertPosition({
-            id: crypto.randomUUID(),
-            phase: "SEE",
+            id: data.targetMint,
+            phase: phaseMap[type] || "SEE",
             createdAt: Date.now(),
-            ...body
-        });
+            ...data
+        } as any);
 
         return NextResponse.json({ ok: true });
     } catch (error: any) {

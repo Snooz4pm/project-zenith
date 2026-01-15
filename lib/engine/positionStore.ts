@@ -13,9 +13,10 @@ export interface EnginePosition {
 let positions: EnginePosition[] = [];
 
 export function upsertPosition(pos: EnginePosition) {
-    const index = positions.findIndex(p => p.id === pos.id);
+    const index = positions.findIndex(p => p.targetMint === pos.targetMint);
     if (index > -1) {
-        positions[index] = pos;
+        // Merge or replace
+        positions[index] = { ...positions[index], ...pos };
     } else {
         positions.push(pos);
     }

@@ -9,8 +9,9 @@ import { runPortfolioAnalysis, PortfolioAnalysisResult, Position, getMetadata } 
 import {
     Shield, Loader2, Activity, TrendingUp, TrendingDown, BrainCircuit, RefreshCw,
     AlertTriangle, Zap, Target, Flame, Award, Wallet, Eye, Play, StopCircle,
-    ChevronRight, BarChart3, Database, Search, ShieldCheck, Heart, Skull
+    ChevronRight, BarChart3, Database, Search, ShieldCheck, Heart, Skull, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
+import { executeLifecycleAction, ActionType } from '@/lib/engine/lifecycleExecutor';
 import { SeedQuickPanel } from '@/components/SeedQuickPanel';
 import { ObserveQuickPanel } from '@/components/ObserveQuickPanel';
 import { ScaleQuickPanel } from '@/components/ScaleQuickPanel';
@@ -58,11 +59,15 @@ interface LifecycleOpportunity {
     seedSizeSOL: number;
 }
 
-function LifecycleRow({ op, wallet, onSeed }: {
+function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }: {
     op: LifecycleOpportunity,
     wallet: any,
-    onSeed: (params: any) => Promise<void>
+    seedingMints: Set<string>,
+    hotQuote: any,
+    position?: any,
+    onAction: (type: ActionType, params: any) => Promise<void>
 }) {
+    const isSeeding = seedingMints.has(op.mint);
     const [activePhase, setActivePhase] = useState<LifecyclePhase>('OBS');
 
     return (
@@ -75,7 +80,7 @@ function LifecycleRow({ op, wallet, onSeed }: {
                         <div className="text-[9px] text-zinc-700 font-mono tracking-widest">PROXIMITY_ALPHA_SCAN</div>
                     </div>
                 </div>
-                <div className="text-right flex gap-8">
+                <div className="text-right flex items-center gap-8">
                     <div>
                         <div className="text-[9px] text-zinc-700 font-black uppercase tracking-widest mb-1">Shadow PnL</div>
                         <div className="text-xs font-black text-green-500">+{op.shadowPnL.toFixed(2)}%</div>
@@ -83,6 +88,53 @@ function LifecycleRow({ op, wallet, onSeed }: {
                     <div>
                         <div className="text-[9px] text-zinc-700 font-black uppercase tracking-widest mb-1">Seed</div>
                         <div className="text-xs font-black text-cyan-400">{op.seedSizeSOL.toFixed(4)} SOL</div>
+                    </div>
+                    {/* Direct Action Button */}
+                    <div className="pl-4 border-l border-zinc-900 flex items-center gap-3">
+                        {op.phase === 'SEE' ? (
+                            <button
+                                disabled={isSeeding}
+                                onClick={() => onAction('SEED', { quote: hotQuote, baseMint: SOL_MINT, targetMint: op.mint, targetSymbol: op.symbol })}
+                                className="px-4 py-1.5 rounded bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
+                            >
+                                {isSeeding ? "SEEDING..." : "SEED"}
+                            </button>
+                        ) : op.phase === 'SCA' ? (
+                            <button
+                                disabled={isSeeding}
+                                onClick={() => onAction('SCALE', { targetMint: op.mint, targetSymbol: op.symbol })}
+                                className="px-4 py-1.5 rounded bg-cyan-500 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale flex items-center gap-2"
+                            >
+                                {isSeeding ? <Loader2 className="animate-spin w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
+                                SCALE (6%)
+                            </button>
+                        ) : op.phase === 'HAR' ? (
+                            <button
+                                disabled={isSeeding}
+                                onClick={() => onAction('HARVEST', { targetMint: op.mint, targetSymbol: op.symbol })}
+                                className="px-4 py-1.5 rounded bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale flex items-center gap-2"
+                            >
+                                {isSeeding ? <Loader2 className="animate-spin w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                HARVEST (40%)
+                            </button>
+                        ) : op.phase === 'REC' ? (
+                            <button
+                                disabled={isSeeding}
+                                onClick={() => onAction('RECYCLE', { targetMint: op.mint, targetSymbol: op.symbol })}
+                                className="px-4 py-1.5 rounded bg-zinc-200 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
+                            >
+                                {isSeeding ? "RECYCLING..." : "RECYCLE ALL"}
+                            </button>
+                        ) : null}
+
+                        {position && (
+                            <div className="flex flex-col items-end">
+                                <div className="text-[8px] text-zinc-600 font-black uppercase">Engine Position</div>
+                                <div className="text-[10px] text-emerald-400 font-mono tracking-tighter">
+                                    ACTIVE • ${position.investedUsd.toFixed(2)}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -112,7 +164,15 @@ function LifecycleRow({ op, wallet, onSeed }: {
             {/* Command Layer (Inline Panels) */}
             <div className="mt-8 px-4">
                 {activePhase === 'OBS' && <ObserveQuickPanel />}
-                {activePhase === 'SEE' && <SeedQuickPanel wallet={wallet} selectedGem={op} onSeed={onSeed} />}
+                {activePhase === 'SEE' && (
+                    <SeedQuickPanel
+                        wallet={wallet}
+                        selectedGem={op}
+                        onSeed={(params) => onAction('SEED', params)}
+                        isGlobalSeeding={isSeeding}
+                        preloadedQuote={hotQuote}
+                    />
+                )}
                 {activePhase === 'SCA' && <ScaleQuickPanel />}
                 {activePhase === 'HAR' && <HarvestQuickPanel />}
                 {activePhase === 'REC' && <RecycleQuickPanel />}
@@ -185,10 +245,12 @@ export default function SurvivalLegacyPage() {
     const [solBalance, setSolBalance] = useState(0);
     const [holdings, setHoldings] = useState<TokenHolding[]>([]);
     const [discovery, setDiscovery] = useState<PortfolioAnalysisResult[]>([]);
-    const [lifecycle, setLifecycle] = useState<LifecycleOpportunity[]>([]);
     const [solPrice, setSolPrice] = useState(0);
+    const [seedingMints, setSeedingMints] = useState<Set<string>>(new Set());
+    const [enginePositions, setEnginePositions] = useState<any[]>([]);
     const [analysisResults, setAnalysisResults] = useState<PortfolioAnalysisResult[]>([]);
     const [logs, setLogs] = useState<string[]>([]);
+    const [lifecycle, setLifecycle] = useState<LifecycleOpportunity[]>([]);
 
     const addLog = useCallback((msg: string) => {
         setLogs(prev => [...prev.slice(-30), `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -273,27 +335,50 @@ export default function SurvivalLegacyPage() {
             setAnalysisResults(analysis.results || []);
             setSolPrice(analysis.results?.find(r => r.mint === SOL_MINT)?.metrics.price || 0);
 
+            // Fetch Engine Positions
+            const posRes = await fetch("/api/engine/positions");
+            const enginePos = await posRes.json();
+            setEnginePositions(enginePos);
+
             // === LIFECYCLE SYNC ===
+            const currentLifecycle = lifecycle;
+            const updatedLifecycle = [...currentLifecycle];
+
+            // Sync with existing engine positions
+            enginePos.forEach((p: any) => {
+                const idx = updatedLifecycle.findIndex(op => op.mint === p.targetMint);
+                if (idx > -1) {
+                    updatedLifecycle[idx].phase = p.phase;
+                } else {
+                    // Added discovered gem that became position
+                    updatedLifecycle.push({
+                        mint: p.targetMint,
+                        symbol: p.targetSymbol || p.targetMint.slice(0, 4),
+                        phase: p.phase,
+                        shadowPnL: 0,
+                        seedSizeSOL: 0
+                    });
+                }
+            });
+
             if (analysis.discoveryResults && analysis.discoveryResults.length > 0) {
                 setLifecycle(prev => {
-                    const next = [...prev];
-                    analysis.discoveryResults!.forEach(gem => {
-                        const exists = next.find(l => l.mint === gem.mint);
-                        if (!exists) {
+                    const next = [...updatedLifecycle];
+                    analysis.discoveryResults!.forEach(res => {
+                        if (!next.find(op => op.mint === res.mint)) {
                             next.push({
-                                mint: gem.mint,
-                                symbol: gem.symbol,
-                                phase: 'OBS',
-                                shadowPnL: 0,
-                                seedSizeSOL: 0.05 // Baseline seed
+                                mint: res.mint,
+                                symbol: res.symbol,
+                                phase: 'SEE',
+                                shadowPnL: Math.max(0, (res.metrics.currentPrice / res.metrics.poolPrice - 1) * 100),
+                                seedSizeSOL: computeSeedUsd(computePortfolioUsd({ sol: solBalance, tokens: holdings, solUsd: solBalance * (analysis.results?.find(r => r.mint === SOL_MINT)?.metrics.price || 0) })) / (analysis.results?.find(r => r.mint === SOL_MINT)?.metrics.price || 1)
                             });
-                        } else {
-                            // Update existing (e.g. shadow PnL if we had price history)
-                            // For now just keep it simple
                         }
                     });
-                    return next.slice(-5); // Keep only the latest 5 gems in the lifecycle UI for density
+                    return next.slice(0, 10); // Keep top 10 discovered gems, stable order (First In, First Stay)
                 });
+            } else {
+                setLifecycle(updatedLifecycle.slice(0, 10));
             }
 
             if (analysis.logs) {
@@ -307,56 +392,77 @@ export default function SurvivalLegacyPage() {
         } finally {
             setAnalyzing(false);
         }
-    }, [publicKey, jupiterTokenMap, addLog, analysisResults]);
+    }, [publicKey, jupiterTokenMap, addLog, analysisResults, solBalance, holdings]);
 
-    const handleSeed = useCallback(async ({ quote, baseMint, targetMint, seedUsd }: any) => {
-        if (!publicKey) return;
-        addLog(`Kernel: Initiating Seed [${seedUsd.toFixed(2)} USD] -> ${targetMint.slice(0, 6)}`);
+    const handleAction = useCallback(async (type: ActionType, params: any) => {
+        if (!publicKey || !params.targetMint) return;
+
+        const targetMint = params.targetMint;
+        setSeedingMints(prev => new Set(prev).add(targetMint));
 
         try {
-            // 1. We already have the quote!
-            if (!quote?.routePlan?.length) {
-                throw new Error("Invalid or missing quote for swap execution");
+            const context = {
+                publicKey,
+                connection,
+                portfolioUsd: computePortfolioUsd({ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice }),
+                prices: analysisResults.reduce((acc, r) => ({ ...acc, [r.mint]: r.metrics.price }), { [SOL_MINT]: solPrice }),
+                holdings,
+                addLog,
+                sendTransaction
+            };
+
+            const signature = await executeLifecycleAction(type, {
+                ...params,
+                position: enginePositions.find(p => p.targetMint === targetMint)
+            }, context);
+
+            if (signature) {
+                // Refresh data immediately
+                setTimeout(performAnalyticalTick, 1500);
             }
 
-            addLog(`Jupiter: Quote confirmed. Impact: ${quote.priceImpactPct}%`);
-
-            // 2. Create Swap Transaction
-            const swapRes = await fetch("/api/jupiter/swap", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    quoteResponse: quote,
-                    userPublicKey: publicKey.toBase58()
-                })
-            });
-            const swapData = await swapRes.json();
-            if (swapData.error) throw new Error(swapData.error);
-
-            // 3. Sign and Send
-            const transaction = VersionedTransaction.deserialize(Buffer.from(swapData.swapTransaction, 'base64'));
-            const signature = await sendTransaction(transaction, connection);
-            addLog(`Kernel: Transaction sent. Waiting for confirmation...`);
-
-            await connection.confirmTransaction(signature, 'confirmed');
-            addLog(`✅ Seeded: ${signature.slice(0, 8)}... SUCCESS`);
-
-            // 4. Persist position
-            await fetch("/api/engine/positions", {
-                method: "POST",
-                body: JSON.stringify({
-                    baseMint,
-                    targetMint,
-                    investedUsd: seedUsd,
-                    entryPriceUsd: parseFloat(quote.outAmount) / parseFloat(quote.inAmount), // basic rate
-                    amount: parseFloat(quote.outAmount)
-                })
-            });
-
         } catch (err: any) {
-            addLog(`Seed Failure: ${err.message}`);
+            addLog(`Action [${type}] Failed: ${err.message}`);
+        } finally {
+            setSeedingMints(prev => {
+                const next = new Set(prev);
+                next.delete(targetMint);
+                return next;
+            });
         }
-    }, [publicKey, addLog, connection, sendTransaction]);
+    }, [publicKey, connection, solBalance, holdings, solPrice, analysisResults, enginePositions, addLog, sendTransaction, performAnalyticalTick]);
+
+    // PRELOAD QUOTES (Near-zero latency UX)
+    const [hotQuotes, setHotQuotes] = useState<Record<string, any>>({});
+    useEffect(() => {
+        if (!connected || !publicKey || lifecycle.length === 0) return;
+
+        lifecycle.filter(op => op.phase === 'SEE').forEach(async (op) => {
+            if (hotQuotes[op.mint]) return;
+            try {
+                // Fetch quote for 2% allocation
+                const pUsd = computePortfolioUsd({ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice });
+                const sUsd = computeSeedUsd(pUsd);
+                if (sUsd <= 0) return;
+
+                const basePrice = solPrice || 1; // Default to SOL for preloading
+                const rawAmount = Math.floor((sUsd / basePrice) * 1e9);
+
+                const res = await fetch("/api/jupiter/quote", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        inputMint: SOL_MINT,
+                        outputMint: op.mint,
+                        amount: rawAmount.toString()
+                    })
+                });
+                const data = await res.json();
+                if (data.routePlan?.length) {
+                    setHotQuotes(prev => ({ ...prev, [op.mint]: data }));
+                }
+            } catch (e) { }
+        });
+    }, [lifecycle, connected, publicKey, solBalance, holdings, solPrice, hotQuotes]);
 
     // Initialize
     useEffect(() => {
@@ -564,12 +670,15 @@ export default function SurvivalLegacyPage() {
                             </div>
 
                             <div className="space-y-12">
-                                {lifecycle.map((op, i) => (
+                                {lifecycle.map((op) => (
                                     <LifecycleRow
-                                        key={i}
+                                        key={op.mint}
                                         op={op}
-                                        wallet={{ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice }}
-                                        onSeed={handleSeed}
+                                        seedingMints={seedingMints}
+                                        hotQuote={hotQuotes[op.mint]}
+                                        position={enginePositions.find(p => p.targetMint === op.mint)}
+                                        wallet={{ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice, sol: solBalance }}
+                                        onAction={handleAction}
                                     />
                                 ))}
                             </div>
