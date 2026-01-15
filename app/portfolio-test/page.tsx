@@ -67,9 +67,27 @@ const PanelHeader = ({ title, icon: Icon, count, color = "cyan" }: any) => (
     <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/40">
         <div className="flex items-center gap-2">
             <Icon className={`w-4 h-4 text-${color}-400`} />
-            <span className={`text-xs font-black uppercase tracking-widest text-${color}-400`}>{title}</span>
+            <span className={`text-xs font-black uppercase tracking-[0.2em] text-${color}-400`}>{title}</span>
         </div>
-        {count !== undefined && <span className="text-[10px] font-mono text-zinc-500 uppercase">{count} opportunities</span>}
+        {count !== undefined && <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">{count} opportunities</span>}
+    </div>
+);
+
+const DiscoveryRow = ({ gem, color }: { gem: PortfolioAnalysisResult, color: string }) => (
+    <div className="px-4 py-3 hover:bg-zinc-800/20 transition-all flex items-center justify-between gap-3 group">
+        <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+                <span className="font-black text-xs text-white uppercase italic tracking-tighter truncate">{gem.symbol}</span>
+                <span className={`text-[8px] font-black text-${color}-500/80 bg-${color}-500/5 px-1 border border-${color}-500/20 rounded`}>{gem.verdict.riskScore}</span>
+            </div>
+            <div className="flex items-center gap-3 text-[9px] font-mono text-zinc-600">
+                <span>${gem.metrics.price.toFixed(gem.metrics.price < 0.01 ? 6 : 4)}</span>
+                <span>LIQ: ${(gem.metrics.liquidityUSD / 1000).toFixed(0)}k</span>
+            </div>
+        </div>
+        <button className={`opacity-0 group-hover:opacity-100 px-3 py-1 bg-${color}-500/10 border border-${color}-500/30 text-${color}-400 text-[9px] font-black uppercase tracking-widest hover:bg-${color}-500 hover:text-white transition-all rounded`}>
+            BUY
+        </button>
     </div>
 );
 
@@ -317,47 +335,58 @@ export default function SurvivalLegacyPage() {
                         {/* WONDERING (HUNTING GEMS) */}
                         <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
                             <PanelHeader title="Wondering (Hunting Gems)" icon={Search} count={discovery.length} color="cyan" />
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left text-xs border-collapse">
-                                    <thead className="bg-[#111] text-zinc-600 font-black uppercase tracking-widest">
-                                        <tr>
-                                            <th className="px-6 py-4 font-bold border-b border-zinc-800">Asset</th>
-                                            <th className="px-6 py-4 font-bold border-b border-zinc-800">Price</th>
-                                            <th className="px-6 py-4 font-bold border-b border-zinc-800">Liq (USD)</th>
-                                            <th className="px-6 py-4 font-bold border-b border-zinc-800">Risk/Score</th>
-                                            <th className="px-6 py-4 font-bold border-b border-zinc-800 text-right">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-zinc-900">
-                                        {discovery.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={5} className="px-6 py-12 text-center text-zinc-700 italic uppercase">Kernel: Evaluating broad market physics...</td>
-                                            </tr>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-zinc-800">
+                                {/* COLUMN 1: SAFE */}
+                                <div className="flex flex-col">
+                                    <div className="px-4 py-2 bg-green-500/5 border-b border-zinc-800 flex items-center justify-between">
+                                        <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">🛡️ SAFE</span>
+                                        <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => g.verdict.riskScore <= 30).length} Opps</span>
+                                    </div>
+                                    <div className="divide-y divide-zinc-900 min-h-[300px]">
+                                        {discovery.filter(g => g.verdict.riskScore <= 30).length === 0 ? (
+                                            <div className="p-8 text-center text-zinc-800 italic uppercase text-[10px]">Scanning for stability...</div>
                                         ) : (
-                                            discovery.map((gem, i) => (
-                                                <tr key={i} className="hover:bg-zinc-800/10 transition-colors">
-                                                    <td className="px-6 py-5">
-                                                        <div className="font-black text-sm text-white uppercase italic tracking-tight">{gem.symbol}</div>
-                                                        <div className="text-[10px] text-zinc-600 font-mono tracking-tighter">{gem.mint.slice(0, 8)}...{gem.mint.slice(-4)}</div>
-                                                    </td>
-                                                    <td className="px-6 py-5 font-mono text-zinc-300">
-                                                        ${gem.metrics.price.toFixed(gem.metrics.price < 0.01 ? 8 : 4)}
-                                                    </td>
-                                                    <td className="px-6 py-5 font-mono text-zinc-300">
-                                                        ${(gem.metrics.liquidityUSD / 1000).toFixed(0)}k
-                                                    </td>
-                                                    <td className="px-6 py-5">
-                                                        <div className="text-[10px] font-black text-green-500 uppercase tracking-widest">R: {gem.verdict.riskScore}/100</div>
-                                                        <div className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">Phy: Vetted</div>
-                                                    </td>
-                                                    <td className="px-6 py-5 text-right">
-                                                        <button className="px-4 py-1.5 bg-cyan-900/10 border border-cyan-500/30 text-cyan-400 text-[10px] font-black uppercase tracking-widest hover:bg-cyan-500 hover:text-white transition-all rounded">BUY</button>
-                                                    </td>
-                                                </tr>
+                                            discovery.filter(g => g.verdict.riskScore <= 30).map((gem, i) => (
+                                                <DiscoveryRow key={i} gem={gem} color="green" />
                                             ))
                                         )}
-                                    </tbody>
-                                </table>
+                                    </div>
+                                </div>
+
+                                {/* COLUMN 2: MEDIUM */}
+                                <div className="flex flex-col">
+                                    <div className="px-4 py-2 bg-amber-500/5 border-b border-zinc-800 flex items-center justify-between">
+                                        <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">⚡ MEDIUM</span>
+                                        <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => g.verdict.riskScore > 30 && g.verdict.riskScore <= 65).length} Opps</span>
+                                    </div>
+                                    <div className="divide-y divide-zinc-900 min-h-[300px]">
+                                        {discovery.filter(g => g.verdict.riskScore > 30 && g.verdict.riskScore <= 65).length === 0 ? (
+                                            <div className="p-8 text-center text-zinc-800 italic uppercase text-[10px]">Evaluating growth...</div>
+                                        ) : (
+                                            discovery.filter(g => g.verdict.riskScore > 30 && g.verdict.riskScore <= 65).map((gem, i) => (
+                                                <DiscoveryRow key={i} gem={gem} color="amber" />
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* COLUMN 3: MEME */}
+                                <div className="flex flex-col">
+                                    <div className="px-4 py-2 bg-rose-500/5 border-b border-zinc-800 flex items-center justify-between">
+                                        <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">🔥 MEME</span>
+                                        <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => g.verdict.riskScore > 65).length} Opps</span>
+                                    </div>
+                                    <div className="divide-y divide-zinc-900 min-h-[300px]">
+                                        {discovery.filter(g => g.verdict.riskScore > 65).length === 0 ? (
+                                            <div className="p-8 text-center text-zinc-800 italic uppercase text-[10px]">Watching the trenches...</div>
+                                        ) : (
+                                            discovery.filter(g => g.verdict.riskScore > 65).map((gem, i) => (
+                                                <DiscoveryRow key={i} gem={gem} color="rose" />
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

@@ -24,6 +24,7 @@ export interface DexMatchedToken {
     volume5m: number | null;
     liquidityUSD: number | null;
     riskLevel: VolumeRiskLevel;
+    riskScore: number;
     price?: number;
     decimals: number;
 }
@@ -87,14 +88,13 @@ export async function getDexMatchedTokens(uiLogs?: string[]): Promise<DexMatched
 
     const CORE_SAFE_MINTS = new Set(whitelistMints);
 
-    // Take top 1000 + ensure whitelist is included
-    let subsetTokens = jupiterTokens.slice(0, 1000);
-    for (const wm of whitelistMints) {
-        if (!subsetTokens.some(t => t.mint === wm)) {
-            const wt = jupiterTokens.find(t => t.mint === wm);
-            if (wt) subsetTokens.push(wt);
-        }
-    }
+    // SCAN ALL: Remove the 1000-token limit to fetch the entire Jupiter universe
+    let subsetTokens = [...jupiterTokens];
+
+    // Explicitly ensure whitelist is at the front for priority (though we scan all now)
+    const whitelistTokens = jupiterTokens.filter(t => whitelistMints.includes(t.mint));
+    const nonWhitelistTokens = jupiterTokens.filter(t => !whitelistMints.includes(t.mint));
+    subsetTokens = [...whitelistTokens, ...nonWhitelistTokens];
 
     const matched: DexMatchedToken[] = [];
     const mints = subsetTokens.map(t => t.mint);
@@ -140,7 +140,8 @@ export async function getDexMatchedTokens(uiLogs?: string[]): Promise<DexMatched
                                 pairAddress: 'CORE_SAFE_BYPASS',
                                 volume5m: 10000000, // Safe anchor
                                 liquidityUSD: 10000000,
-                                riskLevel: 'LOW',
+                                riskLevel: 'SAFE',
+                                riskScore: 0,
                                 price: 0,
                                 decimals: jupInfo?.decimals || 6
                             });
@@ -166,6 +167,7 @@ export async function getDexMatchedTokens(uiLogs?: string[]): Promise<DexMatched
                         volume5m: assessment.volume5mUsd,
                         liquidityUSD: assessment.liquidityUsd,
                         riskLevel: assessment.riskLevel,
+                        riskScore: assessment.riskScore,
                         price: assessment.priceUsd,
                         decimals: jupiterTokens.find(jt => jt.mint === assessment.mint)?.decimals || COMMON_DECIMALS[assessment.mint] || 6
                     });
@@ -226,6 +228,7 @@ export async function getVirtualPortfolioTokens(targetMints: string[], uiLogs?: 
                         volume5m: analysis.volume5mUsd,
                         liquidityUSD: analysis.liquidityUsd,
                         riskLevel: analysis.riskLevel as VolumeRiskLevel,
+                        riskScore: analysis.riskScore,
                         price: analysis.priceUsd,
                         decimals: jupInfo?.decimals || COMMON_DECIMALS[analysis.mint] || 6
                     });

@@ -1,6 +1,6 @@
 // lib/market-observer/VolumeObserver.ts
 
-export type VolumeRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type VolumeRiskLevel = 'SAFE' | 'MEDIUM' | 'MEME';
 
 export interface VolumeAssessment {
     mint: string;
@@ -13,6 +13,7 @@ export interface VolumeAssessment {
 
     volumeChange1hPct: number;
     riskLevel: VolumeRiskLevel;
+    riskScore: number;
     reason: string;
     priceUsd: number;
 }
@@ -31,11 +32,9 @@ export class VolumeObserver {
             const pairs = data.pairs || [];
 
             return mints.map(mint => {
-                // Find best pair for this mint
                 const tokenPairs = pairs.filter((p: any) => p.baseToken.address === mint);
                 if (tokenPairs.length === 0) return null;
 
-                // Sort by liquidity
                 tokenPairs.sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
                 const bestPair = tokenPairs[0];
 
@@ -44,95 +43,83 @@ export class VolumeObserver {
 
         } catch (error) {
             console.error('VolumeObserver: analyzeBatch failed', error);
-            // Return nulls for failed batch to keep alignment? Or empty?
-            // Returning empty might break alignment if caller expects ordered results.
-            // Returning array of nulls matching length.
             return new Array(mints.length).fill(null);
         }
     }
 
-    assess(pair: {
-        baseToken: { address: string; symbol: string };
-        volume?: { h24?: number; h1?: number; m5?: number };
-        liquidity?: { usd?: number };
-        priceChange?: { h1?: number };
-        priceUsd?: string;
-    }): VolumeAssessment {
+    private liquidityRisk(liqUsd: number): number {
+        if (liqUsd >= 5_000_000) return 0;
+        if (liqUsd >= 1_000_000) return 5;
+        if (liqUsd >= 250_000) return 15;
+        if (liqUsd >= 50_000) return 30;
+        return 40;
+    }
+
+    private ageRisk(pairCreatedAt: number): number {
+        if (!pairCreatedAt) return 30;
+        const daysAlive = (Date.now() - pairCreatedAt) / (1000 * 60 * 60 * 24);
+        if (daysAlive >= 180) return 0;
+        if (daysAlive >= 60) return 5;
+        if (daysAlive >= 14) return 15;
+        if (daysAlive >= 3) return 25;
+        return 30;
+    }
+
+    private volatilityRisk(volPct5m: number): number {
+        const absVol = Math.abs(volPct5m);
+        if (absVol <= 2) return 0;
+        if (absVol <= 5) return 5;
+        if (absVol <= 10) return 12;
+        if (absVol <= 20) return 18;
+        return 20;
+    }
+
+    private contractRisk(pair: any): number {
+        // Placeholder for future RugCheck integration
+        // DexScreener doesn't expose honeypot directly, but we can flag low liquidity locks if we had the data
+        return 0;
+    }
+
+    private getRiskTier(score: number): VolumeRiskLevel {
+        if (score <= 30) return 'SAFE';
+        if (score <= 65) return 'MEDIUM';
+        return 'MEME';
+    }
+
+    assess(pair: any): VolumeAssessment {
         const volume24h = pair.volume?.h24 ?? 0;
         const volume1h = pair.volume?.h1 ?? 0;
         const volume5m = pair.volume?.m5 ?? 0;
         const liquidityUsd = pair.liquidity?.usd ?? 0;
+        const priceChange5m = pair.priceChange?.m5 ?? 0;
 
         const avgHourly = volume24h / 24;
-        const volumeChange1hPct =
-            avgHourly > 0 ? ((volume1h - avgHourly) / avgHourly) * 100 : 0;
+        const volumeChange1hPct = avgHourly > 0 ? ((volume1h - avgHourly) / avgHourly) * 100 : 0;
 
-        let riskLevel: VolumeRiskLevel = 'LOW';
-        let reason = 'Normal volume behavior';
+        const score =
+            this.liquidityRisk(liquidityUsd) +
+            this.ageRisk(pair.pairCreatedAt) +
+            this.volatilityRisk(priceChange5m) +
+            this.contractRisk(pair);
 
-        const escalate = (level: VolumeRiskLevel, msg: string) => {
-            const order: VolumeRiskLevel[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-            if (order.indexOf(level) > order.indexOf(riskLevel)) {
-                riskLevel = level;
-                reason = msg;
-            }
-        };
+        const clampedScore = Math.min(100, Math.max(0, score));
+        const riskLevel = this.getRiskTier(clampedScore);
 
-        // 🔴 Rule 1 — Minimum viable volume
-        if (volume24h < 10_000) {
-            escalate(
-                'HIGH',
-                '24h volume below $10k — thin market / manipulation risk'
-            );
-        }
-
-        // 🔴 Rule 2 — Volume collapse
-        if (avgHourly > 0 && volume1h < avgHourly * 0.3) {
-            escalate(
-                'HIGH',
-                '1h volume collapsed >70% — distribution / exit phase'
-            );
-        }
-
-        // 🚨 Rule 3 — Sudden spike + low liquidity (rug signature)
-        if (volume5m > avgHourly * 3 && liquidityUsd < 50_000) {
-            escalate(
-                'CRITICAL',
-                'Explosive short-term volume + low liquidity — pump & dump signature'
-            );
-        }
-
-        // 🟡 Rule 4 — Stagnation
-        if (
-            Math.abs(volumeChange1hPct) < 10 &&
-            liquidityUsd > 20_000 &&
-            Math.abs(pair.priceChange?.h1 ?? 0) < 1
-        ) {
-            escalate(
-                'MEDIUM',
-                'Volume stagnant and price flat — dead capital'
-            );
-        }
-
-        // 🟢 Rule 5 — Healthy expansion
-        if (volumeChange1hPct > 50 && liquidityUsd > 50_000) {
-            escalate(
-                'LOW',
-                'Healthy volume expansion — real participation'
-            );
-        }
+        // Determine a human-friendly reason
+        let reason = 'Market conditions stable';
+        if (clampedScore > 65) reason = 'High volatility / thin liquidity';
+        else if (clampedScore > 30) reason = 'Moderate growth / early phase';
 
         return {
             mint: pair.baseToken.address,
             symbol: pair.baseToken.symbol,
-
             volume24hUsd: volume24h,
             volume1hUsd: volume1h,
             volume5mUsd: volume5m,
             liquidityUsd,
-
             volumeChange1hPct,
             riskLevel,
+            riskScore: clampedScore,
             reason,
             priceUsd: parseFloat(pair.priceUsd || '0')
         };
