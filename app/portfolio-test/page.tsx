@@ -10,6 +10,11 @@ import {
     AlertTriangle, Zap, Target, Flame, Award, Wallet, Eye, Play, StopCircle,
     ChevronRight, BarChart3, Database, Search, ShieldCheck, Heart, Skull
 } from 'lucide-react';
+import { SeedQuickPanel } from '@/components/SeedQuickPanel';
+import { ObserveQuickPanel } from '@/components/ObserveQuickPanel';
+import { ScaleQuickPanel } from '@/components/ScaleQuickPanel';
+import { HarvestQuickPanel } from '@/components/HarvestQuickPanel';
+import { RecycleQuickPanel } from '@/components/RecycleQuickPanel';
 
 // ============================================================================
 // CONFIGURATION
@@ -121,6 +126,7 @@ export default function SurvivalLegacyPage() {
     const [lifecycle, setLifecycle] = useState<LifecycleOpportunity[]>([]);
     const [analysisResults, setAnalysisResults] = useState<PortfolioAnalysisResult[]>([]);
     const [logs, setLogs] = useState<string[]>([]);
+    const [activePhase, setActivePhase] = useState<LifecyclePhase>('OBS');
 
     const addLog = useCallback((msg: string) => {
         setLogs(prev => [...prev.slice(-30), `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -465,18 +471,31 @@ export default function SurvivalLegacyPage() {
                                         <div className="relative flex justify-between items-center px-4">
                                             <div className="absolute h-px bg-zinc-800 left-8 right-8 top-1/2 -z-10" />
                                             {(['OBS', 'SEE', 'SCA', 'HAR', 'REC'] as LifecyclePhase[]).map((p, pi) => (
-                                                <div key={p} className="flex flex-col items-center">
-                                                    <div className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all duration-500 ${p === op.phase ? 'bg-cyan-600/10 border-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.3)] animate-pulse' : 'bg-[#111] border-zinc-800 grayscale'
+                                                <button
+                                                    key={p}
+                                                    onClick={() => setActivePhase(p)}
+                                                    className="flex flex-col items-center group outline-none"
+                                                >
+                                                    <div className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all duration-300 ${p === op.phase ? (p === activePhase ? 'bg-cyan-500/20 border-cyan-400' : 'bg-cyan-600/10 border-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.3)] animate-pulse') : (p === activePhase ? 'bg-zinc-800 border-zinc-600' : 'bg-[#111] border-zinc-800 grayscale hover:grayscale-0 hover:border-zinc-700')
                                                         }`}>
-                                                        {p === 'OBS' && <Eye className={p === op.phase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
-                                                        {p === 'SEE' && <TrendingUp className={p === op.phase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
-                                                        {p === 'SCA' && <Activity className={p === op.phase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
-                                                        {p === 'HAR' && <Zap className={p === op.phase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
-                                                        {p === 'REC' && <RefreshCw className={p === op.phase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
+                                                        {p === 'OBS' && <Eye className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
+                                                        {p === 'SEE' && <TrendingUp className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
+                                                        {p === 'SCA' && <Activity className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
+                                                        {p === 'HAR' && <Zap className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
+                                                        {p === 'REC' && <RefreshCw className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
                                                     </div>
-                                                    <span className={`mt-2 text-[8px] font-black tracking-widest uppercase transition-colors ${p === op.phase ? 'text-cyan-400' : 'text-zinc-800'}`}>{p}</span>
-                                                </div>
+                                                    <span className={`mt-2 text-[8px] font-black tracking-widest uppercase transition-colors ${p === op.phase || p === activePhase ? 'text-cyan-400' : 'text-zinc-800 group-hover:text-zinc-600'}`}>{p}</span>
+                                                </button>
                                             ))}
+                                        </div>
+
+                                        {/* Command Layer (Inline Panels) */}
+                                        <div className="mt-8 px-4">
+                                            {activePhase === 'OBS' && <ObserveQuickPanel />}
+                                            {activePhase === 'SEE' && <SeedQuickPanel />}
+                                            {activePhase === 'SCA' && <ScaleQuickPanel />}
+                                            {activePhase === 'HAR' && <HarvestQuickPanel />}
+                                            {activePhase === 'REC' && <RecycleQuickPanel />}
                                         </div>
                                     </div>
                                 ))}
