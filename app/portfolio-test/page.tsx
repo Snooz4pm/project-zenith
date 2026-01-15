@@ -26,24 +26,53 @@ const REFRESH_INTERVAL_MS = 20000;
 // DATA FETCHING (Access via API to bypass CORS/DNS blocks)
 // ============================================================================
 
+let heliusLock = false;
+
 async function fetchWalletFromApi(wallet: string) {
+    if (heliusLock) {
+        console.warn("Helius lock engaged, skipping fetch");
+        return null;
+    }
+    heliusLock = true;
+    setTimeout(() => { heliusLock = false; }, 10000); // 10s cooldown
+
     const res = await fetch(`/api/wallet/helius`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wallet })
     });
-    if (!res.ok) throw new Error("Helius Wallet API fetch failed");
-    return res.json() as Promise<{
-        sol: number,
-        tokens: {
-            mint: string,
-            symbol: string,
-            name: string,
-            logo: string | null,
-            decimals: number,
-            amount: number
-        }[]
-    }>;
+
+    if (res.status === 429) {
+        console.warn("Server Rate Guard Triggered");
+        return null;
+    }
+
+    if (!res.ok) throw new Error(`Helius API failed [${res.status}]`);
+
+    const raw = await res.json();
+    const result = raw.result;
+    if (!result) throw new Error("Invalid Helius response");
+
+    const tokens = [];
+    for (const item of result.items || []) {
+        if (item.interface !== "FungibleToken") continue;
+        const info = item.token_info;
+        if (!info || info.balance <= 0) continue;
+
+        tokens.push({
+            mint: item.id,
+            symbol: info.symbol || "UNKNOWN",
+            name: item.content?.metadata?.name || item.id,
+            logo: item.content?.files?.[0]?.uri || null,
+            decimals: info.decimals,
+            amount: Number(info.balance) / 10 ** info.decimals
+        });
+    }
+
+    return {
+        sol: (result.nativeBalance?.lamports || 0) / 1e9,
+        tokens
+    };
 }
 
 // ============================================================================
@@ -258,6 +287,7 @@ export default function SurvivalLegacyPage() {
 
     // Refs
     const autoRefreshRef = useRef<NodeJS.Timeout | null>(null);
+    const isTickingRef = useRef(false);
 
     // Fetch Jupiter Metadata (Server side to avoid client DNS)
     const fetchMetadata = useCallback(async () => {
@@ -280,7 +310,8 @@ export default function SurvivalLegacyPage() {
 
     // Survival Loop Analysis
     const performAnalyticalTick = useCallback(async () => {
-        if (!publicKey) return;
+        if (!publicKey || isTickingRef.current) return;
+        isTickingRef.current = true;
 
         setAnalyzing(true);
         addLog('System: Initiating analytical tick...');
@@ -288,6 +319,13 @@ export default function SurvivalLegacyPage() {
         try {
             // 1. Refresh Wallet via Server API
             const walletData = await fetchWalletFromApi(publicKey.toBase58());
+            if (!walletData) {
+                addLog('System: Analytics throttled (Cooldown active).');
+                setAnalyzing(false);
+                isTickingRef.current = false;
+                return;
+            }
+
             setSolBalance(walletData.sol);
 
             // If metadata isn't ready, we can't enrich, but we can still show basic SOL
@@ -375,10 +413,10 @@ export default function SurvivalLegacyPage() {
                             });
                         }
                     });
-                    return next.slice(0, 10); // Keep top 10 discovered gems, stable order (First In, First Stay)
+                    return next.slice(0, 5); // 🏁 CAP: 5 gems (Precision over Volume)
                 });
             } else {
-                setLifecycle(updatedLifecycle.slice(0, 10));
+                setLifecycle(updatedLifecycle.slice(0, 5));
             }
 
             if (analysis.logs) {
@@ -391,8 +429,9 @@ export default function SurvivalLegacyPage() {
             addLog(`Tick Failure: ${err}`);
         } finally {
             setAnalyzing(false);
+            isTickingRef.current = false;
         }
-    }, [publicKey, jupiterTokenMap, addLog, analysisResults, solBalance, holdings]);
+    }, [publicKey, jupiterTokenMap, addLog]);
 
     const handleAction = useCallback(async (type: ActionType, params: any) => {
         if (!publicKey || !params.targetMint) return;
@@ -480,9 +519,10 @@ export default function SurvivalLegacyPage() {
     useEffect(() => {
         if (connected && publicKey) {
             performAnalyticalTick();
-            autoRefreshRef.current = setInterval(performAnalyticalTick, REFRESH_INTERVAL_MS);
+            const interval = setInterval(performAnalyticalTick, REFRESH_INTERVAL_MS);
+            autoRefreshRef.current = interval;
+            return () => clearInterval(interval);
         }
-        return () => { if (autoRefreshRef.current) clearInterval(autoRefreshRef.current); };
     }, [connected, publicKey, performAnalyticalTick]);
 
     return (

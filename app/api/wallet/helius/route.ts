@@ -1,72 +1,65 @@
 import { NextResponse } from "next/server";
 
-const HELIUS_URL = `https://rpc.helius.xyz/?api-key=${process.env.HELIUS_API_KEY}`;
+const HELIUS_ENDPOINT = `https://rpc.helius.xyz/?api-key=${process.env.HELIUS_API_KEY}`;
+
+let lastCall = 0;
 
 export async function POST(req: Request) {
     try {
+        // 🚦 Server Rate Guard (Hard Protection)
+        const now = Date.now();
+        if (now - lastCall < 5000) {
+            return NextResponse.json(
+                { error: "Rate limited" },
+                { status: 429 }
+            );
+        }
+        lastCall = now;
+
         const { wallet } = await req.json();
 
         if (!wallet) {
-            return NextResponse.json({ error: "Missing wallet" }, { status: 400 });
+            return NextResponse.json(
+                { error: "Missing wallet" },
+                { status: 400 }
+            );
         }
 
-        const body = {
+        const payload = {
             jsonrpc: "2.0",
-            id: "wallet-assets",
+            id: "helius",
             method: "getAssetsByOwner",
             params: {
                 ownerAddress: wallet,
                 page: 1,
-                limit: 1000,
-                displayOptions: {
-                    showFungible: true,
-                    showNativeBalance: true
-                }
-            }
+                limit: 100,
+            },
         };
 
-        const res = await fetch(HELIUS_URL, {
+        const heliusRes = await fetch(HELIUS_ENDPOINT, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body)
+            body: JSON.stringify(payload),
         });
 
-        if (!res.ok) {
-            throw new Error("Helius request failed");
+        const text = await heliusRes.text();
+
+        if (!heliusRes.ok) {
+            console.error("Helius error:", text);
+            return NextResponse.json(
+                { error: "Helius upstream error", raw: text },
+                { status: 502 }
+            );
         }
 
-        const json = await res.json();
+        const json = JSON.parse(text);
+        return NextResponse.json(json);
 
-        const normalized = normalizeHelius(json.result);
-
-        return NextResponse.json(normalized);
-    } catch (err) {
-        console.error("Helius error:", err);
-        return NextResponse.json({ error: "Failed to fetch wallet" }, { status: 500 });
+    } catch (err: any) {
+        console.error("Helius route crash:", err);
+        return NextResponse.json(
+            { error: err.message || "Internal error" },
+            { status: 500 }
+        );
     }
-}
-
-function normalizeHelius(result: any) {
-    const tokens = [];
-
-    for (const item of result.items || []) {
-        if (item.interface !== "FungibleToken") continue;
-
-        const info = item.token_info;
-        if (!info || info.balance <= 0) continue;
-
-        tokens.push({
-            mint: item.id,
-            symbol: info.symbol || "UNKNOWN",
-            name: item.content?.metadata?.name || item.id,
-            logo: item.content?.files?.[0]?.uri || null,
-            decimals: info.decimals,
-            amount: Number(info.balance) / 10 ** info.decimals
-        });
-    }
-
-    return {
-        sol: (result.nativeBalance?.lamports || 0) / 1e9,
-        tokens
-    };
 }
