@@ -206,14 +206,41 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                     <SeedQuickPanel
                         wallet={wallet}
                         selectedGem={op}
-                        onSeed={(params) => onAction('SEED', params)}
+                        onAction={(params) => onAction('SEED', params)}
                         isGlobalSeeding={isSeeding}
                         preloadedQuote={hotQuote}
                     />
                 )}
-                {activePhase === 'SCA' && <ScaleQuickPanel />}
-                {activePhase === 'HAR' && <HarvestQuickPanel />}
-                {activePhase === 'REC' && <RecycleQuickPanel />}
+                {activePhase === 'SCA' && (
+                    <ScaleQuickPanel
+                        wallet={wallet}
+                        selectedGem={op}
+                        onAction={onAction}
+                        isGlobalSeeding={isSeeding}
+                        preloadedQuote={hotQuote}
+                        position={position}
+                    />
+                )}
+                {activePhase === 'HAR' && (
+                    <HarvestQuickPanel
+                        wallet={wallet}
+                        selectedGem={op}
+                        onAction={onAction}
+                        isGlobalSeeding={isSeeding}
+                        preloadedQuote={hotQuote}
+                        position={position}
+                    />
+                )}
+                {activePhase === 'REC' && (
+                    <RecycleQuickPanel
+                        wallet={wallet}
+                        selectedGem={op}
+                        onAction={onAction}
+                        isGlobalSeeding={isSeeding}
+                        preloadedQuote={hotQuote}
+                        position={position}
+                    />
+                )}
             </div>
         </div>
     );

@@ -13,7 +13,7 @@ export function SeedQuickPanel({
 }: {
     wallet: any;
     selectedGem: any;
-    onSeed: (params: {
+    onAction: (params: {
         overrideQuote: any;
         baseMint: string;
         targetMint: string;
@@ -129,7 +129,7 @@ export function SeedQuickPanel({
 
         setLocalLoading(true);
         try {
-            await onSeed({
+            await onAction({
                 overrideQuote: activeQuote,
                 baseMint: baseMint,
                 targetMint: selectedGem.mint,
