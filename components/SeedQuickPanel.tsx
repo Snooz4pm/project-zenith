@@ -23,77 +23,112 @@ export function SeedQuickPanel({
 }) {
     const [baseMint, setBaseMint] = useState<string>(SOL_MINT);
     const [localLoading, setLocalLoading] = useState(false);
+    const [seedLamports, setSeedLamports] = useState<number>(0);
     const [quote, setQuote] = useState<any>(preloadedQuote || null);
-    const [error, setError] = useState<string | null>(null);
+    const [quoteLoading, setQuoteLoading] = useState(false);
+    const [quoteError, setQuoteError] = useState<string | null>(null);
 
     const targetMint = selectedGem?.mint;
     const loading = localLoading || isGlobalSeeding;
 
-    // We assume solPrice is passed or global, for now we will use wallet.solUsd if present
-    // or default to a baseline if we can't find it.
-    const portfolioUsd = useMemo(
-        () => computePortfolioUsd(wallet),
-        [wallet]
-    );
+    // Stable Portfolio and Seed USD
+    const portfolioUsd = useMemo(() => computePortfolioUsd(wallet, wallet.solPrice), [wallet]);
+    const seedUsd = useMemo(() => computeSeedUsd(portfolioUsd), [portfolioUsd]);
 
-    const seedUsd = useMemo(
-        () => computeSeedUsd(portfolioUsd),
-        [portfolioUsd]
-    );
+    // Stable Base Price calculation
+    const basePrice = useMemo(() => {
+        if (!wallet) return 0;
+        if (baseMint === SOL_MINT) return wallet.solPrice || (wallet.solUsd / wallet.sol) || 0;
+        const token = wallet.tokens?.find((t: any) => t.mint === baseMint);
+        if (!token || !token.amount) return 0;
+        return (token.usdValue / token.amount) || 0;
+    }, [wallet, baseMint]);
 
-    // Sync with preloaded quote
+    // Patch 1: Persist Seed Amount in State (Fix flicker + NaN)
     useEffect(() => {
-        if (preloadedQuote && !quote && baseMint === SOL_MINT) {
-            setQuote(preloadedQuote);
+        if (!portfolioUsd || !basePrice || basePrice <= 0) {
+            setSeedLamports(0);
+            return;
         }
-    }, [preloadedQuote, quote, baseMint]);
 
-    // Background fetcher (if preloaded missing or base changed)
+        const calculatedSeedUsd = portfolioUsd * 0.02; // 2% allocation
+        const baseAmount = calculatedSeedUsd / basePrice;
+
+        if (!Number.isFinite(baseAmount) || baseAmount <= 0) {
+            setSeedLamports(0);
+            return;
+        }
+
+        const baseDecimals = baseMint === SOL_MINT ? 9 : wallet.tokens?.find((t: any) => t.mint === baseMint)?.decimals || 6;
+        const lamports = Math.floor(baseAmount * Math.pow(10, baseDecimals));
+
+        setSeedLamports(lamports);
+    }, [portfolioUsd, basePrice, baseMint, wallet.tokens]);
+
+    // Patch 2: Auto Prefetch Jupiter Quote (Stable Loop)
     useEffect(() => {
-        if (!baseMint || !targetMint || !seedUsd || seedUsd <= 0) return;
-        if (preloadedQuote && baseMint === SOL_MINT) return; // Skip if we have a hot quote for SOL
+        if (!baseMint || !targetMint || seedLamports <= 0) {
+            setQuote(null);
+            return;
+        }
 
-        let active = true;
-        setQuote(null);
-        setError(null);
+        // If we have a preloaded quote for SOL and base is SOL, use it once then allow refresh
+        if (preloadedQuote && baseMint === SOL_MINT && !quote) {
+            setQuote(preloadedQuote);
+            return;
+        }
 
-        const fetchQuote = async () => {
+        let cancelled = false;
+
+        async function loadQuote() {
             try {
-                // 1. Convert USD to base amount (we need current base price)
-                // Note: The parent handleSeed also calculates this, but for UX preview we do it here
-                const basePrice = baseMint === SOL_MINT ? (wallet.solUsd / wallet.sol) : (wallet.tokens.find((t: any) => t.mint === baseMint)?.usdValue / wallet.tokens.find((t: any) => t.mint === baseMint)?.amount) || 0;
-
-                if (!basePrice) throw new Error("Price unknown");
-
-                const baseDecimals = baseMint === SOL_MINT ? 9 : wallet.tokens.find((t: any) => t.mint === baseMint)?.decimals || 6;
-                const rawAmount = Math.floor((seedUsd / basePrice) * Math.pow(10, baseDecimals));
+                if (!cancelled) setQuoteLoading(true);
+                if (!cancelled) setQuoteError(null);
 
                 const res = await fetch("/api/jupiter/quote", {
                     method: "POST",
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         inputMint: baseMint,
                         outputMint: targetMint,
-                        amount: rawAmount.toString()
-                    })
+                        amount: seedLamports.toString(),
+                    }),
                 });
-                const data = await res.json();
 
-                if (!active) return;
-                if (data.error || !data.routePlan?.length) {
-                    setError(data.error || "No route");
-                } else {
-                    setQuote(data);
+                const json = await res.json();
+                if (!res.ok || !json.routePlan?.length) {
+                    throw new Error(json.error || "No route");
+                }
+
+                if (!cancelled) {
+                    setQuote(json);
                 }
             } catch (err: any) {
-                if (active) setError(err.message);
+                if (!cancelled) {
+                    setQuote(null);
+                    setQuoteError(err.message || "Quote unavailable");
+                }
+            } finally {
+                if (!cancelled) setQuoteLoading(false);
             }
+        }
+
+        loadQuote();
+
+        // Refresh every 15s
+        const interval = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                loadQuote();
+            }
+        }, 15000);
+
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
         };
+    }, [baseMint, targetMint, seedLamports, preloadedQuote, quote]);
 
-        const timer = setTimeout(fetchQuote, 200); // Debounce
-        return () => { active = false; clearTimeout(timer); };
-    }, [baseMint, targetMint, seedUsd, wallet, preloadedQuote]);
-
-    const canSeed = quote && !loading;
+    const canSeed = quote && !loading && !quoteLoading;
 
     async function handleSeedClick() {
         if (!canSeed) return;
@@ -149,7 +184,11 @@ export function SeedQuickPanel({
                     <div className="flex flex-col items-end">
                         <span className="text-[8px] text-zinc-600 font-black uppercase">Receiving</span>
                         <span className="text-[10px] font-mono text-emerald-400 truncate max-w-[80px]">
-                            {quote ? (parseFloat(quote.outAmount) / Math.pow(10, selectedGem?.decimals || 6)).toFixed(2) : "..."}
+                            {quoteLoading ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : quote ? (
+                                (parseFloat(quote.outAmount) / Math.pow(10, selectedGem?.decimals || 6)).toFixed(2)
+                            ) : "..."}
                         </span>
                     </div>
                 </div>
@@ -159,10 +198,10 @@ export function SeedQuickPanel({
                     onClick={handleSeedClick}
                     className="group relative px-6 py-2 rounded bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30 disabled:grayscale transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:scale-105 active:scale-95"
                 >
-                    <span className={loading ? "opacity-0" : "opacity-100"}>
-                        {error ? "No Route" : "Seed"}
+                    <span className={loading || quoteLoading ? "opacity-0" : "opacity-100"}>
+                        {quoteError ? "No Route" : "Seed"}
                     </span>
-                    {loading && (
+                    {(loading || quoteLoading) && (
                         <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                         </div>
@@ -170,9 +209,9 @@ export function SeedQuickPanel({
                 </button>
             </div>
 
-            {error && (
+            {quoteError && (
                 <div className="mt-2 text-[8px] font-black text-red-500/80 uppercase tracking-widest text-center animate-pulse">
-                    ⚠ Execution Error: {error}
+                    ⚠ Execution Error: {quoteError}
                 </div>
             )}
         </div>

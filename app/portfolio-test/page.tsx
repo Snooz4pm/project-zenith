@@ -204,7 +204,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                 {activePhase === 'OBS' && <ObserveQuickPanel />}
                 {activePhase === 'SEE' && (
                     <SeedQuickPanel
-                        wallet={wallet}
+                        wallet={{ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice, solPrice }}
                         selectedGem={op}
                         onSeed={(params) => onAction('SEED', params)}
                         isGlobalSeeding={isSeeding}
@@ -385,9 +385,11 @@ export default function SurvivalLegacyPage() {
             );
 
             const analysis = await runPortfolioAnalysis(tradablePositions, []);
+            const sPriceRaw = analysis.results?.find(r => r.mint === SOL_MINT)?.metrics.price || 0;
+            const sPrice = isFinite(sPriceRaw) && sPriceRaw > 0 ? sPriceRaw : 0;
+            setSolPrice(sPrice);
             setAnalysisResults(analysis.results || []);
             setDiscovery(analysis.discoveryResults || []);
-            setSolPrice(analysis.results?.find(r => r.mint === SOL_MINT)?.metrics.price || 0);
 
             console.log("[DISCOVERY_UI] Discovery Results Split:", {
                 safe: (analysis.discoveryResults || []).filter((g: any) => (g.verdict.riskScore || 0) <= 30).length,
@@ -430,8 +432,8 @@ export default function SurvivalLegacyPage() {
                                 mint: res.mint,
                                 symbol: res.symbol,
                                 phase: 'SEE',
-                                shadowPnL: Math.max(0, (res.metrics.currentPrice / res.metrics.poolPrice - 1) * 100),
-                                seedSizeSOL: computeSeedUsd(computePortfolioUsd({ sol: solBalance, tokens: holdings, solUsd: solBalance * (analysis.results?.find(r => r.mint === SOL_MINT)?.metrics.price || 0) })) / (analysis.results?.find(r => r.mint === SOL_MINT)?.metrics.price || 1)
+                                shadowPnL: res.metrics.poolPrice > 0 ? Math.max(0, (res.metrics.currentPrice / res.metrics.poolPrice - 1) * 100) : 0,
+                                seedSizeSOL: (sPrice > 0) ? (computeSeedUsd(computePortfolioUsd({ sol: solBalance, tokens: holdings, solUsd: solBalance * sPrice })) / sPrice) : 0
                             });
                         }
                     });
