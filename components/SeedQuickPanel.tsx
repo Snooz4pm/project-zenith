@@ -24,10 +24,10 @@ export function SeedQuickPanel({
 }) {
     const [baseMint, setBaseMint] = useState<string>(SOL_MINT);
     const [localLoading, setLocalLoading] = useState(false);
-    const [seedLamports, setSeedLamports] = useState<number>(0);
-    const [quote, setQuote] = useState<any>(preloadedQuote || null);
-    const [quoteLoading, setQuoteLoading] = useState(false);
-    const [quoteError, setQuoteError] = useState<string | null>(null);
+
+    // Bind to preloaded quote (parent handles the loop)
+    const quote = preloadedQuote;
+    const quoteLoading = !quote && seedUsd > 0;
 
     const targetMint = selectedGem?.mint;
     const loading = localLoading || isGlobalSeeding;
@@ -45,91 +45,7 @@ export function SeedQuickPanel({
         return (token.usdValue / token.amount) || 0;
     }, [wallet, baseMint]);
 
-    // Patch 1: Persist Seed Amount in State (Fix flicker + NaN)
-    useEffect(() => {
-        if (!portfolioUsd || !basePrice || basePrice <= 0) {
-            setSeedLamports(0);
-            return;
-        }
-
-        const calculatedSeedUsd = portfolioUsd * 0.02; // 2% allocation
-        const baseAmount = calculatedSeedUsd / basePrice;
-
-        if (!Number.isFinite(baseAmount) || baseAmount <= 0) {
-            setSeedLamports(0);
-            return;
-        }
-
-        const baseDecimals = baseMint === SOL_MINT ? 9 : wallet.tokens?.find((t: any) => t.mint === baseMint)?.decimals || 6;
-        const lamports = Math.floor(baseAmount * Math.pow(10, baseDecimals));
-
-        setSeedLamports(lamports);
-    }, [portfolioUsd, basePrice, baseMint, wallet.tokens]);
-
-    // Patch 2: Auto Prefetch Jupiter Quote (Stable Loop)
-    useEffect(() => {
-        if (!baseMint || !targetMint || seedLamports <= 0) {
-            setQuote(null);
-            return;
-        }
-
-        // If we have a preloaded quote for SOL and base is SOL, use it once then allow refresh
-        if (preloadedQuote && baseMint === SOL_MINT && !quote) {
-            setQuote(preloadedQuote);
-            return;
-        }
-
-        let cancelled = false;
-
-        async function loadQuote() {
-            try {
-                if (!cancelled) setQuoteLoading(true);
-                if (!cancelled) setQuoteError(null);
-
-                const res = await fetch("/api/jupiter/quote", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        inputMint: baseMint,
-                        outputMint: targetMint,
-                        amount: seedLamports.toString(),
-                    }),
-                });
-
-                const json = await res.json();
-                if (!res.ok || !json.routePlan?.length) {
-                    throw new Error(json.error || "No route");
-                }
-
-                if (!cancelled) {
-                    setQuote(json);
-                }
-            } catch (err: any) {
-                if (!cancelled) {
-                    setQuote(null);
-                    setQuoteError(err.message || "Quote unavailable");
-                }
-            } finally {
-                if (!cancelled) setQuoteLoading(false);
-            }
-        }
-
-        loadQuote();
-
-        // Refresh every 15s
-        const interval = setInterval(() => {
-            if (document.visibilityState === 'visible') {
-                loadQuote();
-            }
-        }, 15000);
-
-        return () => {
-            cancelled = true;
-            clearInterval(interval);
-        };
-    }, [baseMint, targetMint, seedLamports, preloadedQuote, quote]);
-
-    const canSeed = quote && !loading && !quoteLoading;
+    const canSeed = quote && !loading;
 
     async function handleSeedClick() {
         if (!canSeed) return;
@@ -199,22 +115,16 @@ export function SeedQuickPanel({
                     onClick={handleSeedClick}
                     className="group relative px-6 py-2 rounded bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30 disabled:grayscale transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:scale-105 active:scale-95"
                 >
-                    <span className={loading || quoteLoading ? "opacity-0" : "opacity-100"}>
-                        {quoteError ? "No Route" : "Seed"}
+                    <span className={loading ? "opacity-0" : "opacity-100"}>
+                        {quoteLoading ? "WARMING..." : "Seed"}
                     </span>
-                    {(loading || quoteLoading) && (
+                    {loading && (
                         <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                         </div>
                     )}
                 </button>
             </div>
-
-            {quoteError && (
-                <div className="mt-2 text-[8px] font-black text-red-500/80 uppercase tracking-widest text-center animate-pulse">
-                    ⚠ Execution Error: {quoteError}
-                </div>
-            )}
         </div>
     );
 }

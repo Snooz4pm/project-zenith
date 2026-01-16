@@ -6,8 +6,17 @@ export async function POST(req: Request) {
     try {
         const { inputMint, outputMint, amount } = await req.json();
 
-        // Proxy to Railway backend
-        const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}`, {
+        // URL for Jupiter V6 Quote API
+        const JUPITER_QUOTE_URL = "https://quote-api.jup.ag/v6/quote";
+        const params = new URLSearchParams({
+            inputMint,
+            outputMint,
+            amount: String(amount),
+            slippageBps: "50",
+            onlyDirectRoutes: "false",
+        });
+
+        const res = await fetch(`${JUPITER_QUOTE_URL}?${params.toString()}`, {
             method: 'GET',
             headers: { 'Accept': 'application/json' },
         });

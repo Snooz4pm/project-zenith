@@ -495,37 +495,57 @@ export default function SurvivalLegacyPage() {
         }
     }, [publicKey, connection, solBalance, holdings, solPrice, analysisResults, enginePositions, addLog, sendTransaction, performAnalyticalTick]);
 
-    // PRELOAD QUOTES (Near-zero latency UX)
+    // PRELOAD QUOTES (Global Hot-Cache)
     const [hotQuotes, setHotQuotes] = useState<Record<string, any>>({});
+    const lastQuoteFetchRef = useRef<Record<string, number>>({});
+
     useEffect(() => {
         if (!connected || !publicKey || lifecycle.length === 0) return;
 
-        lifecycle.filter(op => op.phase === 'SEE').forEach(async (op) => {
-            if (hotQuotes[op.mint]) return;
-            try {
-                // Fetch quote for 2% allocation
-                const pUsd = computePortfolioUsd({ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice });
-                const sUsd = computeSeedUsd(pUsd);
-                if (sUsd <= 0) return;
+        const refreshQuotes = async () => {
+            const now = Date.now();
+            const seeOps = lifecycle.filter(op => op.phase === 'SEE');
 
-                const basePrice = solPrice || 1; // Default to SOL for preloading
-                const rawAmount = Math.floor((sUsd / basePrice) * 1e9);
+            for (const op of seeOps) {
+                // Throttle: Only fetch if 15s have passed since last fetch for this mint
+                const lastFetch = lastQuoteFetchRef.current[op.mint] || 0;
+                if (now - lastFetch < 15000) continue;
 
-                const res = await fetch("/api/jupiter/quote", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        inputMint: SOL_MINT,
-                        outputMint: op.mint,
-                        amount: rawAmount.toString()
-                    })
-                });
-                const data = await res.json();
-                if (data.routePlan?.length) {
-                    setHotQuotes(prev => ({ ...prev, [op.mint]: data }));
+                try {
+                    // Fetch quote for 2% allocation
+                    const pUsd = computePortfolioUsd({ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice }, solPrice);
+                    const sUsd = computeSeedUsd(pUsd);
+                    if (sUsd <= 0) continue;
+
+                    // Use SOL as default base for preloading
+                    const basePrice = solPrice || (solBalance > 0 ? (solBalance * solPrice / solBalance) : 0) || 1;
+                    const rawAmount = Math.floor((sUsd / basePrice) * 1e9);
+
+                    lastQuoteFetchRef.current[op.mint] = now;
+                    const res = await fetch("/api/jupiter/quote", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            inputMint: SOL_MINT,
+                            outputMint: op.mint,
+                            amount: rawAmount.toString()
+                        })
+                    });
+
+                    const data = await res.json();
+                    if (data && data.routePlan?.length) {
+                        setHotQuotes(prev => ({ ...prev, [op.mint]: data }));
+                    }
+                } catch (e) {
+                    console.error(`[HOT_CACHE] Failed for ${op.symbol}:`, e);
                 }
-            } catch (e) { }
-        });
-    }, [lifecycle, connected, publicKey, solBalance, holdings, solPrice, hotQuotes]);
+            }
+        };
+
+        refreshQuotes();
+        const interval = setInterval(refreshQuotes, 15000);
+        return () => clearInterval(interval);
+    }, [lifecycle, connected, publicKey, solBalance, holdings, solPrice]);
 
     // Initialize
     useEffect(() => {
