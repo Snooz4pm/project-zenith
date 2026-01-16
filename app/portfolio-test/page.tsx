@@ -20,7 +20,15 @@ import { RecycleQuickPanel } from '@/components/RecycleQuickPanel';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-const REFRESH_INTERVAL_MS = 20000;
+const REFRESH_INTERVAL_MS = 60000; // Capped to 1 min to prevent API spam
+
+const whitelistMints = [
+    'So11111111111111111111111111111111111111112', // SOL
+    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+    'Es9vMFrzaDCSTuNv6S69P7Ra3SPfPLB26gh5pXB9ftx', // USDT
+    'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', // JUP
+    'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', // WIF
+];
 
 // ============================================================================
 // DATA FETCHING (Access via API to bypass CORS/DNS blocks)
@@ -49,12 +57,11 @@ async function fetchWalletFromApi(wallet: string) {
 
     if (!res.ok) throw new Error(`Helius API failed [${res.status}]`);
 
-    const raw = await res.json();
-    const result = raw.result;
-    if (!result) throw new Error("Invalid Helius response");
+    const data = await res.json();
+    if (!data.items) throw new Error("Invalid Helius response format");
 
     const tokens = [];
-    for (const item of result.items || []) {
+    for (const item of data.items || []) {
         if (item.interface !== "FungibleToken") continue;
         const info = item.token_info;
         if (!info || info.balance <= 0) continue;
@@ -70,7 +77,7 @@ async function fetchWalletFromApi(wallet: string) {
     }
 
     return {
-        sol: (result.nativeBalance?.lamports || 0) / 1e9,
+        sol: (data.nativeBalance?.lamports || 0) / 1e9,
         tokens
     };
 }
@@ -98,6 +105,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
 }) {
     const isSeeding = seedingMints.has(op.mint);
     const [activePhase, setActivePhase] = useState<LifecyclePhase>('OBS');
+    const isTradable = position?.tradable !== false;
 
     return (
         <div className="relative">
@@ -174,8 +182,9 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                 {(['OBS', 'SEE', 'SCA', 'HAR', 'REC'] as LifecyclePhase[]).map((p, pi) => (
                     <button
                         key={p}
+                        disabled={!isTradable && p !== 'OBS'}
                         onClick={() => setActivePhase(p)}
-                        className="flex flex-col items-center group outline-none"
+                        className={`flex flex-col items-center group outline-none ${!isTradable && p !== 'OBS' ? 'opacity-20 cursor-not-allowed' : ''}`}
                     >
                         <div className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all duration-300 ${p === op.phase ? (p === activePhase ? 'bg-cyan-500/20 border-cyan-400' : 'bg-cyan-600/10 border-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.3)] animate-pulse') : (p === activePhase ? 'bg-zinc-800 border-zinc-600' : 'bg-[#111] border-zinc-800 grayscale hover:grayscale-0 hover:border-zinc-700')
                             }`}>
@@ -218,6 +227,7 @@ interface TokenHolding {
     amount: number;
     decimals: number;
     valueUSD?: number;
+    tradable: boolean;
 }
 
 interface JupiterToken {
@@ -335,7 +345,7 @@ export default function SurvivalLegacyPage() {
                 return;
             }
 
-            const walletHoldings: TokenHolding[] = walletData.tokens.map(t => {
+            const walletHoldings: any[] = walletData.tokens.map(t => {
                 const jup = jupiterTokenMap.get(t.mint);
                 return {
                     mint: t.mint,
@@ -343,7 +353,8 @@ export default function SurvivalLegacyPage() {
                     name: t.name || jup?.name || 'Unknown',
                     logoURI: t.logo || `https://token.jup.ag/all/logo/${t.mint}`,
                     amount: t.amount,
-                    decimals: t.decimals
+                    decimals: t.decimals,
+                    tradable: !!jup || whitelistMints.includes(t.mint)
                 };
             }).filter(h => h.amount > 0);
 
@@ -364,12 +375,16 @@ export default function SurvivalLegacyPage() {
                 state: 'OBSERVING'
             }));
 
-            if (walletData.sol > 0.01) {
+            if (walletData.sol > 0.001) {
                 positions.unshift({ mint: SOL_MINT, amount: walletData.sol, state: 'OBSERVING' });
             }
 
-            // 3. Execution Action
-            const analysis = await runPortfolioAnalysis(positions, []);
+            // 3. Execution Action (Only tradable tokens for Physics Engine)
+            const tradablePositions = positions.filter(p =>
+                p.mint === SOL_MINT || jupiterTokenMap.has(p.mint)
+            );
+
+            const analysis = await runPortfolioAnalysis(tradablePositions, []);
             setAnalysisResults(analysis.results || []);
             setSolPrice(analysis.results?.find(r => r.mint === SOL_MINT)?.metrics.price || 0);
 
@@ -519,7 +534,14 @@ export default function SurvivalLegacyPage() {
     useEffect(() => {
         if (connected && publicKey) {
             performAnalyticalTick();
-            const interval = setInterval(performAnalyticalTick, REFRESH_INTERVAL_MS);
+
+            // Refresh loop - 60s for wallet data, can be faster for discovery but we link them here
+            const interval = setInterval(() => {
+                if (document.visibilityState === 'visible') {
+                    performAnalyticalTick();
+                }
+            }, REFRESH_INTERVAL_MS);
+
             autoRefreshRef.current = interval;
             return () => clearInterval(interval);
         }
@@ -594,7 +616,12 @@ export default function SurvivalLegacyPage() {
                                                         {h.logoURI ? <img src={h.logoURI} alt="" className="w-full h-full object-cover" /> : <Shield size={18} className="text-zinc-700" />}
                                                     </div>
                                                     <div>
-                                                        <div className="text-sm font-black tracking-tight">{h.symbol}</div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="text-sm font-black tracking-tight">{h.symbol}</div>
+                                                            {!h.tradable && (
+                                                                <span className="text-[7px] bg-zinc-900 border border-zinc-800 text-zinc-500 px-1 rounded uppercase font-black">Not Tradable</span>
+                                                            )}
+                                                        </div>
                                                         <div className="text-[9px] text-zinc-600 font-mono tracking-tighter">{h.mint.slice(0, 16)}...</div>
                                                     </div>
                                                 </div>
