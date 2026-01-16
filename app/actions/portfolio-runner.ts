@@ -147,6 +147,7 @@ export async function runPortfolioAnalysis(
             getVirtualPortfolioTokens(mints, uiLogs),
             getDexMatchedTokens(uiLogs)
         ]);
+        console.log(`[DISCOVERY_DEBUG] Raw Broad Mkt Tokens: ${broadMarketData.length}`);
         console.log(`[PortfolioRunner] Market data fetched in ${Date.now() - marketStartTime}ms. Portfolio: ${marketData.length}, Broad: ${broadMarketData.length}`);
 
         if (marketData.length === 0) {
@@ -467,8 +468,10 @@ export async function runPortfolioAnalysis(
         console.log(`[PortfolioRunner] Analysis complete. Portfolio: ${portfolioResults.length}, Gems: ${discoveryResults.length}`);
 
         if (discoveryResults.length > 0) {
+            console.log(`[DISCOVERY_DEBUG] Sample Gem:`, discoveryResults[0].symbol, discoveryResults[0].verdict.riskScore);
             uiLogs.push(`[SCAN] Found ${discoveryResults.length} gems passing physics filters.`);
         } else {
+            console.log(`[DISCOVERY_DEBUG] No gems passed physics filters.`);
             uiLogs.push(`[SCAN] No high-conviction gems identified this tick.`);
         }
 

@@ -145,6 +145,7 @@ export async function getDexMatchedTokens(uiLogs?: string[]): Promise<DexMatched
     const mints = subsetTokens.map(t => t.mint);
 
     const batches = chunk(mints, 30);
+    console.log(`[JupiterDexMerger] Source of Truth: ${jupiterTokens.length} tokens.`);
     console.log(`[JupiterDexMerger] Processing ${batches.length} batches for discovery...`);
 
     // Process batches in parallel chunks of 5 to avoid overwhelming DexScreener but stay fast
@@ -172,8 +173,10 @@ export async function getDexMatchedTokens(uiLogs?: string[]): Promise<DexMatched
                 }
 
                 for (const mint of batch) {
-                    const tokenPairs = pairs.filter((p: any) => p.baseToken.address === mint);
-                    const isWhitelisted = whitelistMints.includes(mint);
+                    // CASE-INSENSITIVE MATCHING (THE SILENT KILLER)
+                    const normalizedMint = mint.toLowerCase();
+                    const tokenPairs = pairs.filter((p: any) => p.baseToken.address.toLowerCase() === normalizedMint);
+                    const isWhitelisted = whitelistMints.map(m => m.toLowerCase()).includes(normalizedMint);
 
                     if (tokenPairs.length === 0) {
                         if (isWhitelisted) {

@@ -386,7 +386,14 @@ export default function SurvivalLegacyPage() {
 
             const analysis = await runPortfolioAnalysis(tradablePositions, []);
             setAnalysisResults(analysis.results || []);
+            setDiscovery(analysis.discoveryResults || []);
             setSolPrice(analysis.results?.find(r => r.mint === SOL_MINT)?.metrics.price || 0);
+
+            console.log("[DISCOVERY_UI] Discovery Results Split:", {
+                safe: (analysis.discoveryResults || []).filter((g: any) => (g.verdict.riskScore || 0) <= 30).length,
+                med: (analysis.discoveryResults || []).filter((g: any) => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).length,
+                meme: (analysis.discoveryResults || []).filter((g: any) => (g.verdict.riskScore || 0) > 65).length
+            });
 
             // Fetch Engine Positions
             const posRes = await fetch("/api/engine/positions");
