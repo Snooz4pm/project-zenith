@@ -31,9 +31,19 @@ export function RecycleQuickPanel({
 
     // 2. Recycle Calculation (100% of position)
     const recycleAmountRaw = useMemo(() => {
-        if (!position || !position.amount) return "0";
-        return Math.floor(position.amount).toString();
-    }, [position]);
+        const walletToken = wallet?.tokens?.find((t: any) => t.mint === selectedGem?.mint);
+        const liveRaw = walletToken?.rawAmount ? BigInt(walletToken.rawAmount) : BigInt(0);
+
+        // Debug Log for audit
+        console.log("🔍 RECYCLE BALANCE AUDIT", {
+            mint: selectedGem?.mint,
+            walletRaw: liveRaw.toString(),
+            shadowAmount: position?.amount
+        });
+
+        if (liveRaw <= BigInt(0)) return "0";
+        return liveRaw.toString();
+    }, [wallet, selectedGem, position]);
 
     useEffect(() => { amountRawRef.current = recycleAmountRaw; }, [recycleAmountRaw]);
 

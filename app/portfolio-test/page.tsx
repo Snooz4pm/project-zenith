@@ -72,12 +72,14 @@ async function fetchWalletFromApi(wallet: string) {
             name: item.content?.metadata?.name || item.id,
             logo: item.content?.files?.[0]?.uri || null,
             decimals: info.decimals,
-            amount: Number(info.balance) / 10 ** info.decimals
+            amount: Number(info.balance) / 10 ** info.decimals,
+            rawAmount: info.balance.toString()
         });
     }
 
     return {
         sol: (data.nativeBalance?.lamports || 0) / 1e9,
+        solRaw: data.nativeBalance?.lamports?.toString() || "0",
         tokens
     };
 }
@@ -252,6 +254,7 @@ interface TokenHolding {
     name: string;
     logoURI: string;
     amount: number;
+    rawAmount: string;
     decimals: number;
     valueUSD?: number;
     tradable: boolean;
@@ -380,6 +383,7 @@ export default function SurvivalLegacyPage() {
                     name: t.name || jup?.name || 'Unknown',
                     logoURI: t.logo || `https://token.jup.ag/all/logo/${t.mint}`,
                     amount: t.amount,
+                    rawAmount: t.rawAmount,
                     decimals: t.decimals,
                     tradable: !!jup || whitelistMints.includes(t.mint)
                 };

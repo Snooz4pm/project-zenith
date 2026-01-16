@@ -59,21 +59,35 @@ export async function executeLifecycleAction(
                 break;
 
             case "HARVEST":
-                if (!params.position) throw new Error("No active position for HARVEST");
                 inputMint = params.targetMint;
-                outputMint = params.position.baseMint || SOL_MINT;
-                // Rule: 40% partial exit
-                // pos.amount is already RAW.
-                amountRaw = Math.floor(params.position.amount * 0.4).toString();
+                outputMint = params.position?.baseMint || SOL_MINT;
+
+                // Rule: Pull from real wallet balance (holdings)
+                const hHolding = ctx.holdings.find(h => h.mint === inputMint);
+                const hWalletRaw = hHolding?.rawAmount ? BigInt(hHolding.rawAmount) : BigInt(0);
+
+                addLog(`🧮 Harvest Balance Check: Wallet=${hWalletRaw.toString()} | Shadow=${params.position?.amount}`);
+
+                if (hWalletRaw <= BigInt(0)) throw new Error(`No wallet balance for ${params.targetSymbol || inputMint}`);
+
+                // 40% partial exit
+                amountRaw = (hWalletRaw * BigInt(40) / BigInt(100)).toString();
                 break;
 
             case "RECYCLE":
-                if (!params.position) throw new Error("No active position for RECYCLE");
                 inputMint = params.targetMint;
-                outputMint = SOL_MINT; // Rule: Exit to SOL
-                // Rule: 100% exit
-                // pos.amount is already RAW.
-                amountRaw = Math.floor(params.position.amount).toString();
+                outputMint = SOL_MINT;
+
+                // Rule: Pull from real wallet balance (holdings)
+                const rHolding = ctx.holdings.find(h => h.mint === inputMint);
+                const rWalletRaw = rHolding?.rawAmount ? BigInt(rHolding.rawAmount) : BigInt(0);
+
+                addLog(`🧮 Recycle Balance Check: Wallet=${rWalletRaw.toString()} | Shadow=${params.position?.amount}`);
+
+                if (rWalletRaw <= BigInt(0)) throw new Error(`No wallet balance for ${params.targetSymbol || inputMint}`);
+
+                // 100% exit
+                amountRaw = rWalletRaw.toString();
                 break;
 
             default:

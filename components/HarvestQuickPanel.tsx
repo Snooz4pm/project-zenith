@@ -34,10 +34,21 @@ export function HarvestQuickPanel({
 
     // 2. Harvest Calculation (40% of position)
     const harvestAmountRaw = useMemo(() => {
-        if (!position || !position.amount) return "0";
+        const walletToken = wallet?.tokens?.find((t: any) => t.mint === selectedGem?.mint);
+        const liveRaw = walletToken?.rawAmount ? BigInt(walletToken.rawAmount) : BigInt(0);
+
+        // Debug Log for audit
+        console.log("🔍 HARVEST BALANCE AUDIT", {
+            mint: selectedGem?.mint,
+            walletRaw: liveRaw.toString(),
+            shadowAmount: position?.amount,
+            factor: 0.4
+        });
+
+        if (liveRaw <= BigInt(0)) return "0";
         const factor = 0.4; // 40% Harvest
-        return Math.floor(position.amount * factor).toString();
-    }, [position]);
+        return (liveRaw * BigInt(40) / BigInt(100)).toString();
+    }, [wallet, selectedGem, position]);
 
     useEffect(() => { amountRawRef.current = harvestAmountRaw; }, [harvestAmountRaw]);
 
