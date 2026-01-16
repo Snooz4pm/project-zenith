@@ -131,7 +131,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                         {op.phase === 'SEE' ? (
                             <button
                                 disabled={isSeeding}
-                                onClick={() => onAction('SEED', { quote: hotQuote, baseMint: SOL_MINT, targetMint: op.mint, targetSymbol: op.symbol })}
+                                onClick={() => onAction('SEED', { overrideQuote: hotQuote, baseMint: SOL_MINT, targetMint: op.mint, targetSymbol: op.symbol })}
                                 className="px-4 py-1.5 rounded bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
                             >
                                 {isSeeding ? "SEEDING..." : "SEED"}
@@ -139,7 +139,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                         ) : op.phase === 'SCA' ? (
                             <button
                                 disabled={isSeeding}
-                                onClick={() => onAction('SCALE', { targetMint: op.mint, targetSymbol: op.symbol })}
+                                onClick={() => onAction('SCALE', { overrideQuote: hotQuote, targetMint: op.mint, targetSymbol: op.symbol })}
                                 className="px-4 py-1.5 rounded bg-cyan-500 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale flex items-center gap-2"
                             >
                                 {isSeeding ? <Loader2 className="animate-spin w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
@@ -148,7 +148,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                         ) : op.phase === 'HAR' ? (
                             <button
                                 disabled={isSeeding}
-                                onClick={() => onAction('HARVEST', { targetMint: op.mint, targetSymbol: op.symbol })}
+                                onClick={() => onAction('HARVEST', { overrideQuote: hotQuote, targetMint: op.mint, targetSymbol: op.symbol })}
                                 className="px-4 py-1.5 rounded bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale flex items-center gap-2"
                             >
                                 {isSeeding ? <Loader2 className="animate-spin w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -157,7 +157,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                         ) : op.phase === 'REC' ? (
                             <button
                                 disabled={isSeeding}
-                                onClick={() => onAction('RECYCLE', { targetMint: op.mint, targetSymbol: op.symbol })}
+                                onClick={() => onAction('RECYCLE', { overrideQuote: hotQuote, targetMint: op.mint, targetSymbol: op.symbol })}
                                 className="px-4 py-1.5 rounded bg-zinc-200 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
                             >
                                 {isSeeding ? "RECYCLING..." : "RECYCLE ALL"}
@@ -508,28 +508,42 @@ export default function SurvivalLegacyPage() {
             isFetchingGlobalRef.current = true;
 
             const now = Date.now();
-            const seeOps = lifecycle.filter(op => op.phase === 'SEE');
+            const pUsd = computePortfolioUsd({ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice }, solPrice);
+            const sUsd = computeSeedUsd(pUsd);
 
-            for (const op of seeOps) {
+            for (const op of lifecycle) {
                 // Throttle: Only fetch if 15s have passed since last fetch for this mint
                 const lastFetch = lastQuoteFetchRef.current[op.mint] || 0;
                 if (now - lastFetch < 15000) continue;
 
                 try {
-                    // Fetch quote for 2% allocation
-                    const pUsd = computePortfolioUsd({ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice }, solPrice);
-                    const sUsd = computeSeedUsd(pUsd);
-                    if (sUsd <= 0) continue;
+                    let inputMint = SOL_MINT;
+                    let outputMint = op.mint;
+                    let rawAmount = 0;
 
-                    // Use SOL as default base for preloading
-                    const basePrice = solPrice || (solBalance > 0 ? (solBalance * solPrice / solBalance) : 0) || 1;
-                    const rawAmount = Math.floor((sUsd / basePrice) * 1e9);
+                    if (op.phase === 'SEE') {
+                        if (sUsd <= 0) continue;
+                        rawAmount = Math.floor((sUsd / solPrice) * 1e9);
+                    } else if (op.phase === 'SCA') {
+                        const scaleUsd = pUsd * 0.06;
+                        rawAmount = Math.floor((scaleUsd / solPrice) * 1e9);
+                    } else if (op.phase === 'HAR' || op.phase === 'REC') {
+                        const pos = enginePositions.find(p => p.targetMint === op.mint);
+                        if (!pos || !pos.amount) continue;
+                        inputMint = op.mint;
+                        outputMint = SOL_MINT;
+                        const factor = op.phase === 'HAR' ? 0.4 : 1.0;
+                        const decimals = holdings.find(h => h.mint === op.mint)?.decimals || 6;
+                        rawAmount = Math.floor(pos.amount * factor * Math.pow(10, decimals));
+                    }
+
+                    if (rawAmount <= 0) continue;
 
                     lastQuoteFetchRef.current[op.mint] = now;
 
-                    // Directly call Railway Proxy from frontend for maximum stability
+                    // Directly call Railway Proxy from frontend
                     const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
-                    const url = `${JUPITER_PROXY_URL}/quote?inputMint=${SOL_MINT}&outputMint=${op.mint}&amount=${rawAmount.toString()}`;
+                    const url = `${JUPITER_PROXY_URL}/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${rawAmount.toString()}&slippageBps=100`;
 
                     const res = await fetch(url, {
                         method: "GET",

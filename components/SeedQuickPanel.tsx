@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import { computePortfolioUsd, computeSeedUsd } from "@/lib/engine/portfolio";
 
@@ -14,7 +14,7 @@ export function SeedQuickPanel({
     wallet: any;
     selectedGem: any;
     onSeed: (params: {
-        quote: any;
+        overrideQuote: any;
         baseMint: string;
         targetMint: string;
         seedUsd: number;
@@ -22,36 +22,119 @@ export function SeedQuickPanel({
     isGlobalSeeding?: boolean;
     preloadedQuote?: any;
 }) {
+    // 1. State & Refs (The Swap Engine Pattern)
     const [baseMint, setBaseMint] = useState<string>(SOL_MINT);
     const [localLoading, setLocalLoading] = useState(false);
+    const [internalQuote, setInternalQuote] = useState<any>(null);
+    const [isInternalFetching, setIsInternalFetching] = useState(false);
 
-    const targetMint = selectedGem?.mint;
-    const loading = localLoading || isGlobalSeeding;
+    const baseMintRef = useRef(baseMint);
+    const targetMintRef = useRef(selectedGem?.mint);
+    const amountUsdRef = useRef(0);
+    const lastQuoteKeyRef = useRef<string>("");
 
-    // Stable Portfolio and Seed USD
+    // Update refs automatically
+    useEffect(() => { baseMintRef.current = baseMint; }, [baseMint]);
+    useEffect(() => { targetMintRef.current = selectedGem?.mint; }, [selectedGem]);
+
+    // 2. Stable Portfolio and Seed USD Calculation
     const portfolioUsd = useMemo(() => computePortfolioUsd(wallet, wallet.solPrice), [wallet]);
     const seedUsd = useMemo(() => computeSeedUsd(portfolioUsd), [portfolioUsd]);
 
-    // Bind to preloaded quote (parent handles the loop)
-    const quote = preloadedQuote;
-    const quoteLoading = !quote && seedUsd > 0;
+    useEffect(() => { amountUsdRef.current = seedUsd; }, [seedUsd]);
 
-    // Stable Base Price calculation
-    const basePrice = useMemo(() => {
-        if (!wallet) return 0;
-        if (baseMint === SOL_MINT) return wallet.solPrice || (wallet.solUsd / wallet.sol) || 0;
-        const token = wallet.tokens?.find((t: any) => t.mint === baseMint);
-        if (!token || !token.amount) return 0;
-        return (token.usdValue / token.amount) || 0;
-    }, [wallet, baseMint]);
+    // 3. Quote Orchestration
+    // Identify if the preloaded quote is valid for our current selection
+    const isPreloadedValid = preloadedQuote &&
+        preloadedQuote.inputMint === SOL_MINT &&
+        baseMint === SOL_MINT &&
+        preloadedQuote.outputMint === selectedGem?.mint;
 
-    const canSeed = quote && !loading;
+    // The working quote used for execution
+    const activeQuote = isPreloadedValid ? preloadedQuote : internalQuote;
 
+    // 4. Internal Fetcher (When user changes baseMint or preloaded is missing)
+    const fetchInternalQuote = useCallback(async () => {
+        if (!selectedGem || seedUsd <= 0) return;
+
+        const currentBase = baseMintRef.current;
+        const currentTarget = targetMintRef.current;
+        const currentAmountUsd = amountUsdRef.current;
+
+        // Skip fetch if we already have a valid preloaded quote for SOL
+        if (currentBase === SOL_MINT && preloadedQuote) return;
+
+        const key = `${currentBase}-${currentTarget}-${currentAmountUsd}`;
+        if (key === lastQuoteKeyRef.current) return;
+        lastQuoteKeyRef.current = key;
+
+        setIsInternalFetching(true);
+        try {
+            const basePrice = currentBase === SOL_MINT
+                ? wallet.solPrice
+                : (wallet.tokens?.find((t: any) => t.mint === currentBase)?.usdValue / wallet.tokens?.find((t: any) => t.mint === currentBase)?.amount) || 1;
+
+            const decimals = currentBase === SOL_MINT ? 9 : (wallet.tokens?.find((t: any) => t.mint === currentBase)?.decimals || 6);
+            const rawAmount = Math.floor((currentAmountUsd / basePrice) * Math.pow(10, decimals));
+
+            if (rawAmount <= 0) {
+                setInternalQuote(null);
+                return;
+            }
+
+            const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
+            const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${currentBase}&outputMint=${currentTarget}&amount=${rawAmount.toString()}&slippageBps=100`);
+            const data = await res.json();
+
+            if (data && data.routePlan?.length) {
+                setInternalQuote(data);
+            } else {
+                setInternalQuote(null);
+            }
+        } catch (e) {
+            console.error("[SeedPanel] Internal Quote Fetch Failed:", e);
+            setInternalQuote(null);
+        } finally {
+            setIsInternalFetching(false);
+        }
+    }, [selectedGem, seedUsd, wallet, preloadedQuote]);
+
+    // Refresh internal quote when inputs change
+    useEffect(() => {
+        if (baseMint !== SOL_MINT || !preloadedQuote) {
+            const timer = setTimeout(fetchInternalQuote, 500);
+            return () => clearTimeout(timer);
+        } else {
+            setInternalQuote(null); // Use preloaded
+        }
+    }, [baseMint, preloadedQuote, fetchInternalQuote]);
+
+    const canSeed = activeQuote && !localLoading && !isGlobalSeeding;
+    const loading = localLoading || isGlobalSeeding;
+    const quoteLoading = isInternalFetching || (!activeQuote && seedUsd > 0);
+
+    // 5. Explicit Execution (Mirroring SwapPanel)
     async function handleSeedClick() {
-        if (!canSeed) return;
+        if (!canSeed || !activeQuote) return;
+
+        // Log the EXACT state before launching execution
+        console.log("🚀 SEED EXECUTION START", {
+            gem: selectedGem.symbol,
+            base: baseMint,
+            usd: seedUsd,
+            quoteOut: activeQuote.outAmount,
+            quoteImpact: activeQuote.priceImpactPct,
+            isPreloaded: isPreloadedValid
+        });
+
         setLocalLoading(true);
         try {
-            await onSeed({ quote, baseMint, targetMint, seedUsd });
+            await onSeed({
+                overrideQuote: activeQuote,
+                baseMint: baseMint,
+                targetMint: selectedGem.mint,
+                seedUsd: seedUsd
+            });
         } finally {
             setLocalLoading(false);
         }
@@ -65,9 +148,9 @@ export function SeedQuickPanel({
                     {loading ? "SEALING TRANSACTION..." : `HOT SEEDING • ${selectedGem?.symbol}`}
                 </div>
                 <div className="flex items-center gap-4">
-                    {quote && (
+                    {activeQuote && (
                         <div className="text-zinc-500 font-mono text-[9px]">
-                            Impact: <span className={parseFloat(quote.priceImpactPct) > 1 ? "text-amber-500" : "text-emerald-500"}>{quote.priceImpactPct}%</span>
+                            Impact: <span className={parseFloat(activeQuote.priceImpactPct) > 1 ? "text-amber-500" : "text-emerald-500"}>{activeQuote.priceImpactPct}%</span>
                         </div>
                     )}
                     <div className="text-emerald-400 font-mono">
@@ -103,8 +186,8 @@ export function SeedQuickPanel({
                         <span className="text-[10px] font-mono text-emerald-400 truncate max-w-[80px]">
                             {quoteLoading ? (
                                 <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : quote ? (
-                                (parseFloat(quote.outAmount) / Math.pow(10, selectedGem?.decimals || 6)).toFixed(2)
+                            ) : activeQuote ? (
+                                (parseFloat(activeQuote.outAmount) / Math.pow(10, selectedGem?.decimals || 6)).toFixed(2)
                             ) : "..."}
                         </span>
                     </div>
