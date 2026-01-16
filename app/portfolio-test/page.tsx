@@ -488,7 +488,7 @@ export default function SurvivalLegacyPage() {
         }
     }, [publicKey, jupiterTokenMap, addLog]);
 
-    const handleAction = useCallback(async (type: ActionType, params: any) => {
+    const onAction = useCallback(async (type: ActionType, params: any) => {
         if (!publicKey || !params.targetMint) return;
 
         const targetMint = params.targetMint;
@@ -830,7 +830,7 @@ export default function SurvivalLegacyPage() {
                                             solUsd: solBalance * solPrice,
                                             solPrice: solPrice
                                         }}
-                                        onAction={handleAction}
+                                        onAction={onAction}
                                     />
                                 ))}
                             </div>
