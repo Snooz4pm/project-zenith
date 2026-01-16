@@ -204,7 +204,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                 {activePhase === 'OBS' && <ObserveQuickPanel />}
                 {activePhase === 'SEE' && (
                     <SeedQuickPanel
-                        wallet={{ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice, solPrice }}
+                        wallet={wallet}
                         selectedGem={op}
                         onSeed={(params) => onAction('SEED', params)}
                         isGlobalSeeding={isSeeding}
@@ -433,7 +433,7 @@ export default function SurvivalLegacyPage() {
                                 symbol: res.symbol,
                                 phase: 'SEE',
                                 shadowPnL: res.metrics.poolPrice > 0 ? Math.max(0, (res.metrics.currentPrice / res.metrics.poolPrice - 1) * 100) : 0,
-                                seedSizeSOL: (sPrice > 0) ? (computeSeedUsd(computePortfolioUsd({ sol: solBalance, tokens: holdings, solUsd: solBalance * sPrice })) / sPrice) : 0
+                                seedSizeSOL: (sPrice > 0) ? (computeSeedUsd(computePortfolioUsd({ sol: walletData.sol, tokens: holdingsWithUsd, solUsd: walletData.sol * sPrice }, sPrice)) / sPrice) : 0
                             });
                         }
                     });
@@ -753,7 +753,12 @@ export default function SurvivalLegacyPage() {
                                         seedingMints={seedingMints}
                                         hotQuote={hotQuotes[op.mint]}
                                         position={enginePositions.find(p => p.targetMint === op.mint)}
-                                        wallet={{ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice, sol: solBalance }}
+                                        wallet={{
+                                            sol: solBalance,
+                                            tokens: holdings,
+                                            solUsd: solBalance * solPrice,
+                                            solPrice: solPrice
+                                        }}
                                         onAction={handleAction}
                                     />
                                 ))}
