@@ -498,11 +498,15 @@ export default function SurvivalLegacyPage() {
     // PRELOAD QUOTES (Global Hot-Cache)
     const [hotQuotes, setHotQuotes] = useState<Record<string, any>>({});
     const lastQuoteFetchRef = useRef<Record<string, number>>({});
+    const isFetchingGlobalRef = useRef(false);
 
     useEffect(() => {
         if (!connected || !publicKey || lifecycle.length === 0) return;
 
         const refreshQuotes = async () => {
+            if (isFetchingGlobalRef.current) return;
+            isFetchingGlobalRef.current = true;
+
             const now = Date.now();
             const seeOps = lifecycle.filter(op => op.phase === 'SEE');
 
@@ -540,6 +544,7 @@ export default function SurvivalLegacyPage() {
                     console.error(`[HOT_CACHE] Failed for ${op.symbol}:`, e);
                 }
             }
+            isFetchingGlobalRef.current = false;
         };
 
         refreshQuotes();

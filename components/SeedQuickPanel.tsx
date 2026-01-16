@@ -25,16 +25,16 @@ export function SeedQuickPanel({
     const [baseMint, setBaseMint] = useState<string>(SOL_MINT);
     const [localLoading, setLocalLoading] = useState(false);
 
-    // Bind to preloaded quote (parent handles the loop)
-    const quote = preloadedQuote;
-    const quoteLoading = !quote && seedUsd > 0;
-
     const targetMint = selectedGem?.mint;
     const loading = localLoading || isGlobalSeeding;
 
     // Stable Portfolio and Seed USD
     const portfolioUsd = useMemo(() => computePortfolioUsd(wallet, wallet.solPrice), [wallet]);
     const seedUsd = useMemo(() => computeSeedUsd(portfolioUsd), [portfolioUsd]);
+
+    // Bind to preloaded quote (parent handles the loop)
+    const quote = preloadedQuote;
+    const quoteLoading = !quote && seedUsd > 0;
 
     // Stable Base Price calculation
     const basePrice = useMemo(() => {

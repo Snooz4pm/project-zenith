@@ -1,34 +1,46 @@
 import { NextResponse } from "next/server";
 
-const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
-
 export async function POST(req: Request) {
     try {
-        const { inputMint, outputMint, amount } = await req.json();
+        const body = await req.json();
+        const { inputMint, outputMint, amount } = body;
 
-        // URL for Jupiter V6 Quote API
-        const JUPITER_QUOTE_URL = "https://quote-api.jup.ag/v6/quote";
-        const params = new URLSearchParams({
-            inputMint,
-            outputMint,
-            amount: String(amount),
-            slippageBps: "50",
-            onlyDirectRoutes: "false",
-        });
-
-        const res = await fetch(`${JUPITER_QUOTE_URL}?${params.toString()}`, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' },
-        });
-
-        if (!res.ok) {
-            const errorText = await res.text();
-            return NextResponse.json({ error: errorText }, { status: res.status });
+        if (!inputMint || !outputMint || !amount) {
+            return NextResponse.json(
+                { error: "Missing params" },
+                { status: 400 }
+            );
         }
 
-        const data = await res.json();
-        return NextResponse.json(data);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        const url = new URL("https://quote-api.jup.ag/v6/quote");
+        url.searchParams.set("inputMint", inputMint);
+        url.searchParams.set("outputMint", outputMint);
+        url.searchParams.set("amount", String(amount));
+        url.searchParams.set("slippageBps", "50");
+
+        const res = await fetch(url.toString(), {
+            headers: { Accept: "application/json" },
+            cache: "no-store",
+        });
+
+        const text = await res.text();
+
+        if (!res.ok) {
+            console.error("Jupiter error:", res.status, text);
+            return NextResponse.json(
+                { error: "Jupiter failed", details: text },
+                { status: 502 }
+            );
+        }
+
+        const json = JSON.parse(text);
+        return NextResponse.json(json);
+
+    } catch (err: any) {
+        console.error("Quote route crashed:", err);
+        return NextResponse.json(
+            { error: "Internal error", message: err.message },
+            { status: 500 }
+        );
     }
 }
