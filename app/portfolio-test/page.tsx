@@ -529,7 +529,7 @@ export default function SurvivalLegacyPage() {
 
                     // Directly call Railway Proxy from frontend for maximum stability
                     const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
-                    const url = `${JUPITER_PROXY_URL}/jupiter/quote?inputMint=${SOL_MINT}&outputMint=${op.mint}&amount=${rawAmount.toString()}`;
+                    const url = `${JUPITER_PROXY_URL}/quote?inputMint=${SOL_MINT}&outputMint=${op.mint}&amount=${rawAmount.toString()}`;
 
                     const res = await fetch(url, {
                         method: "GET",
