@@ -114,8 +114,9 @@ export async function executeLifecycleAction(
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                quote: quote, // Match Railway key naming
-                userPublicKey: publicKey.toBase58()
+                quoteResponse: quote, // Fix: Use correct key name
+                userPublicKey: publicKey.toBase58(),
+                wrapAndUnwrapSol: true
             })
         });
         const swapData = await swapRes.json();
@@ -124,10 +125,9 @@ export async function executeLifecycleAction(
 
         // 5. Sign and Send
         addLog(`✍️ Preparing transaction...`);
-        const txData = Uint8Array.from(atob(swapData.swapTransaction), c => c.charCodeAt(0));
-        const transaction = VersionedTransaction.deserialize(txData);
+        const transaction = VersionedTransaction.deserialize(Buffer.from(swapData.swapTransaction, "base64"));
 
-        addLog(`✍️ Sending transaction to wallet...`);
+        addLog(`✍️ Sending to wallet...`);
         const signature = await sendTransaction(transaction, connection);
         addLog(`Executor: Sent. Hash: ${signature.slice(0, 8)}`);
 
