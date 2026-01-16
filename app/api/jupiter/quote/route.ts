@@ -1,46 +1,35 @@
 import { NextResponse } from "next/server";
 
+const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
+
 export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { inputMint, outputMint, amount } = body;
 
         if (!inputMint || !outputMint || !amount) {
-            return NextResponse.json(
-                { error: "Missing params" },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "Missing params" }, { status: 400 });
         }
 
-        const url = new URL("https://quote-api.jup.ag/v6/quote");
-        url.searchParams.set("inputMint", inputMint);
-        url.searchParams.set("outputMint", outputMint);
-        url.searchParams.set("amount", String(amount));
-        url.searchParams.set("slippageBps", "50");
+        // Proxy to Railway backend
+        const url = `${JUPITER_PROXY_URL}/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}`;
 
-        const res = await fetch(url.toString(), {
-            headers: { Accept: "application/json" },
-            cache: "no-store",
+        const res = await fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            cache: 'no-store'
         });
 
-        const text = await res.text();
-
         if (!res.ok) {
-            console.error("Jupiter error:", res.status, text);
-            return NextResponse.json(
-                { error: "Jupiter failed", details: text },
-                { status: 502 }
-            );
+            const errorText = await res.text();
+            console.error(`[Railway Proxy] Error ${res.status}:`, errorText);
+            return NextResponse.json({ error: "Proxy failed", details: errorText }, { status: res.status });
         }
 
-        const json = JSON.parse(text);
-        return NextResponse.json(json);
-
-    } catch (err: any) {
-        console.error("Quote route crashed:", err);
-        return NextResponse.json(
-            { error: "Internal error", message: err.message },
-            { status: 500 }
-        );
+        const data = await res.json();
+        return NextResponse.json(data);
+    } catch (error: any) {
+        console.error("[Quote Route] Crash:", error);
+        return NextResponse.json({ error: "Internal crash", message: error.message }, { status: 500 });
     }
 }

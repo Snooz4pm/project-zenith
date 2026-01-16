@@ -526,14 +526,14 @@ export default function SurvivalLegacyPage() {
                     const rawAmount = Math.floor((sUsd / basePrice) * 1e9);
 
                     lastQuoteFetchRef.current[op.mint] = now;
-                    const res = await fetch("/api/jupiter/quote", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            inputMint: SOL_MINT,
-                            outputMint: op.mint,
-                            amount: rawAmount.toString()
-                        })
+
+                    // Directly call Railway Proxy from frontend for maximum stability
+                    const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
+                    const url = `${JUPITER_PROXY_URL}/quote?inputMint=${SOL_MINT}&outputMint=${op.mint}&amount=${rawAmount.toString()}`;
+
+                    const res = await fetch(url, {
+                        method: "GET",
+                        headers: { "Accept": "application/json" }
                     });
 
                     const data = await res.json();
