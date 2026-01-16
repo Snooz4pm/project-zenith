@@ -560,8 +560,9 @@ export default function SurvivalLegacyPage() {
                         inputMint = op.mint;
                         outputMint = SOL_MINT;
                         const factor = op.phase === 'HAR' ? 0.4 : 1.0;
-                        const decimals = holdings.find(h => h.mint === op.mint)?.decimals || 6;
-                        rawAmount = Math.floor(pos.amount * factor * Math.pow(10, decimals));
+                        // BUG FIX: pos.amount is already RAW (outAmount from quote). 
+                        // Do not multiply by decimals again.
+                        rawAmount = Math.floor(pos.amount * factor);
                     }
 
                     if (rawAmount <= 0) continue;

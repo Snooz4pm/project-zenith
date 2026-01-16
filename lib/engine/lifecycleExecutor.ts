@@ -63,9 +63,8 @@ export async function executeLifecycleAction(
                 inputMint = params.targetMint;
                 outputMint = params.position.baseMint || SOL_MINT;
                 // Rule: 40% partial exit
-                const harvestAmount = params.position.amount * 0.4;
-                const hDecimals = params.position.decimals || 6;
-                amountRaw = Math.floor(harvestAmount * Math.pow(10, hDecimals)).toString();
+                // pos.amount is already RAW.
+                amountRaw = Math.floor(params.position.amount * 0.4).toString();
                 break;
 
             case "RECYCLE":
@@ -73,9 +72,8 @@ export async function executeLifecycleAction(
                 inputMint = params.targetMint;
                 outputMint = SOL_MINT; // Rule: Exit to SOL
                 // Rule: 100% exit
-                const recycleAmount = params.position.amount;
-                const rDecimals = params.position.decimals || 6;
-                amountRaw = Math.floor(recycleAmount * Math.pow(10, rDecimals)).toString();
+                // pos.amount is already RAW.
+                amountRaw = Math.floor(params.position.amount).toString();
                 break;
 
             default:
@@ -123,14 +121,22 @@ export async function executeLifecycleAction(
 
         // 4. Create Swap Transaction
         addLog(`🚀 Building swap tx...`);
-        const swapRes = await fetch("/api/jupiter/swap", {
+        const JUPITER_PROXY_URL = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_JUPITER_PROXY_URL) || 'https://jupiter-proxy-production.up.railway.app';
+
+        const swapPayload = {
+            quoteResponse: quote,
+            userPublicKey: publicKey.toBase58()
+        };
+
+        console.log("🚀 SENDING SWAP REQUEST", {
+            url: `${JUPITER_PROXY_URL}/swap`,
+            payload: swapPayload
+        });
+
+        const swapRes = await fetch(`${JUPITER_PROXY_URL}/swap`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                quoteResponse: quote, // Fix: Use correct key name
-                userPublicKey: publicKey.toBase58(),
-                wrapAndUnwrapSol: true
-            })
+            body: JSON.stringify(swapPayload)
         });
         const swapData = await swapRes.json();
         if (swapData.error) throw new Error(swapData.error);

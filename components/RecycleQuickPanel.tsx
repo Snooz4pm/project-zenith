@@ -32,9 +32,8 @@ export function RecycleQuickPanel({
     // 2. Recycle Calculation (100% of position)
     const recycleAmountRaw = useMemo(() => {
         if (!position || !position.amount) return "0";
-        const decimals = selectedGem?.decimals || 6;
-        return Math.floor(position.amount * Math.pow(10, decimals)).toString();
-    }, [position, selectedGem]);
+        return Math.floor(position.amount).toString();
+    }, [position]);
 
     useEffect(() => { amountRawRef.current = recycleAmountRaw; }, [recycleAmountRaw]);
 

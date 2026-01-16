@@ -36,9 +36,8 @@ export function HarvestQuickPanel({
     const harvestAmountRaw = useMemo(() => {
         if (!position || !position.amount) return "0";
         const factor = 0.4; // 40% Harvest
-        const decimals = selectedGem?.decimals || 6;
-        return Math.floor(position.amount * factor * Math.pow(10, decimals)).toString();
-    }, [position, selectedGem]);
+        return Math.floor(position.amount * factor).toString();
+    }, [position]);
 
     useEffect(() => { amountRawRef.current = harvestAmountRaw; }, [harvestAmountRaw]);
 
