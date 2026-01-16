@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import { computePortfolioUsd, computeSeedUsd } from "@/lib/engine/portfolio";
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
