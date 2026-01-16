@@ -90,10 +90,23 @@ export async function executeLifecycleAction(
                 const price = ctx.prices[inputMint];
                 if (!price) throw new Error(`Price unknown for base: ${inputMint}`);
                 const decimals = inputMint === SOL_MINT ? 9 : (ctx.holdings.find(h => h.mint === inputMint)?.decimals || 6);
-                amountRaw = Math.floor((amountUsd / price) * Math.pow(10, decimals)).toString();
+
+                // Safe calculation
+                const rawVal = (amountUsd / price) * Math.pow(10, decimals);
+
+                addLog(`🧮 Kernel Calculation: USD=${amountUsd.toFixed(2)} | Price=${price.toFixed(4)} | Dec=${decimals} | Raw=${rawVal.toFixed(0)}`);
+
+                if (!Number.isFinite(rawVal) || rawVal <= 0) {
+                    addLog(`⛔ Aborted: Calculated amount is zero or invalid (${rawVal.toFixed(0)})`);
+                    throw new Error("Invalid seed amount - Portfolio or Price issue");
+                }
+
+                amountRaw = Math.floor(rawVal).toString();
             }
 
-            if (!amountRaw || amountRaw === "0") throw new Error("Calculated amount is zero or invalid");
+            if (!amountRaw || amountRaw === "0") {
+                throw new Error(`Calculated amount is zero or invalid. Raw: ${amountRaw}`);
+            }
 
             // 3. Fetch Quote
             addLog(`Jupiter: Fetching ${type} route...`);
