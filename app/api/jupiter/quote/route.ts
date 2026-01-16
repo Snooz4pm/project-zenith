@@ -12,7 +12,7 @@ export async function POST(req: Request) {
         }
 
         // Proxy to Railway backend
-        const url = `${JUPITER_PROXY_URL}/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}`;
+        const url = `${JUPITER_PROXY_URL}/jupiter/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}`;
 
         const res = await fetch(url, {
             method: 'GET',

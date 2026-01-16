@@ -109,19 +109,25 @@ export async function executeLifecycleAction(
         addLog(`Jupiter: Quote Hot. Impact: ${quote.priceImpactPct}%`);
 
         // 4. Create Swap Transaction
+        addLog(`🚀 Building swap tx...`);
         const swapRes = await fetch("/api/jupiter/swap", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                quoteResponse: quote,
+                quote: quote, // Match Railway key naming
                 userPublicKey: publicKey.toBase58()
             })
         });
         const swapData = await swapRes.json();
         if (swapData.error) throw new Error(swapData.error);
+        if (!swapData.swapTransaction) throw new Error("Missing swapTransaction");
 
         // 5. Sign and Send
-        const transaction = VersionedTransaction.deserialize(Buffer.from(swapData.swapTransaction, 'base64'));
+        addLog(`✍️ Preparing transaction...`);
+        const txData = Uint8Array.from(atob(swapData.swapTransaction), c => c.charCodeAt(0));
+        const transaction = VersionedTransaction.deserialize(txData);
+
+        addLog(`✍️ Sending transaction to wallet...`);
         const signature = await sendTransaction(transaction, connection);
         addLog(`Executor: Sent. Hash: ${signature.slice(0, 8)}`);
 

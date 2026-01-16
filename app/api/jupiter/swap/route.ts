@@ -7,7 +7,7 @@ export async function POST(req: Request) {
         const body = await req.json();
 
         // Proxy to Railway backend
-        const res = await fetch(`${JUPITER_PROXY_URL}/swap`, {
+        const res = await fetch(`${JUPITER_PROXY_URL}/jupiter/swap`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
