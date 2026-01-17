@@ -125,17 +125,19 @@ export class VolumeObserver {
 
         // Calculate numeric risk score (0-100)
         let riskScore = 0;
-        if (riskLevel === 'LOW') riskScore = 15;
-        else if (riskLevel === 'MEDIUM') riskScore = 45;
-        else if (riskLevel === 'HIGH') riskScore = 80;
-        else if (riskLevel === 'CRITICAL') riskScore = 98;
+        if (riskLevel === 'LOW') riskScore = 20;
+        else if (riskLevel === 'MEDIUM') riskScore = 40;
+        else if (riskLevel === 'HIGH') riskScore = 75;
+        else if (riskLevel === 'CRITICAL') riskScore = 95;
 
-        // Fine-tune based on liquidity (lower liquidity = higher risk)
-        if (liquidityUsd < 10000) riskScore = Math.min(99, riskScore + 20);
-        else if (liquidityUsd < 50000) riskScore = Math.min(99, riskScore + 10);
+        // Fine-tune based on liquidity (The ultimate risk multiplier)
+        if (liquidityUsd < 15000) riskScore += 50;      // Trench-tier (Deep Meme)
+        else if (liquidityUsd < 60000) riskScore += 30; // High volatility
+        else if (liquidityUsd < 150000) riskScore += 15; // Moderate
+        else if (liquidityUsd < 500000) riskScore += 5;  // Semi-Safe
 
-        // Fine-tune based on volume spikes
-        if (volumeChange1hPct > 200) riskScore = Math.min(99, riskScore + 15);
+        // Fine-tune based on volume surges (Volatility risk)
+        if (volumeChange1hPct > 150) riskScore = Math.min(99, riskScore + 10);
 
         return {
             mint: pair.baseToken.address,
@@ -148,7 +150,7 @@ export class VolumeObserver {
 
             volumeChange1hPct,
             riskLevel,
-            riskScore,
+            riskScore: Math.min(99, riskScore),
             reason,
             priceUsd: parseFloat(pair.priceUsd || '0')
         };

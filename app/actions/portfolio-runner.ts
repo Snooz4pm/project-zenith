@@ -471,8 +471,13 @@ export async function runPortfolioAnalysis(
         console.log(`[PortfolioRunner] Analysis complete. Portfolio: ${portfolioResults.length}, Gems: ${discoveryResults.length}`);
 
         if (discoveryResults.length > 0) {
-            console.log(`[DISCOVERY_DEBUG] Sample Gem:`, discoveryResults[0].symbol, discoveryResults[0].verdict.riskScore);
-            uiLogs.push(`[SCAN] Found ${discoveryResults.length} gems passing physics filters.`);
+            const tiers = {
+                safe: discoveryResults.filter(g => g.verdict.riskScore <= 30).length,
+                medium: discoveryResults.filter(g => g.verdict.riskScore > 30 && g.verdict.riskScore <= 65).length,
+                meme: discoveryResults.filter(g => g.verdict.riskScore > 65).length
+            };
+            console.log(`[DISCOVERY_DEBUG] Risk Distribution: SAFE=${tiers.safe}, MEDIUM=${tiers.medium}, MEME=${tiers.meme}`);
+            uiLogs.push(`[SCAN] Found ${discoveryResults.length} gems | Distribution: S:${tiers.safe} M:${tiers.medium} T:${tiers.meme}`);
         } else {
             console.log(`[DISCOVERY_DEBUG] No gems passed physics filters.`);
             uiLogs.push(`[SCAN] No high-conviction gems identified this tick.`);
