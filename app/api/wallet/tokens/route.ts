@@ -68,11 +68,13 @@ export async function GET(req: Request) {
             .map((asset: any) => {
                 const info = asset.token_info;
                 const metadata = asset.content?.metadata;
+                const balanceRaw = Number(info.balance) || 0;
+                const decimals = Number(info.decimals) || 0;
 
                 return {
                     mint: asset.id,
-                    amount: info.balance / Math.pow(10, info.decimals),
-                    decimals: info.decimals,
+                    amount: balanceRaw / Math.pow(10, decimals),
+                    decimals: decimals,
                     rawAmount: info.balance.toString(),
                     symbol: metadata?.symbol || info.symbol || '?',
                     name: metadata?.name || '',

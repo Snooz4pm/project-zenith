@@ -58,9 +58,9 @@ async function fetchPrices(mints: string[]): Promise<Map<string, { price: number
     if (mints.length === 0) return priceMap;
 
     try {
-        // Jupiter Price API v2
+        // Use our server-side proxy to bypass CORS and handle large ID lists
         const ids = mints.join(',');
-        const res = await fetch(`${JUPITER_PRICE_API}?ids=${ids}&showExtraInfo=true`);
+        const res = await fetch(`/api/prices?ids=${ids}`);
         const data = await res.json();
 
         if (data.data) {
@@ -118,8 +118,9 @@ export async function fetchPortfolio(
     const tokenList = await buildZenithTokenList();
     const enrichedTokens = enrichWalletBalances(rawBalances, tokenList);
 
-    // 3. Fetch prices
-    const mints = enrichedTokens.map(t => t.address);
+    // 3. Fetch prices (Cap to top 100 to avoid massive URL/processing loads)
+    const topTokens = enrichedTokens.slice(0, 100);
+    const mints = topTokens.map(t => t.address);
     const prices = await fetchPrices(mints);
 
     // 4. Build holdings with projections

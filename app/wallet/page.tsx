@@ -5,7 +5,7 @@ import { PublicKey } from '@solana/web3.js';
 import { ExternalLink, RefreshCw, TrendingUp, TrendingDown, AlertCircle, Copy, Check } from 'lucide-react';
 import WalletGate from '@/components/wallet/WalletGate';
 import { useDirectWallet } from '@/components/wallet/DirectConnectButton';
-import { fetchPortfolio, fetchTransactions, formatTransaction, PortfolioData, WalletTransaction } from '@/lib/wallet/portfolio';
+import { fetchPortfolio, fetchTransactions, formatTransaction, PortfolioData, WalletTransaction, clearPortfolioCache } from '@/lib/wallet/portfolio';
 
 // No more Connection needed - portfolio functions use server-side API routes
 
@@ -66,6 +66,7 @@ export default function WalletPage() {
     const handleRefresh = async () => {
         if (!publicKey) return;
         setLoading(true);
+        clearPortfolioCache();
         try {
             const pk = new PublicKey(publicKey);
             const portfolioData = await fetchPortfolio(pk);
