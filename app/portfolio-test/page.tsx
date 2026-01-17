@@ -432,6 +432,13 @@ export default function SurvivalLegacyPage() {
     const [activeFleet, setActiveFleet] = useState<LifecycleOpportunity[]>([]);
     const [globalRoadmaps, setGlobalRoadmaps] = useState<any[]>([]); // BrainRoadmap[]
 
+    // Reset loading state on identity link
+    useEffect(() => {
+        if (publicKey) {
+            setLoading(true);
+        }
+    }, [publicKey]);
+
     const addLog = useCallback((msg: string) => {
         setLogs(prev => [...prev.slice(-30), `[${new Date().toLocaleTimeString()}] ${msg}`]);
     }, []);
@@ -478,11 +485,13 @@ export default function SurvivalLegacyPage() {
             }
 
             setSolBalance(walletData.sol);
+            setHoldings(walletData.tokens); // Initial set for responsiveness
 
-            // If metadata isn't ready, we can't enrich, but we can still show basic SOL
+            // If metadata isn't ready, we wait for it to be ready in the state
             if (jupiterTokenMap.size === 0) {
-                addLog('System: Metadata pending. Enrichment paused.');
+                addLog('System: Metadata awaiting link. Physics paused.');
                 setAnalyzing(false);
+                isTickingRef.current = false;
                 return;
             }
 
@@ -592,12 +601,12 @@ export default function SurvivalLegacyPage() {
             }
 
             addLog(`Tick Complete: ${walletHoldings.length} holdings audited, ${analysis.discoveryResults?.length} opportunities scouted.`);
+            setLoading(false); // Only finish loading once we have actual results
 
         } catch (err) {
             addLog(`Tick Failure: ${err}`);
         } finally {
             setAnalyzing(false);
-            setLoading(false);
             isTickingRef.current = false;
         }
     }, [publicKey, jupiterTokenMap, addLog]);
@@ -732,7 +741,7 @@ export default function SurvivalLegacyPage() {
     }, [fetchMetadata, connected, publicKey]);
 
     useEffect(() => {
-        if (connected && publicKey && jupiterTokenMap.size > 0) {
+        if (connected && publicKey) {
             performAnalyticalTick();
 
             // Refresh loop - 60s for wallet data, can be faster for discovery but we link them here
