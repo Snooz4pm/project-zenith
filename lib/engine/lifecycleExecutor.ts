@@ -1,5 +1,6 @@
 import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
-import { derivePositionState, assertValidAmount, resolveExitMints, SOL_MINT, ActionType, PositionState, USDC_MINT } from "./lifecycleState";
+import { getAssociatedTokenAddress } from "@solana/spl-token";
+import { derivePositionState, assertValidAmount, resolveExitMints, SOL_MINT, ActionType, PositionState, USDC_MINT, EXIT_TARGETS } from "./lifecycleState";
 
 export { type ActionType };
 
@@ -43,6 +44,71 @@ function assertDifferentMints(inputMint: string, outputMint: string) {
     if (inputMint === outputMint) {
         throw new Error(`Invalid swap: inputMint and outputMint are identical (${inputMint})`);
     }
+}
+
+export async function getRealTokenBalance({
+    connection,
+    walletPubkey,
+    mint,
+}: {
+    connection: Connection;
+    walletPubkey: PublicKey;
+    mint: string;
+}) {
+    if (mint === SOL_MINT) {
+        const balance = await connection.getBalance(walletPubkey);
+        return {
+            rawAmount: BigInt(balance),
+            decimals: 9,
+            uiAmount: balance / 1e9
+        };
+    }
+
+    const ata = await getAssociatedTokenAddress(new PublicKey(mint), walletPubkey);
+    try {
+        const balance = await connection.getTokenAccountBalance(ata);
+        return {
+            rawAmount: BigInt(balance.value.amount),
+            decimals: balance.value.decimals,
+            uiAmount: balance.value.uiAmount ?? 0,
+        };
+    } catch (e) {
+        console.warn(`[getRealTokenBalance] No ATA found for ${mint}. Assuming zero balance.`, e);
+        return {
+            rawAmount: BigInt(0),
+            decimals: 6,
+            uiAmount: 0
+        };
+    }
+}
+
+export async function findExitRoute(
+    inputMint: string,
+    amountRaw: string,
+    addLog: (msg: string) => void
+) {
+    for (const target of EXIT_TARGETS) {
+        try {
+            if (inputMint === target.mint) continue; // Skip identical
+
+            addLog(`🔍 Kernel Route Search: Trying exit → ${target.symbol}`);
+
+            const JUPITER_PROXY_URL = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_JUPITER_PROXY_URL) || 'https://jupiter-proxy-production.up.railway.app';
+            const url = `${JUPITER_PROXY_URL}/quote?inputMint=${inputMint}&outputMint=${target.mint}&amount=${amountRaw}&slippageBps=50`;
+
+            const res = await fetch(url);
+            if (!res.ok) continue;
+
+            const quote = await res.json();
+            if (quote?.routePlan?.length) {
+                addLog(`✅ Exit route secured → ${target.symbol}`);
+                return { quote, target };
+            }
+        } catch (e) {
+            // Silently continue to next target
+        }
+    }
+    throw new Error("No available exit routes (SOL/USDC/USDT all failed)");
 }
 
 
@@ -100,29 +166,35 @@ export async function executeLifecycleAction(
                 inputMint = resolved.inputMint;
                 outputMint = resolved.outputMint;
 
-                // Rule: Pull from real wallet balance (holdings)
-                const hHolding = ctx.holdings.find(h => h.mint === inputMint);
-                const hWalletRaw = hHolding?.rawAmount ? BigInt(hHolding.rawAmount) : BigInt(0);
+                // 🎯 Spec-Compliant [FAST EXIT]: Always use on-chain truth
+                addLog(`🔍 Kernel Fetch: Reading real on-chain balance for ${params.targetSymbol || inputMint}`);
+                const balance = await getRealTokenBalance({
+                    connection,
+                    walletPubkey: publicKey,
+                    mint: inputMint
+                });
 
-                addLog(`🧮 ${type} Balance Check: Wallet=${hWalletRaw.toString()} | Shadow=${params.position?.amount}`);
+                const hWalletRaw = balance.rawAmount;
+                addLog(`🧮 ${type} On-Chain Audit: Balance=${hWalletRaw.toString()} | uiAmount=${balance.uiAmount}`);
 
-                if (hWalletRaw <= BigInt(0)) throw new Error(`No wallet balance for ${params.targetSymbol || inputMint}`);
+                if (hWalletRaw <= BigInt(0)) {
+                    throw new Error(`No wallet balance detected for ${params.targetSymbol || inputMint}. Position may already be closed.`);
+                }
 
                 if (type === "HARVEST") {
-                    // 🎯 Spec-Compliant [FAST EXIT]: 40% partial exit
-                    amountRaw = (hWalletRaw * BigInt(40) / 100n).toString();
+                    // 🎯 40% partial exit based on on-chain truth
+                    const exitNum = hWalletRaw * BigInt(40) / 100n;
+                    amountRaw = exitNum.toString();
                 } else {
-                    // 🎯 Spec-Compliant [FAST EXIT]: 100% full exit
+                    // 🎯 100% full exit based on on-chain truth
                     amountRaw = hWalletRaw.toString();
                 }
 
-                if (params.isSnap) {
-                    addLog(`🔥 SNAP MODE ACTIVE: Forcing fallback to USDC/wSOL`);
-                    // If output is already SOL, we go to USDC. If GEM, we go to SOL or USDC.
-                    // resolveExitMints already handles basic GEM -> SOL.
-                    // If SNAP is on, we prefer USDC for safety.
-                    outputMint = (inputMint === SOL_MINT) ? USDC_MINT : (resolved.outputMint || SOL_MINT);
-                }
+                // Production Routing: Try SOL -> USDC -> wSOL -> USDT
+                addLog(`🚀 Production Exit Routing engaged...`);
+                const exitRes = await findExitRoute(inputMint, amountRaw, addLog);
+                outputMint = exitRes.target.mint;
+                quote = exitRes.quote;
 
                 assertValidAmount(amountRaw);
                 break;

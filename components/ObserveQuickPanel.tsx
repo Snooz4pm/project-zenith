@@ -1,6 +1,6 @@
 import { Search, Skull, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { PositionState } from "@/lib/engine/lifecycleState";
+import { PositionState, EXIT_TARGETS } from "@/lib/engine/lifecycleState";
 
 export function ObserveQuickPanel({
     selectedGem,
@@ -16,9 +16,10 @@ export function ObserveQuickPanel({
     const [loading, setLoading] = useState(false);
     const [snapActive, setSnapActive] = useState(false);
     const [quoteError, setQuoteError] = useState(false);
+    const [exitTarget, setExitTarget] = useState(EXIT_TARGETS[0]);
     const lastQuoteKeyRef = useRef<string>("");
 
-    // Quote monitoring for SNAP detection
+    // Quote monitoring for SNAP detection (Sequential Routing)
     const checkLiquidity = useCallback(async () => {
         if (!selectedGem || !state?.hasPosition) return;
 
@@ -28,9 +29,22 @@ export function ObserveQuickPanel({
 
         try {
             const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
-            const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${selectedGem.mint}&outputMint=So11111111111111111111111111111111111111112&amount=1000000`); // Test small amount
-            const data = await res.json();
-            setQuoteError(!data?.routePlan?.length);
+
+            let found = false;
+            for (const target of EXIT_TARGETS) {
+                if (selectedGem.mint === target.mint) continue;
+
+                const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${selectedGem.mint}&outputMint=${target.mint}&amount=1000000&slippageBps=50`);
+                const data = await res.json();
+
+                if (data && data.routePlan?.length) {
+                    setExitTarget(target);
+                    setQuoteError(false);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) setQuoteError(true);
         } catch (e) {
             setQuoteError(true);
         }

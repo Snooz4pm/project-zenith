@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Loader2, Skull, AlertTriangle } from "lucide-react";
 import { computePortfolioUsd, computeSeedUsd } from "@/lib/engine/portfolio";
 
-import { PositionState } from "@/lib/engine/lifecycleState";
+import { PositionState, EXIT_TARGETS } from "@/lib/engine/lifecycleState";
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
@@ -34,6 +34,7 @@ export function SeedQuickPanel({
     const [isInternalFetching, setIsInternalFetching] = useState(false);
     const [snapActive, setSnapActive] = useState(false);
     const [quoteError, setQuoteError] = useState(false);
+    const [exitTarget, setExitTarget] = useState(EXIT_TARGETS[0]);
 
     const baseMintRef = useRef(baseMint);
     const targetMintRef = useRef(selectedGem?.mint);
@@ -108,6 +109,36 @@ export function SeedQuickPanel({
             setIsInternalFetching(false);
         }
     }, [selectedGem, seedUsd, wallet, preloadedQuote]);
+
+    // Fast Exit Proactive Monitoring
+    const checkExitLiquidity = useCallback(async () => {
+        if (!selectedGem || !state?.hasPosition) return;
+
+        const key = `SEED-EXIT-${selectedGem.mint}`;
+        if (key === lastQuoteKeyRef.current) return;
+        // Not updating lastQuoteKeyRef here to avoid blocking seed quote
+
+        try {
+            const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
+            let found = false;
+            for (const target of EXIT_TARGETS) {
+                if (selectedGem.mint === target.mint) continue;
+                const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${selectedGem.mint}&outputMint=${target.mint}&amount=1000000&slippageBps=50`);
+                const data = await res.json();
+                if (data && data.routePlan?.length) {
+                    setExitTarget(target);
+                    // We don't set quoteError to false here because SEED quote might still be failing
+                    found = true;
+                    break;
+                }
+            }
+            // Snapshot only if both fail? No, just track if exit is possible.
+        } catch (e) { }
+    }, [selectedGem, state]);
+
+    useEffect(() => {
+        if (state?.hasPosition) checkExitLiquidity();
+    }, [state?.hasPosition, checkExitLiquidity]);
 
     // Refresh internal quote when inputs change
     useEffect(() => {
@@ -249,10 +280,10 @@ export function SeedQuickPanel({
                             disabled={loading || (quoteError && !snapActive)}
                             onClick={handlePanicExit}
                             className={`px-3 py-2 rounded flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${snapActive
-                                    ? "bg-amber-600 text-white border border-amber-400 animate-pulse shadow-[0_0_15px_rgba(217,119,6,0.4)]"
-                                    : "bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white"
+                                ? "bg-amber-600 text-white border border-amber-400 animate-pulse shadow-[0_0_15px_rgba(217,119,6,0.4)]"
+                                : "bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white"
                                 }`}
-                            title={snapActive ? "FAST EXIT (SNAP MODE)" : "FAST EXIT - Liquidate 100% to SOL"}
+                            title={snapActive ? `FAST EXIT (SNAP MODE to ${exitTarget.symbol})` : `FAST EXIT - Liquidate to ${exitTarget.symbol}`}
                         >
                             <Skull className="w-3 h-3" />
                             <span className="text-[10px] font-black uppercase tracking-widest">

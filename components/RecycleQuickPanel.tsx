@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Loader2, RefreshCw, Skull, AlertTriangle } from "lucide-react";
 
-import { PositionState, resolveExitMints, SOL_MINT } from "@/lib/engine/lifecycleState";
+import { PositionState, resolveExitMints, SOL_MINT, EXIT_TARGETS } from "@/lib/engine/lifecycleState";
 
 
 export function RecycleQuickPanel({
@@ -27,6 +27,7 @@ export function RecycleQuickPanel({
     const [isInternalFetching, setIsInternalFetching] = useState(false);
     const [snapActive, setSnapActive] = useState(false);
     const [quoteError, setQuoteError] = useState(false);
+    const [exitTarget, setExitTarget] = useState(EXIT_TARGETS[0]);
 
     const inputMintRef = useRef(selectedGem?.mint);
     const amountRawRef = useRef<string>("0");
@@ -81,24 +82,35 @@ export function RecycleQuickPanel({
         setIsInternalFetching(true);
         try {
             const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
-            const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${currentInput}&outputMint=${currentOutput}&amount=${currentAmountRaw}&slippageBps=100`);
-            const data = await res.json();
 
-            if (data && data.routePlan?.length) {
-                setInternalQuote(data);
-                setQuoteError(false);
-            } else {
+            let found = false;
+            for (const target of EXIT_TARGETS) {
+                if (currentInput === target.mint) continue;
+
+                const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${currentInput}&outputMint=${target.mint}&amount=${currentAmountRaw}&slippageBps=50`);
+                const data = await res.json();
+
+                if (data && data.routePlan?.length) {
+                    setInternalQuote(data);
+                    setExitTarget(target);
+                    setQuoteError(false);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
                 setInternalQuote(null);
                 setQuoteError(true);
             }
         } catch (e) {
-            console.error("[RecyclePanel] Internal Quote Fetch Failed:", e);
+            console.error("[RecyclePanel] Sequential Quote Fetch Failed:", e);
             setInternalQuote(null);
             setQuoteError(true);
         } finally {
             setIsInternalFetching(false);
         }
-    }, [selectedGem, recycleAmountRaw, preloadedQuote]);
+    }, [selectedGem, recycleAmountRaw]);
 
     useEffect(() => {
         if (!preloadedQuote) {
@@ -151,7 +163,7 @@ export function RecycleQuickPanel({
                         </div>
                     )}
                     <div className="text-emerald-400 font-mono">
-                        (100% Exit to SOL)
+                        (100% Exit to {exitTarget.symbol})
                     </div>
                 </div>
             </div>
@@ -182,8 +194,8 @@ export function RecycleQuickPanel({
                         disabled={!canRecycle && !snapActive}
                         onClick={handleRecycleClick}
                         className={`flex-1 group relative px-6 py-2 rounded flex items-center justify-center gap-2 transition-all disabled:opacity-30 disabled:grayscale ${snapActive
-                                ? "bg-amber-600 text-white border border-amber-400 animate-pulse"
-                                : "bg-zinc-100 text-black shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-105 active:scale-95"
+                            ? "bg-amber-600 text-white border border-amber-400 animate-pulse"
+                            : "bg-zinc-100 text-black shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-105 active:scale-95"
                             }`}
                     >
                         <span className={loading ? "opacity-0" : "opacity-100 flex items-center gap-2"}>

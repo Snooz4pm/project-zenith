@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Loader2, Zap, TrendingDown, Skull, AlertTriangle } from "lucide-react";
 
-import { PositionState, resolveExitMints, SOL_MINT } from "@/lib/engine/lifecycleState";
+import { PositionState, resolveExitMints, SOL_MINT, EXIT_TARGETS } from "@/lib/engine/lifecycleState";
 
 
 export function HarvestQuickPanel({
@@ -29,6 +29,7 @@ export function HarvestQuickPanel({
     const [isInternalFetching, setIsInternalFetching] = useState(false);
     const [snapActive, setSnapActive] = useState(false);
     const [quoteError, setQuoteError] = useState(false);
+    const [exitTarget, setExitTarget] = useState(EXIT_TARGETS[0]);
 
     const inputMintRef = useRef(selectedGem?.mint);
     const outputMintRef = useRef(outputMint);
@@ -91,24 +92,35 @@ export function HarvestQuickPanel({
         setIsInternalFetching(true);
         try {
             const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
-            const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${currentInput}&outputMint=${currentOutput}&amount=${currentAmountRaw}&slippageBps=100`);
-            const data = await res.json();
 
-            if (data && data.routePlan?.length) {
-                setInternalQuote(data);
-                setQuoteError(false);
-            } else {
+            let found = false;
+            for (const target of EXIT_TARGETS) {
+                if (currentInput === target.mint) continue;
+
+                const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${currentInput}&outputMint=${target.mint}&amount=${currentAmountRaw}&slippageBps=50`);
+                const data = await res.json();
+
+                if (data && data.routePlan?.length) {
+                    setInternalQuote(data);
+                    setExitTarget(target);
+                    setQuoteError(false);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
                 setInternalQuote(null);
                 setQuoteError(true);
             }
         } catch (e) {
-            console.error("[HarvestPanel] Internal Quote Fetch Failed:", e);
+            console.error("[HarvestPanel] Sequential Quote Fetch Failed:", e);
             setInternalQuote(null);
             setQuoteError(true);
         } finally {
             setIsInternalFetching(false);
         }
-    }, [selectedGem, harvestAmountRaw, preloadedQuote]);
+    }, [selectedGem, harvestAmountRaw]);
 
     useEffect(() => {
         if (outputMint !== SOL_MINT || !preloadedQuote) {
@@ -241,8 +253,8 @@ export function HarvestQuickPanel({
                         disabled={loading || (quoteError && !snapActive)}
                         onClick={handlePanicExit}
                         className={`px-3 py-2 rounded flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${snapActive
-                                ? "bg-amber-600 text-white border border-amber-400 animate-pulse shadow-[0_0_15px_rgba(217,119,6,0.4)]"
-                                : "bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white"
+                            ? "bg-amber-600 text-white border border-amber-400 animate-pulse shadow-[0_0_15px_rgba(217,119,6,0.4)]"
+                            : "bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white"
                             }`}
                         title={snapActive ? "FAST EXIT (SNAP MODE)" : "FAST EXIT - Liquidate 100% to SOL"}
                     >

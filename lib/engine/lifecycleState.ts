@@ -22,6 +22,16 @@ export interface PositionState {
 
 export const SOL_MINT = 'So11111111111111111111111111111111111111112';
 export const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+export const USDT_MINT = 'Es9vMFrzaCERJbRyxj6zS1kq4p9GZ9erjRzCQXDpUe8';
+export const WSOL_MINT = 'So11111111111111111111111111111111111111112';
+
+export const EXIT_TARGETS = [
+    { symbol: "SOL", mint: SOL_MINT },
+    { symbol: "USDC", mint: USDC_MINT },
+    { symbol: "wSOL", mint: WSOL_MINT },
+    { symbol: "USDT", mint: USDT_MINT }
+];
+
 export const MIN_LAMPORTS = BigInt(50_000); // ~0.00005 SOL safety dust
 export const MIN_EXIT_LAMPORTS = BigInt(10_000); // ~0.00001 SOL absolute minimum to swap
 
