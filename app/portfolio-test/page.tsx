@@ -9,7 +9,7 @@ import { runPortfolioAnalysis, PortfolioAnalysisResult, Position, getMetadata } 
 import {
     Shield, Loader2, Activity, TrendingUp, TrendingDown, BrainCircuit, RefreshCw, RotateCcw,
     AlertTriangle, Zap, Target, Flame, Award, Wallet, Eye, Play, StopCircle,
-    ChevronRight, BarChart3, Database, Search, ShieldCheck, Heart, Skull, ArrowUpRight, ArrowDownRight
+    ChevronRight, BarChart3, Database, Search, ShieldCheck, Heart, Skull, ArrowUpRight, ArrowDownRight, ArrowRight
 } from 'lucide-react';
 import { executeLifecycleAction, ActionType } from '@/lib/engine/lifecycleExecutor';
 import { derivePositionState, PositionState } from '@/lib/engine/lifecycleState';
@@ -339,6 +339,75 @@ const DiscoveryRow = ({
     );
 };
 
+function RoadmapCard({ roadmap, onAction, solPrice }: { roadmap: any, onAction: any, solPrice: number }) {
+    if (!roadmap || !roadmap.steps || roadmap.steps.length === 0) return null;
+
+    return (
+        <div className="bg-zinc-900/10 border border-zinc-800 rounded-xl p-6 hover:border-cyan-500/30 transition-all group relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <BrainCircuit size={48} className="text-cyan-500" />
+            </div>
+
+            <div className="flex items-center justify-between mb-6 relative z-10">
+                <div className="flex items-center gap-3">
+                    <div className="px-2 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded text-[10px] font-black text-cyan-500 uppercase tracking-widest flex items-center gap-2">
+                        <Zap size={10} className="fill-current" />
+                        {roadmap.scenario || 'BALANCED'} Strategy
+                    </div>
+                </div>
+                <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">
+                    Confidence: <span className="text-cyan-400">{roadmap.summary?.confidence || 'MEDIUM'}</span>
+                </div>
+            </div>
+
+            <div className="flex items-center gap-4 mb-8 overflow-x-auto pb-4 scrollbar-hide relative z-10">
+                {roadmap.steps.map((step: any, i: number) => (
+                    <div key={i} className="flex items-center gap-4 flex-shrink-0">
+                        <div className="flex flex-col items-center">
+                            <div className="w-10 h-10 rounded-xl border border-zinc-800 bg-black flex items-center justify-center text-[10px] font-black text-zinc-500 relative">
+                                {i + 1}
+                                {step.action === 'HOLD' && (
+                                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500/20 border border-amber-500/40 rounded-full flex items-center justify-center">
+                                        <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="mt-2 text-[10px] font-black text-white uppercase tracking-widest text-center max-w-[60px] truncate">
+                                {step.action === 'SWAP' ? (step.toSymbol || 'TOKEN') : `HOLD ${step.holdMinutes || 0}m`}
+                            </div>
+                        </div>
+                        {i < roadmap.steps.length - 1 && (
+                            <ArrowRight className="w-4 h-4 text-zinc-800 mb-4" />
+                        )}
+                    </div>
+                ))}
+            </div>
+
+            <div className="p-4 bg-black/40 border border-zinc-800/50 rounded-lg mb-6 relative z-10">
+                <div className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-2 italic flex items-center gap-2">
+                    <Activity size={10} /> Intelligence Insight:
+                </div>
+                <div className="text-[11px] text-zinc-400 leading-relaxed font-black uppercase tracking-tighter">
+                    {roadmap.explanation?.whyChosen?.[0] || 'Multi-hop rotation detected for optimal capital flow.'}
+                </div>
+            </div>
+
+            <button
+                onClick={() => onAction('SEED', {
+                    overrideQuote: null,
+                    baseMint: roadmap.steps[0]?.fromToken,
+                    targetMint: roadmap.steps[0]?.toToken,
+                    seedUsd: 10
+                })}
+                className="w-full py-4 bg-cyan-950/20 border border-cyan-500/30 text-cyan-500 font-black uppercase text-[11px] tracking-[0.3em] rounded-xl hover:bg-cyan-600 hover:text-white transition-all flex items-center justify-center gap-3 group/btn z-10 relative"
+            >
+                <Play className="w-4 h-4 fill-current group-hover/btn:scale-110 transition-transform" />
+                Launch Strategic Hop 1
+            </button>
+        </div>
+    );
+}
+
 export default function SurvivalLegacyPage() {
     const { publicKey, connected, sendTransaction } = useWallet();
     const { connection } = useConnection();
@@ -360,6 +429,7 @@ export default function SurvivalLegacyPage() {
     const [logs, setLogs] = useState<string[]>([]);
     const [lifecycle, setLifecycle] = useState<LifecycleOpportunity[]>([]);
     const [activeFleet, setActiveFleet] = useState<LifecycleOpportunity[]>([]);
+    const [globalRoadmaps, setGlobalRoadmaps] = useState<any[]>([]); // BrainRoadmap[]
 
     const addLog = useCallback((msg: string) => {
         setLogs(prev => [...prev.slice(-30), `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -453,6 +523,7 @@ export default function SurvivalLegacyPage() {
             setSolPrice(sPrice);
             setAnalysisResults(analysis.results || []);
             setDiscovery(analysis.discoveryResults || []);
+            setGlobalRoadmaps(analysis.globalRoadmaps || []);
 
             console.log("[DISCOVERY_UI] Discovery Results Split:", {
                 safe: (analysis.discoveryResults || []).filter((g: any) => (g.verdict.riskScore || 0) <= 30).length,
@@ -921,6 +992,27 @@ export default function SurvivalLegacyPage() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Strategic Rebalance Hub */}
+                        {globalRoadmaps.length > 0 && (
+                            <div className="bg-[#0a0a0a] border border-cyan-900/30 rounded-xl overflow-hidden p-6 shadow-2xl">
+                                <div className="flex items-center justify-between mb-8">
+                                    <div className="flex items-center gap-3">
+                                        <BrainCircuit className="w-5 h-5 text-cyan-400" />
+                                        <h2 className="text-sm font-black text-white uppercase tracking-[0.3em] italic">Strategic Rebalance Hub ({globalRoadmaps.length} Paths)</h2>
+                                    </div>
+                                    <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest bg-zinc-900 px-3 py-1 rounded flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-pulse" />
+                                        Multi-Hop Intelligence Active
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {globalRoadmaps.slice(0, 4).map((roadmap, i) => (
+                                        <RoadmapCard key={i} roadmap={roadmap} onAction={onAction} solPrice={solPrice} />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Discovery Hive */}
                         <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden p-6 shadow-2xl opacity-80 hover:opacity-100 transition-opacity">

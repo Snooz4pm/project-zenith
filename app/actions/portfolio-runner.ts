@@ -81,12 +81,14 @@ export interface PortfolioAnalysisResult {
         routeSummary: string;
         scenarioUsed: string;
     };
+    roadmap?: any; // BrainRoadmap from ScenarioRunner
 }
 
 export interface PortfolioAnalysisResponse {
     success: boolean;
     results?: PortfolioAnalysisResult[];
     discoveryResults?: PortfolioAnalysisResult[];
+    globalRoadmaps?: any[]; // Array of BrainRoadmap
     logs?: string[];  // UI-visible logs for state machine visibility
     error?: string;
     diagnostic?: string;
@@ -483,10 +485,59 @@ export async function runPortfolioAnalysis(
             uiLogs.push(`[SCAN] No high-conviction gems identified this tick.`);
         }
 
+        // ============================================================================
+        // 5. STRATEGIC REBALANCE HUB: Multi-Hop Roadmap Generation
+        // ============================================================================
+        const globalRoadmaps: any[] = [];
+        uiLogs.push(`[BRAIN] Running Strategic Roadmap simulations...`);
+
+        // Prepare Universe for ScenarioRunner
+        const universe: SearchableToken[] = evaluationData.map(t => ({
+            mint: t.mint,
+            symbol: t.symbol,
+            valueInSOL: (t.price || 0) / solPrice,
+            roundTripLoss: (t.slippagePct || 1) * 2, // Estimate RTL
+            hasRoute: true,
+            liquidityScore: Math.min(1, (t.liquidityUSD || 0) / 100000),
+            isStable: ['USDC', 'USDT'].includes(t.symbol),
+            isAlpha: (t.riskLevel === 'HIGH' || t.riskLevel === 'CRITICAL'),
+            tier: (t.liquidityUSD || 0) > 50000 ? 'SAFE' : 'RANKABLE'
+        }));
+
+        for (const res of portfolioResults) {
+            if (res.verdict.action === 'SELL' || res.verdict.action === 'SWAP') {
+                // Find a target gem for rotation (highest volume/momentum gem)
+                const targetGem = discoveryResults[0];
+                if (!targetGem) continue;
+
+                const goal: BrainGoal = {
+                    startToken: res.mint,
+                    targetToken: targetGem.mint,
+                    startAmountSOL: (res.metrics.price * res.decimals) / solPrice, // Using unit for ratio
+                    targetAmountSOL: ((res.metrics.price * res.decimals) / solPrice) * 1.1, // Seek 10% improvement
+                    maxHops: 5,
+                    maxTotalRTL: 10,
+                    maxPerHopRTL: 4
+                };
+
+                try {
+                    const comparison = await ScenarioRunner.runAll(universe, goal);
+                    if (comparison.best && comparison.best.found) {
+                        res.roadmap = comparison.best.roadmap;
+                        globalRoadmaps.push(comparison.best.roadmap);
+                        uiLogs.push(`[BRAIN] Roadmap secured: ${res.symbol} → ${targetGem.symbol} via ${comparison.best.config.name}`);
+                    }
+                } catch (err) {
+                    console.error(`[Brain] Roadmap fail for ${res.symbol}:`, err);
+                }
+            }
+        }
+
         return {
             success: true,
             results: portfolioResults,
             discoveryResults: discoveryResults.slice(0, 20),
+            globalRoadmaps,
             logs: uiLogs
         };
     } catch (globalErr: any) {
