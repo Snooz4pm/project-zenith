@@ -807,7 +807,7 @@ export default function SurvivalLegacyPage() {
                                         {discovery.filter(g => (g.verdict.riskScore || 0) <= 30).length === 0 ? (
                                             <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Scanning Stable Assets...</div>
                                         ) : (
-                                            discovery.filter(g => (g.verdict.riskScore || 0) <= 30).map((gem, i) => (
+                                            discovery.filter(g => (g.verdict.riskScore || 0) <= 30).slice(0, 5).map((gem, i) => (
                                                 <DiscoveryRow
                                                     key={gem.mint}
                                                     gem={gem}
@@ -837,7 +837,7 @@ export default function SurvivalLegacyPage() {
                                         {discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).length === 0 ? (
                                             <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Awaiting Mid-Cap Physics...</div>
                                         ) : (
-                                            discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).map((gem, i) => (
+                                            discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).slice(0, 5).map((gem, i) => (
                                                 <DiscoveryRow
                                                     key={gem.mint}
                                                     gem={gem}
@@ -867,7 +867,7 @@ export default function SurvivalLegacyPage() {
                                         {discovery.filter(g => (g.verdict.riskScore || 0) > 65).length === 0 ? (
                                             <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Scouting the trenches...</div>
                                         ) : (
-                                            discovery.filter(g => (g.verdict.riskScore || 0) > 65).map((gem, i) => (
+                                            discovery.filter(g => (g.verdict.riskScore || 0) > 65).slice(0, 5).map((gem, i) => (
                                                 <DiscoveryRow
                                                     key={gem.mint}
                                                     gem={gem}

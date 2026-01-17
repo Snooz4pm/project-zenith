@@ -13,6 +13,7 @@ export interface VolumeAssessment {
 
     volumeChange1hPct: number;
     riskLevel: VolumeRiskLevel;
+    riskScore: number;
     reason: string;
     priceUsd: number;
 }
@@ -122,6 +123,20 @@ export class VolumeObserver {
             );
         }
 
+        // Calculate numeric risk score (0-100)
+        let riskScore = 0;
+        if (riskLevel === 'LOW') riskScore = 15;
+        else if (riskLevel === 'MEDIUM') riskScore = 45;
+        else if (riskLevel === 'HIGH') riskScore = 80;
+        else if (riskLevel === 'CRITICAL') riskScore = 98;
+
+        // Fine-tune based on liquidity (lower liquidity = higher risk)
+        if (liquidityUsd < 10000) riskScore = Math.min(99, riskScore + 20);
+        else if (liquidityUsd < 50000) riskScore = Math.min(99, riskScore + 10);
+
+        // Fine-tune based on volume spikes
+        if (volumeChange1hPct > 200) riskScore = Math.min(99, riskScore + 15);
+
         return {
             mint: pair.baseToken.address,
             symbol: pair.baseToken.symbol,
@@ -133,6 +148,7 @@ export class VolumeObserver {
 
             volumeChange1hPct,
             riskLevel,
+            riskScore,
             reason,
             priceUsd: parseFloat(pair.priceUsd || '0')
         };
