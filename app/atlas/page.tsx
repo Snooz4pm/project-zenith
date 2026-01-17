@@ -1110,7 +1110,8 @@ export default function AtlasPage() {
                                                 }}
                                                 onAction={onAction}
                                             />
-                                        ))}
+                                        ))
+                                    )}
                                 </div>
                             </div>
 
