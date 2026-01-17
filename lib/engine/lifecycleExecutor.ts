@@ -1,5 +1,5 @@
 import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
-import { derivePositionState, assertValidAmount, resolveExitMints, SOL_MINT, ActionType, PositionState } from "./lifecycleState";
+import { derivePositionState, assertValidAmount, resolveExitMints, SOL_MINT, ActionType, PositionState, USDC_MINT } from "./lifecycleState";
 
 export { type ActionType };
 
@@ -21,6 +21,7 @@ export interface ActionParams {
     overrideAmountUsd?: number;
     overrideQuote?: any;
     state?: PositionState; // Canonical State Gate
+    isSnap?: boolean; // Fast Exit SNAP mode
 }
 
 function assertCanExecute(type: ActionType, state: PositionState) {
@@ -108,12 +109,21 @@ export async function executeLifecycleAction(
                 if (hWalletRaw <= BigInt(0)) throw new Error(`No wallet balance for ${params.targetSymbol || inputMint}`);
 
                 if (type === "HARVEST") {
-                    // 40% partial exit
-                    amountRaw = (hWalletRaw * BigInt(40) / BigInt(100)).toString();
+                    // 🎯 Spec-Compliant [FAST EXIT]: 40% partial exit
+                    amountRaw = (hWalletRaw * BigInt(40) / 100n).toString();
                 } else {
-                    // 100% exit
+                    // 🎯 Spec-Compliant [FAST EXIT]: 100% full exit
                     amountRaw = hWalletRaw.toString();
                 }
+
+                if (params.isSnap) {
+                    addLog(`🔥 SNAP MODE ACTIVE: Forcing fallback to USDC/wSOL`);
+                    // If output is already SOL, we go to USDC. If GEM, we go to SOL or USDC.
+                    // resolveExitMints already handles basic GEM -> SOL.
+                    // If SNAP is on, we prefer USDC for safety.
+                    outputMint = (inputMint === SOL_MINT) ? USDC_MINT : (resolved.outputMint || SOL_MINT);
+                }
+
                 assertValidAmount(amountRaw);
                 break;
             }

@@ -1,5 +1,5 @@
-import { Search, Skull } from 'lucide-react';
-import { useState } from 'react';
+import { Search, Skull, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { PositionState } from "@/lib/engine/lifecycleState";
 
 export function ObserveQuickPanel({
@@ -14,6 +14,36 @@ export function ObserveQuickPanel({
     state?: PositionState;
 }) {
     const [loading, setLoading] = useState(false);
+    const [snapActive, setSnapActive] = useState(false);
+    const [quoteError, setQuoteError] = useState(false);
+    const lastQuoteKeyRef = useRef<string>("");
+
+    const [loading, setLoading] = useState(false);
+    const [snapActive, setSnapActive] = useState(false);
+    const [quoteError, setQuoteError] = useState(false);
+    const lastQuoteKeyRef = useRef<string>("");
+
+    // Quote monitoring for SNAP detection
+    const checkLiquidity = useCallback(async () => {
+        if (!selectedGem || !state?.hasPosition) return;
+
+        const key = `OBS-EXIT-${selectedGem.mint}`;
+        if (key === lastQuoteKeyRef.current) return;
+        lastQuoteKeyRef.current = key;
+
+        try {
+            const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
+            const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${selectedGem.mint}&outputMint=So11111111111111111111111111111111111111112&amount=1000000`); // Test small amount
+            const data = await res.json();
+            setQuoteError(!data?.routePlan?.length);
+        } catch (e) {
+            setQuoteError(true);
+        }
+    }, [selectedGem, state]);
+
+    useEffect(() => {
+        checkLiquidity();
+    }, [checkLiquidity]);
 
     async function handlePanicExit() {
         if (!onRecycle || !state?.hasPosition || !selectedGem) return;
@@ -22,7 +52,8 @@ export function ObserveQuickPanel({
             await onRecycle("RECYCLE", {
                 targetMint: selectedGem.mint,
                 targetSymbol: selectedGem.symbol,
-                state
+                state,
+                isSnap: snapActive
             });
         } finally {
             setLoading(false);
@@ -49,18 +80,32 @@ export function ObserveQuickPanel({
                 </div>
 
                 {state?.hasPosition && (
-                    <button
-                        disabled={loading}
-                        onClick={handlePanicExit}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded bg-red-500 text-black text-[9px] font-black uppercase tracking-widest hover:bg-red-600 transition-all disabled:opacity-50"
-                    >
-                        {loading ? "EXITING..." : (
-                            <>
-                                <Skull className="w-3 h-3" />
-                                Exit Position
-                            </>
+                    <div className="flex gap-2">
+                        {quoteError && !snapActive && (
+                            <button
+                                onClick={() => setSnapActive(true)}
+                                className="px-3 py-1.5 rounded bg-amber-500/20 border border-amber-500/30 text-amber-500 text-[9px] font-black uppercase flex items-center gap-1.5 hover:bg-amber-500 hover:text-black transition-all"
+                            >
+                                <AlertTriangle className="w-3 h-3" />
+                                SNAP
+                            </button>
                         )}
-                    </button>
+                        <button
+                            disabled={loading || (quoteError && !snapActive)}
+                            onClick={handlePanicExit}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all disabled:opacity-50 ${snapActive
+                                    ? "bg-amber-600 text-white border border-amber-400 animate-pulse shadow-[0_0_15px_rgba(217,119,6,0.4)]"
+                                    : "bg-red-500 text-black hover:bg-red-600"
+                                } text-[9px] font-black uppercase tracking-widest`}
+                        >
+                            {loading ? "EXITING..." : (
+                                <>
+                                    <Skull className="w-3 h-3" />
+                                    {snapActive ? "SNAP EXIT" : "FAST EXIT"}
+                                </>
+                            )}
+                        </button>
+                    </div>
                 )}
             </div>
         </div>

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Skull, AlertTriangle } from "lucide-react";
 
 import { PositionState, resolveExitMints, SOL_MINT } from "@/lib/engine/lifecycleState";
 
@@ -25,6 +25,8 @@ export function RecycleQuickPanel({
     const [localLoading, setLocalLoading] = useState(false);
     const [internalQuote, setInternalQuote] = useState<any>(null);
     const [isInternalFetching, setIsInternalFetching] = useState(false);
+    const [snapActive, setSnapActive] = useState(false);
+    const [quoteError, setQuoteError] = useState(false);
 
     const inputMintRef = useRef(selectedGem?.mint);
     const amountRawRef = useRef<string>("0");
@@ -84,12 +86,15 @@ export function RecycleQuickPanel({
 
             if (data && data.routePlan?.length) {
                 setInternalQuote(data);
+                setQuoteError(false);
             } else {
                 setInternalQuote(null);
+                setQuoteError(true);
             }
         } catch (e) {
             console.error("[RecyclePanel] Internal Quote Fetch Failed:", e);
             setInternalQuote(null);
+            setQuoteError(true);
         } finally {
             setIsInternalFetching(false);
         }
@@ -124,7 +129,8 @@ export function RecycleQuickPanel({
                 overrideQuote: activeQuote,
                 targetMint: selectedGem.mint,
                 targetSymbol: selectedGem.symbol,
-                position
+                position,
+                isSnap: snapActive
             });
         } finally {
             setLocalLoading(false);
@@ -162,20 +168,37 @@ export function RecycleQuickPanel({
                     </div>
                 </div>
 
-                <button
-                    disabled={!canRecycle}
-                    onClick={handleRecycleClick}
-                    className="flex-1 group relative px-6 py-2 rounded bg-zinc-100 text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30 disabled:grayscale transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-105 active:scale-95"
-                >
-                    <span className={loading ? "opacity-0" : "opacity-100"}>
-                        {quoteLoading ? "WARMING..." : (state?.canExit === false ? "No Position" : "Recycle All")}
-                    </span>
-                    {loading && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                        </div>
+                <div className="flex-[1] flex gap-2">
+                    {quoteError && !snapActive && (
+                        <button
+                            onClick={() => setSnapActive(true)}
+                            className="px-3 py-2 rounded bg-amber-500/20 border border-amber-500/30 text-amber-500 text-[9px] font-black uppercase flex items-center gap-1.5 hover:bg-amber-500 hover:text-black transition-all"
+                        >
+                            <AlertTriangle className="w-3 h-3" />
+                            SNAP
+                        </button>
                     )}
-                </button>
+                    <button
+                        disabled={!canRecycle && !snapActive}
+                        onClick={handleRecycleClick}
+                        className={`flex-1 group relative px-6 py-2 rounded flex items-center justify-center gap-2 transition-all disabled:opacity-30 disabled:grayscale ${snapActive
+                                ? "bg-amber-600 text-white border border-amber-400 animate-pulse"
+                                : "bg-zinc-100 text-black shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-105 active:scale-95"
+                            }`}
+                    >
+                        <span className={loading ? "opacity-0" : "opacity-100 flex items-center gap-2"}>
+                            <Skull className="w-3 h-3" />
+                            <span className="text-[10px] font-black uppercase tracking-widest leading-none">
+                                {quoteLoading ? "WARMING..." : (snapActive ? "SNAP EXIT" : (state?.canExit === false ? "No Position" : "FAST EXIT"))}
+                            </span>
+                        </span>
+                        {loading && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                            </div>
+                        )}
+                    </button>
+                </div>
             </div>
         </div>
     );

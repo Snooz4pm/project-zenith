@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { Loader2, Zap, TrendingDown, Skull } from "lucide-react";
+import { Loader2, Zap, TrendingDown, Skull, AlertTriangle } from "lucide-react";
 
 import { PositionState, resolveExitMints, SOL_MINT } from "@/lib/engine/lifecycleState";
 
@@ -27,6 +27,8 @@ export function HarvestQuickPanel({
     const [localLoading, setLocalLoading] = useState(false);
     const [internalQuote, setInternalQuote] = useState<any>(null);
     const [isInternalFetching, setIsInternalFetching] = useState(false);
+    const [snapActive, setSnapActive] = useState(false);
+    const [quoteError, setQuoteError] = useState(false);
 
     const inputMintRef = useRef(selectedGem?.mint);
     const outputMintRef = useRef(outputMint);
@@ -94,12 +96,15 @@ export function HarvestQuickPanel({
 
             if (data && data.routePlan?.length) {
                 setInternalQuote(data);
+                setQuoteError(false);
             } else {
                 setInternalQuote(null);
+                setQuoteError(true);
             }
         } catch (e) {
             console.error("[HarvestPanel] Internal Quote Fetch Failed:", e);
             setInternalQuote(null);
+            setQuoteError(true);
         } finally {
             setIsInternalFetching(false);
         }
@@ -149,7 +154,8 @@ export function HarvestQuickPanel({
             await onRecycle("RECYCLE", {
                 targetMint: selectedGem.mint,
                 targetSymbol: selectedGem.symbol,
-                state
+                state,
+                isSnap: snapActive
             });
         } finally {
             setLocalLoading(false);
@@ -220,14 +226,32 @@ export function HarvestQuickPanel({
                     )}
                 </button>
 
-                <button
-                    disabled={loading}
-                    onClick={handlePanicExit}
-                    className="px-3 py-2 rounded bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all disabled:opacity-50"
-                    title="Panic Exit - Liquidate 100% to SOL"
-                >
-                    <Skull className="w-3 h-3" />
-                </button>
+                <div className="flex gap-2">
+                    {quoteError && !snapActive && (
+                        <button
+                            onClick={() => setSnapActive(true)}
+                            className="px-3 py-2 rounded bg-amber-500/20 border border-amber-500/30 text-amber-500 text-[9px] font-black uppercase flex items-center gap-1.5 hover:bg-amber-500 hover:text-black transition-all"
+                            title="Activate SNAP Safe Exit (Fallback Route)"
+                        >
+                            <AlertTriangle className="w-3 h-3" />
+                            SNAP
+                        </button>
+                    )}
+                    <button
+                        disabled={loading || (quoteError && !snapActive)}
+                        onClick={handlePanicExit}
+                        className={`px-3 py-2 rounded flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${snapActive
+                                ? "bg-amber-600 text-white border border-amber-400 animate-pulse shadow-[0_0_15px_rgba(217,119,6,0.4)]"
+                                : "bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white"
+                            }`}
+                        title={snapActive ? "FAST EXIT (SNAP MODE)" : "FAST EXIT - Liquidate 100% to SOL"}
+                    >
+                        <Skull className="w-3 h-3" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">
+                            {snapActive ? "SNAP EXIT" : "FAST EXIT"}
+                        </span>
+                    </button>
+                </div>
             </div>
         </div>
     );
