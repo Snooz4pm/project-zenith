@@ -112,174 +112,129 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
     const isTradable = position?.tradable !== false;
 
     return (
-        <div className="relative">
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-3">
-                    <Eye className="w-4 h-4 text-zinc-600" />
+        <div className="relative mb-8 bg-black/40 rounded-xl border border-zinc-900 overflow-hidden backdrop-blur-sm group hover:border-zinc-700/50 transition-all duration-500">
+            {/* 1. Header Row: Identity & Quick Exit */}
+            <div className="flex justify-between items-center p-6 border-b border-zinc-900/50">
+                <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded bg-zinc-800 flex items-center justify-center p-2">
+                        <img src={`https://token.jup.ag/all/logo/${op.mint}`} alt={op.symbol} className="w-full h-full object-contain" />
+                    </div>
                     <div>
-                        <div className="text-sm font-black text-white tracking-widest">{op.symbol}</div>
-                        <div className="text-[9px] text-zinc-700 font-mono tracking-widest">PROXIMITY_ALPHA_SCAN</div>
+                        <div className="text-lg font-black text-white tracking-widest leading-none mb-1">{op.symbol}</div>
+                        <div className="text-[10px] text-zinc-600 font-mono tracking-widest uppercase">
+                            Proximity • {op.mint.slice(0, 4)}...{op.mint.slice(-4)}
+                        </div>
                     </div>
                 </div>
-                <div className="text-right flex items-center gap-8">
-                    <div>
-                        <div className="text-[9px] text-zinc-700 font-black uppercase tracking-widest mb-1">Shadow PnL</div>
-                        <div className="text-xs font-black text-green-500">+{op.shadowPnL.toFixed(2)}%</div>
-                    </div>
-                    <div>
-                        <div className="text-[9px] text-zinc-700 font-black uppercase tracking-widest mb-1">Seed</div>
-                        <div className="text-xs font-black text-cyan-400">{op.seedSizeSOL.toFixed(4)} SOL</div>
-                    </div>
-                    {/* Direct Action Button */}
-                    <div className="pl-4 border-l border-zinc-900 flex items-center gap-3">
-                        {op.phase === 'SEE' ? (
-                            <button
-                                disabled={isSeeding || (op.state?.canSeed === false)}
-                                onClick={() => onAction('SEED', { overrideQuote: hotQuote, baseMint: SOL_MINT, targetMint: op.mint, targetSymbol: op.symbol, state: op.state })}
-                                className="px-4 py-1.5 rounded bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
-                            >
-                                {isSeeding ? "SEEDING..." : (op.state?.hasPosition ? "ADD SEED" : "SEED")}
-                            </button>
-                        ) : op.phase === 'SCA' ? (
-                            <button
-                                disabled={isSeeding || (op.state?.canScale === false)}
-                                onClick={() => onAction('SCALE', { overrideQuote: hotQuote, targetMint: op.mint, targetSymbol: op.symbol, state: op.state, position })}
-                                className="px-4 py-1.5 rounded bg-cyan-500 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale flex items-center gap-2"
-                            >
-                                {isSeeding ? <Loader2 className="animate-spin w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
-                                {op.state?.canScale === false ? "LOCKED" : "SCALE (6%)"}
-                            </button>
-                        ) : op.phase === 'HAR' ? (
-                            <button
-                                disabled={isSeeding || (op.state?.canHarvest === false)}
-                                onClick={() => onAction('HARVEST', { overrideQuote: hotQuote, targetMint: op.mint, targetSymbol: op.symbol, state: op.state, position })}
-                                className="px-4 py-1.5 rounded bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale flex items-center gap-2"
-                            >
-                                {isSeeding ? <Loader2 className="animate-spin w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                {op.state?.canHarvest === false ? "STABLE" : "HARVEST (40%)"}
-                            </button>
-                        ) : op.phase === 'REC' ? (
-                            <button
-                                disabled={isSeeding || (op.state?.canExit === false)}
-                                onClick={() => onAction('RECYCLE', { overrideQuote: hotQuote, targetMint: op.mint, targetSymbol: op.symbol, state: op.state, position })}
-                                className="px-4 py-1.5 rounded bg-zinc-200 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
-                            >
-                                {isSeeding ? "RECYCLING..." : (op.state?.canExit === false ? "EMPTY" : "RECYCLE ALL")}
-                            </button>
-                        ) : null}
 
+                <div className="flex items-center gap-12">
+                    <div className="flex gap-8">
+                        <div className="text-right">
+                            <div className="text-[9px] text-zinc-600 font-black uppercase tracking-[0.2em] mb-1">Shadow PnL</div>
+                            <div className={`text-sm font-black italic ${op.shadowPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {op.shadowPnL >= 0 ? '+' : ''}{op.shadowPnL.toFixed(2)}%
+                            </div>
+                        </div>
+                        <div className="text-right pr-6 border-r border-zinc-900">
+                            <div className="text-[9px] text-zinc-600 font-black uppercase tracking-[0.2em] mb-1">Seed Allocation</div>
+                            <div className="text-sm font-black text-white italic">
+                                {op.seedSizeSOL.toFixed(4)} <span className="text-zinc-500">SOL</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
                         {position && (
-                            <div className="flex flex-col items-end pr-4 border-r border-zinc-900">
-                                <div className="text-[8px] text-zinc-600 font-black uppercase">Engine Position</div>
-                                <div className="text-[10px] text-emerald-400 font-mono tracking-tighter">
-                                    ACTIVE • ${position.usdValue.toFixed(2)}
+                            <div className="text-right">
+                                <div className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.2em]">Live Value</div>
+                                <div className="text-xs font-mono text-emerald-400">
+                                    ${position.usdValue.toFixed(2)}
                                 </div>
                             </div>
                         )}
-
-                        {/* HIGH-PRIORITY FAST EXIT (The Emergency Handle) */}
-                        <div className="pl-4">
-                            <button
-                                disabled={isSeeding || !op.state?.canExit}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onAction('RECYCLE', {
-                                        overrideQuote: hotQuote,
-                                        targetMint: op.mint,
-                                        targetSymbol: op.symbol,
-                                        state: op.state,
-                                        position
-                                    });
-                                }}
-                                className="group relative px-6 py-2 rounded bg-red-500 text-black text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:scale-110 active:scale-90 transition-all shadow-[0_0_25px_rgba(239,68,68,0.2)] flex items-center gap-2"
-                                title="FAST EXIT: Liquidate 100% to SOL immediately"
-                            >
-                                <Skull className="w-3 h-3 animate-pulse" />
-                                {isSeeding ? "..." : "FAST EXIT"}
-                            </button>
-                        </div>
+                        <button
+                            disabled={isSeeding || !op.state?.canExit}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onAction('RECYCLE', {
+                                    overrideQuote: hotQuote,
+                                    targetMint: op.mint,
+                                    targetSymbol: op.symbol,
+                                    state: op.state,
+                                    position
+                                });
+                            }}
+                            className="px-6 py-2.5 rounded bg-red-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(220,38,38,0.2)] flex items-center gap-2"
+                        >
+                            <Skull className="w-3.5 h-3.5" />
+                            FAST EXIT
+                        </button>
                     </div>
                 </div>
             </div>
 
-            {/* Progress Bar */}
-            <div className="relative flex justify-between items-center px-4">
-                <div className="absolute h-px bg-zinc-800 left-8 right-8 top-1/2 -z-10" />
-                {(['OBS', 'SEE', 'SCA', 'HAR', 'REC'] as LifecyclePhase[]).map((p, pi) => (
-                    <button
-                        key={p}
-                        disabled={!isTradable && p !== 'OBS'}
-                        onClick={() => setActivePhase(p)}
-                        className={`flex flex-col items-center group outline-none ${!isTradable && p !== 'OBS' ? 'opacity-20 cursor-not-allowed' : ''}`}
-                    >
-                        <div className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all duration-300 ${p === op.phase ? (p === activePhase ? 'bg-cyan-500/20 border-cyan-400' : 'bg-cyan-600/10 border-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.3)] animate-pulse') : (p === activePhase ? 'bg-zinc-800 border-zinc-600' : 'bg-[#111] border-zinc-800 grayscale hover:grayscale-0 hover:border-zinc-700')
-                            }`}>
-                            {p === 'OBS' && <Eye className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
-                            {p === 'SEE' && <TrendingUp className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
-                            {p === 'SCA' && <Activity className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
-                            {p === 'HAR' && <Zap className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
-                            {p === 'REC' && <RefreshCw className={p === op.phase || p === activePhase ? "text-cyan-400" : "text-zinc-800"} size={16} />}
-                        </div>
-                        <span className={`mt-2 text-[8px] font-black tracking-widest uppercase transition-colors ${p === op.phase || p === activePhase ? 'text-cyan-400' : 'text-zinc-800 group-hover:text-zinc-600'}`}>{p}</span>
-                    </button>
-                ))}
+            {/* 2. Lifecycle Progress Track (The 5-Phase Circle UI) */}
+            <div className="px-12 py-8 bg-zinc-900/20 relative">
+                <div className="absolute left-24 right-24 top-[42px] h-[1px] bg-gradient-to-r from-transparent via-zinc-800 to-transparent z-0" />
+
+                <div className="flex justify-between items-center relative z-10 max-w-4xl mx-auto">
+                    {[
+                        { id: 'OBS', label: 'OBSERVE', icon: <Eye className="w-4 h-4" />, color: 'cyan' },
+                        { id: 'SEE', label: 'SEED', icon: <Zap className="w-4 h-4" />, color: 'emerald' },
+                        { id: 'SCA', label: 'SCALE', icon: <ArrowUpRight className="w-4 h-4" />, color: 'emerald' },
+                        { id: 'HAR', label: 'HARVEST', icon: <TrendingUp className="w-4 h-4" />, color: 'amber' },
+                        { id: 'REC', label: 'RECYCLE', icon: <RotateCcw className="w-4 h-4" />, color: 'red' }
+                    ].map((phase, idx) => {
+                        const isActive = activePhase === phase.id;
+                        const isCanonical = op.phase === phase.id;
+                        const colors: { [key: string]: string } = {
+                            cyan: 'text-cyan-400 border-cyan-900/50 bg-cyan-900/10 shadow-[0_0_15px_rgba(34,211,238,0.1)]',
+                            emerald: 'text-emerald-400 border-emerald-900/50 bg-emerald-900/10 shadow-[0_0_15px_rgba(16,185,129,0.1)]',
+                            amber: 'text-amber-500 border-amber-900/50 bg-amber-900/10 shadow-[0_0_15px_rgba(245,158,11,0.1)]',
+                            red: 'text-red-500 border-red-900/50 bg-red-900/10 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
+                        };
+
+                        return (
+                            <div key={phase.id} className="flex flex-col items-center gap-3">
+                                <button
+                                    onClick={() => setActivePhase(phase.id as LifecyclePhase)}
+                                    className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all duration-300 relative group/node ${isActive
+                                            ? 'bg-white text-black border-white scale-110 shadow-[0_0_25px_rgba(255,255,255,0.2)] z-20'
+                                            : isCanonical
+                                                ? `${colors[phase.color]} z-10`
+                                                : 'bg-black text-zinc-700 border-zinc-900 hover:border-zinc-700 z-10'
+                                        }`}
+                                >
+                                    {phase.icon}
+                                    {isCanonical && !isActive && (
+                                        <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-zinc-100 rounded-full border-2 border-black animate-pulse" />
+                                    )}
+                                </button>
+                                <span className={`text-[9px] font-black tracking-[0.2em] transition-colors ${isActive ? 'text-white' : 'text-zinc-600'}`}>
+                                    {phase.label}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
 
-            {/* Command Layer (Inline Panels) */}
-            <div className="mt-8 px-4">
+            {/* 3. Operational Panel (The Console) */}
+            <div className="p-6 bg-black/40 border-t border-zinc-900/50">
                 {activePhase === 'OBS' && (
-                    <ObserveQuickPanel
-                        selectedGem={op}
-                        onRecycle={onAction}
-                        position={position}
-                        state={op.state}
-                    />
+                    <ObserveQuickPanel selectedGem={op} onRecycle={onAction} position={position} state={op.state} />
                 )}
                 {activePhase === 'SEE' && (
-                    <SeedQuickPanel
-                        wallet={wallet}
-                        selectedGem={op}
-                        onAction={(params) => onAction('SEED', params)}
-                        onRecycle={onAction}
-                        isGlobalSeeding={isSeeding}
-                        preloadedQuote={hotQuote}
-                        state={op.state}
-                    />
+                    <SeedQuickPanel wallet={wallet} selectedGem={op} onAction={(p) => onAction('SEED', p)} onRecycle={onAction} isGlobalSeeding={isSeeding} preloadedQuote={hotQuote} state={op.state} />
                 )}
                 {activePhase === 'SCA' && (
-                    <ScaleQuickPanel
-                        wallet={wallet}
-                        selectedGem={op}
-                        onAction={onAction}
-                        onRecycle={onAction}
-                        isGlobalSeeding={isSeeding}
-                        preloadedQuote={hotQuote}
-                        position={position}
-                        state={op.state}
-                    />
+                    <ScaleQuickPanel wallet={wallet} selectedGem={op} onAction={onAction} onRecycle={onAction} isGlobalSeeding={isSeeding} preloadedQuote={hotQuote} position={position} state={op.state} />
                 )}
                 {activePhase === 'HAR' && (
-                    <HarvestQuickPanel
-                        wallet={wallet}
-                        selectedGem={op}
-                        onAction={onAction}
-                        onRecycle={onAction}
-                        isGlobalSeeding={isSeeding}
-                        preloadedQuote={hotQuote}
-                        position={position}
-                        state={op.state}
-                    />
+                    <HarvestQuickPanel wallet={wallet} selectedGem={op} onAction={onAction} onRecycle={onAction} isGlobalSeeding={isSeeding} preloadedQuote={hotQuote} position={position} state={op.state} />
                 )}
                 {activePhase === 'REC' && (
-                    <RecycleQuickPanel
-                        wallet={wallet}
-                        selectedGem={op}
-                        onAction={onAction}
-                        isGlobalSeeding={isSeeding}
-                        preloadedQuote={hotQuote}
-                        position={position}
-                        state={op.state}
-                    />
+                    <RecycleQuickPanel wallet={wallet} selectedGem={op} onAction={onAction} isGlobalSeeding={isSeeding} preloadedQuote={hotQuote} position={position} state={op.state} />
                 )}
             </div>
         </div>
