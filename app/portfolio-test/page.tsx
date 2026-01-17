@@ -168,6 +168,18 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                             </button>
                         ) : null}
 
+                        {/* Emergency Exit Button (Globals) */}
+                        {op.state?.canExit && (
+                            <button
+                                disabled={isSeeding}
+                                onClick={() => onAction('RECYCLE', { overrideQuote: hotQuote, targetMint: op.mint, targetSymbol: op.symbol, state: op.state, position })}
+                                className="px-3 py-1.5 rounded bg-red-500/10 border border-red-500/20 text-red-500 text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all disabled:opacity-50 disabled:grayscale flex items-center gap-1.5 shadow-[0_0_15px_rgba(239,68,68,0.1)]"
+                            >
+                                <Skull className="w-3 h-3" />
+                                {isSeeding ? "..." : "EXIT"}
+                            </button>
+                        )}
+
                         <div className="flex gap-2 mb-2">
                             {op.state?.dust && (
                                 <span className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[7px] font-black text-amber-500 uppercase tracking-widest">Dust</span>
