@@ -18,6 +18,7 @@ import { ObserveQuickPanel } from '@/components/ObserveQuickPanel';
 import { ScaleQuickPanel } from '@/components/ScaleQuickPanel';
 import { HarvestQuickPanel } from '@/components/HarvestQuickPanel';
 import { RecycleQuickPanel } from '@/components/RecycleQuickPanel';
+import UniversalLoader from '@/components/UniversalLoader';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
@@ -414,7 +415,7 @@ export default function SurvivalLegacyPage() {
     const { setVisible } = useWalletModal();
 
     // State
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [analyzing, setAnalyzing] = useState(false);
     const [jupiterTokenMap, setJupiterTokenMap] = useState<Map<string, JupiterToken>>(new Map());
 
@@ -596,6 +597,7 @@ export default function SurvivalLegacyPage() {
             addLog(`Tick Failure: ${err}`);
         } finally {
             setAnalyzing(false);
+            setLoading(false);
             isTickingRef.current = false;
         }
     }, [publicKey, jupiterTokenMap, addLog]);
@@ -746,234 +748,295 @@ export default function SurvivalLegacyPage() {
     }, [connected, publicKey, jupiterTokenMap.size, performAnalyticalTick]);
 
     return (
-        <div className="min-h-screen bg-black text-white font-mono p-4 md:p-8 selection:bg-cyan-500/30">
-            <div className="max-w-7xl mx-auto space-y-6">
+        <>
+            {connected && loading && (
+                <UniversalLoader fullScreen message="Syncing Physics Core..." />
+            )}
+            <div className="min-h-screen bg-black text-white font-mono p-4 md:p-8 selection:bg-cyan-500/30">
+                <div className="max-w-7xl mx-auto space-y-6">
 
-                {/* Header: Identity & Metrics */}
-                <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
-                    {!connected ? (
-                        <div className="flex-1 text-center py-4">
-                            <h2 className="text-xl font-black text-zinc-800 mb-2 tracking-tighter italic uppercase">Waiting for Identity Link...</h2>
-                            <p className="text-[10px] text-zinc-700 uppercase tracking-widest">Connect wallet in the top navbar to begin</p>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="flex items-center gap-4">
-                                <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.5)]"></div>
-                                <div>
-                                    <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Identity Secured</div>
-                                    <div className="text-sm font-bold tracking-tight">{publicKey?.toBase58().slice(0, 8)}...{publicKey?.toBase58().slice(-8)}</div>
-                                </div>
+                    {/* Header: Identity & Metrics */}
+                    <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+                        {!connected ? (
+                            <div className="flex-1 text-center py-4">
+                                <h2 className="text-xl font-black text-zinc-800 mb-2 tracking-tighter italic uppercase">Waiting for Identity Link...</h2>
+                                <p className="text-[10px] text-zinc-700 uppercase tracking-widest">Connect wallet in the top navbar to begin</p>
                             </div>
+                        ) : (
+                            <>
+                                <div className="flex items-center gap-4">
+                                    <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.5)]"></div>
+                                    <div>
+                                        <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Identity Secured</div>
+                                        <div className="text-sm font-bold tracking-tight">{publicKey?.toBase58().slice(0, 8)}...{publicKey?.toBase58().slice(-8)}</div>
+                                    </div>
+                                </div>
 
-                            <div className="flex items-center gap-12">
-                                <div className="text-right">
-                                    <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">SOL Balance</div>
-                                    <div className="text-xl font-black text-cyan-400 tracking-tighter">{solBalance.toFixed(4)} <span className="text-xs">SOL</span></div>
+                                <div className="flex items-center gap-12">
+                                    <div className="text-right">
+                                        <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">SOL Balance</div>
+                                        <div className="text-xl font-black text-cyan-400 tracking-tighter">{solBalance.toFixed(4)} <span className="text-xs">SOL</span></div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Holdings</div>
+                                        <div className="text-xl font-black text-white tracking-tighter">{holdings.length}</div>
+                                    </div>
+                                    <button
+                                        onClick={performAnalyticalTick}
+                                        disabled={analyzing}
+                                        className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-all text-zinc-400"
+                                    >
+                                        <RefreshCw className={`w-5 h-5 ${analyzing ? 'animate-spin text-cyan-400' : ''}`} />
+                                    </button>
                                 </div>
-                                <div className="text-right">
-                                    <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Holdings</div>
-                                    <div className="text-xl font-black text-white tracking-tighter">{holdings.length}</div>
-                                </div>
-                                <button
-                                    onClick={performAnalyticalTick}
-                                    disabled={analyzing}
-                                    className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-all text-zinc-400"
-                                >
-                                    <RefreshCw className={`w-5 h-5 ${analyzing ? 'animate-spin text-cyan-400' : ''}`} />
-                                </button>
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                {connected && (
-                    <>
-                        {/* Status Overlay */}
-                        {analyzing && (
-                            <div className="flex items-center gap-2 px-4 py-2 bg-cyan-500/5 border border-cyan-500/20 rounded-lg animate-pulse w-fit">
-                                <Loader2 className="w-3 h-3 animate-spin text-cyan-500" />
-                                <span className="text-[10px] font-black text-cyan-500 uppercase tracking-widest">Physics Core Syncing...</span>
-                            </div>
+                            </>
                         )}
+                    </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Your Holdings */}
-                            <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden shadow-xl">
-                                <PanelHeader title="Your Holdings" icon={Wallet} color="cyan" />
-                                <div className="max-h-[400px] overflow-y-auto divide-y divide-zinc-900">
-                                    {holdings.length === 0 ? (
-                                        <div className="p-12 text-center text-zinc-600 text-xs italic uppercase">No token holdings detected</div>
-                                    ) : (
-                                        holdings.map((h, i) => (
-                                            <div key={i} className="p-4 flex items-center justify-between hover:bg-zinc-800/10 transition-colors">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 bg-zinc-900 border border-zinc-800 rounded-lg flex items-center justify-center overflow-hidden">
-                                                        <Shield size={18} className="text-zinc-700" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="text-sm font-black tracking-tight">{h.symbol}</div>
-                                                            {!h.tradable && (
-                                                                <span className="text-[7px] bg-zinc-900 border border-zinc-800 text-zinc-500 px-1 rounded uppercase font-black">Not Tradable</span>
-                                                            )}
+                    {connected && (
+                        <>
+                            {/* Status Overlay */}
+                            {analyzing && !loading && (
+                                <div className="flex items-center gap-4 px-6 py-3 bg-zinc-900/50 border border-zinc-800 rounded-xl animate-pulse w-fit backdrop-blur-sm">
+                                    <div className="relative w-4 h-4">
+                                        <div className="absolute inset-0 border-2 border-cyan-500/20 rounded-full" />
+                                        <div className="absolute inset-0 border-2 border-cyan-500 rounded-full border-t-transparent animate-spin" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest leading-none mb-1">Physics Engine Syncing</span>
+                                        <span className="text-[8px] text-zinc-500 font-mono tracking-tighter uppercase">Calibrating_Probabilities...</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Your Holdings */}
+                                <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden shadow-xl">
+                                    <PanelHeader title="Your Holdings" icon={Wallet} color="cyan" />
+                                    <div className="max-h-[400px] overflow-y-auto divide-y divide-zinc-900">
+                                        {holdings.length === 0 ? (
+                                            <div className="p-12 text-center text-zinc-600 text-xs italic uppercase">No token holdings detected</div>
+                                        ) : (
+                                            holdings.map((h, i) => (
+                                                <div key={i} className="p-4 flex items-center justify-between hover:bg-zinc-800/10 transition-colors">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 bg-zinc-900 border border-zinc-800 rounded-lg flex items-center justify-center overflow-hidden">
+                                                            <Shield size={18} className="text-zinc-700" />
                                                         </div>
-                                                        <div className="text-[9px] text-zinc-600 font-mono tracking-tighter">{h.mint.slice(0, 16)}...</div>
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="text-sm font-black tracking-tight">{h.symbol}</div>
+                                                                {!h.tradable && (
+                                                                    <span className="text-[7px] bg-zinc-900 border border-zinc-800 text-zinc-500 px-1 rounded uppercase font-black">Not Tradable</span>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-[9px] text-zinc-600 font-mono tracking-tighter">{h.mint.slice(0, 16)}...</div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-sm font-black text-white">{h.amount.toLocaleString()}</div>
+                                                        <div className="text-[10px] text-zinc-500 uppercase font-black">Quantity</div>
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <div className="text-sm font-black text-white">{h.amount.toLocaleString()}</div>
-                                                    <div className="text-[10px] text-zinc-500 uppercase font-black">Quantity</div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Analysis Results */}
+                                <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden shadow-xl">
+                                    <PanelHeader title="Analysis Results" icon={BrainCircuit} color="purple" />
+                                    <div className="max-h-[400px] overflow-y-auto divide-y divide-zinc-900">
+                                        {analysisResults.length === 0 ? (
+                                            <div className="p-12 text-center text-zinc-600 text-xs italic uppercase">Run analysis to see results</div>
+                                        ) : (
+                                            analysisResults.map((r, i) => (
+                                                <div key={i} className="p-4 hover:bg-zinc-800/10 transition-colors">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div className="font-black text-sm uppercase italic tracking-tight">{r.symbol}</div>
+                                                        <div className={`text-[10px] font-black px-2 py-0.5 border rounded-full ${r.verdict.action === 'HOLD' ? 'border-green-500/30 text-green-500 bg-green-500/5' :
+                                                            r.verdict.action === 'SELL' ? 'border-rose-500/30 text-rose-500 bg-rose-500/5' :
+                                                                'border-zinc-500/30 text-zinc-500 bg-zinc-500/5'
+                                                            }`}>
+                                                            {r.verdict.action}
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-[11px] text-zinc-400 mb-2 leading-tight">{r.verdict.reason}</p>
+                                                    <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-widest text-zinc-600">
+                                                        <span>Risk: {r.verdict.riskScore}/100</span>
+                                                        <span>Status: {r.verdict.state || 'MONITORING'}</span>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))
-                                    )}
+                                            ))
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Analysis Results */}
-                            <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden shadow-xl">
-                                <PanelHeader title="Analysis Results" icon={BrainCircuit} color="purple" />
-                                <div className="max-h-[400px] overflow-y-auto divide-y divide-zinc-900">
-                                    {analysisResults.length === 0 ? (
-                                        <div className="p-12 text-center text-zinc-600 text-xs italic uppercase">Run analysis to see results</div>
+                            {/* WONDERING (HUNTING GEMS) */}
+                            <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
+                                <PanelHeader title="Wondering (Hunting Gems)" icon={Search} count={discovery.length} color="cyan" />
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-zinc-800">
+                                    {/* COLUMN 1: SAFE */}
+                                    <div className="flex flex-col">
+                                        <div className="px-4 py-2 bg-green-500/5 border-b border-zinc-800 flex items-center justify-between">
+                                            <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">🛡️ SAFE</span>
+                                            <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => (g.verdict.riskScore || 0) <= 30).length} Opps</span>
+                                        </div>
+                                        <div className="divide-y divide-zinc-900 min-h-[300px]">
+                                            {discovery.filter(g => (g.verdict.riskScore || 0) <= 30).length === 0 ? (
+                                                <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Scanning Stable Assets...</div>
+                                            ) : (
+                                                discovery.filter(g => (g.verdict.riskScore || 0) <= 30).slice(0, 5).map((gem, i) => (
+                                                    <DiscoveryRow
+                                                        key={gem.mint}
+                                                        gem={gem}
+                                                        color="green"
+                                                        onAction={onAction}
+                                                        isSeeding={seedingMints.has(gem.mint)}
+                                                        hotQuote={hotQuotes[gem.mint]}
+                                                        wallet={{
+                                                            sol: solBalance,
+                                                            tokens: holdings,
+                                                            solUsd: solBalance * solPrice,
+                                                            solPrice: solPrice
+                                                        }}
+                                                    />
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* COLUMN 2: MEDIUM */}
+                                    <div className="flex flex-col">
+                                        <div className="px-4 py-2 bg-amber-500/5 border-b border-zinc-800 flex items-center justify-between">
+                                            <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">⚡ MEDIUM</span>
+                                            <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).length} Opps</span>
+                                        </div>
+                                        <div className="divide-y divide-zinc-900 min-h-[300px]">
+                                            {discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).length === 0 ? (
+                                                <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Awaiting Mid-Cap Physics...</div>
+                                            ) : (
+                                                discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).slice(0, 5).map((gem, i) => (
+                                                    <DiscoveryRow
+                                                        key={gem.mint}
+                                                        gem={gem}
+                                                        color="amber"
+                                                        onAction={onAction}
+                                                        isSeeding={seedingMints.has(gem.mint)}
+                                                        hotQuote={hotQuotes[gem.mint]}
+                                                        wallet={{
+                                                            sol: solBalance,
+                                                            tokens: holdings,
+                                                            solUsd: solBalance * solPrice,
+                                                            solPrice: solPrice
+                                                        }}
+                                                    />
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* COLUMN 3: MEME */}
+                                    <div className="flex flex-col">
+                                        <div className="px-4 py-2 bg-rose-500/5 border-b border-zinc-800 flex items-center justify-between">
+                                            <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">🔥 MEME</span>
+                                            <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => (g.verdict.riskScore || 0) > 65).length} Opps</span>
+                                        </div>
+                                        <div className="divide-y divide-zinc-900 min-h-[300px]">
+                                            {discovery.filter(g => (g.verdict.riskScore || 0) > 65).length === 0 ? (
+                                                <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Scouting the trenches...</div>
+                                            ) : (
+                                                discovery.filter(g => (g.verdict.riskScore || 0) > 65).slice(0, 5).map((gem, i) => (
+                                                    <DiscoveryRow
+                                                        key={gem.mint}
+                                                        gem={gem}
+                                                        color="rose"
+                                                        onAction={onAction}
+                                                        isSeeding={seedingMints.has(gem.mint)}
+                                                        hotQuote={hotQuotes[gem.mint]}
+                                                        wallet={{
+                                                            sol: solBalance,
+                                                            tokens: holdings,
+                                                            solUsd: solBalance * solPrice,
+                                                            solPrice: solPrice
+                                                        }}
+                                                    />
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Active Fleet */}
+                            <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden p-6 shadow-2xl">
+                                <div className="flex items-center justify-between mb-8">
+                                    <div className="flex items-center gap-3">
+                                        <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                                        <h2 className="text-sm font-black text-white uppercase tracking-[0.3em] italic">Active Fleet ({activeFleet.length} Positions)</h2>
+                                    </div>
+                                    <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest bg-zinc-900 px-3 py-1 rounded">
+                                        Deployment Status: <span className="text-emerald-500">ENGAGED</span>
+                                    </div>
+                                </div>
+                                <div className="space-y-12">
+                                    {activeFleet.length === 0 ? (
+                                        <div className="py-20 text-center text-zinc-800 text-xs font-black uppercase tracking-[0.2em] italic">No active positions in the fleet. Seed a gem to begin.</div>
                                     ) : (
-                                        analysisResults.map((r, i) => (
-                                            <div key={i} className="p-4 hover:bg-zinc-800/10 transition-colors">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <div className="font-black text-sm uppercase italic tracking-tight">{r.symbol}</div>
-                                                    <div className={`text-[10px] font-black px-2 py-0.5 border rounded-full ${r.verdict.action === 'HOLD' ? 'border-green-500/30 text-green-500 bg-green-500/5' :
-                                                        r.verdict.action === 'SELL' ? 'border-rose-500/30 text-rose-500 bg-rose-500/5' :
-                                                            'border-zinc-500/30 text-zinc-500 bg-zinc-500/5'
-                                                        }`}>
-                                                        {r.verdict.action}
-                                                    </div>
-                                                </div>
-                                                <p className="text-[11px] text-zinc-400 mb-2 leading-tight">{r.verdict.reason}</p>
-                                                <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-widest text-zinc-600">
-                                                    <span>Risk: {r.verdict.riskScore}/100</span>
-                                                    <span>Status: {r.verdict.state || 'MONITORING'}</span>
-                                                </div>
-                                            </div>
+                                        activeFleet.map((op) => (
+                                            <LifecycleRow
+                                                key={op.mint}
+                                                op={op}
+                                                seedingMints={seedingMints}
+                                                hotQuote={hotQuotes[op.mint]}
+                                                position={enginePositions.find(p => p.targetMint === op.mint)}
+                                                wallet={{
+                                                    sol: solBalance,
+                                                    tokens: holdings,
+                                                    solUsd: solBalance * solPrice,
+                                                    solPrice: solPrice
+                                                }}
+                                                onAction={onAction}
+                                            />
                                         ))
                                     )}
                                 </div>
                             </div>
-                        </div>
 
-                        {/* WONDERING (HUNTING GEMS) */}
-                        <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
-                            <PanelHeader title="Wondering (Hunting Gems)" icon={Search} count={discovery.length} color="cyan" />
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-zinc-800">
-                                {/* COLUMN 1: SAFE */}
-                                <div className="flex flex-col">
-                                    <div className="px-4 py-2 bg-green-500/5 border-b border-zinc-800 flex items-center justify-between">
-                                        <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">🛡️ SAFE</span>
-                                        <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => (g.verdict.riskScore || 0) <= 30).length} Opps</span>
+                            {/* Strategic Rebalance Hub */}
+                            {globalRoadmaps.length > 0 && (
+                                <div className="bg-[#0a0a0a] border border-cyan-900/30 rounded-xl overflow-hidden p-6 shadow-2xl">
+                                    <div className="flex items-center justify-between mb-8">
+                                        <div className="flex items-center gap-3">
+                                            <BrainCircuit className="w-5 h-5 text-cyan-400" />
+                                            <h2 className="text-sm font-black text-white uppercase tracking-[0.3em] italic">Strategic Rebalance Hub ({globalRoadmaps.length} Paths)</h2>
+                                        </div>
+                                        <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest bg-zinc-900 px-3 py-1 rounded flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-pulse" />
+                                            Multi-Hop Intelligence Active
+                                        </div>
                                     </div>
-                                    <div className="divide-y divide-zinc-900 min-h-[300px]">
-                                        {discovery.filter(g => (g.verdict.riskScore || 0) <= 30).length === 0 ? (
-                                            <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Scanning Stable Assets...</div>
-                                        ) : (
-                                            discovery.filter(g => (g.verdict.riskScore || 0) <= 30).slice(0, 5).map((gem, i) => (
-                                                <DiscoveryRow
-                                                    key={gem.mint}
-                                                    gem={gem}
-                                                    color="green"
-                                                    onAction={onAction}
-                                                    isSeeding={seedingMints.has(gem.mint)}
-                                                    hotQuote={hotQuotes[gem.mint]}
-                                                    wallet={{
-                                                        sol: solBalance,
-                                                        tokens: holdings,
-                                                        solUsd: solBalance * solPrice,
-                                                        solPrice: solPrice
-                                                    }}
-                                                />
-                                            ))
-                                        )}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {globalRoadmaps.slice(0, 4).map((roadmap, i) => (
+                                            <RoadmapCard key={i} roadmap={roadmap} onAction={onAction} solPrice={solPrice} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Discovery Hive */}
+                            <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden p-6 shadow-2xl opacity-80 hover:opacity-100 transition-opacity">
+                                <div className="flex items-center justify-between mb-8">
+                                    <div className="flex items-center gap-3">
+                                        <Award className="w-5 h-5 text-purple-400" />
+                                        <h2 className="text-sm font-black text-white uppercase tracking-[0.3em] italic">Discovery Hive ({lifecycle.length} Scoped)</h2>
                                     </div>
                                 </div>
 
-                                {/* COLUMN 2: MEDIUM */}
-                                <div className="flex flex-col">
-                                    <div className="px-4 py-2 bg-amber-500/5 border-b border-zinc-800 flex items-center justify-between">
-                                        <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">⚡ MEDIUM</span>
-                                        <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).length} Opps</span>
-                                    </div>
-                                    <div className="divide-y divide-zinc-900 min-h-[300px]">
-                                        {discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).length === 0 ? (
-                                            <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Awaiting Mid-Cap Physics...</div>
-                                        ) : (
-                                            discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).slice(0, 5).map((gem, i) => (
-                                                <DiscoveryRow
-                                                    key={gem.mint}
-                                                    gem={gem}
-                                                    color="amber"
-                                                    onAction={onAction}
-                                                    isSeeding={seedingMints.has(gem.mint)}
-                                                    hotQuote={hotQuotes[gem.mint]}
-                                                    wallet={{
-                                                        sol: solBalance,
-                                                        tokens: holdings,
-                                                        solUsd: solBalance * solPrice,
-                                                        solPrice: solPrice
-                                                    }}
-                                                />
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* COLUMN 3: MEME */}
-                                <div className="flex flex-col">
-                                    <div className="px-4 py-2 bg-rose-500/5 border-b border-zinc-800 flex items-center justify-between">
-                                        <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">🔥 MEME</span>
-                                        <span className="text-[10px] text-zinc-600 font-bold uppercase">{discovery.filter(g => (g.verdict.riskScore || 0) > 65).length} Opps</span>
-                                    </div>
-                                    <div className="divide-y divide-zinc-900 min-h-[300px]">
-                                        {discovery.filter(g => (g.verdict.riskScore || 0) > 65).length === 0 ? (
-                                            <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Scouting the trenches...</div>
-                                        ) : (
-                                            discovery.filter(g => (g.verdict.riskScore || 0) > 65).slice(0, 5).map((gem, i) => (
-                                                <DiscoveryRow
-                                                    key={gem.mint}
-                                                    gem={gem}
-                                                    color="rose"
-                                                    onAction={onAction}
-                                                    isSeeding={seedingMints.has(gem.mint)}
-                                                    hotQuote={hotQuotes[gem.mint]}
-                                                    wallet={{
-                                                        sol: solBalance,
-                                                        tokens: holdings,
-                                                        solUsd: solBalance * solPrice,
-                                                        solPrice: solPrice
-                                                    }}
-                                                />
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Active Fleet */}
-                        <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden p-6 shadow-2xl">
-                            <div className="flex items-center justify-between mb-8">
-                                <div className="flex items-center gap-3">
-                                    <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                                    <h2 className="text-sm font-black text-white uppercase tracking-[0.3em] italic">Active Fleet ({activeFleet.length} Positions)</h2>
-                                </div>
-                                <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest bg-zinc-900 px-3 py-1 rounded">
-                                    Deployment Status: <span className="text-emerald-500">ENGAGED</span>
-                                </div>
-                            </div>
-                            <div className="space-y-12">
-                                {activeFleet.length === 0 ? (
-                                    <div className="py-20 text-center text-zinc-800 text-xs font-black uppercase tracking-[0.2em] italic">No active positions in the fleet. Seed a gem to begin.</div>
-                                ) : (
-                                    activeFleet.map((op) => (
+                                <div className="space-y-12">
+                                    {lifecycle.map((op) => (
                                         <LifecycleRow
                                             key={op.mint}
                                             op={op}
@@ -988,87 +1051,37 @@ export default function SurvivalLegacyPage() {
                                             }}
                                             onAction={onAction}
                                         />
-                                    ))
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Strategic Rebalance Hub */}
-                        {globalRoadmaps.length > 0 && (
-                            <div className="bg-[#0a0a0a] border border-cyan-900/30 rounded-xl overflow-hidden p-6 shadow-2xl">
-                                <div className="flex items-center justify-between mb-8">
-                                    <div className="flex items-center gap-3">
-                                        <BrainCircuit className="w-5 h-5 text-cyan-400" />
-                                        <h2 className="text-sm font-black text-white uppercase tracking-[0.3em] italic">Strategic Rebalance Hub ({globalRoadmaps.length} Paths)</h2>
-                                    </div>
-                                    <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest bg-zinc-900 px-3 py-1 rounded flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-pulse" />
-                                        Multi-Hop Intelligence Active
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {globalRoadmaps.slice(0, 4).map((roadmap, i) => (
-                                        <RoadmapCard key={i} roadmap={roadmap} onAction={onAction} solPrice={solPrice} />
                                     ))}
                                 </div>
                             </div>
-                        )}
 
-                        {/* Discovery Hive */}
-                        <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden p-6 shadow-2xl opacity-80 hover:opacity-100 transition-opacity">
-                            <div className="flex items-center justify-between mb-8">
-                                <div className="flex items-center gap-3">
-                                    <Award className="w-5 h-5 text-purple-400" />
-                                    <h2 className="text-sm font-black text-white uppercase tracking-[0.3em] italic">Discovery Hive ({lifecycle.length} Scoped)</h2>
+                            {/* Activity Log */}
+                            <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden shadow-xl">
+                                <PanelHeader title="Activity Log" icon={Activity} color="green" />
+                                <div className="p-4 bg-black/50 h-32 overflow-y-auto font-mono text-[10px] space-y-1 text-zinc-500 scrollbar-hide">
+                                    {logs.length === 0 ? (
+                                        <div className="text-zinc-800 italic uppercase tracking-[0.2em] py-4 text-center">Kernel: Monitoring network packets for activity...</div>
+                                    ) : (
+                                        logs.map((log, i) => <div key={i} className="hover:text-zinc-300 transition-colors border-l border-zinc-900 pl-2">{log}</div>)
+                                    )}
                                 </div>
                             </div>
+                        </>
+                    )}
 
-                            <div className="space-y-12">
-                                {lifecycle.map((op) => (
-                                    <LifecycleRow
-                                        key={op.mint}
-                                        op={op}
-                                        seedingMints={seedingMints}
-                                        hotQuote={hotQuotes[op.mint]}
-                                        position={enginePositions.find(p => p.targetMint === op.mint)}
-                                        wallet={{
-                                            sol: solBalance,
-                                            tokens: holdings,
-                                            solUsd: solBalance * solPrice,
-                                            solPrice: solPrice
-                                        }}
-                                        onAction={onAction}
-                                    />
-                                ))}
-                            </div>
+                    {/* Footer */}
+                    <div className="py-8 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-black text-zinc-700 uppercase tracking-[0.4em] border-t border-zinc-900">
+                        <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
+                            Zenith Engine v1.0.4 - REAL_TIME_MODE
                         </div>
-
-                        {/* Activity Log */}
-                        <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden shadow-xl">
-                            <PanelHeader title="Activity Log" icon={Activity} color="green" />
-                            <div className="p-4 bg-black/50 h-32 overflow-y-auto font-mono text-[10px] space-y-1 text-zinc-500 scrollbar-hide">
-                                {logs.length === 0 ? (
-                                    <div className="text-zinc-800 italic uppercase tracking-[0.2em] py-4 text-center">Kernel: Monitoring network packets for activity...</div>
-                                ) : (
-                                    logs.map((log, i) => <div key={i} className="hover:text-zinc-300 transition-colors border-l border-zinc-900 pl-2">{log}</div>)
-                                )}
-                            </div>
+                        <div className="flex gap-8">
+                            <span className="hover:text-cyan-400 cursor-pointer transition-colors">Documentation</span>
+                            <span className="hover:text-cyan-400 cursor-pointer transition-colors">Network Status: OK</span>
                         </div>
-                    </>
-                )}
-
-                {/* Footer */}
-                <div className="py-8 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-black text-zinc-700 uppercase tracking-[0.4em] border-t border-zinc-900">
-                    <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
-                        Zenith Engine v1.0.4 - REAL_TIME_MODE
-                    </div>
-                    <div className="flex gap-8">
-                        <span className="hover:text-cyan-400 cursor-pointer transition-colors">Documentation</span>
-                        <span className="hover:text-cyan-400 cursor-pointer transition-colors">Network Status: OK</span>
                     </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 }
