@@ -101,7 +101,7 @@ async function fetchPrices(mints: string[]): Promise<Map<string, { price: number
 
 /**
  * Fetch complete portfolio data for a wallet
- * Note: No longer needs Connection - uses server-side API routes
+ * Architecture: Server-side unified fetcher (Reliable valuation)
  */
 export async function fetchPortfolio(
     publicKey: PublicKey
@@ -111,72 +111,32 @@ export async function fetchPortfolio(
         return portfolioCache;
     }
 
-    // 1. Get raw balances (via API routes - no connection needed)
-    const rawBalances = await fetchWalletBalances(publicKey);
+    try {
+        const pubkeyStr = publicKey.toBase58();
+        const res = await fetch(`/api/wallet/portfolio?address=${pubkeyStr}`);
 
-    // 2. Get token metadata
-    const tokenList = await buildZenithTokenList();
-    const enrichedTokens = enrichWalletBalances(rawBalances, tokenList);
+        if (!res.ok) {
+            throw new Error('Failed to fetch server-side portfolio');
+        }
 
-    // 3. Fetch prices (Cap to top 100 to avoid massive URL/processing loads)
-    const topTokens = enrichedTokens.slice(0, 100);
-    const mints = topTokens.map(t => t.address);
-    const prices = await fetchPrices(mints);
+        const portfolio: PortfolioData = await res.json();
 
-    // 4. Build holdings with projections
-    const holdings: TokenHolding[] = [];
-    let totalValueUsd = 0;
-    let weightedChange = 0;
+        // Cache
+        portfolioCache = portfolio;
+        cacheTimestamp = Date.now();
 
-    for (const token of enrichedTokens) {
-        const priceInfo = prices.get(token.address);
-        const priceUsd = priceInfo?.price || 0;
-        const priceChange24h = priceInfo?.change24h || 0;
-        const valueUsd = token.uiBalance * priceUsd;
-
-        // Always show all tokens, including SOL and dust
-
-        const projection7d = calculateProjection(valueUsd, priceChange24h);
-        const projectionChange = valueUsd > 0 ? ((projection7d - valueUsd) / valueUsd) * 100 : 0;
-
-        holdings.push({
-            mint: token.address,
-            symbol: token.symbol,
-            name: token.name || token.symbol,
-            logoURI: token.logoURI,
-            decimals: token.decimals,
-            balance: token.uiBalance,
-            priceUsd,
-            valueUsd,
-            priceChange24h,
-            projection7d,
-            projectionChange
-        });
-
-        totalValueUsd += valueUsd;
-        weightedChange += priceChange24h * valueUsd;
+        return portfolio;
+    } catch (err) {
+        console.error('[Portfolio] Server-side fetch error:', err);
+        // Fallback to empty portfolio if server fails
+        return {
+            holdings: [],
+            totalValueUsd: 0,
+            totalChange24h: 0,
+            totalProjection7d: 0,
+            lastUpdated: Date.now()
+        };
     }
-
-    // Sort by value (highest first)
-    holdings.sort((a, b) => b.valueUsd - a.valueUsd);
-
-    // Calculate portfolio-level metrics
-    const totalChange24h = totalValueUsd > 0 ? weightedChange / totalValueUsd : 0;
-    const totalProjection7d = holdings.reduce((sum, h) => sum + h.projection7d, 0);
-
-    const portfolio: PortfolioData = {
-        holdings,
-        totalValueUsd,
-        totalChange24h,
-        totalProjection7d,
-        lastUpdated: Date.now()
-    };
-
-    // Cache
-    portfolioCache = portfolio;
-    cacheTimestamp = Date.now();
-
-    return portfolio;
 }
 
 /**
