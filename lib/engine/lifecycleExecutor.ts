@@ -44,7 +44,6 @@ function assertDifferentMints(inputMint: string, outputMint: string) {
     }
 }
 
-const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 export async function executeLifecycleAction(
     type: ActionType,

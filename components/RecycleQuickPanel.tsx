@@ -1,9 +1,8 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 
-import { PositionState, resolveExitMints } from "@/lib/engine/lifecycleState";
+import { PositionState, resolveExitMints, SOL_MINT } from "@/lib/engine/lifecycleState";
 
-const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 export function RecycleQuickPanel({
     wallet,
