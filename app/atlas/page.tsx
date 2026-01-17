@@ -409,6 +409,29 @@ function RoadmapCard({ roadmap, onAction, solPrice }: { roadmap: any, onAction: 
     );
 }
 
+const DiscoverySkeleton = ({ color = "cyan" }: { color?: string }) => (
+    <div className="p-4 space-y-4 animate-pulse">
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                <div className={`w-8 h-8 rounded bg-${color}-500/10 border border-${color}-500/20`} />
+                <div className="space-y-1">
+                    <div className={`h-3 w-16 bg-${color}-500/20 rounded`} />
+                    <div className="h-2 w-24 bg-zinc-800 rounded" />
+                </div>
+            </div>
+            <div className="h-4 w-12 bg-zinc-800 rounded" />
+        </div>
+        <div className="h-[1px] bg-zinc-900" />
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[8px] font-mono text-zinc-700">
+                <div className="w-1.5 h-1.5 rounded-full bg-zinc-800 animate-ping" />
+                EXTRACTING_MARKET_VECTORS...
+            </div>
+            <div className={`w-12 h-5 bg-${color}-500/10 rounded`} />
+        </div>
+    </div>
+);
+
 export default function AtlasPage() {
     const { publicKey, connected, sendTransaction } = useWallet();
     const { connection } = useConnection();
@@ -819,7 +842,14 @@ export default function AtlasPage() {
                                     <PanelHeader title="Your Holdings" icon={Wallet} color="cyan" />
                                     <div className="max-h-[400px] overflow-y-auto divide-y divide-zinc-900">
                                         {holdings.length === 0 ? (
-                                            <div className="p-12 text-center text-zinc-600 text-xs italic uppercase">No token holdings detected</div>
+                                            analyzing ? (
+                                                <div className="space-y-0">
+                                                    <DiscoverySkeleton color="cyan" />
+                                                    <DiscoverySkeleton color="cyan" />
+                                                </div>
+                                            ) : (
+                                                <div className="p-12 text-center text-zinc-600 text-xs italic uppercase">No token holdings detected</div>
+                                            )
                                         ) : (
                                             holdings.map((h, i) => (
                                                 <div key={i} className="p-4 flex items-center justify-between hover:bg-zinc-800/10 transition-colors">
@@ -852,7 +882,14 @@ export default function AtlasPage() {
                                     <PanelHeader title="Analysis Results" icon={BrainCircuit} color="purple" />
                                     <div className="max-h-[400px] overflow-y-auto divide-y divide-zinc-900">
                                         {analysisResults.length === 0 ? (
-                                            <div className="p-12 text-center text-zinc-600 text-xs italic uppercase">Run analysis to see results</div>
+                                            analyzing ? (
+                                                <div className="space-y-0">
+                                                    <DiscoverySkeleton color="purple" />
+                                                    <DiscoverySkeleton color="purple" />
+                                                </div>
+                                            ) : (
+                                                <div className="p-12 text-center text-zinc-600 text-xs italic uppercase">Run analysis to see results</div>
+                                            )
                                         ) : (
                                             analysisResults.map((r, i) => (
                                                 <div key={i} className="p-4 hover:bg-zinc-800/10 transition-colors">
@@ -890,7 +927,11 @@ export default function AtlasPage() {
                                         </div>
                                         <div className="divide-y divide-zinc-900 min-h-[300px]">
                                             {discovery.filter(g => (g.verdict.riskScore || 0) <= 30).length === 0 ? (
-                                                <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Scanning Stable Assets...</div>
+                                                <div className="space-y-0 text-center">
+                                                    <DiscoverySkeleton color="green" />
+                                                    <DiscoverySkeleton color="green" />
+                                                    <div className="p-8 text-[10px] text-zinc-800 uppercase italic animate-pulse">Searching Stable Vectors...</div>
+                                                </div>
                                             ) : (
                                                 discovery.filter(g => (g.verdict.riskScore || 0) <= 30).slice(0, 5).map((gem, i) => (
                                                     <DiscoveryRow
@@ -920,7 +961,11 @@ export default function AtlasPage() {
                                         </div>
                                         <div className="divide-y divide-zinc-900 min-h-[300px]">
                                             {discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).length === 0 ? (
-                                                <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Awaiting Mid-Cap Physics...</div>
+                                                <div className="space-y-0 text-center">
+                                                    <DiscoverySkeleton color="amber" />
+                                                    <DiscoverySkeleton color="amber" />
+                                                    <div className="p-8 text-[10px] text-zinc-800 uppercase italic animate-pulse">Awaiting Mid-Cap Physics...</div>
+                                                </div>
                                             ) : (
                                                 discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).slice(0, 5).map((gem, i) => (
                                                     <DiscoveryRow
@@ -950,7 +995,11 @@ export default function AtlasPage() {
                                         </div>
                                         <div className="divide-y divide-zinc-900 min-h-[300px]">
                                             {discovery.filter(g => (g.verdict.riskScore || 0) > 65).length === 0 ? (
-                                                <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Scouting the trenches...</div>
+                                                <div className="space-y-0 text-center">
+                                                    <DiscoverySkeleton color="rose" />
+                                                    <DiscoverySkeleton color="rose" />
+                                                    <div className="p-8 text-[10px] text-zinc-800 uppercase italic animate-pulse">Scouting the trenches...</div>
+                                                </div>
                                             ) : (
                                                 discovery.filter(g => (g.verdict.riskScore || 0) > 65).slice(0, 5).map((gem, i) => (
                                                     <DiscoveryRow
@@ -1040,22 +1089,28 @@ export default function AtlasPage() {
                                 </div>
 
                                 <div className="space-y-12">
-                                    {lifecycle.map((op) => (
-                                        <LifecycleRow
-                                            key={op.mint}
-                                            op={op}
-                                            seedingMints={seedingMints}
-                                            hotQuote={hotQuotes[op.mint]}
-                                            position={enginePositions.find(p => p.targetMint === op.mint)}
-                                            wallet={{
-                                                sol: solBalance,
-                                                tokens: holdings,
-                                                solUsd: solBalance * solPrice,
-                                                solPrice: solPrice
-                                            }}
-                                            onAction={onAction}
-                                        />
-                                    ))}
+                                    {lifecycle.length === 0 ? (
+                                        <div className="py-20 flex flex-col items-center justify-center space-y-4">
+                                            <div className="w-16 h-16 border-2 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
+                                            <div className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.4em] animate-pulse italic">Engaging Discovery_Hive Protocol...</div>
+                                        </div>
+                                    ) : (
+                                        lifecycle.map((op) => (
+                                            <LifecycleRow
+                                                key={op.mint}
+                                                op={op}
+                                                seedingMints={seedingMints}
+                                                hotQuote={hotQuotes[op.mint]}
+                                                position={enginePositions.find(p => p.targetMint === op.mint)}
+                                                wallet={{
+                                                    sol: solBalance,
+                                                    tokens: holdings,
+                                                    solUsd: solBalance * solPrice,
+                                                    solPrice: solPrice
+                                                }}
+                                                onAction={onAction}
+                                            />
+                                        ))}
                                 </div>
                             </div>
 
