@@ -1,5 +1,5 @@
 import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
-import { derivePositionState, assertValidAmount, ActionType, PositionState } from "./lifecycleState";
+import { derivePositionState, assertValidAmount, resolveExitMints, SOL_MINT, ActionType, PositionState } from "./lifecycleState";
 
 export { type ActionType };
 
@@ -38,6 +38,12 @@ function assertCanExecute(type: ActionType, state: PositionState) {
     }
 }
 
+function assertDifferentMints(inputMint: string, outputMint: string) {
+    if (inputMint === outputMint) {
+        throw new Error(`Invalid swap: inputMint and outputMint are identical (${inputMint})`);
+    }
+}
+
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 export async function executeLifecycleAction(
@@ -48,8 +54,8 @@ export async function executeLifecycleAction(
     const { addLog, publicKey, connection, sendTransaction } = ctx;
 
     try {
-        let inputMint: string;
-        let outputMint: string;
+        let inputMint: string = SOL_MINT;
+        let outputMint: string = SOL_MINT;
         let amountUsd: number | null = null;
         let amountRaw: string | null = null;
 
@@ -88,44 +94,36 @@ export async function executeLifecycleAction(
                 break;
 
             case "HARVEST":
-                inputMint = params.targetMint;
-                outputMint = params.position?.baseMint || SOL_MINT;
+            case "RECYCLE": {
+                // FORCE NORMALIZED EXIT
+                const resolved = resolveExitMints(params.targetMint);
+                inputMint = resolved.inputMint;
+                outputMint = resolved.outputMint;
 
                 // Rule: Pull from real wallet balance (holdings)
                 const hHolding = ctx.holdings.find(h => h.mint === inputMint);
                 const hWalletRaw = hHolding?.rawAmount ? BigInt(hHolding.rawAmount) : BigInt(0);
 
-                addLog(`🧮 Harvest Balance Check: Wallet=${hWalletRaw.toString()} | Shadow=${params.position?.amount}`);
+                addLog(`🧮 ${type} Balance Check: Wallet=${hWalletRaw.toString()} | Shadow=${params.position?.amount}`);
 
                 if (hWalletRaw <= BigInt(0)) throw new Error(`No wallet balance for ${params.targetSymbol || inputMint}`);
 
-                // 40% partial exit
-                amountRaw = (hWalletRaw * BigInt(40) / BigInt(100)).toString();
+                if (type === "HARVEST") {
+                    // 40% partial exit
+                    amountRaw = (hWalletRaw * BigInt(40) / BigInt(100)).toString();
+                } else {
+                    // 100% exit
+                    amountRaw = hWalletRaw.toString();
+                }
                 assertValidAmount(amountRaw);
                 break;
-
-            case "RECYCLE":
-                inputMint = params.targetMint;
-                outputMint = SOL_MINT;
-
-                // Rule: Pull from real wallet balance (holdings)
-                const rHolding = ctx.holdings.find(h => h.mint === inputMint);
-                const rWalletRaw = rHolding?.rawAmount ? BigInt(rHolding.rawAmount) : BigInt(0);
-
-                addLog(`🧮 Recycle Balance Check: Wallet=${rWalletRaw.toString()} | Shadow=${params.position?.amount}`);
-
-                if (rWalletRaw <= BigInt(0)) throw new Error(`No wallet balance for ${params.targetSymbol || inputMint}`);
-
-                // 100% exit
-                amountRaw = rWalletRaw.toString();
-                assertValidAmount(amountRaw);
-                break;
+            }
 
             default:
                 throw new Error(`Unknown action type: ${type}`);
         }
 
-        // 2. Convert USD to Raw Amount if needed (skip if we already have amountRaw or a hot quote)
+        // 2. Convert USD to Raw Amount if needed
         let quote = params.overrideQuote;
 
         if (!quote) {
@@ -134,9 +132,7 @@ export async function executeLifecycleAction(
                 if (!price) throw new Error(`Price unknown for base: ${inputMint}`);
                 const decimals = inputMint === SOL_MINT ? 9 : (ctx.holdings.find(h => h.mint === inputMint)?.decimals || 6);
 
-                // Safe calculation
                 const rawVal = (amountUsd / price) * Math.pow(10, decimals);
-
                 addLog(`🧮 Kernel Calculation: USD=${amountUsd.toFixed(2)} | Price=${price.toFixed(4)} | Dec=${decimals} | Raw=${rawVal.toFixed(0)}`);
 
                 if (!Number.isFinite(rawVal) || rawVal <= 0) {
@@ -152,8 +148,12 @@ export async function executeLifecycleAction(
                 throw new Error(`Calculated amount is zero or invalid. Raw: ${amountRaw}`);
             }
 
+            // 🎯 GIDDY-UP SAFETY
+            assertDifferentMints(inputMint, outputMint);
+
+            addLog(`🚀 Kernel Quote Request: ${inputMint.slice(0, 4)} -> ${outputMint.slice(0, 4)} | Amt: ${amountRaw}`);
+
             // 3. Fetch Quote
-            addLog(`Jupiter: Fetching ${type} route...`);
             const quoteRes = await fetch("/api/jupiter/quote", {
                 method: "POST",
                 body: JSON.stringify({ inputMint, outputMint, amount: amountRaw })

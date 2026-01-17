@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Loader2, Zap, TrendingDown } from "lucide-react";
 
-import { PositionState } from "@/lib/engine/lifecycleState";
+import { PositionState, resolveExitMints } from "@/lib/engine/lifecycleState";
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
@@ -68,10 +68,19 @@ export function HarvestQuickPanel({
         if (!selectedGem || harvestAmountRaw === "0") return;
 
         const currentInput = inputMintRef.current;
-        const currentOutput = outputMintRef.current;
+        let currentOutput = outputMintRef.current;
         const currentAmountRaw = amountRawRef.current;
 
-        if (currentOutput === SOL_MINT && preloadedQuote) return;
+        // Auto-resolve identity swap if it occurs
+        if (currentInput === currentOutput) {
+            const resolved = resolveExitMints(currentInput);
+            currentOutput = resolved.outputMint;
+
+            // Sync the UI if it drifted (optional, but good for feedback)
+            if (outputMint !== currentOutput) {
+                setOutputMint(currentOutput);
+            }
+        }
 
         const key = `${currentInput}-${currentOutput}-${currentAmountRaw}`;
         if (key === lastQuoteKeyRef.current) return;

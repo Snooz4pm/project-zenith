@@ -20,7 +20,24 @@ export interface PositionState {
     dust: boolean;
 }
 
+export const SOL_MINT = 'So11111111111111111111111111111111111111112';
+export const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 export const MIN_LAMPORTS = BigInt(50_000); // ~0.00005 SOL safety dust
+export const MIN_EXIT_LAMPORTS = BigInt(10_000); // ~0.00001 SOL absolute minimum to swap
+
+/**
+ * resolveExitMints
+ * Forces output to SOL for any exit style action.
+ * Prevents Identity Swap Bug (GEM -> GEM).
+ */
+export function resolveExitMints(inputMint: string) {
+    const outputMint =
+        inputMint === SOL_MINT
+            ? USDC_MINT // If we are liquidating SOL itself (rare), fallback to USDC
+            : SOL_MINT;
+
+    return { inputMint, outputMint };
+}
 
 /**
  * derivePositionState
@@ -37,9 +54,6 @@ export function derivePositionState(
     const currentAmount = BigInt(Math.floor(currentValueSOL * Math.pow(10, SOL_DECIMALS)));
 
     // seededAmount is the initial SOL we put in. 
-    // We assume enginePosition.investedUsd / solPrice was the SOL amount?
-    // Actually, let's look at how we store position. 
-    // For now, let's use a fallback or a dedicated field if available.
     const seededAmount = enginePosition?.investedUsd && enginePosition?.solPriceAtEntry
         ? BigInt(Math.floor((enginePosition.investedUsd / enginePosition.solPriceAtEntry) * Math.pow(10, SOL_DECIMALS)))
         : BigInt(0);
@@ -73,7 +87,8 @@ export function assertValidAmount(amountRaw: string | bigint) {
     if (val <= BigInt(0)) {
         throw new Error("Invalid amount: zero or negative");
     }
-    // We don't enforce MIN_LAMPORTS for token amounts here because 
-    // tokens have different decimals and values. 
-    // But we should ensure it's not absolutely zero.
+
+    if (val < MIN_EXIT_LAMPORTS) {
+        throw new Error(`Invalid amount: position too small to exit safely (min ${MIN_EXIT_LAMPORTS} units)`);
+    }
 }

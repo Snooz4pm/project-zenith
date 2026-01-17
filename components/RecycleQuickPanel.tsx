@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 
-import { PositionState } from "@/lib/engine/lifecycleState";
+import { PositionState, resolveExitMints } from "@/lib/engine/lifecycleState";
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
@@ -64,16 +64,23 @@ export function RecycleQuickPanel({
         const currentInput = inputMintRef.current;
         const currentAmountRaw = amountRawRef.current;
 
-        if (preloadedQuote) return; // Always prefer preloaded for SOL exit
+        // Auto-resolve identity swap if it occurs
+        let currentOutput = SOL_MINT;
+        if (currentInput === currentOutput) {
+            const resolved = resolveExitMints(currentInput);
+            currentOutput = resolved.outputMint;
+        }
 
-        const key = `${currentInput}-${SOL_MINT}-${currentAmountRaw}`;
+        if (preloadedQuote && currentOutput === SOL_MINT) return; // Always prefer preloaded for standard SOL exit
+
+        const key = `${currentInput}-${currentOutput}-${currentAmountRaw}`;
         if (key === lastQuoteKeyRef.current) return;
         lastQuoteKeyRef.current = key;
 
         setIsInternalFetching(true);
         try {
             const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
-            const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${currentInput}&outputMint=${SOL_MINT}&amount=${currentAmountRaw}&slippageBps=100`);
+            const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${currentInput}&outputMint=${currentOutput}&amount=${currentAmountRaw}&slippageBps=100`);
             const data = await res.json();
 
             if (data && data.routePlan?.length) {
