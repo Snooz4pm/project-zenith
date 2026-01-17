@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { Loader2, Zap, TrendingDown } from "lucide-react";
+import { Loader2, Zap, TrendingDown, Skull } from "lucide-react";
 
 import { PositionState, resolveExitMints, SOL_MINT } from "@/lib/engine/lifecycleState";
 
@@ -16,6 +16,7 @@ export function HarvestQuickPanel({
     wallet: any;
     selectedGem: any;
     onAction: (type: "HARVEST", params: any) => Promise<void>;
+    onRecycle?: (type: "RECYCLE", params: any) => Promise<void>;
     isGlobalSeeding?: boolean;
     preloadedQuote?: any;
     position?: any;
@@ -141,6 +142,20 @@ export function HarvestQuickPanel({
         }
     }
 
+    async function handlePanicExit() {
+        if (!onRecycle || !selectedGem) return;
+        setLocalLoading(true);
+        try {
+            await onRecycle("RECYCLE", {
+                targetMint: selectedGem.mint,
+                targetSymbol: selectedGem.symbol,
+                state
+            });
+        } finally {
+            setLocalLoading(false);
+        }
+    }
+
     return (
         <div className="mt-2 p-3 rounded bg-zinc-900 border border-zinc-800 animate-in fade-in slide-in-from-top-1 duration-200">
             <div className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-4 flex items-center justify-between">
@@ -203,6 +218,15 @@ export function HarvestQuickPanel({
                             <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                         </div>
                     )}
+                </button>
+
+                <button
+                    disabled={loading}
+                    onClick={handlePanicExit}
+                    className="px-3 py-2 rounded bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all disabled:opacity-50"
+                    title="Panic Exit - Liquidate 100% to SOL"
+                >
+                    <Skull className="w-3 h-3" />
                 </button>
             </div>
         </div>

@@ -229,12 +229,20 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
 
             {/* Command Layer (Inline Panels) */}
             <div className="mt-8 px-4">
-                {activePhase === 'OBS' && <ObserveQuickPanel />}
+                {activePhase === 'OBS' && (
+                    <ObserveQuickPanel
+                        selectedGem={op}
+                        onRecycle={onAction}
+                        position={position}
+                        state={op.state}
+                    />
+                )}
                 {activePhase === 'SEE' && (
                     <SeedQuickPanel
                         wallet={wallet}
                         selectedGem={op}
                         onAction={(params) => onAction('SEED', params)}
+                        onRecycle={onAction}
                         isGlobalSeeding={isSeeding}
                         preloadedQuote={hotQuote}
                         state={op.state}
@@ -245,6 +253,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                         wallet={wallet}
                         selectedGem={op}
                         onAction={onAction}
+                        onRecycle={onAction}
                         isGlobalSeeding={isSeeding}
                         preloadedQuote={hotQuote}
                         position={position}
@@ -256,6 +265,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                         wallet={wallet}
                         selectedGem={op}
                         onAction={onAction}
+                        onRecycle={onAction}
                         isGlobalSeeding={isSeeding}
                         preloadedQuote={hotQuote}
                         position={position}
