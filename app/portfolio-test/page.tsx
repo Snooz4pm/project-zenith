@@ -7,7 +7,7 @@ import { PublicKey, VersionedTransaction } from '@solana/web3.js';
 import { computePortfolioUsd, computeSeedUsd } from '@/lib/engine/portfolio';
 import { runPortfolioAnalysis, PortfolioAnalysisResult, Position, getMetadata } from '@/app/actions/portfolio-runner';
 import {
-    Shield, Loader2, Activity, TrendingUp, TrendingDown, BrainCircuit, RefreshCw,
+    Shield, Loader2, Activity, TrendingUp, TrendingDown, BrainCircuit, RefreshCw, RotateCcw,
     AlertTriangle, Zap, Target, Flame, Award, Wallet, Eye, Play, StopCircle,
     ChevronRight, BarChart3, Database, Search, ShieldCheck, Heart, Skull, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
@@ -199,10 +199,10 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                                 <button
                                     onClick={() => setActivePhase(phase.id as LifecyclePhase)}
                                     className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all duration-300 relative group/node ${isActive
-                                            ? 'bg-white text-black border-white scale-110 shadow-[0_0_25px_rgba(255,255,255,0.2)] z-20'
-                                            : isCanonical
-                                                ? `${colors[phase.color]} z-10`
-                                                : 'bg-black text-zinc-700 border-zinc-900 hover:border-zinc-700 z-10'
+                                        ? 'bg-white text-black border-white scale-110 shadow-[0_0_25px_rgba(255,255,255,0.2)] z-20'
+                                        : isCanonical
+                                            ? `${colors[phase.color]} z-10`
+                                            : 'bg-black text-zinc-700 border-zinc-900 hover:border-zinc-700 z-10'
                                         }`}
                                 >
                                     {phase.icon}
