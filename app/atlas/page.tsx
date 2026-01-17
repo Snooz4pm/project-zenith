@@ -458,7 +458,6 @@ export default function AtlasPage() {
     useEffect(() => {
         if (publicKey) {
             setLoading(true);
-            isFirstTickRef.current = true;
         }
     }, [publicKey]);
 
@@ -469,16 +468,11 @@ export default function AtlasPage() {
     // Refs
     const autoRefreshRef = useRef<NodeJS.Timeout | null>(null);
     const isTickingRef = useRef(false);
-    const isFirstTickRef = useRef(true);
 
     // Survival Loop Analysis
     const performAnalyticalTick = useCallback(async (forceFull = false) => {
         if (!publicKey || isTickingRef.current) return;
         isTickingRef.current = true;
-
-        if (forceFull) {
-            isFirstTickRef.current = false; // Bypasses the "skipDiscovery" logic
-        }
 
         setAnalyzing(true);
         addLog('Atlas: Initiating analytical tick...');
@@ -534,11 +528,8 @@ export default function AtlasPage() {
             // 3. Execution Action (Server will filter for tradability)
             const tradablePositions = positions;
 
-            const analysis = await runPortfolioAnalysis(tradablePositions, [], { skipDiscovery: isFirstTickRef.current });
-            if (isFirstTickRef.current) {
-                addLog('System: Fast Pass complete. Initializing background discovery...');
-                isFirstTickRef.current = false;
-            }
+            const analysis = await runPortfolioAnalysis(tradablePositions, [], { skipDiscovery: false });
+
             const sPriceRaw = analysis.results?.find(r => r.mint === SOL_MINT)?.metrics.price || 0;
             const sPrice = isFinite(sPriceRaw) && sPriceRaw > 0 ? sPriceRaw : 0;
             setSolPrice(sPrice);
@@ -615,9 +606,9 @@ export default function AtlasPage() {
 
         } catch (err) {
             addLog(`Tick Failure: ${err}`);
-            // If we have never finished the first tick, retry sooner
-            if (isFirstTickRef.current) {
-                setTimeout(performAnalyticalTick, 3000);
+            // Retry sooner if we don't have results yet
+            if (loading) {
+                setTimeout(() => performAnalyticalTick(), 3000);
             }
         } finally {
             setAnalyzing(false);
