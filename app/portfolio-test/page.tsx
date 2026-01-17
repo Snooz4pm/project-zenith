@@ -436,6 +436,7 @@ export default function SurvivalLegacyPage() {
     useEffect(() => {
         if (publicKey) {
             setLoading(true);
+            isFirstTickRef.current = true;
         }
     }, [publicKey]);
 
@@ -446,6 +447,7 @@ export default function SurvivalLegacyPage() {
     // Refs
     const autoRefreshRef = useRef<NodeJS.Timeout | null>(null);
     const isTickingRef = useRef(false);
+    const isFirstTickRef = useRef(true);
 
     // Fetch Jupiter Metadata (Server side to avoid client DNS)
     const fetchMetadata = useCallback(async () => {
@@ -475,8 +477,12 @@ export default function SurvivalLegacyPage() {
         addLog('System: Initiating analytical tick...');
 
         try {
-            // 1. Refresh Wallet via Server API
-            const walletData = await fetchWalletFromApi(publicKey.toBase58());
+            // 1. Parallel Fetch: Wallet Data + Engine Positions
+            const [walletData, enginePosRes] = await Promise.all([
+                fetchWalletFromApi(publicKey.toBase58()),
+                fetch("/api/engine/positions")
+            ]);
+
             if (!walletData) {
                 addLog('System: Analytics throttled (Cooldown active).');
                 setAnalyzing(false);
@@ -527,7 +533,11 @@ export default function SurvivalLegacyPage() {
                 p.mint === SOL_MINT || jupiterTokenMap.has(p.mint)
             );
 
-            const analysis = await runPortfolioAnalysis(tradablePositions, []);
+            const analysis = await runPortfolioAnalysis(tradablePositions, [], { skipDiscovery: isFirstTickRef.current });
+            if (isFirstTickRef.current) {
+                addLog('System: Fast Pass complete. Initializing background discovery...');
+                isFirstTickRef.current = false;
+            }
             const sPriceRaw = analysis.results?.find(r => r.mint === SOL_MINT)?.metrics.price || 0;
             const sPrice = isFinite(sPriceRaw) && sPriceRaw > 0 ? sPriceRaw : 0;
             setSolPrice(sPrice);
@@ -541,9 +551,8 @@ export default function SurvivalLegacyPage() {
                 meme: (analysis.discoveryResults || []).filter((g: any) => (g.verdict.riskScore || 0) > 65).length
             });
 
-            // Fetch Engine Positions
-            const posRes = await fetch("/api/engine/positions");
-            const enginePos = await posRes.json();
+            // 4. Parse Engine Positions (Already fetched in Step 1)
+            const enginePos = await enginePosRes.json();
             setEnginePositions(enginePos);
 
             // 4. Current Frame Enrichment (The Consciousness)
@@ -759,7 +768,10 @@ export default function SurvivalLegacyPage() {
     return (
         <>
             {connected && loading && (
-                <UniversalLoader fullScreen message="Syncing Physics Core..." />
+                <UniversalLoader
+                    fullScreen
+                    message={jupiterTokenMap.size === 0 ? "Linking Metadata Engine..." : "Syncing Physics Core..."}
+                />
             )}
             <div className="min-h-screen bg-black text-white font-mono p-4 md:p-8 selection:bg-cyan-500/30">
                 <div className="max-w-7xl mx-auto space-y-6">

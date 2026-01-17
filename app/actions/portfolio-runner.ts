@@ -129,13 +129,18 @@ async function getJupiterQuoteWithRetries(params: any, retries = 3, delayMs = 50
     return null;
 }
 
+export interface AnalysisOptions {
+    skipDiscovery?: boolean;
+}
+
 /**
  * Fair Real-World Portfolio Test
  * Strictly deterministic, zero-hindsight.
  */
 export async function runPortfolioAnalysis(
     positions: Position[],
-    activeThreats: SimulationThreat[] = []
+    activeThreats: SimulationThreat[] = [],
+    options: AnalysisOptions = {}
 ): Promise<PortfolioAnalysisResponse> {
     const uiLogs: string[] = [];
     try {
@@ -147,7 +152,7 @@ export async function runPortfolioAnalysis(
         const marketStartTime = Date.now();
         const [marketData, broadMarketData] = await Promise.all([
             getVirtualPortfolioTokens(mints, uiLogs),
-            getDexMatchedTokens(uiLogs)
+            options.skipDiscovery ? Promise.resolve([]) : getDexMatchedTokens(uiLogs)
         ]);
         console.log(`[DISCOVERY_DEBUG] Raw Broad Mkt Tokens: ${broadMarketData.length}`);
         console.log(`[PortfolioRunner] Market data fetched in ${Date.now() - marketStartTime}ms. Portfolio: ${marketData.length}, Broad: ${broadMarketData.length}`);
