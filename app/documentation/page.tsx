@@ -128,6 +128,50 @@ export default function Documentation() {
                     </div>
                 </section>
 
+                {/* The Atlas Engine */}
+                <section className="mb-16">
+                    <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                        <Terminal className="w-5 h-5 text-cyan-400" />
+                        The Atlas Engine
+                    </h2>
+                    <div className="space-y-6 text-zinc-300">
+                        <p>
+                            Atlas is a <strong className="text-white">Predictive Physics Engine</strong> designed for the Solana ecosystem.
+                            Unlike traditional scanners that rely on historical data, Atlas simulates real-time market pressure to identify "Survivors."
+                        </p>
+
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div className="p-6 rounded-xl border border-white/10 bg-zinc-900/30">
+                                <h4 className="font-semibold text-white mb-2">Zero Hindsight Physics</h4>
+                                <p className="text-sm text-zinc-400 leading-relaxed">
+                                    Every "tick" of the engine is isolated. Atlas analyzes the market as it exists <span className="italic text-cyan-400">now</span>, applying 14 distinct pillars of analysis—including Volume Velocity, Liquidity Depth, and Rug-Resistance—to score candidates.
+                                </p>
+                            </div>
+                            <div className="p-6 rounded-xl border border-white/10 bg-zinc-900/30">
+                                <h4 className="font-semibold text-white mb-2">The 5-Phase Lifecycle</h4>
+                                <p className="text-sm text-zinc-400 leading-relaxed">
+                                    Atlas tracks tokens through a deterministic lifecycle:
+                                    <span className="block mt-2 text-xs font-mono text-zinc-500 uppercase tracking-tighter">
+                                        Observe → Seed → Scale → Harvest → Recycle
+                                    </span>
+                                    This ensures capital efficiency by rotating profits from established movers back into fresh "Seeds."
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="p-6 rounded-xl border border-cyan-500/20 bg-cyan-500/5">
+                            <h4 className="font-semibold text-white mb-3 flex items-center gap-2">
+                                <Shield className="w-4 h-4 text-cyan-400" />
+                                Non-Custodial Intelligence
+                            </h4>
+                            <p className="text-sm text-zinc-400">
+                                While the Atlas Engine provides automated "Scouting" and "Snap" execution logic, it remains 100% non-custodial.
+                                The "Physics Core" lives in your browser and our secured Railway proxy—meaning <strong className="text-white">you</strong> always sign the final execution in your wallet.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
                 {/* Architecture */}
                 <section className="mb-16">
                     <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
@@ -232,7 +276,7 @@ export default function Documentation() {
                     <h2 className="text-2xl font-bold mb-6">External Resources</h2>
                     <div className="grid md:grid-cols-2 gap-4">
                         <a href="https://station.jup.ag/docs" target="_blank" rel="noopener noreferrer"
-                           className="p-5 rounded-xl border border-white/10 hover:border-white/20 transition-colors flex items-center justify-between group">
+                            className="p-5 rounded-xl border border-white/10 hover:border-white/20 transition-colors flex items-center justify-between group">
                             <div>
                                 <h4 className="font-semibold text-white">Jupiter Documentation</h4>
                                 <p className="text-sm text-zinc-400">Learn about Jupiter's aggregator</p>
@@ -240,7 +284,7 @@ export default function Documentation() {
                             <ExternalLink className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
                         </a>
                         <a href="https://solana.com/docs" target="_blank" rel="noopener noreferrer"
-                           className="p-5 rounded-xl border border-white/10 hover:border-white/20 transition-colors flex items-center justify-between group">
+                            className="p-5 rounded-xl border border-white/10 hover:border-white/20 transition-colors flex items-center justify-between group">
                             <div>
                                 <h4 className="font-semibold text-white">Solana Documentation</h4>
                                 <p className="text-sm text-zinc-400">Understand the Solana blockchain</p>
