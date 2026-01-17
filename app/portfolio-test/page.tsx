@@ -131,14 +131,14 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                     <div className="flex gap-8">
                         <div className="text-right">
                             <div className="text-[9px] text-zinc-600 font-black uppercase tracking-[0.2em] mb-1">Shadow PnL</div>
-                            <div className={`text-sm font-black italic ${op.shadowPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {op.shadowPnL >= 0 ? '+' : ''}{op.shadowPnL.toFixed(2)}%
+                            <div className={`text-sm font-black italic ${(op.shadowPnL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {(op.shadowPnL || 0) >= 0 ? '+' : ''}{(op.shadowPnL || 0).toFixed(2)}%
                             </div>
                         </div>
                         <div className="text-right pr-6 border-r border-zinc-900">
                             <div className="text-[9px] text-zinc-600 font-black uppercase tracking-[0.2em] mb-1">Seed Allocation</div>
                             <div className="text-sm font-black text-white italic">
-                                {op.seedSizeSOL.toFixed(4)} <span className="text-zinc-500">SOL</span>
+                                {(op.seedSizeSOL || 0).toFixed(4)} <span className="text-zinc-500">SOL</span>
                             </div>
                         </div>
                     </div>
@@ -148,7 +148,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                             <div className="text-right">
                                 <div className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.2em]">Live Value</div>
                                 <div className="text-xs font-mono text-emerald-400">
-                                    ${position.usdValue.toFixed(2)}
+                                    ${(position.usdValue || 0).toFixed(2)}
                                 </div>
                             </div>
                         )}
