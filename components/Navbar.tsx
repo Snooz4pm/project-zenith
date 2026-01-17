@@ -21,8 +21,8 @@ interface NavLink {
 }
 
 const NAV_LINKS: NavLink[] = [
+    { href: '/atlas', label: 'Atlas' },
     { href: '/signals', label: 'Signals' },
-    { href: '/smart-swap-v1', label: 'Smart Swap' },
     { href: '/unlock-value', label: 'Unlock Value' },
 ];
 

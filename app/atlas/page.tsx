@@ -409,7 +409,7 @@ function RoadmapCard({ roadmap, onAction, solPrice }: { roadmap: any, onAction: 
     );
 }
 
-export default function SurvivalLegacyPage() {
+export default function AtlasPage() {
     const { publicKey, connected, sendTransaction } = useWallet();
     const { connection } = useConnection();
     const { setVisible } = useWalletModal();
@@ -454,7 +454,7 @@ export default function SurvivalLegacyPage() {
         isTickingRef.current = true;
 
         setAnalyzing(true);
-        addLog('System: Initiating analytical tick...');
+        addLog('Atlas: Initiating analytical tick...');
 
         try {
             // 1. Parallel Fetch: Wallet Data + Engine Positions
@@ -583,7 +583,7 @@ export default function SurvivalLegacyPage() {
                 analysis.logs.forEach(l => addLog(l));
             }
 
-            addLog(`Tick Complete: ${walletHoldings.length} holdings audited, ${analysis.discoveryResults?.length} opportunities scouted.`);
+            addLog(`Atlas Tick Complete: ${walletHoldings.length} holdings audited, ${analysis.discoveryResults?.length} opportunities scouted.`);
             setLoading(false); // Only finish loading once we have actual results
 
         } catch (err) {
@@ -746,11 +746,18 @@ export default function SurvivalLegacyPage() {
             {connected && loading && (
                 <UniversalLoader
                     fullScreen
-                    message="Syncing Physics Core..."
+                    message="Syncing Atlas Physics..."
                 />
             )}
             <div className="min-h-screen bg-black text-white font-mono p-4 md:p-8 selection:bg-cyan-500/30">
                 <div className="max-w-7xl mx-auto space-y-6">
+
+                    {/* Project Label */}
+                    <div className="flex items-center gap-3 px-1">
+                        <div className="w-2 h-2 rounded-full bg-cyan-400 group-hover:animate-ping" />
+                        <h1 className="text-2xl font-black italic tracking-[0.5em] text-white uppercase">Atlas</h1>
+                        <span className="text-[10px] text-zinc-600 font-black uppercase tracking-widest mt-1 border-l border-zinc-800 pl-3">Observatory_Mode</span>
+                    </div>
 
                     {/* Header: Identity & Metrics */}
                     <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
@@ -800,8 +807,8 @@ export default function SurvivalLegacyPage() {
                                         <div className="absolute inset-0 border-2 border-cyan-500 rounded-full border-t-transparent animate-spin" />
                                     </div>
                                     <div className="flex flex-col">
-                                        <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest leading-none mb-1">Physics Engine Syncing</span>
-                                        <span className="text-[8px] text-zinc-500 font-mono tracking-tighter uppercase">Calibrating_Probabilities...</span>
+                                        <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest leading-none mb-1">Atlas Syncing</span>
+                                        <span className="text-[8px] text-zinc-500 font-mono tracking-tighter uppercase">Mapping_Universe...</span>
                                     </div>
                                 </div>
                             )}
