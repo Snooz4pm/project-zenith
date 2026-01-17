@@ -472,9 +472,13 @@ export default function AtlasPage() {
     const isFirstTickRef = useRef(true);
 
     // Survival Loop Analysis
-    const performAnalyticalTick = useCallback(async () => {
+    const performAnalyticalTick = useCallback(async (forceFull = false) => {
         if (!publicKey || isTickingRef.current) return;
         isTickingRef.current = true;
+
+        if (forceFull) {
+            isFirstTickRef.current = false; // Bypasses the "skipDiscovery" logic
+        }
 
         setAnalyzing(true);
         addLog('Atlas: Initiating analytical tick...');
@@ -809,11 +813,12 @@ export default function AtlasPage() {
                                         <div className="text-xl font-black text-white tracking-tighter">{holdings.length}</div>
                                     </div>
                                     <button
-                                        onClick={performAnalyticalTick}
+                                        onClick={() => performAnalyticalTick(true)}
                                         disabled={analyzing}
-                                        className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-all text-zinc-400"
+                                        className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-all text-zinc-400 group"
+                                        title="Force Full Market Scan"
                                     >
-                                        <RefreshCw className={`w-5 h-5 ${analyzing ? 'animate-spin text-cyan-400' : ''}`} />
+                                        <RefreshCw className={`w-5 h-5 ${analyzing ? 'animate-spin text-cyan-400' : 'group-hover:text-cyan-400'}`} />
                                     </button>
                                 </div>
                             </>
