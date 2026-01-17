@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Loader2, TrendingUp, ArrowUpRight } from "lucide-react";
 import { computePortfolioUsd } from "@/lib/engine/portfolio";
 
+import { PositionState } from "@/lib/engine/lifecycleState";
+
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 export function ScaleQuickPanel({
@@ -10,7 +12,8 @@ export function ScaleQuickPanel({
     onAction,
     isGlobalSeeding,
     preloadedQuote,
-    position
+    position,
+    state
 }: {
     wallet: any;
     selectedGem: any;
@@ -18,6 +21,7 @@ export function ScaleQuickPanel({
     isGlobalSeeding?: boolean;
     preloadedQuote?: any;
     position?: any;
+    state?: PositionState;
 }) {
     // 1. State & Refs
     const [baseMint, setBaseMint] = useState<string>(SOL_MINT);
@@ -97,7 +101,7 @@ export function ScaleQuickPanel({
         }
     }, [baseMint, preloadedQuote, fetchInternalQuote]);
 
-    const canScale = activeQuote && !localLoading && !isGlobalSeeding;
+    const canScale = activeQuote && !localLoading && !isGlobalSeeding && (state?.canScale !== false);
     const loading = localLoading || isGlobalSeeding;
     const quoteLoading = isInternalFetching || (!activeQuote && scaleUsd > 0);
 
@@ -184,7 +188,7 @@ export function ScaleQuickPanel({
                     className="group relative px-6 py-2 rounded bg-cyan-500 text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30 disabled:grayscale transition-all shadow-[0_0_20px_rgba(6,182,212,0.2)] hover:scale-105 active:scale-95"
                 >
                     <span className={loading ? "opacity-0" : "opacity-100"}>
-                        {quoteLoading ? "WARMING..." : "Scale"}
+                        {quoteLoading ? "WARMING..." : (state?.canScale === false ? "Waiting for Profit" : "Scale")}
                     </span>
                     {loading && (
                         <div className="absolute inset-0 flex items-center justify-center">

@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import { computePortfolioUsd, computeSeedUsd } from "@/lib/engine/portfolio";
 
+import { PositionState } from "@/lib/engine/lifecycleState";
+
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 export function SeedQuickPanel({
@@ -9,7 +11,8 @@ export function SeedQuickPanel({
     selectedGem,
     onAction,
     isGlobalSeeding,
-    preloadedQuote
+    preloadedQuote,
+    state
 }: {
     wallet: any;
     selectedGem: any;
@@ -21,6 +24,7 @@ export function SeedQuickPanel({
     }) => Promise<void>;
     isGlobalSeeding?: boolean;
     preloadedQuote?: any;
+    state?: PositionState;
 }) {
     // 1. State & Refs (The Swap Engine Pattern)
     const [baseMint, setBaseMint] = useState<string>(SOL_MINT);
@@ -109,7 +113,7 @@ export function SeedQuickPanel({
         }
     }, [baseMint, preloadedQuote, fetchInternalQuote]);
 
-    const canSeed = activeQuote && !localLoading && !isGlobalSeeding;
+    const canSeed = activeQuote && !localLoading && !isGlobalSeeding && (state?.canSeed !== false);
     const loading = localLoading || isGlobalSeeding;
     const quoteLoading = isInternalFetching || (!activeQuote && seedUsd > 0);
 
@@ -199,7 +203,7 @@ export function SeedQuickPanel({
                     className="group relative px-6 py-2 rounded bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30 disabled:grayscale transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:scale-105 active:scale-95"
                 >
                     <span className={loading ? "opacity-0" : "opacity-100"}>
-                        {quoteLoading ? "WARMING..." : "Seed"}
+                        {quoteLoading ? "WARMING..." : (state?.canSeed === false ? "Position Active" : "Seed")}
                     </span>
                     {loading && (
                         <div className="absolute inset-0 flex items-center justify-center">

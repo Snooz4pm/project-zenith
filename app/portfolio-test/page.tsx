@@ -12,6 +12,7 @@ import {
     ChevronRight, BarChart3, Database, Search, ShieldCheck, Heart, Skull, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
 import { executeLifecycleAction, ActionType } from '@/lib/engine/lifecycleExecutor';
+import { derivePositionState, PositionState } from '@/lib/engine/lifecycleState';
 import { SeedQuickPanel } from '@/components/SeedQuickPanel';
 import { ObserveQuickPanel } from '@/components/ObserveQuickPanel';
 import { ScaleQuickPanel } from '@/components/ScaleQuickPanel';
@@ -95,6 +96,7 @@ interface LifecycleOpportunity {
     phase: LifecyclePhase;
     shadowPnL: number;
     seedSizeSOL: number;
+    state?: PositionState; // Canonical Truth
 }
 
 function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }: {
@@ -132,39 +134,51 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                     <div className="pl-4 border-l border-zinc-900 flex items-center gap-3">
                         {op.phase === 'SEE' ? (
                             <button
-                                disabled={isSeeding}
-                                onClick={() => onAction('SEED', { overrideQuote: hotQuote, baseMint: SOL_MINT, targetMint: op.mint, targetSymbol: op.symbol })}
+                                disabled={isSeeding || (op.state?.canSeed === false)}
+                                onClick={() => onAction('SEED', { overrideQuote: hotQuote, baseMint: SOL_MINT, targetMint: op.mint, targetSymbol: op.symbol, state: op.state })}
                                 className="px-4 py-1.5 rounded bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
                             >
-                                {isSeeding ? "SEEDING..." : "SEED"}
+                                {isSeeding ? "SEEDING..." : (op.state?.canSeed === false ? "ACTIVE" : "SEED")}
                             </button>
                         ) : op.phase === 'SCA' ? (
                             <button
-                                disabled={isSeeding}
-                                onClick={() => onAction('SCALE', { overrideQuote: hotQuote, targetMint: op.mint, targetSymbol: op.symbol })}
+                                disabled={isSeeding || (op.state?.canScale === false)}
+                                onClick={() => onAction('SCALE', { overrideQuote: hotQuote, targetMint: op.mint, targetSymbol: op.symbol, state: op.state, position })}
                                 className="px-4 py-1.5 rounded bg-cyan-500 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale flex items-center gap-2"
                             >
                                 {isSeeding ? <Loader2 className="animate-spin w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
-                                SCALE (6%)
+                                {op.state?.canScale === false ? "LOCKED" : "SCALE (6%)"}
                             </button>
                         ) : op.phase === 'HAR' ? (
                             <button
-                                disabled={isSeeding}
-                                onClick={() => onAction('HARVEST', { overrideQuote: hotQuote, targetMint: op.mint, targetSymbol: op.symbol })}
+                                disabled={isSeeding || (op.state?.canHarvest === false)}
+                                onClick={() => onAction('HARVEST', { overrideQuote: hotQuote, targetMint: op.mint, targetSymbol: op.symbol, state: op.state, position })}
                                 className="px-4 py-1.5 rounded bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale flex items-center gap-2"
                             >
                                 {isSeeding ? <Loader2 className="animate-spin w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                HARVEST (40%)
+                                {op.state?.canHarvest === false ? "STABLE" : "HARVEST (40%)"}
                             </button>
                         ) : op.phase === 'REC' ? (
                             <button
-                                disabled={isSeeding}
-                                onClick={() => onAction('RECYCLE', { overrideQuote: hotQuote, targetMint: op.mint, targetSymbol: op.symbol })}
+                                disabled={isSeeding || (op.state?.canExit === false)}
+                                onClick={() => onAction('RECYCLE', { overrideQuote: hotQuote, targetMint: op.mint, targetSymbol: op.symbol, state: op.state, position })}
                                 className="px-4 py-1.5 rounded bg-zinc-200 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
                             >
-                                {isSeeding ? "RECYCLING..." : "RECYCLE ALL"}
+                                {isSeeding ? "RECYCLING..." : (op.state?.canExit === false ? "EMPTY" : "RECYCLE ALL")}
                             </button>
                         ) : null}
+
+                        <div className="flex gap-2 mb-2">
+                            {op.state?.dust && (
+                                <span className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[7px] font-black text-amber-500 uppercase tracking-widest">Dust</span>
+                            )}
+                            {op.state?.canHarvest && (
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[7px] font-black text-emerald-400 uppercase tracking-widest animate-pulse">Profit</span>
+                            )}
+                            {op.state?.hasPosition && (
+                                <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-[7px] font-black text-cyan-400 uppercase tracking-widest">Active</span>
+                            )}
+                        </div>
 
                         {position && (
                             <div className="flex flex-col items-end">
@@ -211,6 +225,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                         onAction={(params) => onAction('SEED', params)}
                         isGlobalSeeding={isSeeding}
                         preloadedQuote={hotQuote}
+                        state={op.state}
                     />
                 )}
                 {activePhase === 'SCA' && (
@@ -221,6 +236,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                         isGlobalSeeding={isSeeding}
                         preloadedQuote={hotQuote}
                         position={position}
+                        state={op.state}
                     />
                 )}
                 {activePhase === 'HAR' && (
@@ -231,6 +247,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                         isGlobalSeeding={isSeeding}
                         preloadedQuote={hotQuote}
                         position={position}
+                        state={op.state}
                     />
                 )}
                 {activePhase === 'REC' && (
@@ -241,6 +258,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                         isGlobalSeeding={isSeeding}
                         preloadedQuote={hotQuote}
                         position={position}
+                        state={op.state}
                     />
                 )}
             </div>
@@ -468,10 +486,28 @@ export default function SurvivalLegacyPage() {
                             });
                         }
                     });
-                    return next.slice(0, 5); // 🏁 CAP: 5 gems (Precision over Volume)
+
+                    // Canonical State Mapping
+                    return next.slice(0, 5).map(op => {
+                        const hToken = holdingsWithUsd.find(h => h.mint === op.mint);
+                        const pos = enginePos.find((p: any) => p.targetMint === op.mint);
+                        const currentSolValue = (hToken?.usdValue || 0) / (sPrice || 1);
+                        return {
+                            ...op,
+                            state: derivePositionState(op.mint, op.symbol, currentSolValue, pos)
+                        };
+                    });
                 });
             } else {
-                setLifecycle(updatedLifecycle.slice(0, 5));
+                setLifecycle(updatedLifecycle.slice(0, 5).map(op => {
+                    const hToken = holdingsWithUsd.find(h => h.mint === op.mint);
+                    const pos = enginePos.find((p: any) => p.targetMint === op.mint);
+                    const currentSolValue = (hToken?.usdValue || 0) / (sPrice || 1);
+                    return {
+                        ...op,
+                        state: derivePositionState(op.mint, op.symbol, currentSolValue, pos)
+                    };
+                }));
             }
 
             if (analysis.logs) {

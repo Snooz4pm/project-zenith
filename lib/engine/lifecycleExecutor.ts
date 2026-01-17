@@ -1,6 +1,7 @@
 import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
+import { derivePositionState, assertValidAmount, ActionType, PositionState } from "./lifecycleState";
 
-export type ActionType = "SEED" | "SCALE" | "HARVEST" | "RECYCLE";
+export { type ActionType };
 
 export interface ActionContext {
     publicKey: PublicKey;
@@ -19,6 +20,22 @@ export interface ActionParams {
     baseMint?: string;
     overrideAmountUsd?: number;
     overrideQuote?: any;
+    state?: PositionState; // Canonical State Gate
+}
+
+function assertCanExecute(type: ActionType, state: PositionState) {
+    if (type === "SEED" && !state.canSeed) {
+        throw new Error("SEED blocked: Existing position active");
+    }
+    if (type === "SCALE" && !state.canScale) {
+        throw new Error("SCALE blocked: No profit available for scaling");
+    }
+    if (type === "HARVEST" && !state.canHarvest) {
+        throw new Error("HARVEST blocked: Realized profit too low");
+    }
+    if (type === "RECYCLE" && !state.canExit) {
+        throw new Error("RECYCLE blocked: No active position to exit");
+    }
 }
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
@@ -37,6 +54,18 @@ export async function executeLifecycleAction(
         let amountRaw: string | null = null;
 
         addLog(`Kernel: Executor engaged [${type}] for ${params.targetSymbol || params.targetMint.slice(0, 6)}`);
+
+        // 0. Canonical Assertion Gate
+        const hToken = ctx.holdings.find(h => h.mint === params.targetMint);
+        const state = params.state || derivePositionState(
+            params.targetMint,
+            params.targetSymbol || "UNK",
+            hToken?.rawAmount || "0",
+            params.position
+        );
+
+        addLog(`🛡️ Kernel Assertion: Validating ${type} against state...`);
+        assertCanExecute(type, state);
 
         // 1. Determine Parameters based on ActionType
         switch (type) {
@@ -72,6 +101,7 @@ export async function executeLifecycleAction(
 
                 // 40% partial exit
                 amountRaw = (hWalletRaw * BigInt(40) / BigInt(100)).toString();
+                assertValidAmount(amountRaw);
                 break;
 
             case "RECYCLE":
@@ -88,6 +118,7 @@ export async function executeLifecycleAction(
 
                 // 100% exit
                 amountRaw = rWalletRaw.toString();
+                assertValidAmount(amountRaw);
                 break;
 
             default:
@@ -114,6 +145,7 @@ export async function executeLifecycleAction(
                 }
 
                 amountRaw = Math.floor(rawVal).toString();
+                assertValidAmount(amountRaw);
             }
 
             if (!amountRaw || amountRaw === "0") {

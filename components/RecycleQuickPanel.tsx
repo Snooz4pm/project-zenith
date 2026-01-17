@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 
+import { PositionState } from "@/lib/engine/lifecycleState";
+
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 export function RecycleQuickPanel({
@@ -9,7 +11,8 @@ export function RecycleQuickPanel({
     onAction,
     isGlobalSeeding,
     preloadedQuote,
-    position
+    position,
+    state
 }: {
     wallet: any;
     selectedGem: any;
@@ -17,6 +20,7 @@ export function RecycleQuickPanel({
     isGlobalSeeding?: boolean;
     preloadedQuote?: any;
     position?: any;
+    state?: PositionState;
 }) {
     // 1. State & Refs
     const [localLoading, setLocalLoading] = useState(false);
@@ -94,7 +98,7 @@ export function RecycleQuickPanel({
         }
     }, [preloadedQuote, fetchInternalQuote]);
 
-    const canRecycle = activeQuote && !localLoading && !isGlobalSeeding;
+    const canRecycle = activeQuote && !localLoading && !isGlobalSeeding && (state?.canExit !== false);
     const loading = localLoading || isGlobalSeeding;
     const quoteLoading = isInternalFetching || (!activeQuote && recycleAmountRaw !== "0");
 
@@ -158,7 +162,7 @@ export function RecycleQuickPanel({
                     className="flex-1 group relative px-6 py-2 rounded bg-zinc-100 text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30 disabled:grayscale transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-105 active:scale-95"
                 >
                     <span className={loading ? "opacity-0" : "opacity-100"}>
-                        {quoteLoading ? "WARMING..." : "Recycle All"}
+                        {quoteLoading ? "WARMING..." : (state?.canExit === false ? "No Position" : "Recycle All")}
                     </span>
                     {loading && (
                         <div className="absolute inset-0 flex items-center justify-center">
