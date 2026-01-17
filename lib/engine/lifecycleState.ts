@@ -30,7 +30,6 @@ export const WSOL_MINT = 'So11111111111111111111111111111111111111112';
 export const EXIT_TARGETS = [
     { symbol: "SOL", mint: SOL_MINT },
     { symbol: "USDC", mint: USDC_MINT },
-    { symbol: "wSOL", mint: WSOL_MINT },
     { symbol: "USDT", mint: USDT_MINT }
 ];
 

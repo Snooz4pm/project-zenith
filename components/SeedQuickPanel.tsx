@@ -226,7 +226,7 @@ export function SeedQuickPanel({
                         value={baseMint || ""}
                     >
                         <option value={SOL_MINT} className="bg-zinc-900">SOL</option>
-                        {wallet?.tokens?.map((t: any) => (
+                        {wallet?.tokens?.filter((t: any) => t.mint !== selectedGem?.mint).map((t: any) => (
                             <option key={t.mint} value={t.mint} className="bg-zinc-900">
                                 {t.symbol} ({t.amount.toFixed(2)})
                             </option>
