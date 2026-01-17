@@ -26,8 +26,9 @@ export interface ActionParams {
 }
 
 function assertCanExecute(type: ActionType, state: PositionState) {
-    if (type === "SEED" && !state.canSeed) {
-        throw new Error("SEED blocked: Existing position active");
+    if (type === "SEED") {
+        // Allow adding more seed even if position exists
+        return;
     }
     if (type === "SCALE" && !state.canScale) {
         throw new Error("SCALE blocked: No profit available for scaling");
@@ -124,6 +125,7 @@ export async function executeLifecycleAction(
         let outputMint: string = SOL_MINT;
         let amountUsd: number | null = null;
         let amountRaw: string | null = null;
+        let quote: any = params.overrideQuote;
 
         addLog(`Kernel: Executor engaged [${type}] for ${params.targetSymbol || params.targetMint.slice(0, 6)}`);
 
@@ -205,7 +207,6 @@ export async function executeLifecycleAction(
         }
 
         // 2. Convert USD to Raw Amount if needed
-        let quote = params.overrideQuote;
 
         if (!quote) {
             if (amountUsd && !amountRaw) {

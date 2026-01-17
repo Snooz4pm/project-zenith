@@ -82,7 +82,7 @@ export function derivePositionState(
         pnlAmount,
 
         hasPosition,
-        canSeed: !hasPosition || dust,
+        canSeed: true, // Always allow adding more seed/investing
         canScale: hasPosition && pnlAmount > BigInt(0),
         canHarvest: hasPosition && pnlAmount > MIN_LAMPORTS,
         canExit: currentAmount > BigInt(0),

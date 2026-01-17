@@ -138,7 +138,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                                 onClick={() => onAction('SEED', { overrideQuote: hotQuote, baseMint: SOL_MINT, targetMint: op.mint, targetSymbol: op.symbol, state: op.state })}
                                 className="px-4 py-1.5 rounded bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
                             >
-                                {isSeeding ? "SEEDING..." : (op.state?.canSeed === false ? "ACTIVE" : "SEED")}
+                                {isSeeding ? "SEEDING..." : (op.state?.hasPosition ? "ADD SEED" : "SEED")}
                             </button>
                         ) : op.phase === 'SCA' ? (
                             <button

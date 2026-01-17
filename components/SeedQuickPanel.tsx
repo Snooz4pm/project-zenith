@@ -256,7 +256,7 @@ export function SeedQuickPanel({
                     className="group relative px-6 py-2 rounded bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30 disabled:grayscale transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:scale-105 active:scale-95"
                 >
                     <span className={loading ? "opacity-0" : "opacity-100"}>
-                        {quoteLoading ? "WARMING..." : (state?.canSeed === false ? "Position Active" : "Seed")}
+                        {quoteLoading ? "WARMING..." : (state?.hasPosition ? "Add Seed" : "Seed")}
                     </span>
                     {loading && (
                         <div className="absolute inset-0 flex items-center justify-center">
