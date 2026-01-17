@@ -5,6 +5,9 @@ export type WalletBalance = {
     mint: string;
     amount: number;
     decimals: number;
+    symbol?: string;
+    name?: string;
+    logoURI?: string;
 };
 
 export type WalletToken = {
@@ -55,7 +58,10 @@ export async function fetchWalletBalances(publicKey: PublicKey): Promise<WalletB
                     balances.push({
                         mint: token.mint,
                         amount: token.amount,
-                        decimals: token.decimals
+                        decimals: token.decimals,
+                        symbol: token.symbol,
+                        name: token.name,
+                        logoURI: token.logoURI
                     });
                 }
             });
@@ -79,20 +85,19 @@ export function enrichWalletBalances(
     const enriched: WalletToken[] = [];
 
     for (const balance of balances) {
-        // Find matching token metadata
+        // Find matching token metadata (Priority: Static Universe lookup)
+        // Note: DAS metadata is used as fallback in the loop below if Universe doesn't have it
         const metadata = tokenUniverse.find(t => t.mint === balance.mint);
 
-        if (metadata) {
-            enriched.push({
-                address: balance.mint,
-                symbol: metadata.symbol,
-                name: metadata.name || metadata.symbol,
-                decimals: balance.decimals,
-                logoURI: metadata.logoURI,
-                uiBalance: balance.amount,
-                balanceBase: BigInt(Math.floor(balance.amount * Math.pow(10, balance.decimals)))
-            });
-        }
+        enriched.push({
+            address: balance.mint,
+            symbol: metadata?.symbol || balance.symbol || '?',
+            name: metadata?.name || balance.name || balance.symbol || 'Unknown',
+            decimals: balance.decimals,
+            logoURI: metadata?.logoURI || balance.logoURI,
+            uiBalance: balance.amount,
+            balanceBase: BigInt(Math.floor(balance.amount * Math.pow(10, balance.decimals)))
+        });
     }
 
     // Sort by balance (highest first)

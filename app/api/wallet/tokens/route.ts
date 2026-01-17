@@ -29,27 +29,60 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: 'Invalid address' }, { status: 400 });
         }
 
-        const accounts = await connection.getParsedTokenAccountsByOwner(
-            pubkey,
-            { programId: TOKEN_PROGRAM_ID }
-        );
-
-        const tokens = accounts.value.map((account) => {
-            const parsed = account.account.data.parsed.info;
-            return {
-                mint: parsed.mint,
-                amount: parsed.tokenAmount.uiAmount,
-                decimals: parsed.tokenAmount.decimals,
-                rawAmount: parsed.tokenAmount.amount,
-            };
+        // Helius DAS getAssetsByOwner call
+        const response = await fetch(RPC_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 'my-id',
+                method: 'getAssetsByOwner',
+                params: {
+                    ownerAddress: address,
+                    page: 1,
+                    limit: 1000,
+                    displayOptions: {
+                        showFungible: true,
+                        showNativeBalance: true
+                    }
+                }
+            })
         });
 
-        // Filter out zero balance tokens
-        const nonZeroTokens = tokens.filter((t) => t.amount && t.amount > 0);
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error.message || 'Helius DAS error');
+        }
+
+        const assets = data.result?.items || [];
+
+        // Map DAS assets to our existing token structure
+        const tokens = assets
+            .filter((asset: any) => {
+                // Keep fungible tokens and verified NFTs
+                const isFungible = asset.interface === 'FungibleToken' || asset.interface === 'FungibleAsset';
+                const hasBalance = asset.token_info?.balance && Number(asset.token_info.balance) > 0;
+                return isFungible && hasBalance;
+            })
+            .map((asset: any) => {
+                const info = asset.token_info;
+                const metadata = asset.content?.metadata;
+
+                return {
+                    mint: asset.id,
+                    amount: info.balance / Math.pow(10, info.decimals),
+                    decimals: info.decimals,
+                    rawAmount: info.balance.toString(),
+                    symbol: metadata?.symbol || info.symbol || '?',
+                    name: metadata?.name || '',
+                    logoURI: asset.content?.links?.image || asset.content?.files?.[0]?.uri || ''
+                };
+            });
 
         return NextResponse.json({
             address,
-            tokens: nonZeroTokens,
+            tokens: tokens,
         });
     } catch (error: any) {
         console.error('[API /wallet/tokens] Error:', error);
