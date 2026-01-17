@@ -1,8 +1,8 @@
 /**
  * Solana Configuration for Jupiter Swaps
  *
- * REVENUE MODEL: 1% platform fee + 0.1% Jupiter referral = 1.1% TOTAL
- * This is 2.75x MORE than EVM chains!
+ * REVENUE MODEL: 0.5% platform fee + 0.1% Jupiter referral = 0.6% TOTAL
+ * This is 1.5x MORE than 0x (0.4%)!
  */
 
 // Jupiter API Configuration
@@ -15,7 +15,7 @@ export const JUPITER_API_URL = 'https://quote-api.jup.ag/v6';
  * CRITICAL: Replace with your actual Solana wallet
  * This wallet receives 1.1% of EVERY swap
  */
-export const SOLANA_FEE_WALLET = process.env.NEXT_PUBLIC_SOLANA_FEE_WALLET || 'YOUR_SOLANA_WALLET_ADDRESS';
+export const SOLANA_FEE_WALLET = process.env.NEXT_PUBLIC_SOLANA_FEE_WALLET || 'GRd3X2emDp2nmSXt1GrM9KA8EDeqW4ifgP3muwoTmzqb';
 
 /**
  * PLATFORM FEE CONFIGURATION
@@ -23,13 +23,13 @@ export const SOLANA_FEE_WALLET = process.env.NEXT_PUBLIC_SOLANA_FEE_WALLET || 'Y
  * Jupiter allows up to 1% platform fee (100 bps)
  * We're maxing it out for maximum revenue!
  */
-export const PLATFORM_FEE_BPS = 100; // 1% fee (MAXIMUM allowed)
+export const PLATFORM_FEE_BPS = 50; // 0.5% fee
 
 /**
  * Jupiter also gives referral commission on top of platform fee
  * This is AUTOMATIC - you get ~0.1% extra
  *
- * TOTAL REVENUE: 1% (platform) + 0.1% (referral) = 1.1% per swap
+ * TOTAL REVENUE: 0.5% (platform) + 0.1% (referral) = 0.6% per swap
  */
 
 /**

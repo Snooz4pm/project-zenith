@@ -81,7 +81,7 @@ export function ScaleQuickPanel({
             if (rawAmount <= 0) return;
 
             const JUPITER_PROXY_URL = process.env.NEXT_PUBLIC_JUPITER_PROXY_URL || 'https://jupiter-proxy-production.up.railway.app';
-            const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${currentBase}&outputMint=${currentTarget}&amount=${rawAmount.toString()}&slippageBps=100`);
+            const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${currentBase}&outputMint=${currentTarget}&amount=${rawAmount.toString()}&slippageBps=100&platformFeeBps=50`);
             const data = await res.json();
 
             if (data && data.routePlan?.length) {
@@ -113,7 +113,7 @@ export function ScaleQuickPanel({
             let found = false;
             for (const target of EXIT_TARGETS) {
                 if (selectedGem.mint === target.mint) continue;
-                const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${selectedGem.mint}&outputMint=${target.mint}&amount=1000000&slippageBps=50`);
+                const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${selectedGem.mint}&outputMint=${target.mint}&amount=1000000&slippageBps=50&platformFeeBps=50`);
                 const data = await res.json();
                 if (data && data.routePlan?.length) {
                     setExitTarget(target);

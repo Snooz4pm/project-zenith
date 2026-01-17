@@ -74,11 +74,11 @@ export default function PremiumAlerts() {
     const { setVisible } = useWalletModal();
     const { connection } = useConnection();
 
-    // Subscription state
+    // Subscription state (FORCE ACTIVE - EVERYTHING FREE)
     const [subscription, setSubscription] = useState<SubscriptionState>({
-        isActive: false,
-        expiresAt: null,
-        features: { walletTracker: false, newCoins: false, rugPulls: false },
+        isActive: true,
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10), // 10 years
+        features: { walletTracker: true, newCoins: true, rugPulls: true },
     });
 
     // UI state
@@ -110,146 +110,18 @@ export default function PremiumAlerts() {
     // =============================================================================
 
     const checkSubscription = useCallback(async () => {
-        if (!publicKey || !connected) {
-            setSubscription({
-                isActive: false,
-                expiresAt: null,
-                features: { walletTracker: false, newCoins: false, rugPulls: false },
-            });
-            return;
-        }
-
-        try {
-            // Check subscription status from database
-            const res = await fetch(`/api/premium/subscribe?wallet=${publicKey.toBase58()}`);
-            const data = await res.json();
-
-            if (data.isActive && data.features) {
-                setSubscription({
-                    isActive: true,
-                    expiresAt: new Date(data.expiresAt),
-                    features: data.features,
-                });
-            } else {
-                setSubscription({
-                    isActive: false,
-                    expiresAt: null,
-                    features: { walletTracker: false, newCoins: false, rugPulls: false },
-                });
-            }
-        } catch (error) {
-            console.error('Error checking subscription:', error);
-            setSubscription({
-                isActive: false,
-                expiresAt: null,
-                features: { walletTracker: false, newCoins: false, rugPulls: false },
-            });
-        }
-    }, [publicKey, connected]);
+        // BYPASS: Everything is now free
+        setSubscription({
+            isActive: true,
+            expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10),
+            features: { walletTracker: true, newCoins: true, rugPulls: true },
+        });
+    }, []);
 
     useEffect(() => {
         checkSubscription();
     }, [checkSubscription]);
 
-    // =============================================================================
-    // SUBSCRIPTION PAYMENT
-    // =============================================================================
-
-    const calculatePrice = () => {
-        const count = Object.values(selectedFeatures).filter(Boolean).length;
-        if (count === 0) return 0;
-        if (count === 3) return PRICES.all;
-        if (count === 2) return PRICES.duo;
-        return PRICES.single;
-    };
-
-    const handleSubscribe = async () => {
-        if (!publicKey || !sendTransaction || !signMessage) {
-            setVisible(true);
-            return;
-        }
-
-        const price = calculatePrice();
-        if (price === 0) {
-            toast.error('Select at least one feature');
-            return;
-        }
-
-        setIsLoading(true);
-
-        try {
-            const lamports = Math.ceil(price * LAMPORTS_PER_SOL);
-
-            // STEP 1: SOL Transfer to Dev Wallet
-            toast.loading('Step 1/3: Sending payment...', { id: 'sub' });
-
-            const tx = new Transaction();
-            tx.add(
-                SystemProgram.transfer({
-                    fromPubkey: publicKey,
-                    toPubkey: DEV_WALLET,
-                    lamports,
-                })
-            );
-
-            const paymentTxHash = await sendTransaction(tx, connection);
-            await connection.confirmTransaction(paymentTxHash, 'confirmed');
-
-            toast.loading('Step 2/3: Sign to confirm subscription...', { id: 'sub' });
-
-            // STEP 2: Sign subscription message (FREE, no gas)
-            const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + SUBSCRIPTION_DAYS);
-
-            const subscriptionMessage = `I subscribe to Zenith Premium Alerts until ${expiresAt.toISOString()}`;
-            const messageBytes = new TextEncoder().encode(subscriptionMessage);
-            const signatureBytes = await signMessage(messageBytes);
-            const signatureBase58 = bs58.encode(signatureBytes);
-
-            toast.loading('Step 3/3: Saving subscription...', { id: 'sub' });
-
-            // STEP 3: Store in database
-            const res = await fetch('/api/premium/subscribe', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    walletAddress: publicKey.toBase58(),
-                    paymentTxHash,
-                    signedMessage: subscriptionMessage,
-                    signature: signatureBase58,
-                    features: selectedFeatures,
-                    amountPaid: price,
-                }),
-            });
-
-            const result = await res.json();
-            if (!res.ok) throw new Error(result.error || 'Failed to save subscription');
-
-            setSubscription({
-                isActive: true,
-                expiresAt,
-                features: selectedFeatures,
-            });
-
-            toast.success('Subscription activated! ✓', { id: 'sub' });
-            setShowSubscribeModal(false);
-
-            // Request push notification permission
-            if ('Notification' in window && Notification.permission === 'default') {
-                Notification.requestPermission();
-            }
-
-        } catch (error: any) {
-            console.error('Subscription error:', error);
-            if (error.message?.includes('User rejected')) {
-                toast.error('Cancelled by user', { id: 'sub' });
-            } else {
-                toast.error(error.message || 'Subscription failed', { id: 'sub' });
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     // =============================================================================
     // WALLET TRACKER
@@ -300,45 +172,6 @@ export default function PremiumAlerts() {
         sendPushNotification(alert.title, alert.message);
     };
 
-    // =============================================================================
-    // EXPIRY CHECK & RENEWAL REMINDER
-    // =============================================================================
-
-    useEffect(() => {
-        if (!subscription.isActive || !subscription.expiresAt) return;
-
-        const checkExpiry = () => {
-            const now = new Date();
-            const expiry = new Date(subscription.expiresAt!);
-            const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-            if (daysLeft <= 3 && daysLeft > 0) {
-                toast((t) => (
-                    <div>
-                        <p className="font-medium">Subscription expiring in {daysLeft} day{daysLeft > 1 ? 's' : ''}</p>
-                        <button
-                            onClick={() => {
-                                setShowSubscribeModal(true);
-                                toast.dismiss(t.id);
-                            }}
-                            className="mt-2 px-3 py-1 bg-emerald-600 text-white rounded text-sm"
-                        >
-                            Renew Now
-                        </button>
-                    </div>
-                ), { duration: 10000 });
-            }
-
-            if (daysLeft <= 0) {
-                setSubscription(prev => ({ ...prev, isActive: false }));
-                toast.error('Subscription expired');
-            }
-        };
-
-        checkExpiry();
-        const interval = setInterval(checkExpiry, 1000 * 60 * 60); // Check hourly
-        return () => clearInterval(interval);
-    }, [subscription.isActive, subscription.expiresAt]);
 
     // =============================================================================
     // RENDER
@@ -353,209 +186,46 @@ export default function PremiumAlerts() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Premium Alerts</h2>
-                    <p className="text-zinc-400 text-sm">Real-time notifications for whale moves, new coins & rug pulls</p>
+                    <h2 className="text-2xl font-bold text-white">Advanced Signals</h2>
+                    <p className="text-zinc-400 text-sm">Real-time notifications for whale moves, new coins & rug pulls — <span className="text-emerald-400 font-bold">ALL UNLOCKED</span></p>
                 </div>
 
-                {subscription.isActive ? (
-                    <div className="text-right">
-                        <div className="text-emerald-400 font-medium text-sm">✓ Active Subscription</div>
-                        <div className="text-zinc-500 text-xs">{daysRemaining} days remaining</div>
-                    </div>
-                ) : (
-                    <button
-                        onClick={() => setShowSubscribeModal(true)}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium"
-                    >
-                        Subscribe
-                    </button>
-                )}
+                <div className="text-right">
+                    <div className="text-emerald-400 font-medium text-sm">✓ Lifetime Access</div>
+                    <div className="text-zinc-500 text-xs text-zinc-500">Premium unlocked for this wallet</div>
+                </div>
             </div>
 
             {/* Tabs */}
             <div className="flex gap-1 bg-zinc-900 p-1 rounded-lg overflow-x-auto">
                 {[
                     { id: 'discovery', label: '🔥 Discovery' },
-                    { id: 'subscribe', label: '📋 Plans' },
-                    { id: 'wallets', label: '🐋 Wallets', locked: !subscription.features.walletTracker },
-                    { id: 'coins', label: '🆕 New Coins', locked: !subscription.features.newCoins },
-                    { id: 'rugs', label: '🚨 Rug Check', locked: !subscription.features.rugPulls },
+                    { id: 'wallets', label: '🐋 Wallets' },
+                    { id: 'coins', label: '🆕 New Coins' },
+                    { id: 'rugs', label: '🚨 Rug Check' },
                     { id: 'alerts', label: `🔔 Alerts (${alerts.length})` },
                 ].map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
-                        disabled={tab.locked}
                         className={`flex-1 py-2 px-3 rounded text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
                             ? 'bg-zinc-800 text-white'
-                            : tab.locked
-                                ? 'text-zinc-600 cursor-not-allowed'
-                                : 'text-zinc-400 hover:text-white'
+                            : 'text-zinc-400 hover:text-white'
                             }`}
                     >
-                        {tab.label} {tab.locked && '🔒'}
+                        {tab.label}
                     </button>
                 ))}
             </div>
 
             {/* Tab Content */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-                {/* Discovery Tab - Live Token Feed */}
                 {activeTab === 'discovery' && (
-                    <TokenDiscovery isPremium={subscription.isActive} />
-                )}
-
-                {/* Plans Tab */}
-                {activeTab === 'subscribe' && (
-                    <div className="space-y-6">
-                        <h3 className="text-lg font-semibold text-white">Your Subscription</h3>
-
-                        {subscription.isActive ? (
-                            <div className="grid grid-cols-3 gap-4">
-                                <FeatureCard
-                                    title="Whale Tracker"
-                                    icon="🐋"
-                                    active={subscription.features.walletTracker}
-                                />
-                                <FeatureCard
-                                    title="New Coins"
-                                    icon="🆕"
-                                    active={subscription.features.newCoins}
-                                />
-                                <FeatureCard
-                                    title="Rug Detector"
-                                    icon="🚨"
-                                    active={subscription.features.rugPulls}
-                                />
-                            </div>
-                        ) : (
-                            <div className="space-y-6">
-                                {/* FREE vs PREMIUM Comparison */}
-                                <div className="grid md:grid-cols-2 gap-4">
-                                    {/* FREE Tier */}
-                                    <div className="border border-zinc-700 rounded-xl p-6 bg-zinc-800/50">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h4 className="text-lg font-bold text-white">FREE</h4>
-                                            <span className="text-2xl font-bold text-white">$0</span>
-                                        </div>
-                                        <ul className="space-y-3 text-sm">
-                                            <li className="flex items-center gap-2 text-zinc-300">
-                                                <span className="text-emerald-400">✓</span>
-                                                View new token listings
-                                            </li>
-                                            <li className="flex items-center gap-2 text-zinc-300">
-                                                <span className="text-emerald-400">✓</span>
-                                                Basic price & volume data
-                                            </li>
-                                            <li className="flex items-center gap-2 text-zinc-300">
-                                                <span className="text-emerald-400">✓</span>
-                                                Simple rug check (pass/fail)
-                                            </li>
-                                            <li className="flex items-center gap-2 text-zinc-500">
-                                                <span className="text-zinc-600">✗</span>
-                                                <span className="line-through">Ape Score algorithm</span>
-                                            </li>
-                                            <li className="flex items-center gap-2 text-zinc-500">
-                                                <span className="text-zinc-600">✗</span>
-                                                <span className="line-through">Rug Risk breakdown</span>
-                                            </li>
-                                            <li className="flex items-center gap-2 text-zinc-500">
-                                                <span className="text-zinc-600">✗</span>
-                                                <span className="line-through">Whale wallet tracking</span>
-                                            </li>
-                                            <li className="flex items-center gap-2 text-zinc-500">
-                                                <span className="text-zinc-600">✗</span>
-                                                <span className="line-through">Push notifications</span>
-                                            </li>
-                                        </ul>
-                                        <div className="mt-6">
-                                            <div className="w-full py-3 text-center text-zinc-500 text-sm border border-zinc-700 rounded-lg">
-                                                Current Plan
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* PREMIUM Tier */}
-                                    <div className="border-2 border-emerald-500/50 rounded-xl p-6 bg-gradient-to-b from-emerald-900/20 to-zinc-900 relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 bg-emerald-500 text-black text-xs font-bold px-3 py-1 rounded-bl-lg">
-                                            RECOMMENDED
-                                        </div>
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h4 className="text-lg font-bold text-white">PREMIUM</h4>
-                                            <div className="text-right">
-                                                <span className="text-2xl font-bold text-emerald-400">0.05 SOL</span>
-                                                <span className="text-zinc-500 text-sm">/30 days</span>
-                                            </div>
-                                        </div>
-                                        <ul className="space-y-3 text-sm">
-                                            <li className="flex items-center gap-2 text-zinc-300">
-                                                <span className="text-emerald-400">✓</span>
-                                                Everything in FREE
-                                            </li>
-                                            <li className="flex items-center gap-2 text-white font-medium">
-                                                <span className="text-emerald-400">✓</span>
-                                                🦧 <strong>Ape Score</strong> - Token quality rating (0-100)
-                                            </li>
-                                            <li className="flex items-center gap-2 text-white font-medium">
-                                                <span className="text-emerald-400">✓</span>
-                                                🚨 <strong>Rug Risk Score</strong> - 20+ signal analysis
-                                            </li>
-                                            <li className="flex items-center gap-2 text-white font-medium">
-                                                <span className="text-emerald-400">✓</span>
-                                                🐋 <strong>Whale Tracker</strong> - Smart money alerts
-                                            </li>
-                                            <li className="flex items-center gap-2 text-white font-medium">
-                                                <span className="text-emerald-400">✓</span>
-                                                📱 <strong>Push Notifications</strong> - Real-time alerts
-                                            </li>
-                                            <li className="flex items-center gap-2 text-white font-medium">
-                                                <span className="text-emerald-400">✓</span>
-                                                💎 <strong>Verdict Badges</strong> - STRONG APE / HIGH RISK
-                                            </li>
-                                        </ul>
-                                        <div className="mt-6">
-                                            <button
-                                                onClick={() => setShowSubscribeModal(true)}
-                                                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition-all hover:shadow-lg hover:shadow-emerald-500/20"
-                                            >
-                                                🚀 Upgrade to Premium
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Value Proposition */}
-                                <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-4 text-center">
-                                    <p className="text-zinc-400 text-sm">
-                                        💡 <strong className="text-white">Save 2+ hours of research</strong> per trade with our proprietary scoring algorithms
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Memo Opt-in */}
-                        <div className="border-t border-zinc-800 pt-4">
-                            <label className="flex items-center gap-3 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={memoOptIn}
-                                    onChange={(e) => {
-                                        setMemoOptIn(e.target.checked);
-                                        localStorage.setItem('memoOptIn', String(e.target.checked));
-                                    }}
-                                    className="w-4 h-4 rounded"
-                                />
-                                <div>
-                                    <div className="text-white text-sm">Enable Memo Alerts</div>
-                                    <div className="text-zinc-500 text-xs">Receive alerts as on-chain memo transactions (0.0001 SOL)</div>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
+                    <TokenDiscovery isPremium={true} />
                 )}
 
                 {/* Wallet Tracker Tab */}
-                {activeTab === 'wallets' && subscription.features.walletTracker && (
+                {activeTab === 'wallets' && (
                     <div className="space-y-6">
                         <div className="flex gap-4">
                             <input
@@ -619,12 +289,12 @@ export default function PremiumAlerts() {
                 )}
 
                 {/* New Coins Tab */}
-                {activeTab === 'coins' && subscription.features.newCoins && (
+                {activeTab === 'coins' && (
                     <NewCoinsTab onAlert={addAlert} isPremium={subscription.isActive} />
                 )}
 
                 {/* Rug Detector Tab */}
-                {activeTab === 'rugs' && subscription.features.rugPulls && (
+                {activeTab === 'rugs' && (
                     <RugDetectorTab onAlert={addAlert} />
                 )}
 
@@ -755,89 +425,29 @@ export default function PremiumAlerts() {
                     </div>
                 )}
 
-                {/* Locked Feature Message */}
-                {(activeTab === 'wallets' && !subscription.features.walletTracker) ||
-                    (activeTab === 'coins' && !subscription.features.newCoins) ||
-                    (activeTab === 'rugs' && !subscription.features.rugPulls) ? (
-                    <div className="text-center py-12">
-                        <p className="text-4xl mb-4">🔒</p>
-                        <p className="text-zinc-400 mb-4">This feature requires a subscription</p>
-                        <button
-                            onClick={() => setShowSubscribeModal(true)}
-                            className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg"
-                        >
-                            Unlock Now
-                        </button>
-                    </div>
-                ) : null}
-            </div>
-
-            {/* Subscribe Modal */}
-            {showSubscribeModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 max-w-md w-full">
-                        <h3 className="text-xl font-bold text-white mb-4">🔔 Premium Signals</h3>
-
-                        <div className="space-y-3 mb-6">
-                            <FeatureCheckbox
-                                label="🐋 Whale Tracker"
-                                description="Monitor wallets for large transactions"
-                                checked={selectedFeatures.walletTracker}
-                                onChange={(checked) => setSelectedFeatures(prev => ({ ...prev, walletTracker: checked }))}
-                            />
-                            <FeatureCheckbox
-                                label="🆕 New Coins"
-                                description="Get alerts on fresh token launches"
-                                checked={selectedFeatures.newCoins}
-                                onChange={(checked) => setSelectedFeatures(prev => ({ ...prev, newCoins: checked }))}
-                            />
-                            <FeatureCheckbox
-                                label="🚨 Rug Detector"
-                                description="Warnings for suspicious token activity"
-                                checked={selectedFeatures.rugPulls}
-                                onChange={(checked) => setSelectedFeatures(prev => ({ ...prev, rugPulls: checked }))}
-                            />
+                {/* Memo Opt-in */}
+                <div className="border-t border-zinc-800 pt-6 mt-6">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={memoOptIn}
+                            onChange={(e) => {
+                                setMemoOptIn(e.target.checked);
+                                localStorage.setItem('memoOptIn', String(e.target.checked));
+                            }}
+                            className="w-4 h-4 rounded"
+                        />
+                        <div>
+                            <div className="text-white text-sm">Enable Memo Alerts</div>
+                            <div className="text-zinc-500 text-xs">Receive alerts as on-chain memo transactions (0.0001 SOL)</div>
                         </div>
-
-                        <div className="border-t border-zinc-800 pt-4 mb-6">
-                            <div className="flex justify-between text-sm mb-1">
-                                <span className="text-zinc-400">Price:</span>
-                                <span className="text-white font-mono">{calculatePrice()} SOL</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-zinc-400">Duration:</span>
-                                <span className="text-white">30 days</span>
-                            </div>
-                            {Object.values(selectedFeatures).filter(Boolean).length === 3 && (
-                                <div className="text-emerald-400 text-xs mt-2">✓ Bundle discount applied (-20%)</div>
-                            )}
-                        </div>
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowSubscribeModal(false)}
-                                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-medium"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSubscribe}
-                                disabled={isLoading || calculatePrice() === 0}
-                                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium disabled:opacity-50"
-                            >
-                                {isLoading ? 'Processing...' : 'Pay & Subscribe'}
-                            </button>
-                        </div>
-
-                        <p className="text-xs text-zinc-500 mt-4 text-center">
-                            ⚠️ Non-refundable. Features are for informational purposes only.
-                        </p>
-                    </div>
+                    </label>
                 </div>
-            )}
+            </div>
         </div>
     );
 }
+
 
 // =============================================================================
 // SUB-COMPONENTS
@@ -858,33 +468,6 @@ function FeatureCard({ title, icon, active }: { title: string; icon: string; act
     );
 }
 
-function FeatureCheckbox({
-    label,
-    description,
-    checked,
-    onChange,
-}: {
-    label: string;
-    description: string;
-    checked: boolean;
-    onChange: (checked: boolean) => void;
-}) {
-    return (
-        <label className="flex items-start gap-3 p-3 bg-zinc-800 rounded-lg cursor-pointer hover:bg-zinc-750">
-            <input
-                type="checkbox"
-                checked={checked}
-                onChange={(e) => onChange(e.target.checked)}
-                className="mt-1 w-4 h-4 rounded"
-            />
-            <div>
-                <div className="text-white font-medium">{label}</div>
-                <div className="text-zinc-500 text-sm">{description}</div>
-            </div>
-            <div className="ml-auto text-zinc-400 text-sm">+0.05 SOL</div>
-        </label>
-    );
-}
 
 // =============================================================================
 // NEW COINS TAB
@@ -923,18 +506,6 @@ function NewCoinsTab({ onAlert, isPremium }: { onAlert: (alert: Omit<Alert, 'id'
                 const data = await res.json();
                 setCoins(data.coins || []);
 
-                // Alert on high-score coins for premium users (once only)
-                if (isPremium && data.coins?.length > 0 && !alertedRef.current) {
-                    const topCoin = data.coins[0];
-                    if (topCoin.apeScore >= 70) {
-                        alertedRef.current = true;
-                        onAlert({
-                            type: 'newCoin',
-                            title: '🚀 Strong Ape Opportunity',
-                            message: `${topCoin.symbol} scored ${topCoin.apeScore}/100 - ${topCoin.verdict}`,
-                        });
-                    }
-                }
             } catch (err) {
                 setError('Failed to load new coins');
                 console.error('[NewCoins] Fetch error:', err);
@@ -946,7 +517,7 @@ function NewCoinsTab({ onAlert, isPremium }: { onAlert: (alert: Omit<Alert, 'id'
         fetchCoins();
         const interval = setInterval(fetchCoins, 60000); // Refresh every minute
         return () => clearInterval(interval);
-    }, [isPremium]); // Removed onAlert from deps to prevent infinite loop
+    }, [isPremium]);
 
     if (loading) {
         return (
@@ -979,12 +550,10 @@ function NewCoinsTab({ onAlert, isPremium }: { onAlert: (alert: Omit<Alert, 'id'
                 <div className="text-sm text-zinc-500">
                     🚀 Fresh tokens from the last 7 days
                 </div>
-                {isPremium && (
-                    <div className="text-xs text-emerald-400 flex items-center gap-1">
-                        <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                        Ape Scores Active
-                    </div>
-                )}
+                <div className="text-xs text-emerald-400 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                    Advanced Metrics Active
+                </div>
             </div>
 
             {coins.length === 0 ? (
@@ -1019,37 +588,22 @@ function NewCoinsTab({ onAlert, isPremium }: { onAlert: (alert: Omit<Alert, 'id'
                                 </div>
                             </div>
 
-                            {/* Right: Score or Locked */}
+                            {/* Right: Score */}
                             <div className="text-right">
-                                {isPremium && coin.apeScore !== undefined ? (
-                                    <>
-                                        {/* APE SCORE */}
-                                        <div className="flex items-center justify-end gap-2 mb-1">
-                                            <span className="text-zinc-500 text-xs">APE</span>
-                                            <div className={`text-2xl font-bold font-mono ${coin.apeScore >= 70 ? 'text-emerald-400' :
-                                                coin.apeScore >= 50 ? 'text-yellow-400' :
-                                                    'text-red-400'
-                                                }`}>
-                                                {coin.apeScore}
-                                            </div>
-                                        </div>
-                                        {/* Verdict Badge */}
-                                        <div className={`text-xs px-2 py-1 rounded-full border ${getVerdictStyle(coin.verdict)}`}>
-                                            {coin.verdict?.replace('_', ' ')}
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        {/* BASIC: Just price change */}
-                                        <div className={`text-lg font-mono ${coin.priceChange24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                            {coin.priceChange24h >= 0 ? '+' : ''}{coin.priceChange24h.toFixed(1)}%
-                                        </div>
-                                        {/* Locked Ape Score */}
-                                        <div className="text-xs text-zinc-600 flex items-center gap-1 justify-end mt-1">
-                                            🔒 Ape Score
-                                        </div>
-                                    </>
-                                )}
+                                {/* APE SCORE */}
+                                <div className="flex items-center justify-end gap-2 mb-1">
+                                    <span className="text-zinc-500 text-xs">APE</span>
+                                    <div className={`text-2xl font-bold font-mono ${coin.apeScore && coin.apeScore >= 70 ? 'text-emerald-400' :
+                                        coin.apeScore && coin.apeScore >= 50 ? 'text-yellow-400' :
+                                            'text-red-400'
+                                        }`}>
+                                        {coin.apeScore || 0}
+                                    </div>
+                                </div>
+                                {/* Verdict Badge */}
+                                <div className={`text-xs px-2 py-1 rounded-full border ${getVerdictStyle(coin.verdict)}`}>
+                                    {(coin.verdict || 'HIGH_RISK').replace('_', ' ')}
+                                </div>
                             </div>
                         </div>
                     </div>

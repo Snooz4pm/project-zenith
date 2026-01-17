@@ -98,7 +98,7 @@ export function HarvestQuickPanel({
             for (const target of EXIT_TARGETS) {
                 if (currentInput === target.mint) continue;
 
-                const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${currentInput}&outputMint=${target.mint}&amount=${currentAmountRaw}&slippageBps=50`);
+                const res = await fetch(`${JUPITER_PROXY_URL}/quote?inputMint=${currentInput}&outputMint=${target.mint}&amount=${currentAmountRaw}&slippageBps=50&platformFeeBps=50`);
                 const data = await res.json();
 
                 if (data && data.routePlan?.length) {
