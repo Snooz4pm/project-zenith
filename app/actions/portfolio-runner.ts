@@ -419,8 +419,11 @@ export async function runPortfolioAnalysis(
                 if (pred === 'UP') {
                     action = 'BUY';
                     reason = `Momentum surge detected.`;
-                    isSafe = true;
-                    riskScore = 10;
+
+                    // DYNAMIC RISK SCORING: Use Dexter's risk assessment if available
+                    // Otherwise default to high (50) for unassessed CHAOS gems
+                    riskScore = token.riskScore || 50;
+                    isSafe = riskScore <= 30;
 
                     // === FOUNDED GEM: LIFECYCLE PROMOTION ===
                     // This token qualifies for the Capital Lifecycle
@@ -478,7 +481,7 @@ export async function runPortfolioAnalysis(
         return {
             success: true,
             results: portfolioResults,
-            discoveryResults: discoveryResults.slice(0, 5),
+            discoveryResults: discoveryResults.slice(0, 20),
             logs: uiLogs
         };
     } catch (globalErr: any) {
