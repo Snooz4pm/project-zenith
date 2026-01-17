@@ -6,9 +6,9 @@ let lastCall = 0;
 
 export async function POST(req: Request) {
     try {
-        // 🚦 Server Rate Guard (Hard Protection)
+        // 🚦 Server Rate Guard (Soft Protection)
         const now = Date.now();
-        if (now - lastCall < 5000) {
+        if (now - lastCall < 500) { // Reduced from 5000ms to 500ms
             return NextResponse.json(
                 { error: "Rate limited" },
                 { status: 429 }

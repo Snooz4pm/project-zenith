@@ -133,20 +133,20 @@ export async function getDexMatchedTokens(uiLogs?: string[]): Promise<DexMatched
 
     const CORE_SAFE_MINTS = new Set(whitelistMints);
 
-    // SCAN ALL: Remove the 1000-token limit to fetch the entire Jupiter universe
-    let subsetTokens = [...jupiterTokens];
+    // SCAN LIMIT: Large universes kill the server. We prioritize whitelist + top 500.
+    const subsetTokens = [
+        ...jupiterTokens.filter(t => whitelistMints.includes(t.mint)),
+        ...jupiterTokens.filter(t => !whitelistMints.includes(t.mint)).slice(0, 500)
+    ];
 
-    // Explicitly ensure whitelist is at the front for priority (though we scan all now)
-    const whitelistTokens = jupiterTokens.filter(t => whitelistMints.includes(t.mint));
-    const nonWhitelistTokens = jupiterTokens.filter(t => !whitelistMints.includes(t.mint));
-    subsetTokens = [...whitelistTokens, ...nonWhitelistTokens];
+    const jupMap = new Map<string, JupiterToken>();
+    jupiterTokens.forEach(t => jupMap.set(t.mint, t));
 
     const matched: DexMatchedToken[] = [];
     const mints = subsetTokens.map(t => t.mint);
 
     const batches = chunk(mints, 30);
-    console.log(`[JupiterDexMerger] Source of Truth: ${jupiterTokens.length} tokens.`);
-    console.log(`[JupiterDexMerger] Processing ${batches.length} batches for discovery...`);
+    console.log(`[JupiterDexMerger] Source of Truth: ${subsetTokens.length} tokens (Capped for speed).`);
 
     // Process batches in parallel chunks of 5 to avoid overwhelming DexScreener but stay fast
     const CONCURRENCY = 5;
@@ -160,38 +160,29 @@ export async function getDexMatchedTokens(uiLogs?: string[]): Promise<DexMatched
                     signal: AbortSignal.timeout(5000)
                 });
 
-                if (!res.ok) {
-                    uiLogs?.push(`[!! BUG] DexScreener: Batch failed (${res.status}). Tokens: ${batch.length}`);
-                    return;
-                }
+                if (!res.ok) return;
 
                 const data = await res.json();
                 const pairs = data.pairs || [];
 
-                if (pairs.length === 0 && batch.some(m => whitelistMints.includes(m))) {
-                    // console.log(`[JupiterDexMerger] Info: Whitelisted tokens in batch but no pairs found on DexScreener.`);
-                }
-
                 for (const mint of batch) {
-                    // CASE-INSENSITIVE MATCHING (THE SILENT KILLER)
                     const normalizedMint = mint.toLowerCase();
                     const tokenPairs = pairs.filter((p: any) => p.baseToken.address.toLowerCase() === normalizedMint);
                     const isWhitelisted = whitelistMints.map(m => m.toLowerCase()).includes(normalizedMint);
 
                     if (tokenPairs.length === 0) {
                         if (isWhitelisted) {
-                            const jupInfo = jupiterTokens.find(jt => jt.mint === mint);
-                            // Bypass log if whitelisted - they skip DexScreener requirement silently
+                            const jupInfo = jupMap.get(mint);
                             matched.push({
                                 mint,
                                 symbol: jupInfo?.symbol || 'CORE',
                                 pairAddress: 'CORE_SAFE_BYPASS',
-                                volume5m: 10000000, // Safe anchor
+                                volume5m: 10000000,
                                 liquidityUSD: 10000000,
                                 riskLevel: 'SAFE',
                                 riskScore: 0,
                                 price: 0,
-                                decimals: jupInfo?.decimals || 6
+                                decimals: jupInfo?.decimals || 9
                             });
                         }
                         continue;
@@ -201,10 +192,7 @@ export async function getDexMatchedTokens(uiLogs?: string[]): Promise<DexMatched
                     const bestPair = tokenPairs[0];
                     const assessment = observer.assess(bestPair);
 
-                    // RELAXED: We allow "Shit Tokens" (Trenches) through.
-                    // Risk engine will still flag them, but we don't block them from discovery.
                     if (!isWhitelisted) {
-                        // Only block absolute zero liquidity/volume ghosts
                         if (assessment.volume24hUsd < 100) continue;
                         if (assessment.liquidityUsd < 500) continue;
                     }
@@ -218,36 +206,20 @@ export async function getDexMatchedTokens(uiLogs?: string[]): Promise<DexMatched
                         riskLevel: assessment.riskLevel,
                         riskScore: assessment.riskScore,
                         price: assessment.priceUsd,
-                        decimals: jupiterTokens.find(jt => jt.mint === assessment.mint)?.decimals || COMMON_DECIMALS[assessment.mint] || 6
+                        decimals: jupMap.get(assessment.mint)?.decimals || COMMON_DECIMALS[assessment.mint] || 6
                     });
                 }
             } catch (err: any) {
-                uiLogs?.push(`[!! BUG] DexScreener: Batch exception: ${err.message}`);
-                // Emergency injection of whitelist if batch failed entirely
-                for (const mint of batch) {
-                    if (whitelistMints.includes(mint)) {
-                        const jupInfo = jupiterTokens.find(jt => jt.mint === mint);
-                        matched.push({
-                            mint,
-                            symbol: jupInfo?.symbol || 'WH',
-                            pairAddress: 'EMERGENCY_INJECTION',
-                            volume5m: 1000000,
-                            liquidityUSD: 1000000,
-                            riskLevel: 'LOW',
-                            decimals: jupInfo?.decimals || 6
-                        });
-                    }
-                }
+                // Silently skip batch errors to keep discovery moving
             }
         }));
 
-        // Very small delay between groups
         if (i + CONCURRENCY < batches.length) {
             await new Promise(r => setTimeout(r, 50));
         }
     }
 
-    uiLogs?.push(`[INFRA] Discovery: Matched ${matched.length}/${mints.length} tokens in ${Date.now() - startTime}ms`);
+    uiLogs?.push(`[INFRA] Discovery: Matched ${matched.length}/${subsetTokens.length} tokens in ${Date.now() - startTime}ms`);
     return matched;
 }
 
@@ -255,60 +227,75 @@ export async function getDexMatchedTokens(uiLogs?: string[]): Promise<DexMatched
  * Step 3: Specific Portfolio Fetch (For Testing)
  */
 export async function getVirtualPortfolioTokens(targetMints: string[], uiLogs?: string[]): Promise<DexMatchedToken[]> {
-    const batches = chunk(targetMints, 30);
-    const matched: DexMatchedToken[] = [];
-
     uiLogs?.push(`[INFRA] Portfolio: Fetching data for ${targetMints.length} positions...`);
 
-    // We also need decimals for the portfolio fetch
-    const jupiterTokens = await fetchJupiterTokens(uiLogs);
+    // 1. Fetch metadata in parallel with analysis
+    const jupiterTokensPromise = fetchJupiterTokens(uiLogs);
+    const analysisPromise = observer.analyzeBatch(targetMints);
 
-    for (const batch of batches) {
-        try {
-            const results = await observer.analyzeBatch(batch);
+    const [jupiterTokens, analysisResults] = await Promise.all([jupiterTokensPromise, analysisPromise]);
 
-            for (let idx = 0; idx < batch.length; idx++) {
-                const mint = batch[idx];
-                const analysis = results[idx];
+    // 2. Build Map for O(1) lookup (Critical for 100k+ lists)
+    const jupMap = new Map<string, JupiterToken>();
+    jupiterTokens.forEach(t => jupMap.set(t.mint, t));
 
-                // FIND METADATA (Multi-Step Fallback)
-                let jupInfo = jupiterTokens.find(jt => jt.mint === mint);
+    const matched: DexMatchedToken[] = [];
+    const missingMetadataMints: string[] = [];
 
-                // If not in Jupiter, try Helius DAS (The Trench Scanner)
-                if (!jupInfo) {
-                    jupInfo = await fetchHeliusMetadata(mint);
-                }
+    // 3. First pass: Match available metadata
+    const stubs: { mint: string, analysis: any }[] = [];
+    for (let idx = 0; idx < targetMints.length; idx++) {
+        const mint = targetMints[idx];
+        const analysis = analysisResults[idx];
+        const jupInfo = jupMap.get(mint);
 
-                if (analysis) {
-                    matched.push({
-                        mint: analysis.mint,
-                        symbol: analysis.symbol || jupInfo?.symbol || mint.slice(0, 6),
-                        pairAddress: "N/A",
-                        volume5m: analysis.volume5mUsd,
-                        liquidityUSD: analysis.liquidityUsd,
-                        riskLevel: analysis.riskLevel as VolumeRiskLevel,
-                        riskScore: analysis.riskScore,
-                        price: analysis.priceUsd,
-                        decimals: jupInfo?.decimals || COMMON_DECIMALS[mint] || 6
-                    });
-                } else {
-                    // STUB INJECTION: Ensure holdings NEVER disappear
-                    uiLogs?.push(`[DATA] ${mint.slice(0, 6)}: Market data missing. Injecting STUB.`);
-                    matched.push({
-                        mint,
-                        symbol: jupInfo?.symbol || mint.slice(0, 6),
-                        pairAddress: "STUB_MISSING_DATA",
-                        volume5m: 0,
-                        liquidityUSD: 0,
-                        riskLevel: 'HIGH',
-                        riskScore: 99,
-                        price: 0,
-                        decimals: jupInfo?.decimals || COMMON_DECIMALS[mint] || 6
-                    });
-                }
-            }
-        } catch (err: any) {
-            uiLogs?.push(`[!! BUG] Portfolio: Batch exception: ${err.message}`);
+        if (!jupInfo) {
+            missingMetadataMints.push(mint);
+        }
+
+        stubs.push({ mint, analysis });
+    }
+
+    // 4. Fetch missing metadata in parallel (Trench Scanner)
+    const heliusMetadataMap = new Map<string, JupiterToken>();
+    if (missingMetadataMints.length > 0) {
+        const heliusResults = await Promise.all(
+            missingMetadataMints.map(mint => fetchHeliusMetadata(mint))
+        );
+        heliusResults.forEach(res => {
+            if (res) heliusMetadataMap.set(res.mint, res);
+        });
+    }
+
+    // 5. Final Assembly
+    for (const item of stubs) {
+        const { mint, analysis } = item;
+        const metadata = jupMap.get(mint) || heliusMetadataMap.get(mint);
+
+        if (analysis) {
+            matched.push({
+                mint: analysis.mint,
+                symbol: analysis.symbol || metadata?.symbol || mint.slice(0, 6),
+                pairAddress: "N/A",
+                volume5m: analysis.volume5mUsd,
+                liquidityUSD: analysis.liquidityUsd,
+                riskLevel: analysis.riskLevel as VolumeRiskLevel,
+                riskScore: analysis.riskScore,
+                price: analysis.priceUsd,
+                decimals: metadata?.decimals || COMMON_DECIMALS[mint] || 6
+            });
+        } else {
+            matched.push({
+                mint,
+                symbol: metadata?.symbol || mint.slice(0, 6),
+                pairAddress: "STUB_MISSING_DATA",
+                volume5m: 0,
+                liquidityUSD: 0,
+                riskLevel: 'HIGH',
+                riskScore: 99,
+                price: 0,
+                decimals: metadata?.decimals || COMMON_DECIMALS[mint] || 6
+            });
         }
     }
 

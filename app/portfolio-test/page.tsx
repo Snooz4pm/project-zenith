@@ -5,7 +5,7 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { PublicKey, VersionedTransaction } from '@solana/web3.js';
 import { computePortfolioUsd, computeSeedUsd } from '@/lib/engine/portfolio';
-import { runPortfolioAnalysis, PortfolioAnalysisResult, Position, getMetadata } from '@/app/actions/portfolio-runner';
+import { runPortfolioAnalysis, PortfolioAnalysisResult, Position } from '@/app/actions/portfolio-runner';
 import {
     Shield, Loader2, Activity, TrendingUp, TrendingDown, BrainCircuit, RefreshCw, RotateCcw,
     AlertTriangle, Zap, Target, Flame, Award, Wallet, Eye, Play, StopCircle,
@@ -44,7 +44,7 @@ async function fetchWalletFromApi(wallet: string) {
         return null;
     }
     heliusLock = true;
-    setTimeout(() => { heliusLock = false; }, 10000); // 10s cooldown
+    setTimeout(() => { heliusLock = false; }, 1000); // Reduced from 10s to 1s to match server speed
 
     const res = await fetch(`/api/wallet/helius`, {
         method: 'POST',
@@ -417,7 +417,8 @@ export default function SurvivalLegacyPage() {
     // State
     const [loading, setLoading] = useState(true);
     const [analyzing, setAnalyzing] = useState(false);
-    const [jupiterTokenMap, setJupiterTokenMap] = useState<Map<string, JupiterToken>>(new Map());
+    const [activeFleet, setActiveFleet] = useState<LifecycleOpportunity[]>([]);
+    const [globalRoadmaps, setGlobalRoadmaps] = useState<any[]>([]); // BrainRoadmap[]
 
     // Core Data
     const [solBalance, setSolBalance] = useState(0);
@@ -429,8 +430,6 @@ export default function SurvivalLegacyPage() {
     const [analysisResults, setAnalysisResults] = useState<PortfolioAnalysisResult[]>([]);
     const [logs, setLogs] = useState<string[]>([]);
     const [lifecycle, setLifecycle] = useState<LifecycleOpportunity[]>([]);
-    const [activeFleet, setActiveFleet] = useState<LifecycleOpportunity[]>([]);
-    const [globalRoadmaps, setGlobalRoadmaps] = useState<any[]>([]); // BrainRoadmap[]
 
     // Reset loading state on identity link
     useEffect(() => {
@@ -448,25 +447,6 @@ export default function SurvivalLegacyPage() {
     const autoRefreshRef = useRef<NodeJS.Timeout | null>(null);
     const isTickingRef = useRef(false);
     const isFirstTickRef = useRef(true);
-
-    // Fetch Jupiter Metadata (Server side to avoid client DNS)
-    const fetchMetadata = useCallback(async () => {
-        try {
-            const tokens = await getMetadata();
-            const map = new Map<string, JupiterToken>();
-            tokens.forEach(t => map.set(t.mint, {
-                address: t.mint,
-                symbol: t.symbol,
-                name: t.name || 'Asset',
-                logoURI: `https://token.jup.ag/all/logo/${t.mint}`,
-                decimals: t.decimals
-            }));
-            setJupiterTokenMap(map);
-            addLog(`Kernel: Metadata engine initialized (${tokens.length} assets)`);
-        } catch (err) {
-            addLog(`Kernel: Metadata error: ${err}`);
-        }
-    }, [addLog]);
 
     // Survival Loop Analysis
     const performAnalyticalTick = useCallback(async () => {
@@ -487,31 +467,27 @@ export default function SurvivalLegacyPage() {
                 addLog('System: Analytics throttled (Cooldown active).');
                 setAnalyzing(false);
                 isTickingRef.current = false;
+
+                // If we are still in the initial loading state, retry much faster (2s) 
+                // instead of waiting for the 60s global interval.
+                setTimeout(performAnalyticalTick, 2000);
                 return;
             }
 
             setSolBalance(walletData.sol);
             setHoldings(walletData.tokens); // Initial set for responsiveness
 
-            // If metadata isn't ready, we wait for it to be ready in the state
-            if (jupiterTokenMap.size === 0) {
-                addLog('System: Metadata awaiting link. Physics paused.');
-                setAnalyzing(false);
-                isTickingRef.current = false;
-                return;
-            }
-
+            // Metadata is now handled server-side or lazily, no longer blocking initial sync
             const walletHoldings: any[] = walletData.tokens.map(t => {
-                const jup = jupiterTokenMap.get(t.mint);
                 return {
                     mint: t.mint,
-                    symbol: t.symbol || jup?.symbol || t.mint.slice(0, 6),
-                    name: t.name || jup?.name || 'Unknown',
+                    symbol: t.symbol || t.mint.slice(0, 6),
+                    name: t.name || 'Unknown',
                     logoURI: t.logo || `https://token.jup.ag/all/logo/${t.mint}`,
                     amount: t.amount,
                     rawAmount: t.rawAmount,
                     decimals: t.decimals,
-                    tradable: !!jup || whitelistMints.includes(t.mint)
+                    tradable: true // We assume tradable, server will refine if SELL is triggered
                 };
             }).filter(h => h.amount > 0);
 
@@ -528,10 +504,8 @@ export default function SurvivalLegacyPage() {
                 positions.unshift({ mint: SOL_MINT, amount: walletData.sol, state: 'OBSERVING' });
             }
 
-            // 3. Execution Action (Only tradable tokens for Physics Engine)
-            const tradablePositions = positions.filter(p =>
-                p.mint === SOL_MINT || jupiterTokenMap.has(p.mint)
-            );
+            // 3. Execution Action (Server will filter for tradability)
+            const tradablePositions = positions;
 
             const analysis = await runPortfolioAnalysis(tradablePositions, [], { skipDiscovery: isFirstTickRef.current });
             if (isFirstTickRef.current) {
@@ -614,11 +588,15 @@ export default function SurvivalLegacyPage() {
 
         } catch (err) {
             addLog(`Tick Failure: ${err}`);
+            // If we have never finished the first tick, retry sooner
+            if (isFirstTickRef.current) {
+                setTimeout(performAnalyticalTick, 3000);
+            }
         } finally {
             setAnalyzing(false);
             isTickingRef.current = false;
         }
-    }, [publicKey, jupiterTokenMap, addLog]);
+    }, [publicKey, addLog]);
 
     const onAction = useCallback(async (type: ActionType, params: any) => {
         if (!publicKey || !params.targetMint) return;
@@ -738,8 +716,6 @@ export default function SurvivalLegacyPage() {
 
     // Initialize
     useEffect(() => {
-        fetchMetadata();
-
         // Step 4: Test API Directly (Verification)
         if (connected && publicKey) {
             console.log(`[TEST] Verifying balances via API for: ${publicKey.toBase58()}`);
@@ -747,7 +723,7 @@ export default function SurvivalLegacyPage() {
                 .then(data => console.log(`[TEST] API DATA:`, data))
                 .catch(err => console.error(`[TEST] API FAILED:`, err));
         }
-    }, [fetchMetadata, connected, publicKey]);
+    }, [connected, publicKey]);
 
     useEffect(() => {
         if (connected && publicKey) {
@@ -763,14 +739,14 @@ export default function SurvivalLegacyPage() {
             autoRefreshRef.current = interval;
             return () => clearInterval(interval);
         }
-    }, [connected, publicKey, jupiterTokenMap.size, performAnalyticalTick]);
+    }, [connected, publicKey, performAnalyticalTick]);
 
     return (
         <>
             {connected && loading && (
                 <UniversalLoader
                     fullScreen
-                    message={jupiterTokenMap.size === 0 ? "Linking Metadata Engine..." : "Syncing Physics Core..."}
+                    message="Syncing Physics Core..."
                 />
             )}
             <div className="min-h-screen bg-black text-white font-mono p-4 md:p-8 selection:bg-cyan-500/30">
