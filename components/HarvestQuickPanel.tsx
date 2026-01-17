@@ -8,6 +8,7 @@ export function HarvestQuickPanel({
     wallet,
     selectedGem,
     onAction,
+    onRecycle,
     isGlobalSeeding,
     preloadedQuote,
     position,

@@ -10,6 +10,7 @@ export function ScaleQuickPanel({
     wallet,
     selectedGem,
     onAction,
+    onRecycle,
     isGlobalSeeding,
     preloadedQuote,
     position,

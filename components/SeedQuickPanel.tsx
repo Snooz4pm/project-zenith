@@ -10,6 +10,7 @@ export function SeedQuickPanel({
     wallet,
     selectedGem,
     onAction,
+    onRecycle,
     isGlobalSeeding,
     preloadedQuote,
     state
