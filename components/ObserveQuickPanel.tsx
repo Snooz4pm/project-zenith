@@ -18,11 +18,6 @@ export function ObserveQuickPanel({
     const [quoteError, setQuoteError] = useState(false);
     const lastQuoteKeyRef = useRef<string>("");
 
-    const [loading, setLoading] = useState(false);
-    const [snapActive, setSnapActive] = useState(false);
-    const [quoteError, setQuoteError] = useState(false);
-    const lastQuoteKeyRef = useRef<string>("");
-
     // Quote monitoring for SNAP detection
     const checkLiquidity = useCallback(async () => {
         if (!selectedGem || !state?.hasPosition) return;
@@ -94,8 +89,8 @@ export function ObserveQuickPanel({
                             disabled={loading || (quoteError && !snapActive)}
                             onClick={handlePanicExit}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all disabled:opacity-50 ${snapActive
-                                    ? "bg-amber-600 text-white border border-amber-400 animate-pulse shadow-[0_0_15px_rgba(217,119,6,0.4)]"
-                                    : "bg-red-500 text-black hover:bg-red-600"
+                                ? "bg-amber-600 text-white border border-amber-400 animate-pulse shadow-[0_0_15px_rgba(217,119,6,0.4)]"
+                                : "bg-red-500 text-black hover:bg-red-600"
                                 } text-[9px] font-black uppercase tracking-widest`}
                         >
                             {loading ? "EXITING..." : (
