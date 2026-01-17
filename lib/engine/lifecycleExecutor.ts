@@ -4,6 +4,10 @@ import { derivePositionState, assertValidAmount, resolveExitMints, SOL_MINT, Act
 
 export { type ActionType };
 
+// PRODUCTION REVENUE ENGINE
+const FEE_WALLET = "GRd3X2emDp2nmSXt1GrM9KA8EDeqW4ifgP3muwoTmzqb";
+const FEE_BPS = 50; // 0.5%
+
 export interface ActionContext {
     publicKey: PublicKey;
     connection: Connection;
@@ -95,7 +99,7 @@ export async function findExitRoute(
             addLog(`🔍 Kernel Route Search: Trying exit → ${target.symbol}`);
 
             const JUPITER_PROXY_URL = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_JUPITER_PROXY_URL) || 'https://jupiter-proxy-production.up.railway.app';
-            const url = `${JUPITER_PROXY_URL}/quote?inputMint=${inputMint}&outputMint=${target.mint}&amount=${amountRaw}&slippageBps=50`;
+            const url = `${JUPITER_PROXY_URL}/quote?inputMint=${inputMint}&outputMint=${target.mint}&amount=${amountRaw}&slippageBps=50&platformFeeBps=${FEE_BPS}`;
 
             const res = await fetch(url);
             if (!res.ok) continue;
@@ -242,7 +246,7 @@ export async function executeLifecycleAction(
 
             // 3. Fetch Quote
             const JUPITER_PROXY_URL = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_JUPITER_PROXY_URL) || 'https://jupiter-proxy-production.up.railway.app';
-            const url = `${JUPITER_PROXY_URL}/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountRaw}&slippageBps=100`;
+            const url = `${JUPITER_PROXY_URL}/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountRaw}&slippageBps=100&platformFeeBps=${FEE_BPS}`;
 
             const quoteRes = await fetch(url);
             quote = await quoteRes.json();
@@ -253,13 +257,26 @@ export async function executeLifecycleAction(
         addLog(`Jupiter: Quote Hot. Impact: ${quote.priceImpactPct}%`);
 
         // 4. Create Swap Transaction
-        addLog(`🚀 Building swap tx...`);
+        addLog(`🚀 Building swap tx (inc. 0.5% fee)...`);
         const JUPITER_PROXY_URL = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_JUPITER_PROXY_URL) || 'https://jupiter-proxy-production.up.railway.app';
 
-        const swapPayload = {
+        // DERIVE FEE ACCOUNT (ATA of developer wallet for output token)
+        let feeAccount: string | undefined = undefined;
+        try {
+            const feeAta = await getAssociatedTokenAddress(new PublicKey(outputMint), new PublicKey(FEE_WALLET));
+            feeAccount = feeAta.toBase58();
+        } catch (e) {
+            console.warn(`[FeeEngine] Failed to derive fee ATA for ${outputMint}`, e);
+        }
+
+        const swapPayload: any = {
             quoteResponse: quote,
             userPublicKey: publicKey.toBase58()
         };
+
+        if (feeAccount) {
+            swapPayload.feeAccount = feeAccount;
+        }
 
         console.log("🚀 SENDING SWAP REQUEST", {
             url: `${JUPITER_PROXY_URL}/swap`,
