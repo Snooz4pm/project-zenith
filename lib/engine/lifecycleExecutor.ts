@@ -134,7 +134,7 @@ export async function executeLifecycleAction(
         const state = params.state || derivePositionState(
             params.targetMint,
             params.targetSymbol || "UNK",
-            hToken?.rawAmount || "0",
+            (hToken?.usdValue || 0) / (ctx.prices[SOL_MINT] || 1),
             params.position
         );
 
@@ -207,6 +207,11 @@ export async function executeLifecycleAction(
         }
 
         // 2. Convert USD to Raw Amount if needed
+        // 🎯 DIRECTIONAL SAFETY: Validate quote against intended swap
+        if (quote && (quote.inputMint !== inputMint || quote.outputMint !== outputMint)) {
+            addLog(`⚠ Kernel: Quote direction mismatch (${quote.inputMint.slice(0, 4)}->${quote.outputMint.slice(0, 4)} vs ${inputMint.slice(0, 4)}->${outputMint.slice(0, 4)}). Re-fetching...`);
+            quote = null;
+        }
 
         if (!quote) {
             if (amountUsd && !amountRaw) {
@@ -236,10 +241,10 @@ export async function executeLifecycleAction(
             addLog(`🚀 Kernel Quote Request: ${inputMint.slice(0, 4)} -> ${outputMint.slice(0, 4)} | Amt: ${amountRaw}`);
 
             // 3. Fetch Quote
-            const quoteRes = await fetch("/api/jupiter/quote", {
-                method: "POST",
-                body: JSON.stringify({ inputMint, outputMint, amount: amountRaw })
-            });
+            const JUPITER_PROXY_URL = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_JUPITER_PROXY_URL) || 'https://jupiter-proxy-production.up.railway.app';
+            const url = `${JUPITER_PROXY_URL}/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountRaw}&slippageBps=100`;
+
+            const quoteRes = await fetch(url);
             quote = await quoteRes.json();
         }
 

@@ -539,7 +539,11 @@ export default function SurvivalLegacyPage() {
                 publicKey,
                 connection,
                 portfolioUsd: computePortfolioUsd({ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice }),
-                prices: analysisResults.reduce((acc, r) => ({ ...acc, [r.mint]: r.metrics.price }), { [SOL_MINT]: solPrice }),
+                prices: {
+                    ...analysisResults.reduce((acc, r) => ({ ...acc, [r.mint]: r.metrics.price }), {}),
+                    ...holdings.reduce((acc, h) => ({ ...acc, [h.mint]: (h.usdValue || 0) / (h.amount || 1) }), {}),
+                    [SOL_MINT]: solPrice
+                },
                 holdings,
                 addLog,
                 sendTransaction
