@@ -275,23 +275,69 @@ const PanelHeader = ({ title, icon: Icon, count, color = "cyan" }: any) => (
     </div>
 );
 
-const DiscoveryRow = ({ gem, color }: { gem: PortfolioAnalysisResult, color: string }) => (
-    <div className="px-4 py-3 hover:bg-zinc-800/20 transition-all flex items-center justify-between gap-3 group">
-        <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-                <span className="font-black text-xs text-white uppercase italic tracking-tighter truncate">{gem.symbol}</span>
-                <span className={`text-[8px] font-black text-${color}-500/80 bg-${color}-500/5 px-1 border border-${color}-500/20 rounded`}>{gem.verdict.riskScore}</span>
+const DiscoveryRow = ({
+    gem,
+    color,
+    wallet,
+    onAction,
+    hotQuote,
+    isSeeding
+}: {
+    gem: PortfolioAnalysisResult,
+    color: string,
+    wallet: any;
+    onAction: (params: any) => Promise<void>;
+    hotQuote?: any;
+    isSeeding: boolean;
+}) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    // Map discovery gem format to common 'op' format for SeedQuickPanel
+    const op = {
+        mint: gem.mint,
+        symbol: gem.symbol,
+        decimals: gem.decimals || 6
+    };
+
+    return (
+        <div className="flex flex-col border-b border-zinc-900/50 last:border-0 hover:bg-zinc-800/5 transition-all group/disco">
+            <div className="px-4 py-3 flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="font-black text-xs text-white uppercase italic tracking-tighter truncate">{gem.symbol}</span>
+                        <span className={`text-[8px] font-black text-${color}-500/80 bg-${color}-500/5 px-1 border border-${color}-500/20 rounded`}>{gem.verdict.riskScore}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[9px] font-mono text-zinc-600">
+                        <span>${gem.metrics.price.toFixed(gem.metrics.price < 0.01 ? 6 : 4)}</span>
+                        <span>LIQ: ${(gem.metrics.liquidityUSD / 1000).toFixed(0)}k</span>
+                    </div>
+                </div>
+                <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded transition-all ${isExpanded
+                        ? 'bg-zinc-800 text-white'
+                        : `opacity-0 group-hover/disco:opacity-100 bg-${color}-500/10 border border-${color}-500/30 text-${color}-400 hover:bg-${color}-500 hover:text-white`
+                        }`}
+                >
+                    {isExpanded ? 'CANCEL' : 'BUY'}
+                </button>
             </div>
-            <div className="flex items-center gap-3 text-[9px] font-mono text-zinc-600">
-                <span>${gem.metrics.price.toFixed(gem.metrics.price < 0.01 ? 6 : 4)}</span>
-                <span>LIQ: ${(gem.metrics.liquidityUSD / 1000).toFixed(0)}k</span>
-            </div>
+
+            {isExpanded && (
+                <div className="px-4 pb-4 animate-in slide-in-from-top-2 duration-300">
+                    <SeedQuickPanel
+                        wallet={wallet}
+                        selectedGem={op}
+                        onAction={(p) => onAction('SEED', p)}
+                        isGlobalSeeding={isSeeding}
+                        preloadedQuote={hotQuote}
+                        state={{ currentPhase: 'OBS', canSeed: true, hasPosition: false } as any}
+                    />
+                </div>
+            )}
         </div>
-        <button className={`opacity-0 group-hover:opacity-100 px-3 py-1 bg-${color}-500/10 border border-${color}-500/30 text-${color}-400 text-[9px] font-black uppercase tracking-widest hover:bg-${color}-500 hover:text-white transition-all rounded`}>
-            BUY
-        </button>
-    </div>
-);
+    );
+};
 
 export default function SurvivalLegacyPage() {
     const { publicKey, connected, sendTransaction } = useWallet();
@@ -762,7 +808,20 @@ export default function SurvivalLegacyPage() {
                                             <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Scanning Stable Assets...</div>
                                         ) : (
                                             discovery.filter(g => (g.verdict.riskScore || 0) <= 30).map((gem, i) => (
-                                                <DiscoveryRow key={i} gem={gem} color="green" />
+                                                <DiscoveryRow
+                                                    key={gem.mint}
+                                                    gem={gem}
+                                                    color="green"
+                                                    onAction={onAction}
+                                                    isSeeding={seedingMints.has(gem.mint)}
+                                                    hotQuote={hotQuotes[gem.mint]}
+                                                    wallet={{
+                                                        sol: solBalance,
+                                                        tokens: holdings,
+                                                        solUsd: solBalance * solPrice,
+                                                        solPrice: solPrice
+                                                    }}
+                                                />
                                             ))
                                         )}
                                     </div>
@@ -779,7 +838,20 @@ export default function SurvivalLegacyPage() {
                                             <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Awaiting Mid-Cap Physics...</div>
                                         ) : (
                                             discovery.filter(g => (g.verdict.riskScore || 0) > 30 && (g.verdict.riskScore || 0) <= 65).map((gem, i) => (
-                                                <DiscoveryRow key={i} gem={gem} color="amber" />
+                                                <DiscoveryRow
+                                                    key={gem.mint}
+                                                    gem={gem}
+                                                    color="amber"
+                                                    onAction={onAction}
+                                                    isSeeding={seedingMints.has(gem.mint)}
+                                                    hotQuote={hotQuotes[gem.mint]}
+                                                    wallet={{
+                                                        sol: solBalance,
+                                                        tokens: holdings,
+                                                        solUsd: solBalance * solPrice,
+                                                        solPrice: solPrice
+                                                    }}
+                                                />
                                             ))
                                         )}
                                     </div>
@@ -796,7 +868,20 @@ export default function SurvivalLegacyPage() {
                                             <div className="p-8 text-center text-[10px] text-zinc-800 uppercase italic">Scouting the trenches...</div>
                                         ) : (
                                             discovery.filter(g => (g.verdict.riskScore || 0) > 65).map((gem, i) => (
-                                                <DiscoveryRow key={i} gem={gem} color="rose" />
+                                                <DiscoveryRow
+                                                    key={gem.mint}
+                                                    gem={gem}
+                                                    color="rose"
+                                                    onAction={onAction}
+                                                    isSeeding={seedingMints.has(gem.mint)}
+                                                    hotQuote={hotQuotes[gem.mint]}
+                                                    wallet={{
+                                                        sol: solBalance,
+                                                        tokens: holdings,
+                                                        solUsd: solBalance * solPrice,
+                                                        solPrice: solPrice
+                                                    }}
+                                                />
                                             ))
                                         )}
                                     </div>
