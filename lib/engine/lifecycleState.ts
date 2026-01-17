@@ -1,4 +1,5 @@
 export type ActionType = "SEED" | "SCALE" | "HARVEST" | "RECYCLE";
+export type LifecyclePhase = "OBS" | "SEE" | "SCA" | "HAR" | "REC";
 
 export interface PositionState {
     mint: string;
@@ -15,6 +16,7 @@ export interface PositionState {
     canScale: boolean;
     canHarvest: boolean;
     canExit: boolean;
+    currentPhase: LifecyclePhase;
 
     // Safety
     dust: boolean;
@@ -84,8 +86,22 @@ export function derivePositionState(
         canScale: hasPosition && pnlAmount > BigInt(0),
         canHarvest: hasPosition && pnlAmount > MIN_LAMPORTS,
         canExit: currentAmount > BigInt(0),
-        dust
+        dust,
+        currentPhase: deriveCurrentPhase(hasPosition, pnlAmount)
     };
+}
+
+/**
+ * deriveCurrentPhase
+ * Maps capital state to the canonical lifecycle phase.
+ */
+export function deriveCurrentPhase(hasPosition: boolean, pnlAmount: bigint): LifecyclePhase {
+    if (!hasPosition) return "OBS";
+    if (pnlAmount > BigInt(0)) {
+        if (pnlAmount > MIN_LAMPORTS) return "HAR";
+        return "SCA";
+    }
+    return "SEE";
 }
 
 /**

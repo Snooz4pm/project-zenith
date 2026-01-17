@@ -108,7 +108,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
     onAction: (type: ActionType, params: any) => Promise<void>
 }) {
     const isSeeding = seedingMints.has(op.mint);
-    const [activePhase, setActivePhase] = useState<LifecyclePhase>('OBS');
+    const [activePhase, setActivePhase] = useState<LifecyclePhase>(op.phase || 'OBS');
     const isTradable = position?.tradable !== false;
 
     return (
@@ -188,7 +188,7 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                                 <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[7px] font-black text-emerald-400 uppercase tracking-widest animate-pulse">Profit</span>
                             )}
                             {op.state?.hasPosition && (
-                                <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-[7px] font-black text-cyan-400 uppercase tracking-widest">Active</span>
+                                <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-[7px] font-black text-cyan-400 uppercase tracking-widest">Active Fleet</span>
                             )}
                         </div>
 
@@ -360,6 +360,7 @@ export default function SurvivalLegacyPage() {
     const [analysisResults, setAnalysisResults] = useState<PortfolioAnalysisResult[]>([]);
     const [logs, setLogs] = useState<string[]>([]);
     const [lifecycle, setLifecycle] = useState<LifecycleOpportunity[]>([]);
+    const [activeFleet, setActiveFleet] = useState<LifecycleOpportunity[]>([]);
 
     const addLog = useCallback((msg: string) => {
         setLogs(prev => [...prev.slice(-30), `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -473,63 +474,44 @@ export default function SurvivalLegacyPage() {
             const enginePos = await posRes.json();
             setEnginePositions(enginePos);
 
-            // === LIFECYCLE SYNC ===
-            const currentLifecycle = lifecycle;
-            const updatedLifecycle = [...currentLifecycle];
-
-            // Sync with existing engine positions
-            enginePos.forEach((p: any) => {
-                const idx = updatedLifecycle.findIndex(op => op.mint === p.targetMint);
-                if (idx > -1) {
-                    updatedLifecycle[idx].phase = p.phase;
-                } else {
-                    // Added discovered gem that became position
-                    updatedLifecycle.push({
-                        mint: p.targetMint,
-                        symbol: p.targetSymbol || p.targetMint.slice(0, 4),
-                        phase: p.phase,
-                        shadowPnL: 0,
-                        seedSizeSOL: 0
-                    });
-                }
-            });
-
-            if (analysis.discoveryResults && analysis.discoveryResults.length > 0) {
-                setLifecycle(prev => {
-                    const next = [...updatedLifecycle];
-                    analysis.discoveryResults!.forEach(res => {
-                        if (!next.find(op => op.mint === res.mint)) {
-                            next.push({
-                                mint: res.mint,
-                                symbol: res.symbol,
-                                phase: 'SEE',
-                                shadowPnL: res.metrics.poolPrice > 0 ? Math.max(0, (res.metrics.currentPrice / res.metrics.poolPrice - 1) * 100) : 0,
-                                seedSizeSOL: (sPrice > 0) ? (computeSeedUsd(computePortfolioUsd({ sol: walletData.sol, tokens: holdingsWithUsd, solUsd: walletData.sol * sPrice }, sPrice)) / sPrice) : 0
-                            });
-                        }
-                    });
-
-                    // Canonical State Mapping
-                    return next.slice(0, 5).map(op => {
-                        const hToken = holdingsWithUsd.find(h => h.mint === op.mint);
-                        const pos = enginePos.find((p: any) => p.targetMint === op.mint);
-                        const currentSolValue = (hToken?.usdValue || 0) / (sPrice || 1);
-                        return {
-                            ...op,
-                            state: derivePositionState(op.mint, op.symbol, currentSolValue, pos)
-                        };
-                    });
-                });
-            } else {
-                setLifecycle(updatedLifecycle.slice(0, 5).map(op => {
-                    const hToken = holdingsWithUsd.find(h => h.mint === op.mint);
-                    const pos = enginePos.find((p: any) => p.targetMint === op.mint);
-                    const currentSolValue = (hToken?.usdValue || 0) / (sPrice || 1);
+            // === ACTIVE FLEET SYNC ===
+            const fleet: LifecycleOpportunity[] = holdingsWithUsd
+                .filter(h => h.tradable && h.amount > 0)
+                .map(h => {
+                    const pos = enginePos.find((p: any) => p.targetMint === h.mint);
+                    const currentSolValue = (h.usdValue || 0) / (sPrice || 1);
+                    const state = derivePositionState(h.mint, h.symbol, currentSolValue, pos);
                     return {
-                        ...op,
-                        state: derivePositionState(op.mint, op.symbol, currentSolValue, pos)
+                        mint: h.mint,
+                        symbol: h.symbol,
+                        phase: state.currentPhase,
+                        shadowPnL: pos ? ((currentSolValue / (pos.investedUsd / pos.solPriceAtEntry)) - 1) * 100 : 0,
+                        seedSizeSOL: 0,
+                        state
                     };
-                }));
+                });
+            setActiveFleet(fleet);
+
+            // === DISCOVERY SYNC ===
+            if (analysis.discoveryResults && analysis.discoveryResults.length > 0) {
+                const discoveryOps: LifecycleOpportunity[] = analysis.discoveryResults.map(res => {
+                    const hToken = holdingsWithUsd.find(h => h.mint === res.mint);
+                    const pos = enginePos.find((p: any) => p.targetMint === res.mint);
+                    const currentSolValue = (hToken?.usdValue || 0) / (sPrice || 1);
+                    const state = derivePositionState(res.mint, res.symbol, currentSolValue, pos);
+
+                    return {
+                        mint: res.mint,
+                        symbol: res.symbol,
+                        phase: state.currentPhase,
+                        shadowPnL: res.metrics.poolPrice > 0 ? Math.max(0, (res.metrics.currentPrice / res.metrics.poolPrice - 1) * 100) : 0,
+                        seedSizeSOL: (sPrice > 0) ? (computeSeedUsd(computePortfolioUsd({ sol: walletData.sol, tokens: holdingsWithUsd, solUsd: walletData.sol * sPrice }, sPrice)) / sPrice) : 0,
+                        state
+                    };
+                });
+                setLifecycle(discoveryOps.slice(0, 5));
+            } else {
+                setLifecycle([]);
             }
 
             if (analysis.logs) {
@@ -600,7 +582,9 @@ export default function SurvivalLegacyPage() {
             const pUsd = computePortfolioUsd({ sol: solBalance, tokens: holdings, solUsd: solBalance * solPrice }, solPrice);
             const sUsd = computeSeedUsd(pUsd);
 
-            for (const op of lifecycle) {
+            const allOps = [...lifecycle, ...activeFleet];
+
+            for (const op of allOps) {
                 // Throttle: Only fetch if 15s have passed since last fetch for this mint
                 const lastFetch = lastQuoteFetchRef.current[op.mint] || 0;
                 if (now - lastFetch < 15000) continue;
@@ -645,7 +629,7 @@ export default function SurvivalLegacyPage() {
                         setHotQuotes(prev => ({ ...prev, [op.mint]: data }));
                     }
                 } catch (e) {
-                    console.error(`[HOT_CACHE] Failed for ${op.symbol}:`, e);
+                    // console.error(`[HOT_CACHE] Failed for ${op.symbol}:`, e);
                 }
             }
             isFetchingGlobalRef.current = false;
@@ -654,7 +638,7 @@ export default function SurvivalLegacyPage() {
         refreshQuotes();
         const interval = setInterval(refreshQuotes, 15000);
         return () => clearInterval(interval);
-    }, [lifecycle, connected, publicKey, solBalance, holdings, solPrice]);
+    }, [lifecycle, activeFleet, connected, publicKey, solBalance, holdings, solPrice]);
 
     // Initialize
     useEffect(() => {
@@ -861,16 +845,47 @@ export default function SurvivalLegacyPage() {
                             </div>
                         </div>
 
-                        {/* 5-Phase Lifecycle */}
+                        {/* Active Fleet */}
                         <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden p-6 shadow-2xl">
                             <div className="flex items-center justify-between mb-8">
                                 <div className="flex items-center gap-3">
-                                    <Award className="w-5 h-5 text-purple-400" />
-                                    <h2 className="text-sm font-black text-white uppercase tracking-[0.3em] italic">5-Phase Lifecycle ({lifecycle.length} Opportunities)</h2>
+                                    <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                                    <h2 className="text-sm font-black text-white uppercase tracking-[0.3em] italic">Active Fleet ({activeFleet.length} Positions)</h2>
                                 </div>
-                                <div className="flex gap-4 text-[11px] font-black tracking-widest uppercase">
-                                    <span className="text-zinc-600">Free: <span className="text-cyan-400">0.0000 SOL</span></span>
-                                    <span className="text-zinc-600">Allocated: <span className="text-amber-500">0.0000 SOL</span></span>
+                                <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest bg-zinc-900 px-3 py-1 rounded">
+                                    Deployment Status: <span className="text-emerald-500">ENGAGED</span>
+                                </div>
+                            </div>
+                            <div className="space-y-12">
+                                {activeFleet.length === 0 ? (
+                                    <div className="py-20 text-center text-zinc-800 text-xs font-black uppercase tracking-[0.2em] italic">No active positions in the fleet. Seed a gem to begin.</div>
+                                ) : (
+                                    activeFleet.map((op) => (
+                                        <LifecycleRow
+                                            key={op.mint}
+                                            op={op}
+                                            seedingMints={seedingMints}
+                                            hotQuote={hotQuotes[op.mint]}
+                                            position={enginePositions.find(p => p.targetMint === op.mint)}
+                                            wallet={{
+                                                sol: solBalance,
+                                                tokens: holdings,
+                                                solUsd: solBalance * solPrice,
+                                                solPrice: solPrice
+                                            }}
+                                            onAction={onAction}
+                                        />
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Discovery Hive */}
+                        <div className="bg-[#0a0a0a] border border-zinc-800 rounded-xl overflow-hidden p-6 shadow-2xl opacity-80 hover:opacity-100 transition-opacity">
+                            <div className="flex items-center justify-between mb-8">
+                                <div className="flex items-center gap-3">
+                                    <Award className="w-5 h-5 text-purple-400" />
+                                    <h2 className="text-sm font-black text-white uppercase tracking-[0.3em] italic">Discovery Hive ({lifecycle.length} Scoped)</h2>
                                 </div>
                             </div>
 
