@@ -168,38 +168,36 @@ function LifecycleRow({ op, wallet, seedingMints, hotQuote, position, onAction }
                             </button>
                         ) : null}
 
-                        {/* Emergency Exit Button (Globals) */}
-                        {op.state?.canExit && (
-                            <button
-                                disabled={isSeeding}
-                                onClick={() => onAction('RECYCLE', { overrideQuote: hotQuote, targetMint: op.mint, targetSymbol: op.symbol, state: op.state, position })}
-                                className="px-3 py-1.5 rounded bg-red-500/10 border border-red-500/20 text-red-500 text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all disabled:opacity-50 disabled:grayscale flex items-center gap-1.5 shadow-[0_0_15px_rgba(239,68,68,0.1)]"
-                            >
-                                <Skull className="w-3 h-3" />
-                                {isSeeding ? "..." : "EXIT"}
-                            </button>
-                        )}
-
-                        <div className="flex gap-2 mb-2">
-                            {op.state?.dust && (
-                                <span className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[7px] font-black text-amber-500 uppercase tracking-widest">Dust</span>
-                            )}
-                            {op.state?.canHarvest && (
-                                <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[7px] font-black text-emerald-400 uppercase tracking-widest animate-pulse">Profit</span>
-                            )}
-                            {op.state?.hasPosition && (
-                                <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-[7px] font-black text-cyan-400 uppercase tracking-widest">Active Fleet</span>
-                            )}
-                        </div>
-
                         {position && (
-                            <div className="flex flex-col items-end">
+                            <div className="flex flex-col items-end pr-4 border-r border-zinc-900">
                                 <div className="text-[8px] text-zinc-600 font-black uppercase">Engine Position</div>
                                 <div className="text-[10px] text-emerald-400 font-mono tracking-tighter">
-                                    ACTIVE • ${position.investedUsd.toFixed(2)}
+                                    ACTIVE • ${position.usdValue.toFixed(2)}
                                 </div>
                             </div>
                         )}
+
+                        {/* HIGH-PRIORITY FAST EXIT (The Emergency Handle) */}
+                        <div className="pl-4">
+                            <button
+                                disabled={isSeeding || !op.state?.canExit}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onAction('RECYCLE', {
+                                        overrideQuote: hotQuote,
+                                        targetMint: op.mint,
+                                        targetSymbol: op.symbol,
+                                        state: op.state,
+                                        position
+                                    });
+                                }}
+                                className="group relative px-6 py-2 rounded bg-red-500 text-black text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:scale-110 active:scale-90 transition-all shadow-[0_0_25px_rgba(239,68,68,0.2)] flex items-center gap-2"
+                                title="FAST EXIT: Liquidate 100% to SOL immediately"
+                            >
+                                <Skull className="w-3 h-3 animate-pulse" />
+                                {isSeeding ? "..." : "FAST EXIT"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -430,15 +428,7 @@ export default function SurvivalLegacyPage() {
                 };
             }).filter(h => h.amount > 0);
 
-            const holdingsWithUsd = walletHoldings.map(h => {
-                const result = analysisResults.find(r => r.mint === h.mint);
-                return {
-                    ...h,
-                    usdValue: h.amount * (result?.metrics.price || 0)
-                };
-            });
-
-            setHoldings(holdingsWithUsd);
+            setHoldings(walletHoldings); // Temporary set for UI placeholders
 
             // 2. Prepare for Physics Engine
             const positions: Position[] = walletHoldings.map(h => ({
@@ -474,9 +464,19 @@ export default function SurvivalLegacyPage() {
             const enginePos = await posRes.json();
             setEnginePositions(enginePos);
 
+            // 4. Current Frame Enrichment (The Consciousness)
+            const holdingsWithUsd = walletHoldings.map(h => {
+                const result = analysis.results?.find((r: any) => r.mint === h.mint);
+                return {
+                    ...h,
+                    usdValue: h.amount * (result?.metrics.price || 0)
+                };
+            });
+            setHoldings(holdingsWithUsd);
+
             // === ACTIVE FLEET SYNC ===
             const fleet: LifecycleOpportunity[] = holdingsWithUsd
-                .filter(h => h.tradable && h.amount > 0)
+                .filter(h => (h.tradable || h.mint === SOL_MINT) && h.amount > 0)
                 .map(h => {
                     const pos = enginePos.find((p: any) => p.targetMint === h.mint);
                     const currentSolValue = (h.usdValue || 0) / (sPrice || 1);
