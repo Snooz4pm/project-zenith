@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { PublicKey, VersionedTransaction } from '@solana/web3.js';
@@ -19,6 +20,7 @@ import { ScaleQuickPanel } from '@/components/ScaleQuickPanel';
 import { HarvestQuickPanel } from '@/components/HarvestQuickPanel';
 import { RecycleQuickPanel } from '@/components/RecycleQuickPanel';
 import UniversalLoader from '@/components/UniversalLoader';
+import { AtlasWalkthrough } from '@/components/AtlasWalkthrough';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
@@ -439,6 +441,7 @@ export default function AtlasPage() {
 
     // State
     const [loading, setLoading] = useState(true);
+    const [showWalkthrough, setShowWalkthrough] = useState(false);
     const [analyzing, setAnalyzing] = useState(false);
     const [activeFleet, setActiveFleet] = useState<LifecycleOpportunity[]>([]);
     const [globalRoadmaps, setGlobalRoadmaps] = useState<any[]>([]); // BrainRoadmap[]
@@ -460,6 +463,16 @@ export default function AtlasPage() {
             setLoading(true);
         }
     }, [publicKey]);
+
+    // Persistence Effect (Walkthrough)
+    useEffect(() => {
+        if (connected && publicKey) {
+            const hasSeen = localStorage.getItem('has_seen_atlas_walkthrough');
+            if (!hasSeen) {
+                setShowWalkthrough(true);
+            }
+        }
+    }, [connected, publicKey]);
 
     const addLog = useCallback((msg: string) => {
         setLogs(prev => [...prev.slice(-30), `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -1132,12 +1145,29 @@ export default function AtlasPage() {
                             Zenith Engine v1.0.4 - REAL_TIME_MODE
                         </div>
                         <div className="flex gap-8">
+                            <span
+                                onClick={() => setShowWalkthrough(true)}
+                                className="hover:text-cyan-400 cursor-pointer transition-colors"
+                            >
+                                How It Works
+                            </span>
                             <span className="hover:text-cyan-400 cursor-pointer transition-colors">Documentation</span>
                             <span className="hover:text-cyan-400 cursor-pointer transition-colors">Network Status: OK</span>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <AnimatePresence>
+                {showWalkthrough && (
+                    <AtlasWalkthrough
+                        onComplete={() => {
+                            setShowWalkthrough(false);
+                            localStorage.setItem('has_seen_atlas_walkthrough', 'true');
+                        }}
+                    />
+                )}
+            </AnimatePresence>
         </>
     );
 }
