@@ -38,7 +38,7 @@ export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotTok
     useEffect(() => {
         async function fetchHot() {
             try {
-                const res = await fetch('/api/argus/hot-tokens');
+                const res = await fetch('https://jupiter-proxy-production.up.railway.app/api/argus/feed');
                 if (res.ok) {
                     const data = await res.json();
                     const list = (data.tokens || []).map((t: any) => ({
