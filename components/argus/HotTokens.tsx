@@ -31,6 +31,9 @@ function formatCompact(val: number) {
 }
 
 export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotToken) => void, selectedMint?: string }) {
+    const [tokens, setTokens] = useState<HotToken[]>([]);
+    const [filter, setFilter] = useState<'ALL' | 'SAFE' | 'HOT'>('ALL');
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
