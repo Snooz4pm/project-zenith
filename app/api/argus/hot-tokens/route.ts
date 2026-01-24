@@ -8,10 +8,9 @@ export async function GET(req: NextRequest) {
         const matched = await getDexMatchedTokens();
 
         // 2. Filter for ones with supply data (or fetch some if missing)
-        // For hot tokens, we'll just take the top 10 with prices and supply
         const hotTokens = matched
             .filter(t => (t.price || 0) > 0 && (t.supply || 0) > 0)
-            .slice(0, 10)
+            .slice(0, 30) // Increased for cockpit scroll depth
             .map(t => {
                 const reality = calculateReality(t.price!, t.supply!, t.price! * 10); // Check 10x feasibility as a baseline
                 return {
