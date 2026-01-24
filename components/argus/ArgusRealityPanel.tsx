@@ -96,9 +96,33 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
         { label: "$10.00", value: 10.00 },
     ];
 
-    // Extraction guards with explicit fallbacks
-    const top1 = integrity?.top1Pct ?? 0;
-    const top10 = integrity?.top10Pct ?? 0;
+    // Tactical Intelligence Extraction (Defense Layer)
+    // Directly extracts from flags if numbers are missing/zero despite concentration being detected.
+    const intelligence = useMemo(() => {
+        let t1 = integrity?.top1Pct || 0;
+        let t10 = integrity?.top10Pct || 0;
+
+        if (integrity?.flags) {
+            // Regex recovery for Top 1
+            if (t1 === 0) {
+                const f1 = integrity.flags.find(f => f.includes('Top Holder owns'));
+                if (f1) {
+                    const match = f1.match(/(\d+\.?\d*)%/);
+                    if (match) t1 = parseFloat(match[1]);
+                }
+            }
+            // Regex recovery for Top 10
+            if (t10 === 0) {
+                const f10 = integrity.flags.find(f => f.includes('Top 10 own'));
+                if (f10) {
+                    const match = f10.match(/(\d+\.?\d*)%/);
+                    if (match) t10 = parseFloat(match[1]);
+                }
+            }
+        }
+
+        return { t1, t10 };
+    }, [integrity]);
 
     return (
         <div className="bg-zinc-950 border border-zinc-900 rounded-2xl overflow-hidden font-mono shadow-2xl">
@@ -169,14 +193,14 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                         <div className="grid grid-cols-2 gap-4 border-l border-zinc-900 pl-8">
                             <div>
                                 <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Top Holder</div>
-                                <div className={`text-lg font-black italic ${top1 > 20 ? 'text-red-400' : 'text-white'}`}>
-                                    {top1.toFixed(1)}%
+                                <div className={`text-lg font-black italic ${intelligence.t1 > 20 ? 'text-red-400' : 'text-white'}`}>
+                                    {intelligence.t1.toFixed(1)}%
                                 </div>
                             </div>
                             <div>
                                 <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Top 10 Pool</div>
-                                <div className={`text-lg font-black italic ${top10 > 50 ? 'text-red-400' : 'text-white'}`}>
-                                    {top10.toFixed(1)}%
+                                <div className={`text-lg font-black italic ${intelligence.t10 > 50 ? 'text-red-400' : 'text-white'}`}>
+                                    {intelligence.t10.toFixed(1)}%
                                 </div>
                             </div>
                         </div>
