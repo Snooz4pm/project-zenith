@@ -35,6 +35,11 @@ export interface ArgusRealityPanelProps {
         volumeChange24h?: number;
         priceChange24h?: number;
     };
+    primaryRisk?: {
+        label: string;
+        score: number;
+        explanation: string[];
+    };
 }
 
 const TIER_STYLING: Record<RealityFeasibility, { color: string, icon: any, bg: string, border: string }> = {
@@ -60,13 +65,14 @@ const TIER_STYLING: Record<RealityFeasibility, { color: string, icon: any, bg: s
 
 function formatCompact(val: number) {
     if (val >= 1e12) return `$${(val / 1e12).toFixed(2)}T`;
+    if (val >= 1e12) return `$${(val / 1e12).toFixed(2)}T`;
     if (val >= 1e9) return `$${(val / 1e9).toFixed(2)}B`;
     if (val >= 1e6) return `$${(val / 1e6).toFixed(2)}M`;
     if (val >= 1e3) return `$${(val / 1e3).toFixed(1)}K`;
     return `$${val.toFixed(2)}`;
 }
 
-export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, integrity, behavior, timing }: ArgusRealityPanelProps) {
+export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, integrity, behavior, timing, primaryRisk }: ArgusRealityPanelProps) {
     const [targetPrice, setTargetPrice] = useState(currentPrice * 10);
     const [isCustom, setIsCustom] = useState(false);
 
@@ -97,13 +103,11 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
     ];
 
     // Tactical Intelligence Extraction (Defense Layer)
-    // Directly extracts from flags if numbers are missing/zero despite concentration being detected.
     const intelligence = useMemo(() => {
         let t1 = integrity?.top1Pct || 0;
         let t10 = integrity?.top10Pct || 0;
 
         if (integrity?.flags) {
-            // Regex recovery for Top 1
             if (t1 === 0) {
                 const f1 = integrity.flags.find(f => f.includes('Top Holder owns'));
                 if (f1) {
@@ -111,7 +115,6 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                     if (match) t1 = parseFloat(match[1]);
                 }
             }
-            // Regex recovery for Top 10
             if (t10 === 0) {
                 const f10 = integrity.flags.find(f => f.includes('Top 10 own'));
                 if (f10) {
@@ -128,7 +131,7 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
         <div className="bg-zinc-950 border border-zinc-900 rounded-2xl overflow-hidden font-mono shadow-2xl">
             {/* Layer 1: Feasibility Badge */}
             <div className={`p-6 border-b border-zinc-900 ${style.bg} transition-colors duration-500`}>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
                         <style.icon className={`w-8 h-8 ${style.color}`} />
                         <div>
@@ -149,6 +152,37 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                     <span className="text-zinc-500 text-[10px] uppercase">Tier: {metrics.requiredMarketCap > 10e9 ? 'Global Elite' : metrics.requiredMarketCap > 1e9 ? 'Large-Cap' : 'Mid-Cap'}</span>
                 </div>
             </div>
+
+            {/* NEW: Primary Risk Highlight (Instructional Feature) */}
+            {primaryRisk && (
+                <div className={`px-8 py-6 border-b border-zinc-900 transition-colors ${primaryRisk.score === 3 ? 'bg-red-500/10 border-red-500/20' :
+                        primaryRisk.score === 2 ? 'bg-amber-500/10 border-amber-500/20' :
+                            'bg-zinc-900/10 border-zinc-800'
+                    }`}>
+                    <div className="flex items-center gap-2 mb-3">
+                        <Target size={14} className={primaryRisk.score === 3 ? 'text-red-400' : 'text-zinc-500'} />
+                        <div className="text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-black">
+                            Primary Risk Signal
+                        </div>
+                    </div>
+
+                    <div className={`text-xl font-black italic mb-3 ${primaryRisk.score === 3 ? 'text-red-400' :
+                            primaryRisk.score === 2 ? 'text-amber-400' :
+                                'text-zinc-300'
+                        }`}>
+                        {primaryRisk.label}
+                    </div>
+
+                    <div className="space-y-1.5 pl-2 border-l border-zinc-800">
+                        {primaryRisk.explanation.map((line, idx) => (
+                            <div key={idx} className="flex items-start gap-2 text-[10px] text-zinc-400 font-mono italic leading-tight">
+                                <span className="text-zinc-700 mt-0.5">•</span>
+                                <span>{line}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Phase 4: Integrity Analysis (Layer 1.5) */}
             {integrity && (
@@ -208,7 +242,7 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                 </div>
             )}
 
-            {/* Phase 4 v3: Developer Intelligence (Layer 1.7) */}
+            {/* Remaining layers: Behavior, Timing, Index, Numbers... */}
             {behavior && (
                 <div className="px-8 py-6 border-b border-zinc-900 bg-cyan-500/5">
                     <div className="flex items-center justify-between mb-4">
@@ -264,7 +298,6 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                 </div>
             )}
 
-            {/* Phase 4 v4: Timing Intelligence (Layer 1.8) */}
             {timing && (
                 <div className="px-8 py-6 border-b border-zinc-900 bg-emerald-500/5">
                     <div className="flex items-center justify-between mb-4">
@@ -315,7 +348,7 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                 </div>
             )}
 
-            {/* Global Safety Index (The Capstone) */}
+            {/* Global Safety Index */}
             <div className="px-8 py-4 bg-zinc-900/30 border-b border-zinc-900 flex items-center justify-between">
                 <div className="text-[9px] text-zinc-500 uppercase tracking-[0.4em] font-black italic">
                     Protocol Safety Index
@@ -336,7 +369,7 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                 </div>
             </div>
 
-            {/* Layer 2: Reality Numbers */}
+            {/* Price Numbers and Translation */}
             <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-8 relative">
                 <div className="space-y-1">
                     <div className="text-[9px] text-zinc-600 font-black uppercase tracking-[0.2em]">Current Mcap</div>
@@ -358,7 +391,6 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                 </div>
             </div>
 
-            {/* Layer 3: Meaning Translation */}
             <div className="px-8 pb-8">
                 <div className="bg-zinc-900/50 rounded-xl border border-zinc-800 p-6 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -385,7 +417,7 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                 </div>
             </div>
 
-            {/* Interaction: Target Selector */}
+            {/* Target Selector Selector */}
             <div className="px-8 py-4 bg-zinc-900 border-t border-zinc-800 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                     <Target size={14} className="text-zinc-500" />

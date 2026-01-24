@@ -43,7 +43,8 @@ export default function ArgusPage() {
                 feasibility: baselineData.metrics.feasibility,
                 integrity: data.integrity,
                 behavior: data.behavior,
-                timing: data.timing
+                timing: data.timing,
+                primaryRisk: data.primaryRisk
             });
         } catch (err: any) {
             setError(err.message);

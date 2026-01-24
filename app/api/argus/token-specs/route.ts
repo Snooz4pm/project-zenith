@@ -5,6 +5,8 @@ import { VolumeObserver } from '@/lib/market-observer/VolumeObserver';
 import { analyzeTokenIntegrity } from '@/lib/argus/integrityEngine';
 import { analyzeBehavior } from '@/lib/argus/behaviorEngine';
 import { analyzeTiming } from '@/lib/argus/timingEngine';
+import { calculateReality } from '@/lib/argus/realityEngine';
+import { getPrimaryRisk } from '@/lib/argus/riskScanner';
 
 const HELIUS_KEY = process.env.HELIUS_API_KEY;
 const HELIUS_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
@@ -110,8 +112,14 @@ export async function GET(req: NextRequest) {
         // 6. PHASE 4 v4: Timing Engine (Momentum & Velocity)
         const timing = analyzeTiming(
             { current: price, change24h: priceChange24h },
-            { current: volume24h, change24h: 0 } // volume-change-24h heuristic: assume high if volume exists
+            { current: volume24h, change24h: 0 }
         );
+
+        // 7. Reality Engine Baseline
+        const reality = calculateReality(price, onChainSupply, price * 10);
+
+        // 8. PRIMARY RISK HIGHLIGHT (Full Protocol Integration)
+        const primaryRisk = getPrimaryRisk(integrity, behavior, timing, reality);
 
         return NextResponse.json({
             mint,
@@ -123,7 +131,8 @@ export async function GET(req: NextRequest) {
             logoURI: asset.content?.links?.image || asset.content?.files?.[0]?.uri || '',
             integrity,
             behavior,
-            timing
+            timing,
+            primaryRisk
         });
 
     } catch (err: any) {
