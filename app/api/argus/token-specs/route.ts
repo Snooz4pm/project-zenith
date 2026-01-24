@@ -57,13 +57,25 @@ export async function GET(req: NextRequest) {
             price = parseFloat(pair?.priceUsd || '0');
         }
 
-        // 3. PHASE 4: Integrity Engine Scan
-        const integrity = analyzeMintConfig({
+        // 3. PHASE 4 v2: Fetch Holder Concentration
+        let holders: { amount: number }[] = [];
+        try {
+            const conn = new Connection(process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com');
+            const largeAccounts = await conn.getTokenLargestAccounts(new PublicKey(mint));
+            holders = (largeAccounts.value || []).map(h => ({
+                amount: parseFloat(h.amount) / Math.pow(10, decimals)
+            }));
+        } catch (e) {
+            console.warn(`[Integrity] Holder fetch failed for ${mint}:`, e);
+        }
+
+        // 4. PHASE 4: Integrity Engine Scan
+        const integrity = analyzeTokenIntegrity({
             mintAuthority: info?.mint_authority || null,
             freezeAuthority: info?.freeze_authority || null,
             supply,
             decimals
-        });
+        }, holders);
 
         return NextResponse.json({
             mint,

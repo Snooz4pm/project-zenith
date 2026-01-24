@@ -40,7 +40,8 @@ export default function ArgusPage() {
                 price: data.price,
                 supply: data.supply,
                 mcap: data.price * data.supply,
-                feasibility: baselineData.metrics.feasibility
+                feasibility: baselineData.metrics.feasibility,
+                integrity: data.integrity
             });
         } catch (err: any) {
             setError(err.message);

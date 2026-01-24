@@ -17,6 +17,8 @@ interface ArgusRealityPanelProps {
         holderRisk: 'LOW' | 'MEDIUM' | 'HIGH';
         flags: string[];
         score: number;
+        top1Pct?: number;
+        top10Pct?: number;
     };
 }
 
@@ -110,30 +112,55 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                 <div className="px-8 py-6 border-b border-zinc-900 bg-black/40">
                     <div className="flex items-center justify-between mb-4">
                         <div className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black">
-                            On-Chain Integrity Audit
+                            On-Chain Integrity & Distribution Audit
                         </div>
-                        <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${integrity.contractRisk === 'HIGH' ? 'bg-red-500 text-black' :
-                            integrity.contractRisk === 'MEDIUM' ? 'bg-amber-500 text-black' :
-                                'bg-emerald-500 text-black'
-                            }`}>
-                            {integrity.contractRisk} RISK
+                        <div className="flex items-center gap-2">
+                            <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${integrity.contractRisk === 'HIGH' ? 'bg-red-500 text-black' :
+                                integrity.contractRisk === 'MEDIUM' ? 'bg-amber-500 text-black' :
+                                    'bg-emerald-500 text-black'
+                                }`}>
+                                {integrity.contractRisk} CONTRACT RISK
+                            </div>
+                            <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${integrity.holderRisk === 'HIGH' ? 'bg-red-500 text-black' :
+                                integrity.holderRisk === 'MEDIUM' ? 'bg-amber-500 text-black' :
+                                    'bg-emerald-500 text-black'
+                                }`}>
+                                {integrity.holderRisk} CONCENTRATION
+                            </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {integrity.flags.length > 0 ? (
-                            integrity.flags.map((flag, idx) => (
-                                <div key={idx} className="flex items-center gap-2 text-[10px] text-zinc-400 font-mono">
-                                    <ShieldAlert size={12} className={flag.includes('🚩') ? 'text-red-500' : 'text-amber-500'} />
-                                    <span>{flag}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-2">
+                            {integrity.flags.length > 0 ? (
+                                integrity.flags.map((flag, idx) => (
+                                    <div key={idx} className="flex items-center gap-2 text-[10px] text-zinc-400 font-mono">
+                                        <ShieldAlert size={12} className={flag.includes('🚩') || flag.includes('⚠️') ? 'text-red-500' : 'text-amber-500'} />
+                                        <span>{flag}</span>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="flex items-center gap-2 text-[10px] text-emerald-500 font-mono italic">
+                                    <CheckCircle2 size={12} />
+                                    <span>No structural vulnerabilities detected</span>
                                 </div>
-                            ))
-                        ) : (
-                            <div className="flex items-center gap-2 text-[10px] text-emerald-500 font-mono italic col-span-2">
-                                <CheckCircle2 size={12} />
-                                <span>No structural vulnerabilities detected (Clean Config)</span>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 border-l border-zinc-900 pl-8">
+                            <div>
+                                <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Top Holder</div>
+                                <div className={`text-lg font-black italic ${integrity.top1Pct && integrity.top1Pct > 20 ? 'text-red-400' : 'text-white'}`}>
+                                    {integrity.top1Pct ? `${integrity.top1Pct.toFixed(1)}%` : 'N/A'}
+                                </div>
                             </div>
-                        )}
+                            <div>
+                                <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Top 10 Pool</div>
+                                <div className={`text-lg font-black italic ${integrity.top10Pct && integrity.top10Pct > 50 ? 'text-red-400' : 'text-white'}`}>
+                                    {integrity.top10Pct ? `${integrity.top10Pct.toFixed(1)}%` : 'N/A'}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
