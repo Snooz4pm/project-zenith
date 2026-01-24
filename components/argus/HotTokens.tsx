@@ -43,8 +43,8 @@ export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotTok
                     const data = await res.json();
                     const list = (data.tokens || []).map((t: any) => ({
                         ...t,
-                        mcap: t.price * t.supply
-                    }));
+                        mcap: (t.price || 0) * (t.supply || 0)
+                    })).filter((t: any) => t.mcap > 0);
                     setTokens(list);
                     if (list.length > 0 && !selectedMint) onSelect(list[0]);
                 }
@@ -59,7 +59,7 @@ export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotTok
 
     const filteredTokens = tokens.filter(t => {
         if (filter === 'SAFE') return t.feasibility === 'POSSIBLE';
-        if (filter === 'HOT') return (t.volume5m || 0) > 20000;
+        if (filter === 'HOT') return (t.volume5m || 0) > 5000; // Lowered from 20k to show more activity
         return true;
     });
 
@@ -100,13 +100,13 @@ export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotTok
                         transition={{ delay: i * 0.03 }}
                         onClick={() => onSelect(token)}
                         className={`w-full group relative mb-2 p-4 rounded-xl border transition-all duration-300 text-left overflow-hidden ${selectedMint === token.mint
-                                ? 'bg-zinc-800 border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.1)]'
-                                : `bg-zinc-950 ${TIER_STYLING[token.feasibility]}`
+                            ? 'bg-zinc-800 border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.1)]'
+                            : `bg-zinc-950 ${TIER_STYLING[token.feasibility]}`
                             }`}
                     >
                         {/* Status Pulse Dot */}
                         <div className={`absolute top-4 right-4 w-1.5 h-1.5 rounded-full ${token.feasibility === 'POSSIBLE' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' :
-                                token.feasibility === 'UNLIKELY' ? 'bg-amber-500 animate-pulse' : 'bg-red-500 opacity-20'
+                            token.feasibility === 'UNLIKELY' ? 'bg-amber-500 animate-pulse' : 'bg-red-500 opacity-20'
                             }`} />
 
                         <div className="flex flex-col gap-3">
@@ -144,7 +144,7 @@ export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotTok
                             <div className={`flex items-center justify-between pt-2 border-t ${selectedMint === token.mint ? 'border-zinc-700' : 'border-zinc-900'
                                 }`}>
                                 <span className={`text-[8px] font-black uppercase tracking-[0.2em] ${selectedMint === token.mint ? 'text-emerald-300' :
-                                        token.flow.includes('Smart') ? 'text-emerald-400' : 'text-zinc-600'
+                                    token.flow.includes('Smart') ? 'text-emerald-400' : 'text-zinc-600'
                                     }`}>
                                     {token.flow}
                                 </span>

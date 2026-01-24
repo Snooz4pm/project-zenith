@@ -16,6 +16,7 @@ export interface VolumeAssessment {
     riskScore: number;
     reason: string;
     priceUsd: number;
+    fdv?: number;
 }
 
 export class VolumeObserver {
@@ -58,6 +59,7 @@ export class VolumeObserver {
         liquidity?: { usd?: number };
         priceChange?: { h1?: number };
         priceUsd?: string;
+        fdv?: number;
     }): VolumeAssessment {
         const volume24h = pair.volume?.h24 ?? 0;
         const volume1h = pair.volume?.h1 ?? 0;
@@ -152,7 +154,8 @@ export class VolumeObserver {
             riskLevel,
             riskScore: Math.min(99, riskScore),
             reason,
-            priceUsd: parseFloat(pair.priceUsd || '0')
+            priceUsd: parseFloat(pair.priceUsd || '0'),
+            fdv: pair.fdv
         };
     }
 }

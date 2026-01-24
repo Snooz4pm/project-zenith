@@ -209,7 +209,8 @@ export async function getDexMatchedTokens(uiLogs?: string[]): Promise<DexMatched
                         riskLevel: assessment.riskLevel,
                         riskScore: assessment.riskScore,
                         price: assessment.priceUsd,
-                        decimals: jupMap.get(assessment.mint)?.decimals || COMMON_DECIMALS[assessment.mint] || 6
+                        decimals: jupMap.get(assessment.mint)?.decimals || COMMON_DECIMALS[assessment.mint] || 6,
+                        supply: assessment.fdv && assessment.priceUsd > 0 ? assessment.fdv / assessment.priceUsd : 0
                     });
                 }
             } catch (err: any) {
