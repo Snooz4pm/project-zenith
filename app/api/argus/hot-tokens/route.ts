@@ -7,19 +7,29 @@ export async function GET(req: NextRequest) {
         // 1. Get high-conviction tokens from merger
         const matched = await getDexMatchedTokens();
 
-        // 2. Filter for ones with supply data (or fetch some if missing)
+        // 2. Filter for ones with supply data
         const hotTokens = matched
             .filter(t => (t.price || 0) > 0 && (t.supply || 0) > 0)
-            .slice(0, 30) // Increased for cockpit scroll depth
+            .slice(0, 30)
             .map(t => {
-                const reality = calculateReality(t.price!, t.supply!, t.price! * 10); // Check 10x feasibility as a baseline
+                const reality = calculateReality(t.price!, t.supply!, t.price! * 10);
+
+                // Deterministic "Flow" Tag based on riskScore and volume
+                let flow = "Neutral";
+                if (t.riskScore <= 30 && (t.volume5m || 0) > 10000) flow = "🐳 Smart Inflow";
+                else if (t.riskScore > 65) flow = "⚠️ Risky Surge";
+                else if ((t.volume5m || 0) > 50000) flow = "🔥 Momentum";
+
                 return {
                     mint: t.mint,
                     symbol: t.symbol,
                     name: t.name,
                     price: t.price,
                     supply: t.supply,
-                    feasibility: reality.feasibility
+                    volume5m: t.volume5m,
+                    riskScore: t.riskScore,
+                    feasibility: reality.feasibility,
+                    flow
                 };
             });
 

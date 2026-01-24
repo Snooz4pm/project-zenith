@@ -54,8 +54,13 @@ export default function ArgusPage() {
             {/* Header: Global Telemetry */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 border-b border-zinc-900 pb-4">
                 <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-                        <Terminal size={20} className="text-cyan-400" />
+                    <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center relative overflow-hidden group">
+                        <motion.div
+                            animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="absolute inset-0 bg-cyan-500/20"
+                        />
+                        <Terminal size={20} className="text-cyan-400 relative z-10" />
                     </div>
                     <div>
                         <h1 className="text-xl font-black text-white italic tracking-tighter uppercase leading-none">
@@ -135,82 +140,85 @@ export default function ArgusPage() {
                         ) : selectedToken ? (
                             <motion.div
                                 key={selectedToken.mint}
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ type: 'spring', damping: 20 }}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
                                 className="space-y-6"
                             >
-                                {/* Selected Header */}
-                                <div className="flex items-center justify-between px-4 py-6 bg-zinc-900/30 rounded-2xl border border-zinc-900">
-                                    <div className="flex items-center gap-5">
-                                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-zinc-800 to-black border border-zinc-800 flex items-center justify-center font-black text-xl text-white italic shadow-2xl">
+                                {/* Section 1: Token Identity */}
+                                <div className="flex items-center justify-between p-8 bg-zinc-950/50 rounded-2xl border border-zinc-900 relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 p-8 opacity-[0.02] group-hover:opacity-[0.05] transition-opacity pointer-events-none">
+                                        <Terminal size={120} />
+                                    </div>
+
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-16 h-16 rounded-2xl bg-white text-black flex items-center justify-center font-black text-2xl italic shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-transform group-hover:scale-105">
                                             {selectedToken.symbol.slice(0, 1)}
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-3 mb-1">
-                                                <h2 className="text-3xl font-black text-white italic leading-none tracking-tighter uppercase">
+                                                <h2 className="text-4xl font-black text-white italic leading-none tracking-tighter uppercase">
                                                     {selectedToken.symbol}
                                                 </h2>
                                                 <div className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-md flex items-center gap-1.5">
                                                     <ShieldCheck size={10} className="text-emerald-400" />
-                                                    <span className="text-[8px] text-emerald-400 font-black uppercase">Verified Intelligence</span>
+                                                    <span className="text-[8px] text-emerald-400 font-black uppercase">Live Identity</span>
                                                 </div>
                                             </div>
-                                            <div className="text-[10px] text-zinc-600 font-mono tracking-[0.2em] flex items-center gap-2">
-                                                <span className="opacity-50">{selectedToken.name}</span>
-                                                <span className="opacity-20">•</span>
-                                                <span className="text-zinc-500 font-bold">{selectedToken.mint.slice(0, 8)}...</span>
+                                            <div className="text-xs text-zinc-500 font-mono tracking-widest uppercase">
+                                                {selectedToken.name}
+                                                <span className="mx-2 opacity-20">|</span>
+                                                <span className="text-zinc-700">{selectedToken.mint}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="hidden lg:flex items-center gap-12 text-right">
+                                    <div className="hidden lg:grid grid-cols-2 gap-8 text-right">
                                         <div>
-                                            <div className="text-[9px] text-zinc-700 font-bold uppercase tracking-widest mb-1">Spot Price</div>
-                                            <div className="text-lg font-black text-white italic">${selectedToken.price.toLocaleString()}</div>
+                                            <div className="text-[9px] text-zinc-700 font-bold uppercase tracking-[0.2em] mb-1">Spot Reality</div>
+                                            <div className="text-xl font-black text-white italic">${selectedToken.price.toLocaleString(undefined, { maximumSignificantDigits: 6 })}</div>
                                         </div>
-                                        <div className="pr-6">
-                                            <div className="text-[9px] text-zinc-700 font-bold uppercase tracking-widest mb-1">Circ. Supply</div>
-                                            <div className="text-lg font-black text-white italic">{(selectedToken.supply / 1e6).toFixed(1)}M</div>
+                                        <div className="border-l border-zinc-900 pl-8">
+                                            <div className="text-[9px] text-zinc-700 font-bold uppercase tracking-[0.2em] mb-1">Market Scale</div>
+                                            <div className="text-xl font-black text-white italic">{(selectedToken.mcap / 1e6).toFixed(1)}M</div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Reality Engine Panel */}
+                                {/* Section 2: Reality Engine Panel */}
                                 <ArgusRealityPanel
                                     currentPrice={selectedToken.price}
                                     circulatingSupply={selectedToken.supply}
                                     symbol={selectedToken.symbol}
                                 />
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="p-6 bg-zinc-950 border border-zinc-900 rounded-2xl opacity-40 grayscale pointer-events-none">
-                                        <div className="flex items-center gap-2 mb-4">
-                                            <ShieldAlert size={14} className="text-zinc-700" />
-                                            <span className="text-[10px] text-zinc-700 font-black uppercase tracking-widest">Integrity Metrics (Locked)</span>
+                                {/* Section 3: Intelligence Slots (Coming Soon) */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-8">
+                                    {[
+                                        { label: 'Integrity Engine', icon: ShieldAlert, msg: 'Contract vulnerability and dev-behavior scan.' },
+                                        { label: 'Timing Engine', icon: Activity, msg: 'Proprietary buy/sell pressure velocity signals.' },
+                                        { label: 'Whale Signal Hub', icon: Zap, msg: 'Clustering wallet movements for real-time alerts.' },
+                                        { label: 'Safety Index', icon: ShieldCheck, msg: 'Comprehensive 1-100 risk score aggregation.' },
+                                    ].map((slot) => (
+                                        <div key={slot.label} className="p-6 bg-zinc-950 border border-zinc-900 rounded-2xl opacity-30 grayscale hover:opacity-40 transition-opacity relative group">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <slot.icon size={14} className="text-zinc-500" />
+                                                <h3 className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">{slot.label}</h3>
+                                            </div>
+                                            <p className="text-[9px] text-zinc-700 font-mono italic leading-relaxed">
+                                                {slot.msg}
+                                            </p>
+                                            <div className="absolute bottom-4 right-4 text-[8px] text-zinc-800 font-black uppercase tracking-tighter border border-zinc-800 px-2 py-0.5 rounded">
+                                                Coming Soon
+                                            </div>
                                         </div>
-                                        <div className="space-y-3">
-                                            <div className="h-2 w-full bg-zinc-900 rounded" />
-                                            <div className="h-2 w-2/3 bg-zinc-900 rounded" />
-                                        </div>
-                                    </div>
-                                    <div className="p-6 bg-zinc-950 border border-zinc-900 rounded-2xl opacity-40 grayscale pointer-events-none">
-                                        <div className="flex items-center gap-2 mb-4">
-                                            <Filter size={14} className="text-zinc-700" />
-                                            <span className="text-[10px] text-zinc-700 font-black uppercase tracking-widest">Whale Concentration (Locked)</span>
-                                        </div>
-                                        <div className="space-y-3">
-                                            <div className="h-2 w-full bg-zinc-900 rounded" />
-                                            <div className="h-2 w-2/3 bg-zinc-900 rounded" />
-                                        </div>
-                                    </div>
+                                    ))}
                                 </div>
                             </motion.div>
                         ) : (
                             <div className="flex-1 flex items-center justify-center border-2 border-dashed border-zinc-900 rounded-3xl m-8">
                                 <div className="text-center">
                                     <BrainCircuit size={48} className="text-zinc-800 mx-auto mb-4" />
-                                    <p className="text-zinc-700 font-mono text-xs uppercase tracking-[0.2em]">Select a packet from the telemetry feed to begin analysis</p>
+                                    <p className="text-zinc-700 font-mono text-xs uppercase tracking-[0.2em]">Select a telemetry pulse to begin analysis</p>
                                 </div>
                             </div>
                         )}
