@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
             fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`)
         ]);
 
-        if (!heliusRes.ok) throw new Error("Helius fetch failed");
+        if (!heliusRes.ok) throw new Error("Helius DAS fetch failed");
 
         const heliusData = await heliusRes.json();
         const asset = heliusData.result;
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 
         const info = asset.token_info;
         const decimals = info?.decimals || 6;
-        const supply = Number(info?.supply || 0) / Math.pow(10, decimals);
+        let supply = Number(info?.supply || 0) / Math.pow(10, decimals);
 
         // 2. Fetch Price from DexScreener
         let price = 0;
@@ -58,35 +58,51 @@ export async function GET(req: NextRequest) {
             price = parseFloat(pair?.priceUsd || '0');
         }
 
-        // 3. PHASE 4 v2: Fetch Holder Concentration
+        // 3. PHASE 4 v2: Fetch Holder Concentration (Hardened RPC)
         let holders: { amount: number }[] = [];
+        let onChainSupply = supply;
+
         try {
-            const conn = new Connection(process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com');
-            const largeAccounts = await conn.getTokenLargestAccounts(new PublicKey(mint));
+            // Use Helius RPC exclusively to avoid mainnet-beta rate limits
+            const conn = new Connection(HELIUS_URL);
+            const pubkey = new PublicKey(mint);
+
+            const [largeAccounts, accountInfo] = await Promise.all([
+                conn.getTokenLargestAccounts(pubkey),
+                conn.getParsedAccountInfo(pubkey)
+            ]);
+
+            // Verify Supply (DAS can sometimes report 0 for very new tokens)
+            const mintData = (accountInfo.value?.data as any)?.parsed?.info;
+            if (mintData?.supply) {
+                const rawSupply = parseFloat(mintData.supply);
+                onChainSupply = rawSupply / Math.pow(10, decimals);
+            }
+
+            // Map holders using UI amount to match supply normalization
             holders = (largeAccounts.value || []).map(h => ({
-                amount: parseFloat(h.amount) / Math.pow(10, decimals)
+                amount: h.uiAmount || (parseFloat(h.amount) / Math.pow(10, decimals))
             }));
+
         } catch (e) {
-            console.warn(`[Integrity] Holder fetch failed for ${mint}:`, e);
+            console.warn(`[Integrity] RPC Hard-Check failed for ${mint}:`, e);
+            // Fallback: stay with DAS supply and empty holders
         }
 
         // 4. PHASE 4: Integrity Engine Scan
         const integrity = analyzeTokenIntegrity({
             mintAuthority: info?.mint_authority || null,
             freezeAuthority: info?.freeze_authority || null,
-            supply,
+            supply: onChainSupply,
             decimals
         }, holders);
 
         // 5. PHASE 4 v3: Behavioral Engine (Human Signature)
-        // Heuristic: Use first authority as deployer if available
         const deployerAddress = asset.authorities?.[0]?.authority || asset.creators?.[0]?.address || 'Unknown';
 
         let behavior = null;
         if (deployerAddress !== 'Unknown') {
-            // In v1, we use a 'Shadow Trace' (mocked history for latency protection)
-            // Real tracing would fetch Signatures for deployerAddress
-            behavior = analyzeBehavior(deployerAddress, [], {}); // Empty history for quick scan
+            behavior = analyzeBehavior(deployerAddress, [], {});
         }
 
         return NextResponse.json({
@@ -94,7 +110,7 @@ export async function GET(req: NextRequest) {
             symbol: info?.symbol || 'UNKNOWN',
             name: asset.content?.metadata?.name || mint,
             decimals,
-            supply,
+            supply: onChainSupply,
             price,
             logoURI: asset.content?.links?.image || asset.content?.files?.[0]?.uri || '',
             integrity,
