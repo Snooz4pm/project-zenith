@@ -22,6 +22,7 @@ interface NavLink {
 
 const NAV_LINKS: NavLink[] = [
     { href: '/atlas', label: 'Atlas' },
+    { href: '/argus', label: 'Argus' },
     { href: '/signals', label: 'Signals' },
     { href: '/unlock-value', label: 'Unlock Value' },
 ];

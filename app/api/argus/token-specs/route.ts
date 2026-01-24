@@ -1,0 +1,72 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { Connection, PublicKey } from '@solana/web3.js';
+import { VolumeObserver } from '@/lib/market-observer/VolumeObserver';
+
+const HELIUS_KEY = process.env.HELIUS_API_KEY;
+const HELIUS_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
+
+export async function GET(req: NextRequest) {
+    try {
+        const { searchParams } = new URL(req.url);
+        const mint = searchParams.get('mint');
+
+        if (!mint) {
+            return NextResponse.json({ error: 'Missing mint' }, { status: 400 });
+        }
+
+        // 1. Fetch metadata and supply from Helius DAS
+        const body = {
+            jsonrpc: "2.0",
+            id: "token-specs",
+            method: "getAsset",
+            params: {
+                id: mint,
+                displayOptions: { showFungible: true }
+            }
+        };
+
+        const [heliusRes, dexRes] = await Promise.all([
+            fetch(HELIUS_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            }),
+            fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`)
+        ]);
+
+        if (!heliusRes.ok) throw new Error("Helius fetch failed");
+
+        const heliusData = await heliusRes.json();
+        const asset = heliusData.result;
+
+        if (!asset) {
+            return NextResponse.json({ error: 'Token not found on-chain' }, { status: 404 });
+        }
+
+        const info = asset.token_info;
+        const decimals = info?.decimals || 6;
+        const supply = Number(info?.supply || 0) / Math.pow(10, decimals);
+
+        // 2. Fetch Price from DexScreener
+        let price = 0;
+        if (dexRes.ok) {
+            const dexData = await dexRes.json();
+            const pair = (dexData.pairs || []).sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+            price = parseFloat(pair?.priceUsd || '0');
+        }
+
+        return NextResponse.json({
+            mint,
+            symbol: info?.symbol || 'UNKNOWN',
+            name: asset.content?.metadata?.name || mint,
+            decimals,
+            supply,
+            price,
+            logoURI: asset.content?.links?.image || asset.content?.files?.[0]?.uri || ''
+        });
+
+    } catch (err: any) {
+        console.error('[API Argus TokenSpecs] Error:', err.message);
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}

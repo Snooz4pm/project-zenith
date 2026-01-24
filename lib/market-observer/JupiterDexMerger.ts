@@ -27,6 +27,8 @@ export interface DexMatchedToken {
     riskScore: number;
     price?: number;
     decimals: number;
+    supply?: number;
+    name?: string;
 }
 
 const JUPITER_PROXY_URL = 'https://jupiter-proxy-production.up.railway.app';
@@ -84,7 +86,8 @@ async function fetchHeliusMetadata(mint: string): Promise<JupiterToken | null> {
             mint: asset.id,
             symbol: asset.token_info?.symbol || asset.content?.metadata?.symbol || "UNKNOWN",
             name: asset.content?.metadata?.name || asset.id,
-            decimals: asset.token_info?.decimals || 6
+            decimals: asset.token_info?.decimals || 6,
+            supply: Number(asset.token_info?.supply || 0) / Math.pow(10, asset.token_info?.decimals || 6)
         };
     } catch (e) {
         console.error(`[HeliusMeta] Failed for ${mint}:`, e);
