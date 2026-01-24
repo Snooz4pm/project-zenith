@@ -38,6 +38,11 @@ export interface HotToken {
         volumeChange24h?: number;
         priceChange24h?: number;
     };
+    primaryRisk?: {
+        label: string;
+        score: number;
+        explanation: string[];
+    };
 }
 
 const TIER_STYLING = {
@@ -194,32 +199,36 @@ export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotTok
                                 </div>
                             </div>
 
-                            {/* Phase 4: Integrity Indicators */}
-                            {token.integrity && (
-                                <div className="flex flex-col gap-1.5 pt-2 border-t border-zinc-900/50">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase flex items-center gap-1 ${token.integrity.contractRisk === 'HIGH' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                                            token.integrity.contractRisk === 'MEDIUM' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                                                'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                            }`}>
-                                            🛡️ {token.integrity.contractRisk} Integrity
-                                        </div>
-                                        {token.integrity.score > 0 && (
-                                            <div className="text-[7px] font-mono text-zinc-500">
-                                                Score: {token.integrity.score}/100
+                            {/* Phase 4: Full Intelligence Suite */}
+                            {(token.integrity || token.behavior || token.primaryRisk) && (
+                                <div className="flex flex-col gap-2 pt-2 border-t border-zinc-900/50">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        {token.primaryRisk && (
+                                            <div className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase flex items-center gap-1 ${token.primaryRisk.score === 3 ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                                                    'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                                }`}>
+                                                🎯 {token.primaryRisk.label}
+                                            </div>
+                                        )}
+                                        {token.behavior && (
+                                            <div className="px-1.5 py-0.5 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded text-[7px] font-black uppercase flex items-center gap-1">
+                                                👤 DNA: {token.behavior.deployerAddress.slice(0, 4)}...{token.behavior.deployerAddress.slice(-4)}
+                                            </div>
+                                        )}
+                                        {token.integrity?.contractRisk && (
+                                            <div className="px-1.5 py-0.5 bg-zinc-900/50 text-zinc-500 border border-zinc-800 rounded text-[7px] font-black uppercase">
+                                                🛡️ {token.integrity.contractRisk}
                                             </div>
                                         )}
                                     </div>
-                                    {token.integrity.flags.length > 0 && (
+
+                                    {token.integrity?.flags.length > 0 && (
                                         <div className="flex flex-wrap gap-1">
-                                            {token.integrity.flags.slice(0, 2).map((flag, idx) => (
+                                            {token.integrity.flags.slice(0, 1).map((flag, idx) => (
                                                 <span key={idx} className="text-[7px] text-zinc-500 italic">
                                                     • {flag}
                                                 </span>
                                             ))}
-                                            {token.integrity.flags.length > 2 && (
-                                                <span className="text-[7px] text-zinc-600 italic">+ {token.integrity.flags.length - 2} more</span>
-                                            )}
                                         </div>
                                     )}
                                 </div>
