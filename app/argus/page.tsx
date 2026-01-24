@@ -42,7 +42,8 @@ export default function ArgusPage() {
                 mcap: data.price * data.supply,
                 feasibility: baselineData.metrics.feasibility,
                 integrity: data.integrity,
-                behavior: data.behavior
+                behavior: data.behavior,
+                timing: data.timing
             });
         } catch (err: any) {
             setError(err.message);
@@ -193,30 +194,9 @@ export default function ArgusPage() {
                                     symbol={selectedToken.symbol}
                                     integrity={selectedToken.integrity}
                                     behavior={selectedToken.behavior}
+                                    timing={selectedToken.timing}
                                 />
 
-                                {/* Section 3: Intelligence Slots (Coming Soon) */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-8">
-                                    {[
-                                        { label: 'Integrity Engine', icon: ShieldAlert, msg: 'Contract vulnerability and dev-behavior scan.' },
-                                        { label: 'Timing Engine', icon: Activity, msg: 'Proprietary buy/sell pressure velocity signals.' },
-                                        { label: 'Whale Signal Hub', icon: Zap, msg: 'Clustering wallet movements for real-time alerts.' },
-                                        { label: 'Safety Index', icon: ShieldCheck, msg: 'Comprehensive 1-100 risk score aggregation.' },
-                                    ].map((slot) => (
-                                        <div key={slot.label} className="p-6 bg-zinc-950 border border-zinc-900 rounded-2xl opacity-30 grayscale hover:opacity-40 transition-opacity relative group">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <slot.icon size={14} className="text-zinc-500" />
-                                                <h3 className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">{slot.label}</h3>
-                                            </div>
-                                            <p className="text-[9px] text-zinc-700 font-mono italic leading-relaxed">
-                                                {slot.msg}
-                                            </p>
-                                            <div className="absolute bottom-4 right-4 text-[8px] text-zinc-800 font-black uppercase tracking-tighter border border-zinc-800 px-2 py-0.5 rounded">
-                                                Coming Soon
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
                             </motion.div>
                         ) : (
                             <div className="flex-1 flex items-center justify-center border-2 border-dashed border-zinc-900 rounded-3xl m-8">

@@ -31,6 +31,13 @@ export interface HotToken {
         flags: string[];
         score: number;
     };
+    timing?: {
+        velocity: "STAGNANT" | "STEADY" | "ACCELERATING" | "EXHAUSTED";
+        momentumScore: number;
+        signals: string[];
+        volumeChange24h?: number;
+        priceChange24h?: number;
+    };
 }
 
 const TIER_STYLING = {

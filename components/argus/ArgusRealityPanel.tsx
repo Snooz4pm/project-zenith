@@ -4,11 +4,11 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     AlertCircle, ArrowRight, Target, TrendingUp,
-    Info, ShieldAlert, CheckCircle2, Zap
+    Info, ShieldAlert, CheckCircle2, Zap, Activity
 } from 'lucide-react';
 import { calculateReality, RealityFeasibility } from '@/lib/argus/realityEngine';
 
-interface ArgusRealityPanelProps {
+export interface ArgusRealityPanelProps {
     currentPrice: number;
     circulatingSupply: number;
     symbol: string;
@@ -17,8 +17,8 @@ interface ArgusRealityPanelProps {
         holderRisk: 'LOW' | 'MEDIUM' | 'HIGH';
         flags: string[];
         score: number;
-        top1Pct?: number;
-        top10Pct?: number;
+        top1Pct: number;
+        top10Pct: number;
     };
     behavior?: {
         deployerAddress: string;
@@ -27,6 +27,13 @@ interface ArgusRealityPanelProps {
         trackRecord: { totalLaunched: number; diedQuickly: number; confirmedRugs: number };
         flags: string[];
         score: number;
+    };
+    timing?: {
+        velocity: "STAGNANT" | "STEADY" | "ACCELERATING" | "EXHAUSTED";
+        momentumScore: number;
+        signals: string[];
+        volumeChange24h?: number;
+        priceChange24h?: number;
     };
 }
 
@@ -59,7 +66,7 @@ function formatCompact(val: number) {
     return `$${val.toFixed(2)}`;
 }
 
-export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, integrity, behavior }: ArgusRealityPanelProps) {
+export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, integrity, behavior, timing }: ArgusRealityPanelProps) {
     const [targetPrice, setTargetPrice] = useState(currentPrice * 10);
     const [isCustom, setIsCustom] = useState(false);
 
@@ -235,6 +242,78 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                     </div>
                 </div>
             )}
+
+            {/* Phase 4 v4: Timing Intelligence (Layer 1.8) */}
+            {timing && (
+                <div className="px-8 py-6 border-b border-zinc-900 bg-emerald-500/5">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-md bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                                <Activity size={12} className="text-emerald-400" />
+                            </div>
+                            <div className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black">
+                                Timing & Velocity Intelligence
+                            </div>
+                        </div>
+                        <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${timing.velocity === 'ACCELERATING' ? 'bg-emerald-500 text-black' :
+                            timing.velocity === 'EXHAUSTED' ? 'bg-red-500 text-black' :
+                                'bg-zinc-800 text-zinc-400'
+                            }`}>
+                            {timing.velocity} VELOCITY
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <div className="text-[8px] text-zinc-600 font-bold uppercase mb-2">Momentum Signals</div>
+                            <div className="space-y-1.5 font-mono italic">
+                                {timing.signals.map((sig, idx) => (
+                                    <div key={idx} className="text-[10px] text-zinc-300">
+                                        • {sig}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="border-l border-zinc-900 pl-8">
+                            <div className="text-[8px] text-zinc-600 font-bold uppercase mb-2">Market Pulse</div>
+                            <div className="flex items-center gap-6">
+                                <div>
+                                    <div className="text-[8px] text-zinc-500 mb-0.5">24h Vol</div>
+                                    <div className="text-xs font-black text-white italic">${formatCompact((timing.volumeChange24h || 0))}</div>
+                                </div>
+                                <div>
+                                    <div className="text-[8px] text-zinc-500 mb-0.5">24h Price</div>
+                                    <div className={`text-xs font-black italic ${timing.priceChange24h && timing.priceChange24h > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {timing.priceChange24h?.toFixed(1)}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Global Safety Index (The Capstone) */}
+            <div className="px-8 py-4 bg-zinc-900/30 border-b border-zinc-900 flex items-center justify-between">
+                <div className="text-[9px] text-zinc-500 uppercase tracking-[0.4em] font-black italic">
+                    Protocol Safety Index
+                </div>
+                <div className="flex items-center gap-4">
+                    <div className="h-1.5 w-32 bg-zinc-800 rounded-full overflow-hidden">
+                        <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.min(integrity?.score || 100, behavior?.score || 100)}%` }}
+                            className={`h-full ${Math.min(integrity?.score || 100, behavior?.score || 100) < 40 ? 'bg-red-500' :
+                                Math.min(integrity?.score || 100, behavior?.score || 100) < 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                        />
+                    </div>
+                    <div className={`text-xs font-black italic ${Math.min(integrity?.score || 100, behavior?.score || 100) < 40 ? 'text-red-500' :
+                        Math.min(integrity?.score || 100, behavior?.score || 100) < 70 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                        {Math.min(integrity?.score || 100, behavior?.score || 100)}/100
+                    </div>
+                </div>
+            </div>
 
             {/* Layer 2: Reality Numbers */}
             <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-8 relative">

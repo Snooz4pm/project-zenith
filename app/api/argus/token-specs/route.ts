@@ -4,6 +4,7 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { VolumeObserver } from '@/lib/market-observer/VolumeObserver';
 import { analyzeTokenIntegrity } from '@/lib/argus/integrityEngine';
 import { analyzeBehavior } from '@/lib/argus/behaviorEngine';
+import { analyzeTiming } from '@/lib/argus/timingEngine';
 
 const HELIUS_KEY = process.env.HELIUS_API_KEY;
 const HELIUS_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
@@ -50,12 +51,17 @@ export async function GET(req: NextRequest) {
         const decimals = info?.decimals || 6;
         let supply = Number(info?.supply || 0) / Math.pow(10, decimals);
 
-        // 2. Fetch Price from DexScreener
+        // 2. Fetch Price & 24h Stats from DexScreener
         let price = 0;
+        let volume24h = 0;
+        let priceChange24h = 0;
+
         if (dexRes.ok) {
             const dexData = await dexRes.json();
             const pair = (dexData.pairs || []).sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
             price = parseFloat(pair?.priceUsd || '0');
+            volume24h = parseFloat(pair?.volume?.h24 || '0');
+            priceChange24h = parseFloat(pair?.priceChange?.h24 || '0');
         }
 
         // 3. PHASE 4 v2: Fetch Holder Concentration (Hardened RPC)
@@ -63,7 +69,6 @@ export async function GET(req: NextRequest) {
         let onChainSupply = supply;
 
         try {
-            // Use Helius RPC exclusively to avoid mainnet-beta rate limits
             const conn = new Connection(HELIUS_URL);
             const pubkey = new PublicKey(mint);
 
@@ -72,21 +77,18 @@ export async function GET(req: NextRequest) {
                 conn.getParsedAccountInfo(pubkey)
             ]);
 
-            // Verify Supply (DAS can sometimes report 0 for very new tokens)
             const mintData = (accountInfo.value?.data as any)?.parsed?.info;
             if (mintData?.supply) {
                 const rawSupply = parseFloat(mintData.supply);
                 onChainSupply = rawSupply / Math.pow(10, decimals);
             }
 
-            // Map holders using UI amount to match supply normalization
             holders = (largeAccounts.value || []).map(h => ({
                 amount: h.uiAmount || (parseFloat(h.amount) / Math.pow(10, decimals))
             }));
 
         } catch (e) {
             console.warn(`[Integrity] RPC Hard-Check failed for ${mint}:`, e);
-            // Fallback: stay with DAS supply and empty holders
         }
 
         // 4. PHASE 4: Integrity Engine Scan
@@ -105,6 +107,12 @@ export async function GET(req: NextRequest) {
             behavior = analyzeBehavior(deployerAddress, [], {});
         }
 
+        // 6. PHASE 4 v4: Timing Engine (Momentum & Velocity)
+        const timing = analyzeTiming(
+            { current: price, change24h: priceChange24h },
+            { current: volume24h, change24h: 0 } // volume-change-24h heuristic: assume high if volume exists
+        );
+
         return NextResponse.json({
             mint,
             symbol: info?.symbol || 'UNKNOWN',
@@ -114,7 +122,8 @@ export async function GET(req: NextRequest) {
             price,
             logoURI: asset.content?.links?.image || asset.content?.files?.[0]?.uri || '',
             integrity,
-            behavior
+            behavior,
+            timing
         });
 
     } catch (err: any) {
