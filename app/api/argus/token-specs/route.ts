@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { VolumeObserver } from '@/lib/market-observer/VolumeObserver';
+import { analyzeMintConfig } from '@/lib/argus/integrityEngine';
 
 const HELIUS_KEY = process.env.HELIUS_API_KEY;
 const HELIUS_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
@@ -56,6 +57,14 @@ export async function GET(req: NextRequest) {
             price = parseFloat(pair?.priceUsd || '0');
         }
 
+        // 3. PHASE 4: Integrity Engine Scan
+        const integrity = analyzeMintConfig({
+            mintAuthority: info?.mint_authority || null,
+            freezeAuthority: info?.freeze_authority || null,
+            supply,
+            decimals
+        });
+
         return NextResponse.json({
             mint,
             symbol: info?.symbol || 'UNKNOWN',
@@ -63,7 +72,8 @@ export async function GET(req: NextRequest) {
             decimals,
             supply,
             price,
-            logoURI: asset.content?.links?.image || asset.content?.files?.[0]?.uri || ''
+            logoURI: asset.content?.links?.image || asset.content?.files?.[0]?.uri || '',
+            integrity
         });
 
     } catch (err: any) {
