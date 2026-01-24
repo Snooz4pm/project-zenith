@@ -20,6 +20,16 @@ export interface HotToken {
         holderRisk: 'LOW' | 'MEDIUM' | 'HIGH';
         flags: string[];
         score: number;
+        top1Pct?: number;
+        top10Pct?: number;
+    };
+    behavior?: {
+        deployerAddress: string;
+        behaviorRisk: "LOW" | "MEDIUM" | "HIGH";
+        fundingSource: { type: string; name?: string };
+        trackRecord: { totalLaunched: number; diedQuickly: number; confirmedRugs: number };
+        flags: string[];
+        score: number;
     };
 }
 

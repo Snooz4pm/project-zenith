@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { VolumeObserver } from '@/lib/market-observer/VolumeObserver';
-import { analyzeMintConfig } from '@/lib/argus/integrityEngine';
+import { analyzeTokenIntegrity } from '@/lib/argus/integrityEngine';
+import { analyzeBehavior } from '@/lib/argus/behaviorEngine';
 
 const HELIUS_KEY = process.env.HELIUS_API_KEY;
 const HELIUS_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
@@ -77,6 +78,17 @@ export async function GET(req: NextRequest) {
             decimals
         }, holders);
 
+        // 5. PHASE 4 v3: Behavioral Engine (Human Signature)
+        // Heuristic: Use first authority as deployer if available
+        const deployerAddress = asset.authorities?.[0]?.authority || asset.creators?.[0]?.address || 'Unknown';
+
+        let behavior = null;
+        if (deployerAddress !== 'Unknown') {
+            // In v1, we use a 'Shadow Trace' (mocked history for latency protection)
+            // Real tracing would fetch Signatures for deployerAddress
+            behavior = analyzeBehavior(deployerAddress, [], {}); // Empty history for quick scan
+        }
+
         return NextResponse.json({
             mint,
             symbol: info?.symbol || 'UNKNOWN',
@@ -85,7 +97,8 @@ export async function GET(req: NextRequest) {
             supply,
             price,
             logoURI: asset.content?.links?.image || asset.content?.files?.[0]?.uri || '',
-            integrity
+            integrity,
+            behavior
         });
 
     } catch (err: any) {

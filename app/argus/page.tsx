@@ -191,6 +191,7 @@ export default function ArgusPage() {
                                     circulatingSupply={selectedToken.supply}
                                     symbol={selectedToken.symbol}
                                     integrity={selectedToken.integrity}
+                                    behavior={selectedToken.behavior}
                                 />
 
                                 {/* Section 3: Intelligence Slots (Coming Soon) */}

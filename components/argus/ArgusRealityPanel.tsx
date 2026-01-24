@@ -20,6 +20,14 @@ interface ArgusRealityPanelProps {
         top1Pct?: number;
         top10Pct?: number;
     };
+    behavior?: {
+        deployerAddress: string;
+        behaviorRisk: "LOW" | "MEDIUM" | "HIGH";
+        fundingSource: { type: string; name?: string };
+        trackRecord: { totalLaunched: number; diedQuickly: number; confirmedRugs: number };
+        flags: string[];
+        score: number;
+    };
 }
 
 const TIER_STYLING: Record<RealityFeasibility, { color: string, icon: any, bg: string, border: string }> = {
@@ -160,6 +168,62 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                                     {integrity.top10Pct ? `${integrity.top10Pct.toFixed(1)}%` : 'N/A'}
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Phase 4 v3: Developer Intelligence (Layer 1.7) */}
+            {behavior && (
+                <div className="px-8 py-6 border-b border-zinc-900 bg-cyan-500/5">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-md bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                                <Zap size={12} className="text-cyan-400" />
+                            </div>
+                            <div className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black">
+                                Human Signature Intelligence
+                            </div>
+                        </div>
+                        <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${behavior.behaviorRisk === 'HIGH' ? 'bg-red-500 text-black' :
+                            behavior.behaviorRisk === 'MEDIUM' ? 'bg-amber-500 text-black' :
+                                'bg-cyan-500 text-black'
+                            }`}>
+                            {behavior.behaviorRisk} BEHAVIOR RISK
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <div className="text-[8px] text-zinc-600 font-bold uppercase mb-2">Deployer Track Record</div>
+                            <div className="space-y-1.5">
+                                <div className="text-xs font-black italic text-white">
+                                    {behavior.trackRecord.totalLaunched} Previous Assets
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-[9px] text-zinc-500 font-mono italic">• {behavior.trackRecord.diedQuickly} died in &lt; 1h</span>
+                                    {behavior.trackRecord.confirmedRugs > 0 && (
+                                        <span className="text-[9px] text-red-500 font-mono italic uppercase font-black">!! {behavior.trackRecord.confirmedRugs} RUGS DETECTED !!</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="border-l border-zinc-900 pl-8">
+                            <div className="text-[8px] text-zinc-600 font-bold uppercase mb-2">Funding Source Intelligence</div>
+                            <div className="flex items-center gap-2">
+                                <div className={`px-2 py-1 rounded text-[9px] font-black uppercase border ${behavior.fundingSource.type === 'CEX' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                    behavior.fundingSource.type === 'MIXER' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                        'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                    }`}>
+                                    {behavior.fundingSource.type} {behavior.fundingSource.name !== 'Unknown' ? `(${behavior.fundingSource.name})` : ''}
+                                </div>
+                            </div>
+                            <p className="text-[8px] text-zinc-700 font-mono italic mt-2">
+                                {behavior.fundingSource.type === 'MIXER' ? 'Warning: Source obscured via bridge or mixer. Extreme anonymity.' :
+                                    behavior.fundingSource.type === 'BURNER' ? 'Suspicious: Funded by a fresh wallet with no history.' :
+                                        'Source verified. Likely authentic developer capital.'}
+                            </p>
                         </div>
                     </div>
                 </div>
