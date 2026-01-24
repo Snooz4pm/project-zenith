@@ -156,18 +156,25 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 border-l border-zinc-900 pl-8">
-                            <div>
-                                <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Top Holder</div>
-                                <div className={`text-lg font-black italic ${(integrity.top1Pct !== undefined && integrity.top1Pct !== null && integrity.top1Pct > 20) ? 'text-red-400' : 'text-white'}`}>
-                                    {integrity.top1Pct !== undefined && integrity.top1Pct !== null ? `${integrity.top1Pct.toFixed(1)}%` : 'N/A'}
-                                </div>
-                            </div>
-                            <div>
-                                <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Top 10 Pool</div>
-                                <div className={`text-lg font-black italic ${(integrity.top10Pct !== undefined && integrity.top10Pct !== null && integrity.top10Pct > 50) ? 'text-red-400' : 'text-white'}`}>
-                                    {integrity.top10Pct !== undefined && integrity.top10Pct !== null ? `${integrity.top10Pct.toFixed(1)}%` : 'N/A'}
-                                </div>
-                            </div>
+                            {(() => {
+                                const { top1Pct = 0, top10Pct = 0 } = integrity;
+                                return (
+                                    <>
+                                        <div>
+                                            <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Top Holder</div>
+                                            <div className={`text-lg font-black italic ${top1Pct > 20 ? 'text-red-400' : 'text-white'}`}>
+                                                {top1Pct.toFixed(1)}%
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Top 10 Pool</div>
+                                            <div className={`text-lg font-black italic ${top10Pct > 50 ? 'text-red-400' : 'text-white'}`}>
+                                                {top10Pct.toFixed(1)}%
+                                            </div>
+                                        </div>
+                                    </>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
