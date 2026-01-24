@@ -41,7 +41,8 @@ export default function ArgusPage() {
                 supply: data.supply,
                 mcap: data.price * data.supply,
                 feasibility: baselineData.metrics.feasibility,
-                integrity: data.integrity
+                integrity: data.integrity,
+                behavior: data.behavior
             });
         } catch (err: any) {
             setError(err.message);
