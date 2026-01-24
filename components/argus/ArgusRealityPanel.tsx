@@ -12,6 +12,12 @@ interface ArgusRealityPanelProps {
     currentPrice: number;
     circulatingSupply: number;
     symbol: string;
+    integrity?: {
+        contractRisk: 'LOW' | 'MEDIUM' | 'HIGH';
+        holderRisk: 'LOW' | 'MEDIUM' | 'HIGH';
+        flags: string[];
+        score: number;
+    };
 }
 
 const TIER_STYLING: Record<RealityFeasibility, { color: string, icon: any, bg: string, border: string }> = {
@@ -98,6 +104,39 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol }: A
                     <span className="text-zinc-500 text-[10px] uppercase">Tier: {metrics.requiredMarketCap > 10e9 ? 'Global Elite' : metrics.requiredMarketCap > 1e9 ? 'Large-Cap' : 'Mid-Cap'}</span>
                 </div>
             </div>
+
+            {/* Phase 4: Integrity Analysis (Layer 1.5) */}
+            {integrity && (
+                <div className="px-8 py-6 border-b border-zinc-900 bg-black/40">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black">
+                            On-Chain Integrity Audit
+                        </div>
+                        <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${integrity.contractRisk === 'HIGH' ? 'bg-red-500 text-black' :
+                            integrity.contractRisk === 'MEDIUM' ? 'bg-amber-500 text-black' :
+                                'bg-emerald-500 text-black'
+                            }`}>
+                            {integrity.contractRisk} RISK
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {integrity.flags.length > 0 ? (
+                            integrity.flags.map((flag, idx) => (
+                                <div key={idx} className="flex items-center gap-2 text-[10px] text-zinc-400 font-mono">
+                                    <ShieldAlert size={12} className={flag.includes('🚩') ? 'text-red-500' : 'text-amber-500'} />
+                                    <span>{flag}</span>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="flex items-center gap-2 text-[10px] text-emerald-500 font-mono italic col-span-2">
+                                <CheckCircle2 size={12} />
+                                <span>No structural vulnerabilities detected (Clean Config)</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Layer 2: Reality Numbers */}
             <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-8 relative">
