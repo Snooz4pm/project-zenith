@@ -31,43 +31,70 @@ function formatCompact(val: number) {
 }
 
 export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotToken) => void, selectedMint?: string }) {
-    const [tokens, setTokens] = useState<HotToken[]>([]);
-    const [filter, setFilter] = useState<'ALL' | 'SAFE' | 'HOT'>('ALL');
-    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        let interval: NodeJS.Timeout;
+
         async function fetchHot() {
             try {
-                const res = await fetch('https://jupiter-proxy-production.up.railway.app/api/argus/feed');
-                if (res.ok) {
-                    const data = await res.json();
-                    const list = (data.tokens || []).map((t: any) => ({
-                        ...t,
-                        mcap: (t.price || 0) * (t.supply || 0)
-                    })).filter((t: any) => t.mcap > 0);
-                    setTokens(list);
-                    if (list.length > 0 && !selectedMint) onSelect(list[0]);
-                }
-            } catch (e) {
-                console.error('Failed to fetch hot tokens', e);
+                const res = await fetch('https://jupiter-proxy-production.up.railway.app/api/argus/feed', {
+                    cache: 'no-store'
+                });
+
+                if (!res.ok) throw new Error(`Radar Sync Failed: ${res.status}`);
+
+                const data = await res.json();
+                const list = (data.tokens || []).map((t: any) => ({
+                    ...t,
+                    mcap: (t.price || 0) * (t.supply || 0)
+                })).filter((t: any) => t.mcap > 0);
+
+                setTokens(list);
+                setError(null);
+
+                if (list.length > 0 && !selectedMint) onSelect(list[0]);
+            } catch (e: any) {
+                console.error('[ARGUS_RADAR] Fetch Error:', e.message);
+                setError(e.message);
             } finally {
                 setLoading(false);
             }
         }
+
         fetchHot();
+        // Constant scan mode (every 30s)
+        interval = setInterval(fetchHot, 30000);
+        return () => clearInterval(interval);
     }, []);
 
     const filteredTokens = tokens.filter(t => {
         if (filter === 'SAFE') return t.feasibility === 'POSSIBLE';
-        if (filter === 'HOT') return (t.volume5m || 0) > 5000; // Lowered from 20k to show more activity
+        if (filter === 'HOT') return (t.volume5m || 0) > 5000;
         return true;
     });
 
-    if (loading) {
+    if (loading && tokens.length === 0) {
         return (
             <div className="flex flex-col items-center py-20 opacity-20">
                 <Loader2 className="animate-spin mb-4" size={32} />
-                <span className="text-[10px] font-mono uppercase tracking-[0.4em]">Intercepting Market Packets...</span>
+                <span className="text-[10px] font-mono uppercase tracking-[0.4em]">Initializing Radar Sweep...</span>
+            </div>
+        );
+    }
+
+    if (error && tokens.length === 0) {
+        return (
+            <div className="p-8 text-center border border-red-500/20 bg-red-500/5 rounded-2xl m-4">
+                <AlertTriangle size={24} className="text-red-400 mx-auto mb-2" />
+                <div className="text-[10px] text-red-400 uppercase font-mono mb-2">Radar Interference</div>
+                <div className="text-[8px] text-zinc-500 font-mono mb-4">{error}</div>
+                <button
+                    onClick={() => { setLoading(true); window.location.reload(); }}
+                    className="px-4 py-2 bg-zinc-900 text-zinc-400 text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-zinc-800"
+                >
+                    Recalibrate Radar
+                </button>
             </div>
         );
     }
