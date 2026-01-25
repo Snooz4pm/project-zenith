@@ -27,14 +27,14 @@ export default function TrendingSection() {
 
         console.log('[Trending] Fetching tokens from:', API_URL);
 
-        fetch(`${API_URL}/tokens`)
+        fetch(`${API_URL}/api/tokens/featured`)
             .then(res => {
                 if (!res.ok) throw new Error(`API Error: ${res.status}`);
                 return res.json();
             })
             .then(data => {
                 // Backend returns { source, count, tokens: [...] }
-                const list = data.tokens || [];
+                const list = Array.isArray(data.tokens) ? data.tokens : [];
                 console.log(`[Trending] Loaded ${list.length} tokens`);
                 // Basic slice to show only top 24 for safety/speed
                 setTokens(list.slice(0, 24));
@@ -94,7 +94,13 @@ export default function TrendingSection() {
                 </div>
             )}
 
-            {!loading && !error && (
+            {!loading && !error && (!tokens || tokens.length === 0) && (
+                <div className="p-8 text-center text-zinc-500 text-sm opacity-50">
+                    No trending tokens available.
+                </div>
+            )}
+
+            {!loading && !error && tokens && tokens.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {tokens.map(token => (
                         <div
