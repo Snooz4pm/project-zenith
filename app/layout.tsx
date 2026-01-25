@@ -6,24 +6,21 @@ import dynamic from "next/dynamic";
 import { Analytics } from "@vercel/analytics/next";
 
 // Modern navigation component - NEW simplified Navbar
-const Navbar = dynamic(
-  () => import("@/components/Navbar"),
-  { ssr: false }
-);
+// const Navbar = dynamic(
+//   () => import("@/components/Navbar"),
+//   { ssr: false }
+// );
 
-const MobileTopNav = dynamic(
-  () => import("@/components/navigation/MobileTopNav"),
-  { ssr: false }
-);
+// const MobileTopNav = dynamic(
+//   () => import("@/components/navigation/MobileTopNav"),
+//   { ssr: false }
+// );
 
+// const MobileBottomNav = dynamic(
+//   () => import("@/components/navigation/MobileBottomNavNew"),
+//   { ssr: false }
+// );
 
-
-const MobileBottomNav = dynamic(
-  () => import("@/components/navigation/MobileBottomNavNew"),
-  { ssr: false }
-);
-
-// AuthProvider is now a pass-through (legacy, kept for compatibility)
 import AuthProvider from "@/components/AuthProvider";
 import { Providers } from "./providers";
 
@@ -89,16 +86,16 @@ export default function RootLayout({
         <AuthProvider>
           <Providers>
             {/* Desktop navigation */}
-            <div className="hidden md:block">
+            {/* <div className="hidden md:block">
               <Navbar />
-            </div>
+            </div> */}
 
             {/* Mobile navigation */}
-            <div className="md:hidden">
+            {/* <div className="md:hidden">
               <MobileTopNav />
             </div>
 
-            <MobileBottomNav />
+            <MobileBottomNav /> */}
 
             {/* Suspense wraps children for instant navigation */}
             <Suspense fallback={
