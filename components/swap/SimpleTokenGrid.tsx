@@ -34,10 +34,12 @@ const TokenCell = memo(function TokenCell({
     onSelect: (t: ZenithToken) => void;
     style: React.CSSProperties;
 }) {
-    if (!token || !token.mint || !token.symbol) {
+    if (!token || !(token.mint || token.address)) {
         return <div style={style} />;
     }
-
+    const safeSymbol = token.symbol || 'UNKNOWN';
+    const safeName = token.name || (token.mint || token.address || '').slice(0, 6);
+    const safeLogo = token.logoURI || '/token-placeholder.svg';
     return (
         <div style={style}>
             <button
@@ -45,17 +47,17 @@ const TokenCell = memo(function TokenCell({
                 className="flex items-center gap-3 p-3 rounded-xl bg-[#0B0E15] hover:bg-white/10 transition-all border border-white/5 text-left hover:border-emerald-500/30 active:scale-[0.98] group w-full h-full"
             >
                 <img
-                    src={token.logoURI || 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'}
+                    src={safeLogo}
                     onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'
+                        (e.currentTarget as HTMLImageElement).src = '/token-placeholder.svg';
                     }}
                     className="w-8 h-8 rounded-full bg-zinc-800 object-cover group-hover:ring-2 ring-emerald-500/20 transition-all flex-shrink-0"
-                    alt={token.symbol}
+                    alt={safeSymbol}
                     loading="lazy"
                 />
                 <div className="min-w-0 flex-1">
-                    <div className="text-sm font-bold text-white truncate">{token.symbol}</div>
-                    <div className="text-xs text-zinc-500 truncate">{token.name}</div>
+                    <div className="text-sm font-bold text-white truncate">{safeSymbol}</div>
+                    <div className="text-xs text-zinc-500 truncate">{safeName}</div>
                 </div>
             </button>
         </div>

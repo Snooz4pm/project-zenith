@@ -77,10 +77,10 @@ export function ArenaTokenCard({ token, badges, onClick }: ArenaTokenCardProps) 
       <div className="flex items-center gap-2 mb-2">
         {token.logoURI ? (
           <img
-            src={token.logoURI}
-            alt={token.symbol}
+            src={token.logoURI || '/token-placeholder.svg'}
+            alt={token.symbol || 'UNKNOWN'}
             className="w-8 h-8 rounded-full bg-zinc-800 object-cover"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/token-placeholder.svg'; }}
           />
         ) : (
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center text-xs font-bold text-white/50">
@@ -91,7 +91,7 @@ export function ArenaTokenCard({ token, badges, onClick }: ArenaTokenCardProps) 
           <div className="font-semibold text-sm truncate text-zinc-200 group-hover:text-white transition-colors">
             {token.symbol || 'UNKNOWN'}
           </div>
-          <div className="text-[10px] text-zinc-600 truncate">{token.name || 'Unknown'}</div>
+          <div className="text-[10px] text-zinc-600 truncate">{token.name || token.symbol || (token.address || '').slice(0, 6) || 'Unknown'}</div>
         </div>
       </div>
 

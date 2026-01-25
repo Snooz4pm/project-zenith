@@ -119,47 +119,33 @@ export default function TokenExplorer() {
     }, [publicKey, connection]);
 
     // 3. Prepare Enriched List (SAFE RENDER PATTERN)
+    // Step 1: Token sanitizer
+    function sanitizeToken(t: any) {
+        if (!t || !(t.mint || t.address)) return null;
+        const address = t.mint || t.address;
+        return {
+            ...t,
+            address,
+            mint: address,
+            symbol: t.symbol || 'UNKNOWN',
+            name: t.name || t.symbol || address.slice(0, 6),
+            logoURI: t.logoURI && t.logoURI.length > 0 && t.logoURI.startsWith('http') ? t.logoURI : '/token-placeholder.svg',
+            priceUsd: Number(t.priceUsd) || 0,
+            liquidityUsd: typeof t.liquidityUsd === 'number' ? t.liquidityUsd : null,
+            volume24hUsd: typeof t.volume24hUsd === 'number' ? t.volume24hUsd : null,
+            isVerified: ['SOL', 'USDC', 'JUP', 'RAY', 'BONK', 'WIF'].includes(t.symbol),
+            isLowLiq: (Number(t.liquidityUsd) || 0) < 10000,
+            hasLogo: !!t.logoURI && !t.logoURI.includes('unknown'),
+            balance: balances.get(address) || 0,
+        };
+    }
     const safeTokens = useMemo(() => {
-        // 1️⃣ Normalize ONCE (User's Safe Pattern)
         if (!Array.isArray(tokens)) return [];
-
-        return tokens
-            .filter(t =>
-                t &&
-                typeof t === 'object' &&
-                (typeof t.mint === 'string' || typeof t.address === 'string') &&
-                typeof t.symbol === 'string'
-            )
-            .map(t => {
-                // Handle Mint/Address ambiguity safely
-                const address = (t.mint || t.address) as string;
-
-                return {
-                    ...t,
-                    address: address, // Ensure address exists for keying
-                    mint: address,    // Ensure mint exists for logic
-                    balance: balances.get(address) || 0,
-
-                    // Safe Defaults
-                    logoURI: t.logoURI && t.logoURI.length > 0 && t.logoURI.startsWith('http')
-                        ? t.logoURI
-                        : 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
-
-                    priceUsd: Number(t.priceUsd) || 0,
-                    liquidityUsd: Number(t.liquidityUsd) || 0,
-                    volume24hUsd: Number(t.volume24hUsd) || 0,
-
-                    isVerified: ['SOL', 'USDC', 'JUP', 'RAY', 'BONK', 'WIF'].includes(t.symbol),
-                    isLowLiq: (Number(t.liquidityUsd) || 0) < 10000,
-                    hasLogo: !!t.logoURI && !t.logoURI.includes('unknown')
-                };
-            })
-            // Sort safely inside the memo
-            .sort((a, b) => {
-                if (b.balance > 0 && a.balance === 0) return 1;
-                if (a.balance > 0 && b.balance === 0) return -1;
-                return 0; // Keep original sort
-            });
+        return tokens.map(sanitizeToken).filter(Boolean).sort((a, b) => {
+            if (b.balance > 0 && a.balance === 0) return 1;
+            if (a.balance > 0 && b.balance === 0) return -1;
+            return 0;
+        });
     }, [tokens, balances]);
 
     // 4. Virtualizer Setup uses safeTokens
