@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
 
         // 3. PHASE 4 v2: Fetch Holder Concentration (Simplified uiAmount approach)
         let holdersUi: { uiAmount: number }[] = [];
+        let topHolders: { address: string; amount: number; pct: number }[] = [];
         let onChainSupply = supply; // UI units for display
 
         try {
@@ -89,6 +90,12 @@ export async function GET(req: NextRequest) {
             holdersUi = (largestAccounts.value || [])
                 .filter(h => h.uiAmount != null)
                 .map(h => ({ uiAmount: h.uiAmount! }));
+
+            topHolders = (largestAccounts.value || []).slice(0, 10).map(h => ({
+                address: h.address.toString(),
+                amount: h.uiAmount || 0,
+                pct: (h.uiAmount || 0) / onChainSupply * 100
+            }));
 
         } catch (e) {
             console.warn(`[Integrity] RPC Hard-Check failed for ${mint}:`, e);
@@ -134,11 +141,7 @@ export async function GET(req: NextRequest) {
             behavior,
             timing,
             primaryRisk,
-            holders: largestAccounts.value?.slice(0, 10).map(h => ({
-                address: h.address.toString(),
-                amount: h.uiAmount || 0,
-                pct: (h.uiAmount || 0) / onChainSupply * 100
-            })) || []
+            holders: topHolders
         });
 
     } catch (err: any) {
