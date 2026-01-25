@@ -62,17 +62,17 @@ export function TokenSelector({
     useEffect(() => {
         if (Array.isArray(tokens) && tokens.length > 0) {
             // Sanitize all tokens first
-            const safeTokens = tokens.map(normalizeToken).filter(Boolean);
+            const safeTokens = tokens.map(normalizeToken).filter((t): t is SelectableToken => !!t && !!t.address && !!t.symbol);
             // Debug: log a broken token if any
             const broken = safeTokens.find(t => !t.symbol || !t.address);
             if (broken) console.warn('Broken token sample:', broken);
             // Build FAST_SET: high liquidity, high volume
             const fastTokens = safeTokens
-                .filter(t => (t.liquidityUsd ?? 0) > 5000)
-                .sort((a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0))
+                .filter(t => t && (t.liquidityUsd ?? 0) > 5000)
+                .sort((a, b) => ((b?.volume24h ?? 0) - (a?.volume24h ?? 0)))
                 .slice(0, FAST_LIMIT);
-            setDisplayTokens(fastTokens);
-            setFullUniverse(safeTokens);
+            setDisplayTokens(fastTokens.filter(Boolean));
+            setFullUniverse(safeTokens.filter(Boolean));
         }
     }, [tokens]);
 
@@ -97,7 +97,7 @@ export function TokenSelector({
         const base = searchQuery ? fullUniverse : displayTokens;
         if (!Array.isArray(base)) return [];
         return base
-            .filter(t => t && t.address && typeof t.address === 'string' && t.symbol && t.decimals !== undefined)
+            .filter((t): t is SelectableToken => !!t && !!t.address && typeof t.address === 'string' && !!t.symbol && t.decimals !== undefined)
             .slice(0, MAX_RENDER);
     }, [searchQuery, displayTokens, fullUniverse]);
 
