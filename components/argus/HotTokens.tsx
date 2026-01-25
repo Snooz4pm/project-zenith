@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Loader2, TrendingUp, AlertTriangle, Activity, BarChart3, ShieldAlert, Zap } from 'lucide-react';
+import { Target, Loader2, TrendingUp, AlertTriangle, Activity, BarChart3, ShieldAlert, Zap, DollarSign } from 'lucide-react';
+import { isDollarFeasible, checkDollarFeasibility } from '@/lib/argus/correlationEngine';
 
 export interface HotToken {
     mint: string;
@@ -99,6 +100,16 @@ function HotTokenCard({ token, isSelected, onSelect, index }: { token: HotToken,
         return val;
     }, [token.integrity]);
 
+    // Dollar-Feasible calculation
+    const dollarFeasibility = useMemo(() => {
+        return checkDollarFeasibility(
+            token.supply,
+            token.price,
+            token.liquidity || 0,
+            { top1Pct: t1, top10Pct: t10, contractRisk: token.integrity?.contractRisk }
+        );
+    }, [token.supply, token.price, token.liquidity, t1, t10, token.integrity?.contractRisk]);
+
     return (
         <motion.button
             initial={{ opacity: 0, x: -10 }}
@@ -141,6 +152,33 @@ function HotTokenCard({ token, isSelected, onSelect, index }: { token: HotToken,
                                 'text-zinc-300'
                             }`}>
                             {token.primaryRisk.label}
+                        </div>
+                    </div>
+                )}
+
+                {/* Dollar-Feasible Badge */}
+                {dollarFeasibility.isDollarFeasible && (
+                    <div className="p-2 rounded border bg-emerald-950/30 border-emerald-500/30">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded bg-emerald-500 flex items-center justify-center">
+                                    <DollarSign size={12} className="text-black" />
+                                </div>
+                                <div>
+                                    <div className="text-[8px] text-emerald-400 font-black uppercase tracking-widest">
+                                        Dollar-Feasible
+                                    </div>
+                                    <div className="text-[7px] text-zinc-500">
+                                        Req. MCAP: ${(dollarFeasibility.requiredMcap / 1000).toFixed(1)}K
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-[10px] font-black text-emerald-400">
+                                    {dollarFeasibility.growthNeeded.toFixed(1)}×
+                                </div>
+                                <div className="text-[7px] text-zinc-600">to $1</div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -261,7 +299,7 @@ interface HotTokensProps {
 
 export function HotTokens({ onSelect, selectedMint, hydratedToken, onHydratedTokensChange }: HotTokensProps) {
     const [tokens, setTokens] = useState<HotToken[]>([]);
-    const [filter, setFilter] = useState<'ALL' | 'SAFE' | 'HOT'>('ALL');
+    const [filter, setFilter] = useState<'ALL' | 'SAFE' | 'HOT' | 'DOLLAR'>('ALL');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -347,6 +385,11 @@ export function HotTokens({ onSelect, selectedMint, hydratedToken, onHydratedTok
     const filteredTokens = tokens.filter(t => {
         if (filter === 'SAFE') return t.feasibility === 'POSSIBLE';
         if (filter === 'HOT') return (t.volume5m || 0) > 5000;
+        if (filter === 'DOLLAR') {
+            const top1 = t.integrity?.top1Pct ?? 0;
+            const top10 = t.integrity?.top10Pct ?? 0;
+            return isDollarFeasible(t.supply, t.liquidity || 0, top1, top10);
+        }
         return true;
     });
 
@@ -364,14 +407,20 @@ export function HotTokens({ onSelect, selectedMint, hydratedToken, onHydratedTok
             {/* Radar Controls */}
             <div className="px-4 py-3 border-b border-zinc-900 flex items-center justify-between sticky top-0 bg-black z-10">
                 <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
-                    {['ALL', 'SAFE', 'HOT'].map((f) => (
+                    {(['ALL', 'SAFE', 'HOT', 'DOLLAR'] as const).map((f) => (
                         <button
                             key={f}
-                            onClick={() => setFilter(f as any)}
-                            className={`px-3 py-1 rounded-md text-[8px] font-black uppercase tracking-tighter transition-all ${filter === f ? 'bg-white text-black' : 'text-zinc-500 hover:text-white hover:bg-zinc-900'
-                                }`}
+                            onClick={() => setFilter(f)}
+                            className={`px-3 py-1 rounded-md text-[8px] font-black uppercase tracking-tighter transition-all flex items-center gap-1 ${
+                                filter === f
+                                    ? f === 'DOLLAR'
+                                        ? 'bg-emerald-500 text-black'
+                                        : 'bg-white text-black'
+                                    : 'text-zinc-500 hover:text-white hover:bg-zinc-900'
+                            }`}
                         >
-                            {f}
+                            {f === 'DOLLAR' && <DollarSign size={10} />}
+                            {f === 'DOLLAR' ? '$1' : f}
                         </button>
                     ))}
                 </div>

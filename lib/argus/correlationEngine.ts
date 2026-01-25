@@ -234,3 +234,99 @@ export function getCorrelatedWallets(correlations: CorrelationResult[]): Set<str
     });
     return wallets;
 }
+
+// ============================================
+// DOLLAR-FEASIBLE TOKEN DETECTION
+// ============================================
+
+export interface DollarFeasibilityResult {
+    isDollarFeasible: boolean;
+    requiredMcap: number;
+    currentMcap: number;
+    growthNeeded: number;
+    passesIntegrity: boolean;
+    failureReasons: string[];
+}
+
+/**
+ * Dollar-Feasible Token Filter
+ * Identifies tokens where reaching $1 requires ≤ $50K market cap
+ * AND passes safety/integrity checks
+ */
+export function checkDollarFeasibility(
+    supply: number,
+    currentPrice: number,
+    liquidity: number = 0,
+    integrity?: {
+        top1Pct?: number;
+        top10Pct?: number;
+        contractRisk?: 'LOW' | 'MEDIUM' | 'HIGH';
+        holderRisk?: 'LOW' | 'MEDIUM' | 'HIGH';
+    }
+): DollarFeasibilityResult {
+    const requiredMcap = supply * 1; // Market cap needed for $1 price
+    const currentMcap = supply * currentPrice;
+    const growthNeeded = currentPrice > 0 ? 1 / currentPrice : 0;
+
+    const failureReasons: string[] = [];
+
+    // Core feasibility check: Required mcap ≤ $50K
+    const isMathematicallyFeasible = requiredMcap <= 50_000;
+
+    if (!isMathematicallyFeasible) {
+        failureReasons.push(`Required MCAP ($${(requiredMcap / 1000).toFixed(0)}K) exceeds $50K threshold`);
+    }
+
+    // Safety constraints
+    const MIN_LIQUIDITY = 3000;
+    if (liquidity < MIN_LIQUIDITY) {
+        failureReasons.push(`Liquidity ($${liquidity.toFixed(0)}) below $${MIN_LIQUIDITY} minimum`);
+    }
+
+    // Integrity checks
+    const top1Pct = integrity?.top1Pct ?? 0;
+    const top10Pct = integrity?.top10Pct ?? 0;
+
+    if (top1Pct > 25) {
+        failureReasons.push(`Top holder owns ${top1Pct.toFixed(1)}% (max 25%)`);
+    }
+
+    if (top10Pct > 60) {
+        failureReasons.push(`Top 10 own ${top10Pct.toFixed(1)}% (max 60%)`);
+    }
+
+    if (integrity?.contractRisk === 'HIGH') {
+        failureReasons.push('High contract risk (mint/freeze authority)');
+    }
+
+    const passesIntegrity = failureReasons.length === 0 ||
+        (isMathematicallyFeasible && failureReasons.every(r => !r.includes('MCAP')));
+
+    return {
+        isDollarFeasible: isMathematicallyFeasible && failureReasons.length === 0,
+        requiredMcap,
+        currentMcap,
+        growthNeeded,
+        passesIntegrity,
+        failureReasons
+    };
+}
+
+/**
+ * Quick check for filter purposes (no detailed reasons)
+ */
+export function isDollarFeasible(
+    supply: number,
+    liquidity: number = 0,
+    top1Pct: number = 0,
+    top10Pct: number = 0
+): boolean {
+    const requiredMcap = supply * 1;
+
+    return (
+        requiredMcap <= 50_000 &&
+        liquidity >= 3000 &&
+        top1Pct <= 25 &&
+        top10Pct <= 60
+    );
+}
