@@ -19,20 +19,30 @@ export function useWatchlist() {
     // Get session ID
     const getSessionId = () => {
         if (typeof window === 'undefined') return 'demo-user';
-        return localStorage.getItem('zenith_session_id') || 'demo-user';
+        try {
+            return localStorage.getItem('zenith_session_id') || 'demo-user';
+        } catch {
+            return 'demo-user';
+        }
     };
 
     // Load watchlist on mount
     useEffect(() => {
-        loadWatchlist();
+        if (typeof window !== 'undefined') {
+            loadWatchlist();
+        }
     }, []);
 
     // Load from server, fallback to localStorage
     const loadWatchlist = useCallback(async () => {
+        if (typeof window === 'undefined') return;
         const sessionId = getSessionId();
 
         // First load from localStorage for instant display
-        const localWatchlist = localStorage.getItem('zenith_watchlist');
+        let localWatchlist = null;
+        try {
+            localWatchlist = localStorage.getItem('zenith_watchlist');
+        } catch {}
         if (localWatchlist) {
             try {
                 const parsed = JSON.parse(localWatchlist);
@@ -52,7 +62,9 @@ export function useWatchlist() {
                 if (data.status === 'success' && data.data?.length > 0) {
                     const serverSymbols: Set<string> = new Set(data.data.map((item: WatchlistItem) => item.symbol));
                     setWatchlist(serverSymbols);
-                    localStorage.setItem('zenith_watchlist', JSON.stringify(Array.from(serverSymbols)));
+                    try {
+                        localStorage.setItem('zenith_watchlist', JSON.stringify(Array.from(serverSymbols)));
+                    } catch {}
                     setSynced(true);
                 }
             } catch (e) {
@@ -71,7 +83,11 @@ export function useWatchlist() {
         setWatchlist(prev => {
             const newSet = new Set(prev);
             newSet.add(symbol);
-            localStorage.setItem('zenith_watchlist', JSON.stringify(Array.from(newSet)));
+            if (typeof window !== 'undefined') {
+                try {
+                    localStorage.setItem('zenith_watchlist', JSON.stringify(Array.from(newSet)));
+                } catch {}
+            }
             return newSet;
         });
 
