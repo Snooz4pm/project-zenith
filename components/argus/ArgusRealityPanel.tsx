@@ -80,28 +80,7 @@ function formatCompact(val: number) {
 }
 
 export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, integrity, behavior, timing, primaryRisk, holders, liquidity, volume24h }: ArgusRealityPanelProps) {
-    const [targetPrice, setTargetPrice] = useState(currentPrice * 10);
-    const [isCustom, setIsCustom] = useState(false);
 
-    const metrics = useMemo(() => {
-        if (currentPrice <= 0) return null;
-        return calculateReality(currentPrice, circulatingSupply, targetPrice);
-    }, [currentPrice, circulatingSupply, targetPrice]);
-
-    if (!metrics) {
-        return (
-            <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-12 text-center font-mono">
-                <Zap size={32} className="text-zinc-800 mx-auto mb-4 animate-pulse" />
-                <div className="text-zinc-500 text-xs uppercase tracking-widest leading-relaxed">
-                    Reality Assessment Unavailable
-                    <br />
-                    <span className="opacity-50 text-[10px]">Awaiting Market Listing / DexScreener Indexing</span>
-                </div>
-            </div>
-        );
-    }
-
-    const style = TIER_STYLING[metrics.feasibility];
 
     const [targetPrice, setTargetPrice] = useState(currentPrice * 10);
     const [isCustom, setIsCustom] = useState(false);
@@ -164,6 +143,21 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
     const metrics = useMemo(() => {
         return calculateReality(currentPrice, circulatingSupply, targetPrice);
     }, [currentPrice, circulatingSupply, targetPrice]);
+
+    if (!metrics) {
+        return (
+            <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-12 text-center font-mono">
+                <Zap size={32} className="text-zinc-800 mx-auto mb-4 animate-pulse" />
+                <div className="text-zinc-500 text-xs uppercase tracking-widest leading-relaxed">
+                    Reality Assessment Unavailable
+                    <br />
+                    <span className="opacity-50 text-[10px]">Awaiting Market Listing / DexScreener Indexing</span>
+                </div>
+            </div>
+        );
+    }
+
+    const style = TIER_STYLING[metrics.feasibility];
 
     return (
         <div className="bg-zinc-950 border border-zinc-900 rounded-2xl overflow-hidden font-mono shadow-2xl">
