@@ -70,23 +70,24 @@ export function TokenSelector({
 
     // Smart search switching
     const searchQuery = search.trim().toLowerCase();
-    const filteredTokens = useMemo(() => {
-        if (!searchQuery) {
-            // Show FAST_SET only
-            return displayTokens.slice(0, MAX_RENDER);
-        }
-        // Search FULL_SET, cap results
-        return fullUniverse
-            .filter(t =>
-                t && (
-                    t.symbol?.toLowerCase().includes(searchQuery) ||
-                    t.name?.toLowerCase().includes(searchQuery) ||
-                    t.address?.toLowerCase().includes(searchQuery) ||
-                    t.mint?.toLowerCase().includes(searchQuery)
-                )
-            )
+    // Layer 2: Filter broken tokens before UI
+    const cleanTokens = useMemo(() => {
+        return (searchQuery ? fullUniverse : displayTokens)
+            .filter(t => t && t.address && typeof t.address === 'string' && t.symbol && t.decimals !== undefined)
             .slice(0, MAX_RENDER);
     }, [searchQuery, displayTokens, fullUniverse]);
+
+    const filteredTokens = useMemo(() => {
+        if (!searchQuery) {
+            return cleanTokens;
+        }
+        return cleanTokens.filter(t =>
+            t.symbol?.toLowerCase().includes(searchQuery) ||
+            t.name?.toLowerCase().includes(searchQuery) ||
+            t.address?.toLowerCase().includes(searchQuery) ||
+            t.mint?.toLowerCase().includes(searchQuery)
+        );
+    }, [searchQuery, cleanTokens]);
 
     const handleSelect = (token: SelectableToken) => {
         onSelect(token);
