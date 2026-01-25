@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react';
 import { jupiterArrayToSmart } from '@/lib/adapters/jupiterToSmart';
 import { SmartToken } from '@/types/SmartToken';
 
-const PROXY_URL = '/api/smart-swap/tokens';
+const PROXY_URL = '/api/smart-swap/tokens?mode=fast';
 const VALUATE_URL = '/api/smart-swap/valuate';
 
 type UseSmartTokensOptions = {
