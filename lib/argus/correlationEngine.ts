@@ -137,3 +137,100 @@ export function getIntensityLevel(normalizedValue: number): 'empty' | 'low' | 'm
     if (normalizedValue < 0.66) return 'medium';
     return 'high';
 }
+
+/**
+ * Network Risk Assessment
+ */
+export type NetworkRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export interface NetworkRiskScore {
+    level: NetworkRiskLevel;
+    score: number; // 0-100
+    factors: string[];
+    correlatedPairs: number;
+    topWhaleExposure: number; // % of total value held by top wallet
+}
+
+/**
+ * Calculate overall network risk score
+ */
+export function calculateNetworkRisk(
+    exposures: WalletExposure[],
+    correlations: CorrelationResult[]
+): NetworkRiskScore {
+    const factors: string[] = [];
+    let score = 0;
+
+    // Factor 1: Number of correlated wallet pairs
+    const correlatedPairs = correlations.filter(c => c.sharedTokens.length >= 2).length;
+    if (correlatedPairs >= 3) {
+        score += 35;
+        factors.push(`${correlatedPairs} correlated wallet clusters detected`);
+    } else if (correlatedPairs >= 1) {
+        score += 20;
+        factors.push(`${correlatedPairs} correlated wallet pair${correlatedPairs > 1 ? 's' : ''} detected`);
+    }
+
+    // Factor 2: High correlation scores (potential coordination)
+    const highCorrelations = correlations.filter(c => c.score >= 0.66);
+    if (highCorrelations.length > 0) {
+        score += 25;
+        factors.push('Strong wallet coordination signals');
+    }
+
+    // Factor 3: Whale dominance
+    const totalValue = exposures.reduce((sum, w) =>
+        sum + w.holdings.reduce((s, h) => s + h.usdValue, 0), 0
+    );
+    const topWalletValue = exposures.length > 0
+        ? exposures[0].holdings.reduce((s, h) => s + h.usdValue, 0)
+        : 0;
+    const topWhaleExposure = totalValue > 0 ? (topWalletValue / totalValue) * 100 : 0;
+
+    if (topWhaleExposure > 50) {
+        score += 30;
+        factors.push(`Top wallet controls ${topWhaleExposure.toFixed(0)}% of tracked exposure`);
+    } else if (topWhaleExposure > 30) {
+        score += 15;
+        factors.push(`Elevated whale concentration (${topWhaleExposure.toFixed(0)}%)`);
+    }
+
+    // Factor 4: Multi-token exposure (systemic risk)
+    const multiTokenWallets = exposures.filter(w => w.holdings.length >= 3);
+    if (multiTokenWallets.length >= 2) {
+        score += 10;
+        factors.push('Multiple wallets with broad token exposure');
+    }
+
+    // Determine risk level
+    let level: NetworkRiskLevel = 'LOW';
+    if (score >= 70) level = 'CRITICAL';
+    else if (score >= 50) level = 'HIGH';
+    else if (score >= 25) level = 'MEDIUM';
+
+    if (factors.length === 0) {
+        factors.push('No significant network risks detected');
+    }
+
+    return {
+        level,
+        score: Math.min(score, 100),
+        factors,
+        correlatedPairs,
+        topWhaleExposure
+    };
+}
+
+/**
+ * Get wallets involved in correlations (for highlighting)
+ */
+export function getCorrelatedWallets(correlations: CorrelationResult[]): Set<string> {
+    const wallets = new Set<string>();
+    correlations.forEach(c => {
+        if (c.sharedTokens.length >= 2) {
+            wallets.add(c.walletA);
+            wallets.add(c.walletB);
+        }
+    });
+    return wallets;
+}

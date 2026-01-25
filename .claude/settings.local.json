@@ -35,7 +35,8 @@
       "Bash(tee:*)",
       "Bash(timeout 120 npm run build:*)",
       "Bash(echo:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(npx next lint:*)"
     ]
   }
 }
