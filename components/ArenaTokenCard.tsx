@@ -98,11 +98,14 @@ export function ArenaTokenCard({ token, badges, onClick }: ArenaTokenCardProps) 
       {/* Badges (Zenith Visual Emphasis) */}
       {badges && badges.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
-          {badges.map(b => (
-            <span key={b} className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wide">
-              {b}
-            </span>
-          ))}
+          {badges.map(b => {
+            if (!b) return null;
+            return (
+              <span key={b} className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wide">
+                {b}
+              </span>
+            );
+          }).filter(Boolean)}
         </div>
       )}
 
