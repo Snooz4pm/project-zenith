@@ -4,9 +4,11 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     AlertCircle, ArrowRight, Target, TrendingUp,
-    Info, ShieldAlert, CheckCircle2, Zap, Activity, Loader2
+    Info, ShieldAlert, CheckCircle2, Zap, Activity, Loader2, Network, ChevronRight
 } from 'lucide-react';
 import { calculateReality, RealityFeasibility } from '@/lib/argus/realityEngine';
+import { NetworkIntelligencePanel } from './NetworkIntelligencePanel';
+import { WalletExposure } from '@/lib/argus/correlationEngine';
 
 export interface ArgusRealityPanelProps {
     currentPrice: number;
@@ -47,6 +49,7 @@ export interface ArgusRealityPanelProps {
         amount: number;
         pct: number;
     }[];
+    walletExposures?: WalletExposure[];
 }
 
 const TIER_STYLING: Record<RealityFeasibility, { color: string, icon: any, bg: string, border: string }> = {
@@ -79,11 +82,12 @@ function formatCompact(val: number) {
     return `$${val.toFixed(2)}`;
 }
 
-export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, integrity, behavior, timing, primaryRisk, holders, liquidity, volume24h }: ArgusRealityPanelProps) {
+export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, integrity, behavior, timing, primaryRisk, holders, liquidity, volume24h, walletExposures }: ArgusRealityPanelProps) {
 
 
     const [targetPrice, setTargetPrice] = useState(currentPrice * 10);
     const [isCustom, setIsCustom] = useState(false);
+    const [showNetworkPanel, setShowNetworkPanel] = useState(false);
 
     // Scanner State
     const [scanStats, setScanStats] = useState<any>(null);
@@ -312,8 +316,53 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                             </div>
                         </div>
                     )}
+
+                    {/* Network Intelligence Teaser */}
+                    {walletExposures && walletExposures.length > 1 && (
+                        <div className="mt-6 pt-6 border-t border-zinc-900">
+                            <button
+                                onClick={() => setShowNetworkPanel(!showNetworkPanel)}
+                                className="w-full flex items-center justify-between p-3 rounded-lg bg-zinc-900/50 border border-zinc-800 hover:border-cyan-500/30 hover:bg-zinc-900 transition-all group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Network size={14} className="text-cyan-400" />
+                                    <div className="text-left">
+                                        <div className="text-[10px] font-black text-zinc-300 uppercase tracking-wide">
+                                            Network Intelligence
+                                        </div>
+                                        <div className="text-[9px] text-zinc-500">
+                                            {walletExposures.length} wallets tracked across tokens
+                                        </div>
+                                    </div>
+                                </div>
+                                <ChevronRight
+                                    size={14}
+                                    className={`text-zinc-600 group-hover:text-cyan-400 transition-all ${showNetworkPanel ? 'rotate-90' : ''}`}
+                                />
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
+
+            {/* Network Intelligence Panel (Expandable) */}
+            <AnimatePresence>
+                {showNetworkPanel && walletExposures && walletExposures.length > 0 && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden border-b border-zinc-900"
+                    >
+                        <div className="p-4">
+                            <NetworkIntelligencePanel
+                                exposures={walletExposures}
+                                onClose={() => setShowNetworkPanel(false)}
+                            />
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Remaining layers: Behavior, Timing, Index, Numbers... */}
             {behavior && (

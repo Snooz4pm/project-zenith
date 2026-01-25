@@ -252,13 +252,28 @@ function HotTokenCard({ token, isSelected, onSelect, index }: { token: HotToken,
     );
 }
 
-export function HotTokens({ onSelect, selectedMint, hydratedToken }: { onSelect: (token: HotToken) => void, selectedMint?: string, hydratedToken?: HotToken | null }) {
+interface HotTokensProps {
+    onSelect: (token: HotToken) => void;
+    selectedMint?: string;
+    hydratedToken?: HotToken | null;
+    onHydratedTokensChange?: (tokens: HotToken[]) => void;
+}
+
+export function HotTokens({ onSelect, selectedMint, hydratedToken, onHydratedTokensChange }: HotTokensProps) {
     const [tokens, setTokens] = useState<HotToken[]>([]);
     const [filter, setFilter] = useState<'ALL' | 'SAFE' | 'HOT'>('ALL');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const [hydratedCache, setHydratedCache] = useState<Record<string, HotToken>>({});
+
+    // Notify parent when hydrated tokens change
+    useEffect(() => {
+        if (onHydratedTokensChange) {
+            const hydratedTokens = Object.values(hydratedCache).filter(t => t.holders && t.holders.length > 0);
+            onHydratedTokensChange(hydratedTokens);
+        }
+    }, [hydratedCache, onHydratedTokensChange]);
 
     // Background Hydration Queue
     useEffect(() => {

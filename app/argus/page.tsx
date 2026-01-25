@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Search, Zap, Target, BrainCircuit,
@@ -9,12 +9,21 @@ import {
 } from 'lucide-react';
 import { ArgusRealityPanel } from '@/components/argus/ArgusRealityPanel';
 import { HotTokens, HotToken } from '@/components/argus/HotTokens';
+import { useWalletExposures, TokenWithHolders } from '@/lib/argus/useWalletExposures';
 
 export default function ArgusPage() {
     const [searchMint, setSearchMint] = useState('');
     const [loading, setLoading] = useState(false);
     const [selectedToken, setSelectedToken] = useState<HotToken | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [hydratedTokens, setHydratedTokens] = useState<HotToken[]>([]);
+
+    // Aggregate wallet exposures across all hydrated tokens for the correlation matrix
+    const walletExposures = useWalletExposures(hydratedTokens as TokenWithHolders[]);
+
+    const handleHydratedTokensChange = useCallback((tokens: HotToken[]) => {
+        setHydratedTokens(tokens);
+    }, []);
 
     const handleSearch = async (mint: string) => {
         if (!mint || mint.length < 32) return;
@@ -109,6 +118,7 @@ export default function ArgusPage() {
                         onSelect={(token) => {
                             handleSearch(token.mint);
                         }}
+                        onHydratedTokensChange={handleHydratedTokensChange}
                     />
                 </div>
 
@@ -204,6 +214,7 @@ export default function ArgusPage() {
                                     holders={selectedToken.holders}
                                     liquidity={selectedToken.liquidity}
                                     volume24h={selectedToken.volume24h}
+                                    walletExposures={walletExposures}
                                 />
 
                             </motion.div>
