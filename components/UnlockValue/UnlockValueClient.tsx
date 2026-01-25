@@ -26,9 +26,9 @@ export default function UnlockValueClient() {
   async function runScan() {
     if (!connected) {
       setVisible(true);
-      return;
+      return null;
     }
-    if (!publicKey) return;
+    if (!publicKey) return null;
 
     store.setLoading(true);
     store.setError(null);
@@ -74,18 +74,18 @@ export default function UnlockValueClient() {
     if (!connected || !publicKey) {
       console.error('[Unlock] Wallet not connected!');
       store.setError("Please connect your wallet first");
-      return;
+      return null;
     }
 
     if (!sendTransaction) {
       console.error('[Unlock] Wallet does not support transactions!');
       store.setError("Wallet does not support transaction sending. Please use Phantom or Solflare.");
-      return;
+      return null;
     }
 
     if (!accounts.length) {
       console.error('[Unlock] No accounts to claim!');
-      return;
+      return null;
     }
 
     setClaimStatus('Preparing transactions...');

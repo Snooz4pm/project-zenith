@@ -47,7 +47,7 @@ export default function ArenaGrid({ onSelectToken }: ArenaGridProps) {
                 console.error('[ArenaGrid] API returned HTML');
                 setTokens([]);
                 setError('Discovery service Unavailable');
-                return;
+                return null;
             }
 
             const data = JSON.parse(text);
