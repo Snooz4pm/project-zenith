@@ -26,32 +26,72 @@ export function useSmartTokens(options: UseSmartTokensOptions = {}) {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        let cancelled = false;
         setLoading(true);
         setError(null);
 
-        fetch(PROXY_URL)
-            .then(res => res.json())
-            .then(data => {
-                const list = Array.isArray(data.tokens) ? data.tokens : [];
-                const normalized = jupiterArrayToSmart(list);
+        async function fetchWithTimeout(url: string, timeout = 5000) {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            try {
+                const res = await fetch(url, { signal: controller.signal });
+                clearTimeout(id);
+                return res;
+            } catch (err) {
+                clearTimeout(id);
+                throw err;
+            }
+        }
 
-                console.log(`[useSmartTokens] Loaded ${normalized.length} tokens from ${list.length} raw`);
-                setTokens(normalized);
-
-                // If valuation enabled, probe tokens for SOL value
-                if (options.enableValuation && normalized.length > 0) {
-                    setValuating(true);
-                    valuateTokens(normalized);
+        async function loadTokens() {
+            let tokens: any[] = [];
+            let fromCache = false;
+            try {
+                let res = await fetchWithTimeout(PROXY_URL, 5000);
+                if (!res.ok) throw new Error('Proxy fetch failed');
+                let data = await res.json();
+                tokens = Array.isArray(data.tokens) ? data.tokens : [];
+                // Save last-good snapshot
+                localStorage.setItem('jup-cache', JSON.stringify(tokens));
+            } catch (err) {
+                // Retry once
+                try {
+                    let res = await fetchWithTimeout(PROXY_URL, 5000);
+                    if (!res.ok) throw new Error('Proxy fetch failed (retry)');
+                    let data = await res.json();
+                    tokens = Array.isArray(data.tokens) ? data.tokens : [];
+                    localStorage.setItem('jup-cache', JSON.stringify(tokens));
+                } catch (err2) {
+                    // Fallback to cache
+                    const cached = localStorage.getItem('jup-cache');
+                    if (cached) {
+                        tokens = JSON.parse(cached);
+                        fromCache = true;
+                        console.warn('[useSmartTokens] Using cached Jupiter universe');
+                    } else {
+                        setError('Failed to load tokens');
+                        setTokens([]);
+                        setLoading(false);
+                        return;
+                    }
                 }
-            })
-            .catch(err => {
-                console.error('[useSmartTokens] Fetch error:', err);
-                setError('Failed to load tokens');
-                setTokens([]);
-            })
-            .finally(() => {
-                setLoading(false);
-            });
+            }
+
+            if (cancelled) return;
+            const normalized = jupiterArrayToSmart(tokens);
+            setTokens(normalized);
+            if (fromCache) setError('Loaded from cache due to fetch failure');
+
+            // If valuation enabled, probe tokens for SOL value
+            if (options.enableValuation && normalized.length > 0) {
+                setValuating(true);
+                valuateTokens(normalized);
+            }
+            setLoading(false);
+        }
+
+        loadTokens();
+        return () => { cancelled = true; };
     }, [options.enableValuation]);
 
     async function valuateTokens(tokenList: SmartToken[]) {
