@@ -258,6 +258,39 @@ export function HotTokens({ onSelect, selectedMint, hydratedToken }: { onSelect:
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const [hydratedCache, setHydratedCache] = useState<Record<string, HotToken>>({});
+
+    // Background Hydration Queue
+    useEffect(() => {
+        const queue = tokens.filter(t => !hydratedCache[t.mint]);
+        if (queue.length === 0) return;
+
+        const nextMint = queue[0].mint;
+
+        const timer = setTimeout(async () => {
+            try {
+                // Fetch full specs from local API
+                const res = await fetch(`/api/argus/token-specs?mint=${nextMint}`);
+                if (res.ok) {
+                    const fullData = await res.json();
+                    setHydratedCache(prev => ({
+                        ...prev,
+                        [nextMint]: {
+                            ...queue[0], // Keep basic feed data
+                            ...fullData // Overwrite with detailed specs (integrity, holders, etc.)
+                        }
+                    }));
+                }
+            } catch (err) {
+                // Determine if we should retry or skip. For now, we skip to avoid infinite loops on error.
+                // In a robust app, we might mark it as 'failed' in cache.
+                console.warn(`[Hydration] Failed for ${nextMint}`, err);
+            }
+        }, 1000); // 1s delay between fetches to be gentle
+
+        return () => clearTimeout(timer);
+    }, [tokens, hydratedCache]);
+
     useEffect(() => {
         let interval: NodeJS.Timeout;
 
@@ -332,16 +365,19 @@ export function HotTokens({ onSelect, selectedMint, hydratedToken }: { onSelect:
 
             <div className="flex-1 overflow-y-auto pr-1 scrollbar-hide py-3 space-y-4">
                 {filteredTokens.map((t, i) => {
-                    // Hydrate token data if it matches the active selection
+                    // Start with feed data
                     let displayToken = t;
+
+                    // Level 1 Hydration: Background Cache
+                    if (hydratedCache[t.mint]) {
+                        displayToken = hydratedCache[t.mint];
+                    }
+
+                    // Level 2 Hydration: Active Selection (Freshest)
                     if (hydratedToken && hydratedToken.mint === t.mint) {
                         displayToken = {
-                            ...t,
-                            integrity: hydratedToken.integrity, // Sync integrity (Holders %)
-                            primaryRisk: hydratedToken.primaryRisk,
-                            behavior: hydratedToken.behavior,
-                            timing: hydratedToken.timing,
-                            // Preserve feed-specifics if needed, or overwrite if search is better
+                            ...displayToken, // Use background data as base
+                            ...hydratedToken // Override with active selection data
                         };
                     }
 
