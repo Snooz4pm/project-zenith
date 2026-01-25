@@ -44,7 +44,8 @@ export default function ArgusPage() {
                 integrity: data.integrity,
                 behavior: data.behavior,
                 timing: data.timing,
-                primaryRisk: data.primaryRisk
+                primaryRisk: data.primaryRisk,
+                holders: data.holders
             });
         } catch (err: any) {
             setError(err.message);
@@ -196,6 +197,8 @@ export default function ArgusPage() {
                                     integrity={selectedToken.integrity}
                                     behavior={selectedToken.behavior}
                                     timing={selectedToken.timing}
+                                    primaryRisk={selectedToken.primaryRisk}
+                                    holders={selectedToken.holders}
                                 />
 
                             </motion.div>

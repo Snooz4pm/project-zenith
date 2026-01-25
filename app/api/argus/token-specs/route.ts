@@ -133,7 +133,12 @@ export async function GET(req: NextRequest) {
             integrity,
             behavior,
             timing,
-            primaryRisk
+            primaryRisk,
+            holders: largestAccounts.value?.slice(0, 10).map(h => ({
+                address: h.address.toString(),
+                amount: h.uiAmount || 0,
+                pct: (h.uiAmount || 0) / onChainSupply * 100
+            })) || []
         });
 
     } catch (err: any) {

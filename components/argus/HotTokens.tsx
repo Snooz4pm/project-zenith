@@ -47,6 +47,11 @@ export interface HotToken {
         score: number;
         explanation: string[];
     };
+    holders?: {
+        address: string;
+        amount: number;
+        pct: number;
+    }[];
 }
 
 const TIER_STYLING = {
@@ -184,8 +189,8 @@ function HotTokenCard({ token, isSelected, onSelect, index }: { token: HotToken,
                             <div className="flex items-center justify-between mb-1.5">
                                 <div className="text-[7px] text-zinc-600 font-black uppercase tracking-widest italic">Distribution Health</div>
                                 <div className={`text-[9px] font-black italic ${token.integrity.distributionQuality.grade === 'HEALTHY' ? 'text-emerald-400' :
-                                        token.integrity.distributionQuality.grade === 'MODERATE_RISK' ? 'text-amber-400' :
-                                            'text-red-400'
+                                    token.integrity.distributionQuality.grade === 'MODERATE_RISK' ? 'text-amber-400' :
+                                        'text-red-400'
                                     }`}>
                                     {token.integrity.distributionQuality.score}/100
                                 </div>
@@ -193,8 +198,8 @@ function HotTokenCard({ token, isSelected, onSelect, index }: { token: HotToken,
                             <div className="h-0.5 w-full bg-zinc-900 rounded-full overflow-hidden">
                                 <div
                                     className={`h-full transition-all duration-1000 ${token.integrity.distributionQuality.grade === 'HEALTHY' ? 'bg-emerald-500' :
-                                            token.integrity.distributionQuality.grade === 'MODERATE_RISK' ? 'bg-amber-500' :
-                                                'bg-red-500'
+                                        token.integrity.distributionQuality.grade === 'MODERATE_RISK' ? 'bg-amber-500' :
+                                            'bg-red-500'
                                         }`}
                                     style={{ width: `${token.integrity.distributionQuality.score}%` }}
                                 />

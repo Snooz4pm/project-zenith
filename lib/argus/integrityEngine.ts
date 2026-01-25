@@ -35,7 +35,7 @@ export function analyzeTokenIntegrity(
         flags.push("Unusual decimals configuration");
         riskScore += 1;
     }
-    if (mintInfo.supply <= 0) {
+    if (mintInfo.supplyUi <= 0) {
         flags.push("Zero or invalid supply");
         riskScore += 3;
     }

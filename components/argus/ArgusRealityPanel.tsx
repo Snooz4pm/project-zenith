@@ -40,6 +40,11 @@ export interface ArgusRealityPanelProps {
         score: number;
         explanation: string[];
     };
+    holders?: {
+        address: string;
+        amount: number;
+        pct: number;
+    }[];
 }
 
 const TIER_STYLING: Record<RealityFeasibility, { color: string, icon: any, bg: string, border: string }> = {
@@ -197,8 +202,8 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                         <div className="flex items-center gap-2">
                             {integrity.distributionQuality && (
                                 <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${integrity.distributionQuality.grade === 'HEALTHY' ? 'bg-emerald-500 text-black' :
-                                        integrity.distributionQuality.grade === 'MODERATE_RISK' ? 'bg-amber-500 text-black' :
-                                            'bg-red-500 text-black'
+                                    integrity.distributionQuality.grade === 'MODERATE_RISK' ? 'bg-amber-500 text-black' :
+                                        'bg-red-500 text-black'
                                     }`}>
                                     DIST: {integrity.distributionQuality.score}/100
                                 </div>
@@ -250,6 +255,30 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                             </div>
                         </div>
                     </div>
+
+                    {holders && holders.length > 0 && (
+                        <div className="mt-6 pt-6 border-t border-zinc-900">
+                            <div className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black mb-4">
+                                Top Holders Ledger
+                            </div>
+                            <div className="space-y-2">
+                                {holders.map((h, i) => (
+                                    <div key={i} className="flex items-center justify-between text-[10px] font-mono hover:bg-zinc-900/50 p-1 rounded transition-colors">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-zinc-600 w-4 text-right">{i + 1}.</span>
+                                            <span className="text-zinc-400 font-medium">{h.address.slice(0, 4)}...{h.address.slice(-4)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <span className="text-zinc-500">{formatCompact(h.amount)}</span>
+                                            <span className={`font-bold w-12 text-right ${h.pct > 5 ? 'text-amber-400' : 'text-zinc-300'}`}>
+                                                {h.pct.toFixed(2)}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
