@@ -66,9 +66,9 @@ export function TokenSelector({
             // Debug: log a broken token if any
             const broken = safeTokens.find(t => !t.symbol || !t.address);
             if (broken) console.warn('Broken token sample:', broken);
-            // Build FAST_SET: high liquidity, high volume
+            // DEBUG: Show all tokens regardless of liquidity
             const fastTokens = safeTokens
-                .filter(t => t && (t.liquidityUsd ?? 0) > 5000)
+                // .filter(t => t && (t.liquidityUsd ?? 0) > 5000)
                 .sort((a, b) => ((b?.volume24h ?? 0) - (a?.volume24h ?? 0)))
                 .slice(0, FAST_LIMIT);
             setDisplayTokens(fastTokens.filter(Boolean));
