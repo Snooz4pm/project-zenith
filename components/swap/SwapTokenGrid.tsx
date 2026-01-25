@@ -9,7 +9,7 @@ type Token = {
   logoURI?: string;
 };
 
-export default function SwapTokenGrid() {
+export default function SwapTokenGrid({ onSelectToken }: { onSelectToken: (token: any) => void }) {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,11 +30,8 @@ export default function SwapTokenGrid() {
         } else if (data?.tokens && typeof data.tokens === 'object') {
           normalized = Object.values(data.tokens);
         }
-        console.log('TOKENS PAYLOAD:', data);
-        console.log('Normalized tokens:', normalized.length);
         setTokens(normalized);
       } catch (err) {
-        console.error(err);
         setError('Failed to load tokens');
       } finally {
         setLoading(false);
@@ -65,14 +62,9 @@ export default function SwapTokenGrid() {
     );
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <h2 className="text-xl font-bold text-white mb-4">
-        Select a Token ({tokens.length})
-      </h2>
-      <SimpleTokenGrid
-        tokens={tokens}
-        onSelect={(t) => console.log('Selected:', t)}
-      />
-    </div>
+    <SimpleTokenGrid
+      tokens={tokens}
+      onSelect={onSelectToken}
+    />
   );
 }

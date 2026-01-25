@@ -8,31 +8,7 @@ import SwapTokenGrid from '@/components/swap/SwapTokenGrid';
 import { buildZenithTokenList, ZenithToken } from '@/lib/zenith';
 import { useSwapStore } from '@/lib/store/useSwapStore';
 
-export default function SwapPage() {
-  const [tokens, setTokens] = useState<ZenithToken[]>([]);
-  useEffect(() => {
-    console.log('[SwapPage] tokens:', tokens);
-  }, [tokens]);
-  const { setIntent } = useSwapStore();
-
-  useEffect(() => {
-    buildZenithTokenList().then(setTokens).catch(console.error);
-  }, []);
-
-  const handleSelect = (t: ZenithToken) => {
-    setIntent({
-      toToken: {
-        symbol: t.symbol,
-        address: t.mint,
-        decimals: t.decimals,
-        logoURI: t.logoURI
-      },
-      source: 'card'
-    });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  if (!Array.isArray(tokens)) return null;
+  const [selectedToken, setSelectedToken] = useState<any | null>(null);
 
   return (
     <div className="min-h-screen bg-black relative">
@@ -58,7 +34,7 @@ export default function SwapPage() {
 
           {/* RIGHT: Token Grid (cards) */}
           <div className="flex-1 min-w-0 w-full">
-            <SwapTokenGrid />
+            <SwapTokenGrid onSelectToken={setSelectedToken} />
           </div>
         </div>
       </div>
