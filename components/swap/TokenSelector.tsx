@@ -176,16 +176,18 @@ export function TokenSelector({
                             <div className="p-8 text-center text-zinc-500 text-sm">
                                 No tokens found
                             </div>
-                        ) : (
-                            filteredTokens.map((token: SelectableToken, idx: number) => (
+                        ) : filteredTokens.map((token: SelectableToken, idx: number) => {
+                            if (!token || !token.address) return null;
+                            return (
                                 <TokenRow
-                                    key={token?.address || idx}
+                                    key={token.address || idx}
                                     token={token}
                                     onSelect={handleSelect}
                                     showBalance={showBalance}
                                 />
-                            ))
-                        )}
+                            );
+                        }).filter(Boolean)
+                        }
                     </div>
                 </div>
             )}

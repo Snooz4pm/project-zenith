@@ -91,13 +91,19 @@ export default function SignalsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {signals.map((token, idx) => (
-              <Card
-                key={token.mint}
-                className="group relative bg-black border border-white/10 hover:border-emerald-500/50 transition-colors overflow-hidden flex flex-col"
-              >
-                <div className="p-5 flex-1 space-y-4">
-                  {/* Top Row */}
+            {signals.map((token, idx) => {
+              if (!token || !token.mint) return null;
+              return (
+                <Card
+                  key={token.mint}
+                  className="group relative bg-black border border-white/10 hover:border-emerald-500/50 transition-colors overflow-hidden flex flex-col"
+                >
+                  <div className="p-5 flex-1 space-y-4">
+                    {/* Top Row */
+                  </div>
+                </Card>
+              );
+            }).filter(Boolean)}
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
                       {token.logoURI ? (

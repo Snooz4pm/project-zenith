@@ -215,11 +215,14 @@ export function HarvestQuickPanel({
                         value={outputMint || ""}
                     >
                         <option value={SOL_MINT} className="bg-zinc-900">SOL</option>
-                        {wallet?.tokens?.filter((t: any) => t.mint !== selectedGem?.mint).map((t: any) => (
-                            <option key={t.mint} value={t.mint} className="bg-zinc-900">
-                                {t.symbol}
-                            </option>
-                        ))}
+                        {wallet?.tokens?.filter((t: any) => t.mint !== selectedGem?.mint).map((t: any) => {
+                            if (!t || !t.mint) return null;
+                            return (
+                                <option key={t.mint} value={t.mint} className="bg-zinc-900">
+                                    {t.symbol}
+                                </option>
+                            );
+                        }).filter(Boolean)}
                     </select>
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-zinc-600 font-black">TO</div>
                 </div>

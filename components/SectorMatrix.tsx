@@ -59,29 +59,40 @@ export default function SectorMatrix({ onSelectSector }: SectorMatrixProps) {
                     const color = sector.score >= 60 ? '#0A7B0A' : sector.score >= 40 ? '#768396' : '#D93B3B';
 
                     return (
-                        <motion.button
-                            key={sector.name}
-                            whileHover={{ y: -2 }}
-                            onClick={() => onSelectSector?.(sector.name)}
-                            className="flex flex-col p-3 rounded-lg border border-gray-100 hover:border-blue-500/30 hover:shadow-md transition-all bg-gray-50 text-left group"
-                        >
-                            <span className="text-[10px] uppercase font-bold text-gray-400 mb-1">{sector.name}</span>
+                        return (
+                            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm mb-8">
+                                <h3 className="text-gray-800 font-bold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                                    Sector Momentum Matrix
+                                </h3>
 
-                            <div className="flex items-end justify-between mb-2">
-                                <span className="text-xl font-bold text-gray-900" style={{ color: color }}>{sector.score}</span>
-                                <div className={`text-[10px] font-bold flex items-center ${sector.change >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                    {sector.change > 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
-                                    {Math.abs(sector.change)}%
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+                                    {SECTORS.map((sector) => {
+                                        if (!sector || !sector.name) return null;
+                                        const color = sector.score >= 60 ? '#0A7B0A' : sector.score >= 40 ? '#768396' : '#D93B3B';
+                                        return (
+                                            <motion.button
+                                                key={sector.name}
+                                                whileHover={{ y: -2 }}
+                                                onClick={() => onSelectSector?.(sector.name)}
+                                                className="flex flex-col p-3 rounded-lg border border-gray-100 hover:border-blue-500/30 hover:shadow-md transition-all bg-gray-50 text-left group"
+                                            >
+                                                <span className="text-[10px] uppercase font-bold text-gray-400 mb-1">{sector.name}</span>
+
+                                                <div className="flex items-end justify-between mb-2">
+                                                    <span className="text-xl font-bold text-gray-900" style={{ color: color }}>{sector.score}</span>
+                                                    <div className={`text-[10px] font-bold flex items-center ${sector.change >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                                        {sector.change > 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+                                                        {Math.abs(sector.change)}%
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-auto opacity-70 group-hover:opacity-100 transition-opacity">
+                                                    <Sparkline data={sector.trend} color={color} />
+                                                </div>
+                                            </motion.button>
+                                        );
+                                    }).filter(Boolean)}
                                 </div>
                             </div>
-
-                            <div className="mt-auto opacity-70 group-hover:opacity-100 transition-opacity">
-                                <Sparkline data={sector.trend} color={color} />
-                            </div>
-                        </motion.button>
-                    );
-                })}
-            </div>
-        </div>
-    );
-}
+                        );
