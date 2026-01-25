@@ -169,13 +169,17 @@ function HotTokenCard({ token, isSelected, onSelect, index }: { token: HotToken,
                                         Dollar-Feasible
                                     </div>
                                     <div className="text-[7px] text-zinc-500">
-                                        Req. MCAP: ${(dollarFeasibility.requiredMcap / 1000).toFixed(1)}K
+                                        Req. MCAP: {dollarFeasibility.requiredMcap >= 1e6
+                                            ? `$${(dollarFeasibility.requiredMcap / 1e6).toFixed(2)}M`
+                                            : `$${(dollarFeasibility.requiredMcap / 1000).toFixed(0)}K`}
                                     </div>
                                 </div>
                             </div>
                             <div className="text-right">
                                 <div className="text-[10px] font-black text-emerald-400">
-                                    {dollarFeasibility.growthNeeded.toFixed(1)}×
+                                    {dollarFeasibility.growthNeeded >= 1000
+                                        ? `${(dollarFeasibility.growthNeeded / 1000).toFixed(1)}K×`
+                                        : `${dollarFeasibility.growthNeeded.toFixed(0)}×`}
                                 </div>
                                 <div className="text-[7px] text-zinc-600">to $1</div>
                             </div>

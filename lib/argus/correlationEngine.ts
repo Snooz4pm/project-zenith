@@ -248,9 +248,12 @@ export interface DollarFeasibilityResult {
     failureReasons: string[];
 }
 
+// Threshold for dollar-feasibility (tokens where $1 requires this market cap or less)
+export const DOLLAR_FEASIBLE_MCAP_THRESHOLD = 1_000_000; // $1M
+
 /**
  * Dollar-Feasible Token Filter
- * Identifies tokens where reaching $1 requires ≤ $50K market cap
+ * Identifies tokens where reaching $1 requires ≤ $1M market cap
  * AND passes safety/integrity checks
  */
 export function checkDollarFeasibility(
@@ -270,11 +273,11 @@ export function checkDollarFeasibility(
 
     const failureReasons: string[] = [];
 
-    // Core feasibility check: Required mcap ≤ $50K
-    const isMathematicallyFeasible = requiredMcap <= 50_000;
+    // Core feasibility check: Required mcap ≤ $1M
+    const isMathematicallyFeasible = requiredMcap <= DOLLAR_FEASIBLE_MCAP_THRESHOLD;
 
     if (!isMathematicallyFeasible) {
-        failureReasons.push(`Required MCAP ($${(requiredMcap / 1000).toFixed(0)}K) exceeds $50K threshold`);
+        failureReasons.push(`Required MCAP ($${(requiredMcap / 1e6).toFixed(1)}M) exceeds $1M threshold`);
     }
 
     // Safety constraints
@@ -324,7 +327,7 @@ export function isDollarFeasible(
     const requiredMcap = supply * 1;
 
     return (
-        requiredMcap <= 50_000 &&
+        requiredMcap <= DOLLAR_FEASIBLE_MCAP_THRESHOLD &&
         liquidity >= 3000 &&
         top1Pct <= 25 &&
         top10Pct <= 60
