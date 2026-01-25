@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = "force-dynamic";
+
 /**
  * Brain V2 Portfolio Simulation
  * 30-minute portfolio manager with multi-asset support

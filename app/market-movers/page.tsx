@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { TrendingUp, Activity, DollarSign, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";

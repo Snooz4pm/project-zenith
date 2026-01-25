@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = "force-dynamic";
+
 /**
  * Smart Swap Prototype - Testbed for Intent Routing
  * 

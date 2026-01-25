@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = "force-dynamic";
+
 /**
  * Smart Swap Page V2 - Three-Tier Universe + Brain
  *

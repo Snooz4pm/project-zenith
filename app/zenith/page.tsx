@@ -1,11 +1,8 @@
-import type { Metadata } from "next";
+"use client";
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { ArrowLeft, Zap, Shield, BarChart3, Wallet, ArrowRight, Target, Globe, Lock } from "lucide-react";
-
-export const metadata: Metadata = {
-    title: "About ZenithScores | Solana Trading Terminal",
-    description: "ZenithScores - Non-custodial Solana trading terminal powered by Jupiter. Real swaps, verified tokens, transparent execution.",
-};
 
 export default function ZenithPlatformPage() {
     return (

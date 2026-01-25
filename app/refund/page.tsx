@@ -1,11 +1,8 @@
-import type { Metadata } from "next";
+"use client";
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { ArrowLeft, RefreshCw, AlertTriangle, CreditCard, Clock, Mail } from "lucide-react";
-
-export const metadata: Metadata = {
-    title: "Refund Policy | Zenith Scores",
-    description: "ZenithScores Refund Policy - Subscription cancellation and refund terms",
-};
 
 export default function RefundPolicy() {
     return (

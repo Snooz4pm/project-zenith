@@ -1,11 +1,8 @@
-import type { Metadata } from "next";
+"use client";
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { ArrowLeft, FileText, AlertTriangle, Scale, Ban, CheckCircle } from "lucide-react";
-
-export const metadata: Metadata = {
-    title: "Terms of Service | ZenithScores",
-    description: "ZenithScores Terms of Service - Non-custodial trading interface, not financial advice",
-};
 
 export default function TermsOfService() {
     return (

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = "force-dynamic";
+
 import React, { useState, useEffect, useRef } from 'react';
 import { startSystemTest, stopSystemTest, getSystemTestStatus } from '@/app/actions/system-test-runner';
 

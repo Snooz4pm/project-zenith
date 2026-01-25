@@ -1,11 +1,8 @@
-import type { Metadata } from "next";
+"use client";
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { ArrowLeft, Lock, Eye, Database, Shield, Globe, Trash2 } from "lucide-react";
-
-export const metadata: Metadata = {
-    title: "Privacy Policy | ZenithScores",
-    description: "ZenithScores Privacy Policy - What data we collect, how we use it, and your rights",
-};
 
 export default function PrivacyPolicy() {
     return (

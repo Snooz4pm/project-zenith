@@ -1,11 +1,8 @@
-import type { Metadata } from "next";
+"use client";
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { ArrowLeft, Shield, Lock, Eye, CheckCircle, AlertTriangle, Server, Key } from "lucide-react";
-
-export const metadata: Metadata = {
-    title: "Security | ZenithScores",
-    description: "How ZenithScores protects you - non-custodial architecture, no fund access, transparent execution",
-};
 
 export default function SecurityPage() {
     return (

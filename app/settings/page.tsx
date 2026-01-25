@@ -1,3 +1,5 @@
+"use client";
+export const dynamic = "force-dynamic";
 import { EmptyState } from '@/components/ui/EmptyState';
 
 export default function SettingsPage() {
