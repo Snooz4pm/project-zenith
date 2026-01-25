@@ -1,6 +1,20 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
+
+// Step 1: Token sanitizer
+function sanitizeToken(t: any) {
+    if (!t || !t.address) return null;
+    return {
+        ...t,
+        symbol: t.symbol || 'UNKNOWN',
+        name: t.name || t.symbol || t.address.slice(0, 6),
+        logoURI: t.logoURI || '/token-placeholder.svg',
+        decimals: Number.isFinite(t.decimals) ? t.decimals : 9,
+        liquidityUsd: typeof t.liquidityUsd === 'number' ? t.liquidityUsd : null,
+        volume24h: typeof t.volume24h === 'number' ? t.volume24h : null,
+    };
+}
 import TokenRow from './TokenRow';
 import { ChevronDown, Search } from 'lucide-react';
 
@@ -44,13 +58,18 @@ export function TokenSelector({
     // Freeze displayTokens snapshot from tokens
     useEffect(() => {
         if (Array.isArray(tokens) && tokens.length > 0) {
+            // Sanitize all tokens first
+            const safeTokens = tokens.map(sanitizeToken).filter(Boolean);
+            // Debug: log a broken token if any
+            const broken = safeTokens.find(t => !t.symbol || !t.address);
+            if (broken) console.warn('Broken token sample:', broken);
             // Build FAST_SET: high liquidity, high volume
-            const fastTokens = tokens
+            const fastTokens = safeTokens
                 .filter(t => (t.liquidityUsd ?? 0) > 5000)
                 .sort((a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0))
                 .slice(0, FAST_LIMIT);
             setDisplayTokens(fastTokens);
-            setFullUniverse(tokens);
+            setFullUniverse(safeTokens);
         }
     }, [tokens]);
 
