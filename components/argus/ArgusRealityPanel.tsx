@@ -77,7 +77,7 @@ function formatCompact(val: number) {
     return `$${val.toFixed(2)}`;
 }
 
-export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, integrity, behavior, timing, primaryRisk }: ArgusRealityPanelProps) {
+export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, integrity, behavior, timing, primaryRisk, holders }: ArgusRealityPanelProps) {
     const [targetPrice, setTargetPrice] = useState(currentPrice * 10);
     const [isCustom, setIsCustom] = useState(false);
 
