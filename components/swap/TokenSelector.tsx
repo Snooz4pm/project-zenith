@@ -49,7 +49,7 @@ export function TokenSelector({
     label = 'Select Token',
     showBalance = false,
 }: TokenSelectorProps) {
-    const [isOpen, setIsOpen] = useState(false);
+    const [isOpen, setIsOpen] = useState(true);
     const [search, setSearch] = useState('');
     const [displayTokens, setDisplayTokens] = useState<SelectableToken[]>([]);
     const FAST_LIMIT = 1000;
