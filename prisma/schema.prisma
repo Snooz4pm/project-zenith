@@ -343,6 +343,23 @@ model TrackedWallet {
   @@index([userWallet])
 }
 
+// User Address Book (Personal Contacts)
+model AddressBookEntry {
+  id            String  @id @default(cuid())
+  userWallet    String  // The owner (wallet address)
+  address       String  // The contact's wallet address
+  label         String  // "Main Dev", "Raydium Pool", etc.
+  category      String? // "Whale", "Exchange", "Deployer", "Custom"
+  tags          String[] // ["Safe", "Rugger", "Alpha"]
+  notes         String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userWallet, address])
+  @@index([userWallet])
+}
+
 // Alerts History
 model Alert {
   id            String @id @default(cuid())

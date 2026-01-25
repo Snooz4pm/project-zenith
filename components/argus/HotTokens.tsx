@@ -117,13 +117,17 @@ function HotTokenCard({ token, isSelected, onSelect, index }: { token: HotToken,
 
                 {/* Layer 2: Primary Risk Highlight */}
                 {token.primaryRisk && (
-                    <div className={`p-2 rounded border border-zinc-500/10 ${token.primaryRisk.score === 3 ? 'bg-red-500/5' : 'bg-amber-500/5'
+                    <div className={`p-2 rounded border transition-colors ${token.primaryRisk.score === 3 ? 'bg-red-950/40 border-red-500/20' :
+                            token.primaryRisk.score === 2 ? 'bg-amber-950/40 border-amber-500/20' :
+                                'bg-zinc-900/40 border-zinc-800'
                         }`}>
-                        <div className="flex items-center gap-1.5 mb-1">
-                            <Target size={10} className={token.primaryRisk.score === 3 ? 'text-red-400' : 'text-amber-400'} />
-                            <span className="text-[7px] text-zinc-500 font-black uppercase tracking-widest">Primary Danger</span>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                            <span className="text-[10px]">{token.primaryRisk.score === 3 ? '🔴' : token.primaryRisk.score === 2 ? '🟡' : '🟢'}</span>
+                            <span className="text-[7px] text-zinc-500 font-black uppercase tracking-widest">Primary Risk</span>
                         </div>
-                        <div className={`text-[10px] font-black italic ${token.primaryRisk.score === 3 ? 'text-red-400' : 'text-amber-400'
+                        <div className={`text-[10px] font-black italic ${token.primaryRisk.score === 3 ? 'text-red-400' :
+                                token.primaryRisk.score === 2 ? 'text-amber-400' :
+                                    'text-zinc-300'
                             }`}>
                             {token.primaryRisk.label}
                         </div>

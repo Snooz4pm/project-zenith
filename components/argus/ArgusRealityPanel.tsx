@@ -153,33 +153,36 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                 </div>
             </div>
 
-            {/* NEW: Primary Risk Highlight (Instructional Feature) */}
+            {/* NEW: Primary Risk Highlight (Cognitive Anchor) */}
             {primaryRisk && (
-                <div className={`px-8 py-6 border-b border-zinc-900 transition-colors ${primaryRisk.score === 3 ? 'bg-red-500/10 border-red-500/20' :
-                        primaryRisk.score === 2 ? 'bg-amber-500/10 border-amber-500/20' :
-                            'bg-zinc-900/10 border-zinc-800'
+                <div className={`px-8 py-6 border-b border-zinc-900 transition-colors ${primaryRisk.score === 3 ? 'bg-red-950/20 border-red-500/30' :
+                        primaryRisk.score === 2 ? 'bg-amber-950/20 border-amber-500/30' :
+                            'bg-zinc-900/40 border-zinc-800'
                     }`}>
-                    <div className="flex items-center gap-2 mb-3">
-                        <Target size={14} className={primaryRisk.score === 3 ? 'text-red-400' : 'text-zinc-500'} />
+                    <div className="flex items-center gap-2 mb-4">
                         <div className="text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-black">
-                            Primary Risk Signal
+                            🎯 Primary Risk
                         </div>
                     </div>
 
-                    <div className={`text-xl font-black italic mb-3 ${primaryRisk.score === 3 ? 'text-red-400' :
+                    <div className={`text-2xl font-black italic mb-4 flex items-center gap-3 ${primaryRisk.score === 3 ? 'text-red-400' :
                             primaryRisk.score === 2 ? 'text-amber-400' :
                                 'text-zinc-300'
                         }`}>
+                        <span>{primaryRisk.score === 3 ? '🔴' : primaryRisk.score === 2 ? '🟡' : '🟢'}</span>
                         {primaryRisk.label}
                     </div>
 
-                    <div className="space-y-1.5 pl-2 border-l border-zinc-800">
-                        {primaryRisk.explanation.map((line, idx) => (
-                            <div key={idx} className="flex items-start gap-2 text-[10px] text-zinc-400 font-mono italic leading-tight">
-                                <span className="text-zinc-700 mt-0.5">•</span>
-                                <span>{line}</span>
-                            </div>
-                        ))}
+                    <div className="space-y-3">
+                        <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Why this matters:</div>
+                        <ul className="space-y-1.5 list-none">
+                            {primaryRisk.explanation.map((line, idx) => (
+                                <li key={idx} className="text-[11px] text-zinc-400 font-mono italic leading-relaxed flex items-start gap-2">
+                                    <span className="text-zinc-700 mt-1.5">•</span>
+                                    <span>{line}</span>
+                                </li>
+                            ))}
+                        </ul>
                     </div>
                 </div>
             )}
