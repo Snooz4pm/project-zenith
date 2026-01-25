@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from 'react';
 import SwapPanel from '@/components/swap/SwapPanel';
-import { SimpleTokenGrid } from '@/components/swap/SimpleTokenGrid';
+import SwapTokenGrid from '@/components/swap/SwapTokenGrid';
 import { buildZenithTokenList, ZenithToken } from '@/lib/zenith';
 import { useSwapStore } from '@/lib/store/useSwapStore';
 
@@ -56,9 +56,9 @@ export default function SwapPage() {
             </div>
           </div>
 
-          {/* RIGHT: Token Grid (3 cols × 8 rows) */}
+          {/* RIGHT: Token Grid (cards) */}
           <div className="flex-1 min-w-0 w-full">
-            <SimpleTokenGrid tokens={tokens} onSelect={handleSelect} />
+            <SwapTokenGrid />
           </div>
         </div>
       </div>
