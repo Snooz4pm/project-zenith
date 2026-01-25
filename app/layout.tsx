@@ -3,21 +3,21 @@ import type { Metadata } from "next";
 import { JetBrains_Mono, Syne, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import React, { Suspense } from "react";
-import dynamic from "next/dynamic";
+import dynamicImport from "next/dynamic";
 import { Analytics } from "@vercel/analytics/next";
 
 // Modern navigation component - NEW simplified Navbar
-// const Navbar = dynamic(
+// const Navbar = dynamicImport(
 //   () => import("@/components/Navbar"),
 //   { ssr: false }
 // );
 
-// const MobileTopNav = dynamic(
+// const MobileTopNav = dynamicImport(
 //   () => import("@/components/navigation/MobileTopNav"),
 //   { ssr: false }
 // );
 
-// const MobileBottomNav = dynamic(
+// const MobileBottomNav = dynamicImport(
 //   () => import("@/components/navigation/MobileBottomNavNew"),
 //   { ssr: false }
 // );
