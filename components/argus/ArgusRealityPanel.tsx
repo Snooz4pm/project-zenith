@@ -98,9 +98,9 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
 
         const fetchScan = async () => {
             try {
-                // Trying local proxy if available, or we could make this configurable
-                // For now, assuming standard local dev port 3001
-                const res = await fetch(`http://localhost:3001/api/scan/wallet/${behavior.deployerAddress}`);
+                // Using production Railway proxy as requested
+                // Note: The backend changes must be deployed for this to work
+                const res = await fetch(`https://jupiter-proxy-production.up.railway.app/api/scan/wallet/${behavior.deployerAddress}`);
                 if (res.ok) {
                     const data = await res.json();
                     setScanStats(data);
