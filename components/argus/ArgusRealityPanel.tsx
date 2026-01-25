@@ -12,6 +12,8 @@ export interface ArgusRealityPanelProps {
     currentPrice: number;
     circulatingSupply: number;
     symbol: string;
+    liquidity?: number;
+    volume24h?: number;
     integrity?: {
         contractRisk: 'LOW' | 'MEDIUM' | 'HIGH';
         holderRisk: 'LOW' | 'MEDIUM' | 'HIGH';
@@ -77,7 +79,7 @@ function formatCompact(val: number) {
     return `$${val.toFixed(2)}`;
 }
 
-export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, integrity, behavior, timing, primaryRisk, holders }: ArgusRealityPanelProps) {
+export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, integrity, behavior, timing, primaryRisk, holders, liquidity, volume24h }: ArgusRealityPanelProps) {
     const [targetPrice, setTargetPrice] = useState(currentPrice * 10);
     const [isCustom, setIsCustom] = useState(false);
 
@@ -339,49 +341,74 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
             )}
 
             {timing && (
-                <div className="px-8 py-6 border-b border-zinc-900 bg-emerald-500/5">
-                    <div className="flex items-center justify-between mb-4">
+                <div className="px-8 py-6 border-b border-zinc-900 bg-zinc-950/50">
+                    <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-2">
                             <div className="w-5 h-5 rounded-md bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-                                <Activity size={12} className="text-emerald-400" />
+                                <Activity size={12} className={volume24h && volume24h < 500 ? 'text-zinc-600' : 'text-emerald-400'} />
                             </div>
                             <div className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black">
-                                Timing & Velocity Intelligence
+                                Market Pulse
                             </div>
                         </div>
-                        <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${timing.velocity === 'ACCELERATING' ? 'bg-emerald-500 text-black' :
-                            timing.velocity === 'EXHAUSTED' ? 'bg-red-500 text-black' :
-                                'bg-zinc-800 text-zinc-400'
-                            }`}>
-                            {timing.velocity} VELOCITY
-                        </div>
+
+                        {(volume24h || 0) < 500 && (
+                            <div className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-zinc-800 text-zinc-500 border border-zinc-700">
+                                ⚠️ DORMANT MARKET
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                            <div className="text-[8px] text-zinc-600 font-bold uppercase mb-2">Momentum Signals</div>
-                            <div className="space-y-1.5 font-mono italic">
-                                {timing.signals.map((sig, idx) => (
-                                    <div key={idx} className="text-[10px] text-zinc-300">
-                                        • {sig}
+                        {/* Left Col: Pulse Stats */}
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">24h Volume</div>
+                                    <div className={`text-xl font-black italic ${volume24h && volume24h > 100000 ? 'text-emerald-400' : 'text-white'}`}>
+                                        {formatCompact(volume24h || 0)}
                                     </div>
-                                ))}
+                                </div>
+                                <div>
+                                    <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Liquidity</div>
+                                    <div className="text-xl font-black italic text-zinc-300">
+                                        {formatCompact(liquidity || 0)}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Ratios & Velocity */}
+                            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-zinc-900/50">
+                                <div>
+                                    <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Vol / Liq Ratio</div>
+                                    <div className="text-sm font-mono text-zinc-400">
+                                        {liquidity && liquidity > 0 ? ((volume24h || 0) / liquidity).toFixed(2) : '0.00'}x
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Velocity</div>
+                                    <div className={`text-sm font-black italic ${(timing.volumeChange24h || 0) > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {(timing.volumeChange24h || 0) > 0 ? '🚀' : '🧊'} {(timing.volumeChange24h || 0) > 0 ? '+' : ''}{(timing.volumeChange24h || 0).toFixed(0)}%
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="border-l border-zinc-900 pl-8">
-                            <div className="text-[8px] text-zinc-600 font-bold uppercase mb-2">Market Pulse</div>
-                            <div className="flex items-center gap-6">
-                                <div>
-                                    <div className="text-[8px] text-zinc-500 mb-0.5">24h Vol</div>
-                                    <div className="text-xs font-black text-white italic">${formatCompact((timing.volumeChange24h || 0))}</div>
-                                </div>
-                                <div>
-                                    <div className="text-[8px] text-zinc-500 mb-0.5">24h Price</div>
-                                    <div className={`text-xs font-black italic ${timing.priceChange24h && timing.priceChange24h > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                        {timing.priceChange24h?.toFixed(1)}%
-                                    </div>
-                                </div>
+                        {/* Right Col: Classification */}
+                        <div className="border-l border-zinc-900 pl-8 flex flex-col justify-center">
+                            <div className="text-[8px] text-zinc-600 font-bold uppercase mb-2">Pulse Classification</div>
+                            <div className={`text-2xl font-black italic tracking-tighter mb-2 ${timing.velocity === 'ACCELERATING' ? 'text-emerald-400' :
+                                    timing.velocity === 'STEADY' ? 'text-emerald-500' :
+                                        timing.velocity === 'EXHAUSTED' ? 'text-red-400' :
+                                            'text-zinc-500'
+                                }`}>
+                                {timing.velocity}
+                            </div>
+                            <div className="text-[10px] text-zinc-500 font-mono leading-relaxed italic">
+                                {timing.velocity === 'ACCELERATING' ? 'High volume inflow fetching higher prices. Momentum is building.' :
+                                    timing.velocity === 'STEADY' ? 'Healthy volume supporting current price levels.' :
+                                        timing.velocity === 'EXHAUSTED' ? 'Volume spikes failing to push price higher. Caution advised.' :
+                                            'Low activity. Market is waiting for a catalyst.'}
                             </div>
                         </div>
                     </div>

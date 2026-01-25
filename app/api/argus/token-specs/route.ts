@@ -56,14 +56,18 @@ export async function GET(req: NextRequest) {
         // 2. Fetch Price & 24h Stats from DexScreener
         let price = 0;
         let volume24h = 0;
+        let volume5m = 0;
         let priceChange24h = 0;
+        let liquidityUSD = 0;
 
         if (dexRes.ok) {
             const dexData = await dexRes.json();
             const pair = (dexData.pairs || []).sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
             price = parseFloat(pair?.priceUsd || '0');
             volume24h = parseFloat(pair?.volume?.h24 || '0');
+            volume5m = parseFloat(pair?.volume?.m5 || '0');
             priceChange24h = parseFloat(pair?.priceChange?.h24 || '0');
+            liquidityUSD = parseFloat(pair?.liquidity?.usd || '0');
         }
 
         // 3. PHASE 4 v2: Fetch Holder Concentration (Simplified uiAmount approach)
@@ -118,9 +122,13 @@ export async function GET(req: NextRequest) {
         }
 
         // 6. PHASE 4 v4: Timing Engine (Momentum & Velocity)
+        // Heuristic: Compare current 5m rate (projected) to 24h avg
+        const projected24h = volume5m * 288;
+        const impliedVolChange = volume24h > 0 ? ((projected24h - volume24h) / volume24h) * 100 : 0;
+
         const timing = analyzeTiming(
             { current: price, change24h: priceChange24h },
-            { current: volume24h, change24h: 0 }
+            { current: volume24h, change24h: impliedVolChange }
         );
 
         // 7. Reality Engine Baseline
@@ -136,6 +144,9 @@ export async function GET(req: NextRequest) {
             decimals,
             supply: onChainSupply,
             price,
+            volume24h,
+            volume5m,
+            liquidity: liquidityUSD,
             logoURI: asset.content?.links?.image || asset.content?.files?.[0]?.uri || '',
             integrity,
             behavior,

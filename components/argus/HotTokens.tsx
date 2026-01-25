@@ -11,6 +11,8 @@ export interface HotToken {
     price: number;
     supply: number;
     mcap: number;
+    liquidity?: number;
+    volume24h?: number;
     volume5m?: number;
     riskScore: number;
     feasibility: 'POSSIBLE' | 'UNLIKELY' | 'UNREALISTIC';
@@ -250,7 +252,7 @@ function HotTokenCard({ token, isSelected, onSelect, index }: { token: HotToken,
     );
 }
 
-export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotToken) => void, selectedMint?: string }) {
+export function HotTokens({ onSelect, selectedMint, hydratedToken }: { onSelect: (token: HotToken) => void, selectedMint?: string, hydratedToken?: HotToken | null }) {
     const [tokens, setTokens] = useState<HotToken[]>([]);
     const [filter, setFilter] = useState<'ALL' | 'SAFE' | 'HOT'>('ALL');
     const [loading, setLoading] = useState(true);
@@ -276,7 +278,11 @@ export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotTok
                 setTokens(list);
                 setError(null);
 
-                if (list.length > 0 && !selectedMint) onSelect(list[0]);
+                // Initial selection if needed
+                if (list.length > 0 && !selectedMint && !hydratedToken) {
+                    // We don't auto-select here to avoid loops or overrides if parent controls selection
+                    // onSelect(list[0]); 
+                }
             } catch (e: any) {
                 console.error('[ARGUS_RADAR] Fetch Error:', e.message);
                 setError(e.message);
@@ -288,7 +294,7 @@ export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotTok
         fetchHot();
         interval = setInterval(fetchHot, 30000);
         return () => clearInterval(interval);
-    }, [onSelect, selectedMint]);
+    }, [onSelect, selectedMint]); // Removed hydratedToken from deps to prevent re-fetching
 
     const filteredTokens = tokens.filter(t => {
         if (filter === 'SAFE') return t.feasibility === 'POSSIBLE';
@@ -325,15 +331,30 @@ export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotTok
             </div>
 
             <div className="flex-1 overflow-y-auto pr-1 scrollbar-hide py-3 space-y-4">
-                {filteredTokens.map((token, i) => (
-                    <HotTokenCard
-                        key={token.mint}
-                        token={token}
-                        index={i}
-                        isSelected={selectedMint === token.mint}
-                        onSelect={onSelect}
-                    />
-                ))}
+                {filteredTokens.map((t, i) => {
+                    // Hydrate token data if it matches the active selection
+                    let displayToken = t;
+                    if (hydratedToken && hydratedToken.mint === t.mint) {
+                        displayToken = {
+                            ...t,
+                            integrity: hydratedToken.integrity, // Sync integrity (Holders %)
+                            primaryRisk: hydratedToken.primaryRisk,
+                            behavior: hydratedToken.behavior,
+                            timing: hydratedToken.timing,
+                            // Preserve feed-specifics if needed, or overwrite if search is better
+                        };
+                    }
+
+                    return (
+                        <HotTokenCard
+                            key={displayToken.mint}
+                            token={displayToken}
+                            index={i}
+                            isSelected={selectedMint === displayToken.mint}
+                            onSelect={onSelect}
+                        />
+                    );
+                })}
             </div>
         </div>
     );

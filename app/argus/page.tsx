@@ -40,6 +40,9 @@ export default function ArgusPage() {
                 price: data.price,
                 supply: data.supply,
                 mcap: data.price * data.supply,
+                liquidity: data.liquidity || 0,
+                volume24h: data.volume24h || 0,
+                volume5m: data.volume5m || 0,
                 feasibility: baselineData.metrics.feasibility,
                 integrity: data.integrity,
                 behavior: data.behavior,
@@ -102,6 +105,7 @@ export default function ArgusPage() {
                 <div className="w-full md:w-[380px] flex flex-col overflow-hidden border-r border-zinc-900/50 pr-2">
                     <HotTokens
                         selectedMint={selectedToken?.mint}
+                        hydratedToken={selectedToken}
                         onSelect={(token) => {
                             handleSearch(token.mint);
                         }}
@@ -198,6 +202,8 @@ export default function ArgusPage() {
                                     timing={selectedToken.timing}
                                     primaryRisk={selectedToken.primaryRisk}
                                     holders={selectedToken.holders}
+                                    liquidity={selectedToken.liquidity}
+                                    volume24h={selectedToken.volume24h}
                                 />
 
                             </motion.div>
