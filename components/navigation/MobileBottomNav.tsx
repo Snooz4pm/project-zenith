@@ -12,6 +12,7 @@ export default function MobileBottomNav() {
     const [lastScrollY, setLastScrollY] = useState(0);
 
     useEffect(() => {
+        if (typeof window === 'undefined') return;
         const handleScroll = () => {
             const currentScrollY = window.scrollY;
 
