@@ -94,12 +94,15 @@ export function TokenSelector({
     const searchQuery = search.trim().toLowerCase();
     // Layer 2: Filter broken tokens before UI
     const cleanTokens = useMemo(() => {
-        return (searchQuery ? fullUniverse : displayTokens)
+        const base = searchQuery ? fullUniverse : displayTokens;
+        if (!Array.isArray(base)) return [];
+        return base
             .filter(t => t && t.address && typeof t.address === 'string' && t.symbol && t.decimals !== undefined)
             .slice(0, MAX_RENDER);
     }, [searchQuery, displayTokens, fullUniverse]);
 
     const filteredTokens = useMemo(() => {
+        if (!Array.isArray(cleanTokens)) return [];
         if (!searchQuery) {
             return cleanTokens;
         }

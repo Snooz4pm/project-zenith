@@ -113,7 +113,7 @@ export function SimpleTokenGrid({
     // Memoized filtering - only runs when debounced search or tokens change
     const filteredTokens = useMemo(() => {
         if (!Array.isArray(tokens)) return [];
-        if (!debouncedSearch.trim()) return tokens;
+        if (!debouncedSearch.trim()) return Array.isArray(tokens) ? tokens : [];
 
         const query = debouncedSearch.toLowerCase().trim();
 
@@ -160,7 +160,7 @@ export function SimpleTokenGrid({
 
     // Item data for virtualized grid
     const itemData = useMemo(() => ({
-        tokens: filteredTokens,
+        tokens: Array.isArray(filteredTokens) ? filteredTokens : [],
         columnCount: COLUMN_COUNT,
         onSelect: handleSelect,
     }), [filteredTokens, handleSelect]);

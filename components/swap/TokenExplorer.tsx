@@ -141,11 +141,12 @@ export default function TokenExplorer() {
     }
     const safeTokens = useMemo(() => {
         if (!Array.isArray(tokens)) return [];
-        return tokens.map(sanitizeToken).filter(Boolean).sort((a, b) => {
+        const arr = tokens.map(sanitizeToken).filter(Boolean).sort((a, b) => {
             if (b.balance > 0 && a.balance === 0) return 1;
             if (a.balance > 0 && b.balance === 0) return -1;
             return 0;
         });
+        return Array.isArray(arr) ? arr : [];
     }, [tokens, balances]);
 
     // 4. Virtualizer Setup uses safeTokens
