@@ -28,7 +28,7 @@ export default function SwapTokenGrid() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <h2 className="text-xl font-bold text-white mb-4">Select a Token</h2>
-      <SimpleTokenGrid tokens={tokens} onSelect={() => {}} />
+      <SimpleTokenGrid tokens={tokens} onSelect={(t) => {}} />
     </div>
   );
 }
