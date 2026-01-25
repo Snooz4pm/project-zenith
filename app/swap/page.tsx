@@ -2,12 +2,8 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from 'react';
-import SwapPanel from '@/components/swap/SwapPanel';
-import SwapTokenGrid from '@/components/swap/SwapTokenGrid';
-import { buildZenithTokenList, ZenithToken } from '@/lib/zenith';
-import { useSwapStore } from '@/lib/store/useSwapStore';
 
+export default function SwapPage() {
   const [selectedToken, setSelectedToken] = useState<any | null>(null);
 
   return (
