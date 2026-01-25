@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import TokenRow from './TokenRow';
 import { ChevronDown, Search } from 'lucide-react';
 
 export type SelectableToken = {
@@ -30,7 +31,16 @@ export function TokenSelector({
 }: TokenSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState('');
+    const [displayTokens, setDisplayTokens] = useState<SelectableToken[]>([]);
+    const SAFE_LIMIT = 300_000;
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Freeze displayTokens snapshot from tokens
+    useEffect(() => {
+        if (Array.isArray(tokens) && tokens.length > 0) {
+            setDisplayTokens(tokens);
+        }
+    }, [tokens]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -46,8 +56,12 @@ export function TokenSelector({
         }
     }, [isOpen]);
 
-    const filteredTokens = Array.isArray(tokens)
-        ? tokens.filter(
+    const safeTokens = displayTokens.length > SAFE_LIMIT
+        ? displayTokens.slice(0, SAFE_LIMIT)
+        : displayTokens;
+
+    const filteredTokens = Array.isArray(safeTokens)
+        ? safeTokens.filter(
             (t) =>
                 t &&
                 t.symbol?.toLowerCase().includes(search.toLowerCase()) ||
@@ -116,49 +130,23 @@ export function TokenSelector({
 
                     {/* Token List */}
                     <div className="overflow-y-auto max-h-[320px] scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
-                        {tokens === undefined || tokens === null ? (
-                            <div className="p-8 text-center text-zinc-500 text-sm">
-                                Loading tokens...
+                        {!displayTokens.length ? (
+                            <div className="p-8 text-center text-zinc-500 text-sm opacity-50">
+                                Loading token universe...
                             </div>
                         ) : filteredTokens.length === 0 ? (
                             <div className="p-8 text-center text-zinc-500 text-sm">
                                 No tokens found
                             </div>
                         ) : (
-                            filteredTokens.map((token, idx) => {
-                                if (!token) {
-                                    return <div key={idx} style={{ minHeight: 48 }} />;
-                                }
-                                return (
-                                    <button
-                                        key={token.address}
-                                        onClick={() => handleSelect(token)}
-                                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <img
-                                                src={token.logoURI || 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'}
-                                                className="w-8 h-8 rounded-full bg-zinc-800"
-                                                alt={token.symbol}
-                                                onError={(e) => {
-                                                    (e.currentTarget as HTMLImageElement).src = 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png';
-                                                }}
-                                            />
-                                            <div className="text-left">
-                                                <div className="text-white font-medium text-sm">{token.symbol}</div>
-                                                <div className="text-xs text-zinc-500 truncate max-w-[200px]">{token.name}</div>
-                                            </div>
-                                        </div>
-                                        {showBalance && token.uiBalance !== undefined && (
-                                            <div className="text-right">
-                                                <div className="text-white font-mono text-sm">
-                                                    {token.uiBalance.toLocaleString(undefined, { maximumFractionDigits: 4 })}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </button>
-                                );
-                            })
+                            filteredTokens.map((token, idx) => (
+                                <TokenRow
+                                    key={token?.address || idx}
+                                    token={token}
+                                    onSelect={handleSelect}
+                                    showBalance={showBalance}
+                                />
+                            ))
                         )}
                     </div>
                 </div>
