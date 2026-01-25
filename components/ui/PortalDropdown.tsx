@@ -60,7 +60,7 @@ export function PortalDropdown({
         };
     }, [isOpen, anchorRef, align, offsetY]);
 
-    if (!mounted || !isOpen) return null;
+    if (!mounted || !isOpen || typeof window === 'undefined' || typeof document === 'undefined') return null;
 
     const transformOrigin = align === 'right' ? 'top right' : align === 'center' ? 'top center' : 'top left';
     const translateX = align === 'right' ? '-100%' : align === 'center' ? '-50%' : '0';
