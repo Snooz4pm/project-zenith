@@ -4,7 +4,7 @@ const nextConfig = {
     return [
       {
         source: '/api/tokens/featured',
-        destination: 'https://jupiter-proxy-production.up.railway.app/api/tokens',
+        destination: 'https://jupiter-proxy-production.up.railway.app/api/tokens/featured',
       },
     ];
   },
