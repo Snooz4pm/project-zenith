@@ -1,3 +1,5 @@
+import { calculateDistributionQuality, DistributionQuality } from './distributionScorer';
+
 export type IntegrityReport = {
     contractRisk: "LOW" | "MEDIUM" | "HIGH";
     holderRisk: "LOW" | "MEDIUM" | "HIGH";
@@ -5,6 +7,7 @@ export type IntegrityReport = {
     top1Pct: number;
     top10Pct: number;
     score: number;
+    distributionQuality?: DistributionQuality;
 };
 
 export function analyzeTokenIntegrity(
@@ -72,12 +75,21 @@ export function analyzeTokenIntegrity(
 
     const score = Math.max(0, 100 - (riskScore * 10));
 
+    // Phase 5.4: Calculate Distribution Quality Score
+    const distributionQuality = calculateDistributionQuality(
+        finalTop1Pct,
+        finalTop10Pct,
+        0, // LP risk score (will be integrated in Phase 5.1 full implementation)
+        0  // Concentration delta (will be integrated in Phase 5.2)
+    );
+
     return {
         contractRisk,
         holderRisk,
         flags,
         top1Pct: finalTop1Pct,
         top10Pct: finalTop10Pct,
-        score
+        score,
+        distributionQuality
     };
 }

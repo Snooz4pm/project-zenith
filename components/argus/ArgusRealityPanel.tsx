@@ -156,8 +156,8 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
             {/* NEW: Primary Risk Highlight (Cognitive Anchor) */}
             {primaryRisk && (
                 <div className={`px-8 py-6 border-b border-zinc-900 transition-colors ${primaryRisk.score === 3 ? 'bg-red-950/20 border-red-500/30' :
-                        primaryRisk.score === 2 ? 'bg-amber-950/20 border-amber-500/30' :
-                            'bg-zinc-900/40 border-zinc-800'
+                    primaryRisk.score === 2 ? 'bg-amber-950/20 border-amber-500/30' :
+                        'bg-zinc-900/40 border-zinc-800'
                     }`}>
                     <div className="flex items-center gap-2 mb-4">
                         <div className="text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-black">
@@ -166,8 +166,8 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                     </div>
 
                     <div className={`text-2xl font-black italic mb-4 flex items-center gap-3 ${primaryRisk.score === 3 ? 'text-red-400' :
-                            primaryRisk.score === 2 ? 'text-amber-400' :
-                                'text-zinc-300'
+                        primaryRisk.score === 2 ? 'text-amber-400' :
+                            'text-zinc-300'
                         }`}>
                         <span>{primaryRisk.score === 3 ? '🔴' : primaryRisk.score === 2 ? '🟡' : '🟢'}</span>
                         {primaryRisk.label}
@@ -195,6 +195,14 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                             On-Chain Integrity & Distribution Audit
                         </div>
                         <div className="flex items-center gap-2">
+                            {integrity.distributionQuality && (
+                                <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${integrity.distributionQuality.grade === 'HEALTHY' ? 'bg-emerald-500 text-black' :
+                                        integrity.distributionQuality.grade === 'MODERATE_RISK' ? 'bg-amber-500 text-black' :
+                                            'bg-red-500 text-black'
+                                    }`}>
+                                    DIST: {integrity.distributionQuality.score}/100
+                                </div>
+                            )}
                             <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${integrity.contractRisk === 'HIGH' ? 'bg-red-500 text-black' :
                                 integrity.contractRisk === 'MEDIUM' ? 'bg-amber-500 text-black' :
                                     'bg-emerald-500 text-black'

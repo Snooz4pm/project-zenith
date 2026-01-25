@@ -22,6 +22,10 @@ export interface HotToken {
         score: number;
         top1Pct?: number;
         top10Pct?: number;
+        distributionQuality?: {
+            score: number;
+            grade: 'HEALTHY' | 'MODERATE_RISK' | 'HIGHLY_CENTRALIZED';
+        };
     };
     behavior?: {
         deployerAddress: string;
@@ -118,16 +122,16 @@ function HotTokenCard({ token, isSelected, onSelect, index }: { token: HotToken,
                 {/* Layer 2: Primary Risk Highlight */}
                 {token.primaryRisk && (
                     <div className={`p-2 rounded border transition-colors ${token.primaryRisk.score === 3 ? 'bg-red-950/40 border-red-500/20' :
-                            token.primaryRisk.score === 2 ? 'bg-amber-950/40 border-amber-500/20' :
-                                'bg-zinc-900/40 border-zinc-800'
+                        token.primaryRisk.score === 2 ? 'bg-amber-950/40 border-amber-500/20' :
+                            'bg-zinc-900/40 border-zinc-800'
                         }`}>
                         <div className="flex items-center gap-1.5 mb-1.5">
                             <span className="text-[10px]">{token.primaryRisk.score === 3 ? '🔴' : token.primaryRisk.score === 2 ? '🟡' : '🟢'}</span>
                             <span className="text-[7px] text-zinc-500 font-black uppercase tracking-widest">Primary Risk</span>
                         </div>
                         <div className={`text-[10px] font-black italic ${token.primaryRisk.score === 3 ? 'text-red-400' :
-                                token.primaryRisk.score === 2 ? 'text-amber-400' :
-                                    'text-zinc-300'
+                            token.primaryRisk.score === 2 ? 'text-amber-400' :
+                                'text-zinc-300'
                             }`}>
                             {token.primaryRisk.label}
                         </div>
@@ -172,20 +176,47 @@ function HotTokenCard({ token, isSelected, onSelect, index }: { token: HotToken,
                     </div>
                 </div>
 
-                {/* Layer 5: Safety Index */}
-                <div className="pt-3 border-t border-zinc-900/50">
-                    <div className="flex items-center justify-between mb-1.5">
-                        <div className="text-[7px] text-zinc-600 font-black uppercase tracking-widest italic">Safety Index</div>
-                        <div className={`text-[9px] font-black italic ${token.riskScore > 70 ? 'text-emerald-400' : token.riskScore > 40 ? 'text-amber-400' : 'text-red-400'}`}>
-                            {token.riskScore.toFixed(0)}/100
+                {/* Layer 5: Safety Index + Distribution Quality */}
+                <div className="pt-3 border-t border-zinc-900/50 space-y-2">
+                    {/* Distribution Quality Score */}
+                    {token.integrity?.distributionQuality && (
+                        <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <div className="text-[7px] text-zinc-600 font-black uppercase tracking-widest italic">Distribution Health</div>
+                                <div className={`text-[9px] font-black italic ${token.integrity.distributionQuality.grade === 'HEALTHY' ? 'text-emerald-400' :
+                                        token.integrity.distributionQuality.grade === 'MODERATE_RISK' ? 'text-amber-400' :
+                                            'text-red-400'
+                                    }`}>
+                                    {token.integrity.distributionQuality.score}/100
+                                </div>
+                            </div>
+                            <div className="h-0.5 w-full bg-zinc-900 rounded-full overflow-hidden">
+                                <div
+                                    className={`h-full transition-all duration-1000 ${token.integrity.distributionQuality.grade === 'HEALTHY' ? 'bg-emerald-500' :
+                                            token.integrity.distributionQuality.grade === 'MODERATE_RISK' ? 'bg-amber-500' :
+                                                'bg-red-500'
+                                        }`}
+                                    style={{ width: `${token.integrity.distributionQuality.score}%` }}
+                                />
+                            </div>
                         </div>
-                    </div>
-                    <div className="h-1 w-full bg-zinc-900 rounded-full overflow-hidden">
-                        <div
-                            className={`h-full transition-all duration-1000 ${token.riskScore > 70 ? 'bg-emerald-500' : token.riskScore > 40 ? 'bg-amber-500' : 'bg-red-500'
-                                }`}
-                            style={{ width: `${token.riskScore}%` }}
-                        />
+                    )}
+
+                    {/* Safety Index */}
+                    <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <div className="text-[7px] text-zinc-600 font-black uppercase tracking-widest italic">Safety Index</div>
+                            <div className={`text-[9px] font-black italic ${token.riskScore > 70 ? 'text-emerald-400' : token.riskScore > 40 ? 'text-amber-400' : 'text-red-400'}`}>
+                                {token.riskScore.toFixed(0)}/100
+                            </div>
+                        </div>
+                        <div className="h-1 w-full bg-zinc-900 rounded-full overflow-hidden">
+                            <div
+                                className={`h-full transition-all duration-1000 ${token.riskScore > 70 ? 'bg-emerald-500' : token.riskScore > 40 ? 'bg-amber-500' : 'bg-red-500'
+                                    }`}
+                                style={{ width: `${token.riskScore}%` }}
+                            />
+                        </div>
                     </div>
                 </div>
 
