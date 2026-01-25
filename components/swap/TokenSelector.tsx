@@ -3,16 +3,19 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 
 // Step 1: Token sanitizer
-function sanitizeToken(t: any) {
+function normalizeToken(t: any) {
     if (!t || !t.address) return null;
     return {
-        ...t,
-        symbol: t.symbol || 'UNKNOWN',
-        name: t.name || t.symbol || t.address.slice(0, 6),
-        logoURI: t.logoURI || '/token-placeholder.svg',
+        address: t.address,
+        symbol: typeof t.symbol === "string" && t.symbol.length > 0 ? t.symbol : "UNKNOWN",
+        name: typeof t.name === "string" && t.name.length > 0 ? t.name : "Unnamed Token",
+        logoURI: typeof t.logoURI === "string" ? t.logoURI : "/token-placeholder.svg",
         decimals: Number.isFinite(t.decimals) ? t.decimals : 9,
-        liquidityUsd: typeof t.liquidityUsd === 'number' ? t.liquidityUsd : null,
-        volume24h: typeof t.volume24h === 'number' ? t.volume24h : null,
+        liquidityUsd: typeof t.liquidityUsd === "number" ? t.liquidityUsd : null,
+        volume24h: typeof t.volume24h === "number" ? t.volume24h : null,
+        uiBalance: t.uiBalance,
+        balanceBase: t.balanceBase,
+        mint: t.mint,
     };
 }
 import TokenRow from './TokenRow';
@@ -59,7 +62,7 @@ export function TokenSelector({
     useEffect(() => {
         if (Array.isArray(tokens) && tokens.length > 0) {
             // Sanitize all tokens first
-            const safeTokens = tokens.map(sanitizeToken).filter(Boolean);
+            const safeTokens = tokens.map(normalizeToken).filter(Boolean);
             // Debug: log a broken token if any
             const broken = safeTokens.find(t => !t.symbol || !t.address);
             if (broken) console.warn('Broken token sample:', broken);
