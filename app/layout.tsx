@@ -7,10 +7,10 @@ import dynamicImport from "next/dynamic";
 import { Analytics } from "@vercel/analytics/next";
 
 // Modern navigation component - NEW simplified Navbar
-// const Navbar = dynamicImport(
-//   () => import("@/components/Navbar"),
-//   { ssr: false }
-// );
+const Navbar = dynamicImport(
+  () => import("@/components/Navbar"),
+  { ssr: false }
+);
 
 // const MobileTopNav = dynamicImport(
 //   () => import("@/components/navigation/MobileTopNav"),
@@ -86,9 +86,9 @@ export default function RootLayout({
         <div className="fixed inset-0 z-[-1] pointer-events-none bg-[radial-gradient(circle_at_bottom_left,_rgba(0,212,255,0.03),_transparent_70%)]" />
         <Providers>
             {/* Desktop navigation */}
-            {/* <div className="hidden md:block">
+            <div className="hidden md:block">
               <Navbar />
-            </div> */}
+            </div>
 
             {/* Mobile navigation */}
             {/* <div className="md:hidden">
