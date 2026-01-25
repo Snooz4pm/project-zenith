@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { TokenGrid } from '@/components/discover/TokenGrid';
+import { SimpleTokenGrid } from '@/components/swap/SimpleTokenGrid';
 
 export default function SwapTokenGrid() {
   const [tokens, setTokens] = useState([]);
@@ -28,7 +28,7 @@ export default function SwapTokenGrid() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <h2 className="text-xl font-bold text-white mb-4">Select a Token</h2>
-      <TokenGrid tokens={tokens} />
+      <SimpleTokenGrid tokens={tokens} onSelect={() => {}} />
     </div>
   );
 }
