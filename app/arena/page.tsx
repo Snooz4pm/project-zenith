@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = "force-dynamic";
+
 /**
  * /arena → /swap redirect
  * Kept for SEO / backward compatibility

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from 'react';
 import SwapPanel from '@/components/swap/SwapPanel';
 import { SimpleTokenGrid } from '@/components/swap/SimpleTokenGrid';

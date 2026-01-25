@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from 'react';
 import { PublicKey } from '@solana/web3.js';
 import { ExternalLink, RefreshCw, TrendingUp, TrendingDown, AlertCircle, Copy, Check } from 'lucide-react';

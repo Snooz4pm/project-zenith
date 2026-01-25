@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = "force-dynamic";
+
 import { useState } from 'react';
 import { DiscoverHeader } from '@/components/discover/DiscoverHeader';
 import { Filters } from '@/components/discover/Filters';

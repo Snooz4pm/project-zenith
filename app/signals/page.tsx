@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ExternalLink, Volume2, VolumeX, Activity, Bell } from 'lucide-react';
 import PremiumAlerts from '@/components/Signals/PremiumAlerts';
