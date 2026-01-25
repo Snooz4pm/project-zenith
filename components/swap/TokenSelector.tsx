@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import TokenRow from './TokenRow';
 import { ChevronDown, Search } from 'lucide-react';
 
@@ -12,6 +12,9 @@ export type SelectableToken = {
     logoURI?: string;
     uiBalance?: number; // Optional for wallet tokens
     balanceBase?: bigint; // Base units (for WalletToken compatibility)
+    liquidityUsd?: number;
+    volume24h?: number;
+    mint?: string;
 };
 
 interface TokenSelectorProps {
@@ -32,13 +35,22 @@ export function TokenSelector({
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState('');
     const [displayTokens, setDisplayTokens] = useState<SelectableToken[]>([]);
-    const SAFE_LIMIT = 300_000;
+    const FAST_LIMIT = 1000;
+    const MAX_RENDER = 1500;
+    // Hydrate full set for search
+    const [fullUniverse, setFullUniverse] = useState<SelectableToken[]>([]);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Freeze displayTokens snapshot from tokens
     useEffect(() => {
         if (Array.isArray(tokens) && tokens.length > 0) {
-            setDisplayTokens(tokens);
+            // Build FAST_SET: high liquidity, high volume
+            const fastTokens = tokens
+                .filter(t => (t.liquidityUsd ?? 0) > 5000)
+                .sort((a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0))
+                .slice(0, FAST_LIMIT);
+            setDisplayTokens(fastTokens);
+            setFullUniverse(tokens);
         }
     }, [tokens]);
 
@@ -56,19 +68,25 @@ export function TokenSelector({
         }
     }, [isOpen]);
 
-    const safeTokens = displayTokens.length > SAFE_LIMIT
-        ? displayTokens.slice(0, SAFE_LIMIT)
-        : displayTokens;
-
-    const filteredTokens = Array.isArray(safeTokens)
-        ? safeTokens.filter(
-            (t) =>
-                t &&
-                t.symbol?.toLowerCase().includes(search.toLowerCase()) ||
-                t.name?.toLowerCase().includes(search.toLowerCase()) ||
-                t.address?.toLowerCase().includes(search.toLowerCase())
-        )
-        : [];
+    // Smart search switching
+    const searchQuery = search.trim().toLowerCase();
+    const filteredTokens = useMemo(() => {
+        if (!searchQuery) {
+            // Show FAST_SET only
+            return displayTokens.slice(0, MAX_RENDER);
+        }
+        // Search FULL_SET, cap results
+        return fullUniverse
+            .filter(t =>
+                t && (
+                    t.symbol?.toLowerCase().includes(searchQuery) ||
+                    t.name?.toLowerCase().includes(searchQuery) ||
+                    t.address?.toLowerCase().includes(searchQuery) ||
+                    t.mint?.toLowerCase().includes(searchQuery)
+                )
+            )
+            .slice(0, MAX_RENDER);
+    }, [searchQuery, displayTokens, fullUniverse]);
 
     const handleSelect = (token: SelectableToken) => {
         onSelect(token);
@@ -139,7 +157,7 @@ export function TokenSelector({
                                 No tokens found
                             </div>
                         ) : (
-                            filteredTokens.map((token, idx) => (
+                            filteredTokens.map((token: SelectableToken, idx: number) => (
                                 <TokenRow
                                     key={token?.address || idx}
                                     token={token}
