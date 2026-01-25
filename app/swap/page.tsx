@@ -27,6 +27,8 @@ export default function SwapPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  if (!Array.isArray(tokens)) return null;
+
   return (
     <div className="min-h-screen bg-black relative">
       {/* Subtle background gradient - matching home page */}
