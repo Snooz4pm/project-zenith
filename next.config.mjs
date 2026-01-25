@@ -1,5 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: '/api/tokens/featured',
+        destination: 'https://jupiter-proxy-production.up.railway.app/api/tokens',
+      },
+    ];
+  },
   reactStrictMode: true,
   eslint: {
     // Disable ESLint during production builds
