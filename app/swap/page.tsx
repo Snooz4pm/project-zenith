@@ -10,6 +10,9 @@ import { useSwapStore } from '@/lib/store/useSwapStore';
 
 export default function SwapPage() {
   const [tokens, setTokens] = useState<ZenithToken[]>([]);
+  useEffect(() => {
+    console.log('[SwapPage] tokens:', tokens);
+  }, [tokens]);
   const { setIntent } = useSwapStore();
 
   useEffect(() => {
