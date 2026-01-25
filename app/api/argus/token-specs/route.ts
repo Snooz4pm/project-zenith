@@ -68,7 +68,8 @@ export async function GET(req: NextRequest) {
 
         // 3. PHASE 4 v2: Fetch Holder Concentration (Hardened RPC)
         let holders: { amount: number }[] = [];
-        let onChainSupply = supply;
+        let onChainSupply = supply; // UI units for display
+        let onChainSupplyRaw = supply * Math.pow(10, decimals); // Base units for calculations
 
         try {
             const conn = new Connection(HELIUS_URL);
@@ -82,22 +83,27 @@ export async function GET(req: NextRequest) {
             const mintData = (accountInfo.value?.data as any)?.parsed?.info;
             if (mintData?.supply) {
                 const rawSupply = parseFloat(mintData.supply);
-                onChainSupply = rawSupply / Math.pow(10, decimals);
+                onChainSupplyRaw = rawSupply; // Keep in base units
+                onChainSupply = rawSupply / Math.pow(10, decimals); // Convert to UI units for display
             }
 
-            holders = (largeAccounts.value || []).map(h => ({
-                amount: h.uiAmount || (parseFloat(h.amount) / Math.pow(10, decimals))
+            holders = (largestAccounts.value || []).map(h => ({
+                // Convert to base units for percentage calculation
+                // uiAmount is human-readable, so we need to multiply back to base units
+                amount: h.uiAmount !== undefined && h.uiAmount !== null
+                    ? h.uiAmount * Math.pow(10, decimals)
+                    : parseFloat(h.amount)
             }));
 
         } catch (e) {
             console.warn(`[Integrity] RPC Hard-Check failed for ${mint}:`, e);
         }
 
-        // 4. PHASE 4: Integrity Engine Scan
+        // 4. PHASE 4: Integrity Engine Scan (pass base units for calculation)
         const integrity = analyzeTokenIntegrity({
             mintAuthority: info?.mint_authority || null,
             freezeAuthority: info?.freeze_authority || null,
-            supply: onChainSupply,
+            supply: onChainSupplyRaw, // Pass base units for accurate % calculations
             decimals
         }, holders);
 
