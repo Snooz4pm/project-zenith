@@ -58,6 +58,158 @@ function formatCompact(val: number) {
     return `$${val.toFixed(2)}`;
 }
 
+/**
+ * Tactical Token Card Component
+ * Extracted to follow Rules of Hooks and prevent Render Errors
+ */
+function HotTokenCard({ token, isSelected, onSelect, index }: { token: HotToken, isSelected: boolean, onSelect: (t: HotToken) => void, index: number }) {
+    // Intelligence Extraction with Tactical Recovery (Moved to top-level)
+    const t1 = useMemo(() => {
+        let val = token.integrity?.top1Pct || 0;
+        if (val === 0 && token.integrity?.flags) {
+            const f = token.integrity.flags.find(f => f.includes('Top Holder owns'));
+            if (f) {
+                const match = f.match(/(\d+\.?\d*)%/);
+                if (match) val = parseFloat(match[1]);
+            }
+        }
+        return val;
+    }, [token.integrity]);
+
+    const t10 = useMemo(() => {
+        let val = token.integrity?.top10Pct || 0;
+        if (val === 0 && token.integrity?.flags) {
+            const f = token.integrity.flags.find(f => f.includes('Top 10 own'));
+            if (f) {
+                const match = f.match(/(\d+\.?\d*)%/);
+                if (match) val = parseFloat(match[1]);
+            }
+        }
+        return val;
+    }, [token.integrity]);
+
+    return (
+        <motion.button
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: index * 0.03 }}
+            onClick={() => onSelect(token)}
+            className={`w-full group relative p-4 rounded-xl border transition-all duration-300 text-left overflow-hidden ${isSelected
+                ? 'bg-zinc-800 border-white text-white shadow-[0_0_30px_rgba(255,255,255,0.1)]'
+                : `bg-zinc-950 ${TIER_STYLING[token.feasibility]}`
+                }`}
+        >
+            {/* Layer 1: Identity & Key Metrics */}
+            <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded bg-white text-black flex items-center justify-center font-black text-[10px] italic">
+                            {token.symbol.slice(0, 1)}
+                        </div>
+                        <div className="text-sm font-black italic tracking-widest leading-none uppercase">
+                            {token.symbol}
+                        </div>
+                    </div>
+                    <div className="text-sm font-black italic tracking-tighter">
+                        ${token.price.toLocaleString(undefined, { maximumSignificantDigits: 4 })}
+                    </div>
+                </div>
+
+                {/* Layer 2: Primary Risk Highlight */}
+                {token.primaryRisk && (
+                    <div className={`p-2 rounded border border-zinc-500/10 ${token.primaryRisk.score === 3 ? 'bg-red-500/5' : 'bg-amber-500/5'
+                        }`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <Target size={10} className={token.primaryRisk.score === 3 ? 'text-red-400' : 'text-amber-400'} />
+                            <span className="text-[7px] text-zinc-500 font-black uppercase tracking-widest">Primary Danger</span>
+                        </div>
+                        <div className={`text-[10px] font-black italic ${token.primaryRisk.score === 3 ? 'text-red-400' : 'text-amber-400'
+                            }`}>
+                            {token.primaryRisk.label}
+                        </div>
+                    </div>
+                )}
+
+                {/* Layer 3: The 4-Layer Summary Grid */}
+                <div className="grid grid-cols-2 gap-4 pb-3 border-b border-zinc-900/50">
+                    <div>
+                        <div className="text-[7px] text-zinc-600 font-bold uppercase mb-1">On-Chain DNA</div>
+                        <div className="flex items-center gap-1.5">
+                            <ShieldAlert size={10} className={token.integrity?.contractRisk === 'HIGH' ? 'text-red-500' : 'text-emerald-500'} />
+                            <span className="text-[8px] font-mono text-zinc-400">
+                                {token.behavior ? `${token.behavior.deployerAddress.slice(0, 4)}...${token.behavior.deployerAddress.slice(-4)}` : 'UNKNOWN'}
+                            </span>
+                        </div>
+                    </div>
+                    <div>
+                        <div className="text-[7px] text-zinc-600 font-bold uppercase mb-1">Market Velocity</div>
+                        <div className="flex items-center gap-1.5">
+                            <Activity size={10} className={token.timing?.velocity === 'ACCELERATING' ? 'text-emerald-400' : 'text-zinc-600'} />
+                            <span className={`text-[8px] font-black italic ${token.timing?.velocity === 'ACCELERATING' ? 'text-emerald-400' : 'text-zinc-400'}`}>
+                                {token.timing?.velocity || 'Neutral'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Layer 4: Deep Concentration Metrics */}
+                <div className="grid grid-cols-2 gap-4 pt-1">
+                    <div>
+                        <div className="text-[7px] text-zinc-600 font-bold uppercase mb-1">Top Holder</div>
+                        <div className={`text-sm font-black italic ${t1 > 20 ? 'text-red-400' : 'text-zinc-300'}`}>
+                            {t1.toFixed(1)}%
+                        </div>
+                    </div>
+                    <div>
+                        <div className="text-[7px] text-zinc-600 font-bold uppercase mb-1">Top 10 Pool</div>
+                        <div className={`text-sm font-black italic ${t10 > 50 ? 'text-red-400' : 'text-zinc-300'}`}>
+                            {t10.toFixed(1)}%
+                        </div>
+                    </div>
+                </div>
+
+                {/* Layer 5: Safety Index */}
+                <div className="pt-3 border-t border-zinc-900/50">
+                    <div className="flex items-center justify-between mb-1.5">
+                        <div className="text-[7px] text-zinc-600 font-black uppercase tracking-widest italic">Safety Index</div>
+                        <div className={`text-[9px] font-black italic ${token.riskScore > 70 ? 'text-emerald-400' : token.riskScore > 40 ? 'text-amber-400' : 'text-red-400'}`}>
+                            {token.riskScore.toFixed(0)}/100
+                        </div>
+                    </div>
+                    <div className="h-1 w-full bg-zinc-900 rounded-full overflow-hidden">
+                        <div
+                            className={`h-full transition-all duration-1000 ${token.riskScore > 70 ? 'bg-emerald-500' : token.riskScore > 40 ? 'bg-amber-500' : 'bg-red-500'
+                                }`}
+                            style={{ width: `${token.riskScore}%` }}
+                        />
+                    </div>
+                </div>
+
+                {/* Layer 6: Meta Status */}
+                <div className="flex items-center justify-between pt-2">
+                    <span className={`text-[8px] font-black uppercase tracking-[0.2em] ${token.flow.includes('Mega') ? 'text-emerald-400' : 'text-zinc-700'
+                        }`}>
+                        {token.flow}
+                    </span>
+                    <span className="text-[8px] font-mono text-zinc-800">
+                        {formatCompact(token.mcap)} MCAP
+                    </span>
+                </div>
+            </div>
+
+            {/* Selection Glow */}
+            {isSelected && (
+                <motion.div
+                    layoutId="glow"
+                    className="absolute inset-0 bg-white/5 pointer-events-none"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                />
+            )}
+        </motion.button>
+    );
+}
+
 export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotToken) => void, selectedMint?: string }) {
     const [tokens, setTokens] = useState<HotToken[]>([]);
     const [filter, setFilter] = useState<'ALL' | 'SAFE' | 'HOT'>('ALL');
@@ -96,7 +248,7 @@ export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotTok
         fetchHot();
         interval = setInterval(fetchHot, 30000);
         return () => clearInterval(interval);
-    }, []);
+    }, [onSelect, selectedMint]);
 
     const filteredTokens = tokens.filter(t => {
         if (filter === 'SAFE') return t.feasibility === 'POSSIBLE';
@@ -133,154 +285,15 @@ export function HotTokens({ onSelect, selectedMint }: { onSelect: (token: HotTok
             </div>
 
             <div className="flex-1 overflow-y-auto pr-1 scrollbar-hide py-3 space-y-4">
-                {filteredTokens.map((token, i) => {
-                    // Extract intelligence for the card (with fix)
-                    const t1 = useMemo(() => {
-                        let val = token.integrity?.top1Pct || 0;
-                        if (val === 0 && token.integrity?.flags) {
-                            const f = token.integrity.flags.find(f => f.includes('Top Holder owns'));
-                            if (f) {
-                                const match = f.match(/(\d+\.?\d*)%/);
-                                if (match) val = parseFloat(match[1]);
-                            }
-                        }
-                        return val;
-                    }, [token.integrity]);
-
-                    const t10 = useMemo(() => {
-                        let val = token.integrity?.top10Pct || 0;
-                        if (val === 0 && token.integrity?.flags) {
-                            const f = token.integrity.flags.find(f => f.includes('Top 10 own'));
-                            if (f) {
-                                const match = f.match(/(\d+\.?\d*)%/);
-                                if (match) val = parseFloat(match[1]);
-                            }
-                        }
-                        return val;
-                    }, [token.integrity]);
-
-                    return (
-                        <motion.button
-                            key={token.mint}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: i * 0.03 }}
-                            onClick={() => onSelect(token)}
-                            className={`w-full group relative p-4 rounded-xl border transition-all duration-300 text-left overflow-hidden ${selectedMint === token.mint
-                                ? 'bg-zinc-800 border-white text-white shadow-[0_0_30px_rgba(255,255,255,0.1)]'
-                                : `bg-zinc-950 ${TIER_STYLING[token.feasibility]}`
-                                }`}
-                        >
-                            {/* Layer 1: Identity & Key Metrics */}
-                            <div className="flex flex-col gap-3">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded bg-white text-black flex items-center justify-center font-black text-[10px] italic">
-                                            {token.symbol.slice(0, 1)}
-                                        </div>
-                                        <div className="text-sm font-black italic tracking-widest leading-none uppercase">
-                                            {token.symbol}
-                                        </div>
-                                    </div>
-                                    <div className="text-sm font-black italic tracking-tighter">
-                                        ${token.price.toLocaleString(undefined, { maximumSignificantDigits: 4 })}
-                                    </div>
-                                </div>
-
-                                {/* Layer 2: Primary Risk Highlight (Instructional) */}
-                                {token.primaryRisk && (
-                                    <div className={`p-2 rounded border border-zinc-500/10 ${token.primaryRisk.score === 3 ? 'bg-red-500/5' : 'bg-amber-500/5'
-                                        }`}>
-                                        <div className="flex items-center gap-1.5 mb-1">
-                                            <Target size={10} className={token.primaryRisk.score === 3 ? 'text-red-400' : 'text-amber-400'} />
-                                            <span className="text-[7px] text-zinc-500 font-black uppercase tracking-widest">Primary Danger</span>
-                                        </div>
-                                        <div className={`text-[10px] font-black italic ${token.primaryRisk.score === 3 ? 'text-red-400' : 'text-amber-400'
-                                            }`}>
-                                            {token.primaryRisk.label}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Layer 3: The 4-Layer Summary Grid */}
-                                <div className="grid grid-cols-2 gap-4 pb-3 border-b border-zinc-900/50">
-                                    <div>
-                                        <div className="text-[7px] text-zinc-600 font-bold uppercase mb-1">On-Chain DNA</div>
-                                        <div className="flex items-center gap-1.5">
-                                            <ShieldAlert size={10} className={token.integrity?.contractRisk === 'HIGH' ? 'text-red-500' : 'text-emerald-500'} />
-                                            <span className="text-[8px] font-mono text-zinc-400">
-                                                {token.behavior?.deployerAddress.slice(0, 4)}...{token.behavior?.deployerAddress.slice(-4)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div className="text-[7px] text-zinc-600 font-bold uppercase mb-1">Market Velocity</div>
-                                        <div className="flex items-center gap-1.5">
-                                            <Activity size={10} className={token.timing?.velocity === 'ACCELERATING' ? 'text-emerald-400' : 'text-zinc-600'} />
-                                            <span className={`text-[8px] font-black italic ${token.timing?.velocity === 'ACCELERATING' ? 'text-emerald-400' : 'text-zinc-400'}`}>
-                                                {token.timing?.velocity || 'Neutral'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Layer 4: Deep Concentration Metrics (v2) */}
-                                <div className="grid grid-cols-2 gap-4 pt-1">
-                                    <div>
-                                        <div className="text-[7px] text-zinc-600 font-bold uppercase mb-1">Top Holder</div>
-                                        <div className={`text-sm font-black italic ${t1 > 20 ? 'text-red-400' : 'text-zinc-300'}`}>
-                                            {t1.toFixed(1)}%
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div className="text-[7px] text-zinc-600 font-bold uppercase mb-1">Top 10 Pool</div>
-                                        <div className={`text-sm font-black italic ${t10 > 50 ? 'text-red-400' : 'text-zinc-300'}`}>
-                                            {t10.toFixed(1)}%
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Layer 5: Safety Index (The Capstone) */}
-                                <div className="pt-3 border-t border-zinc-900/50">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <div className="text-[7px] text-zinc-600 font-black uppercase tracking-widest italic">Safety Index</div>
-                                        <div className={`text-[9px] font-black italic ${token.riskScore > 70 ? 'text-emerald-400' : token.riskScore > 40 ? 'text-amber-400' : 'text-red-400'}`}>
-                                            {token.riskScore}/100
-                                        </div>
-                                    </div>
-                                    <div className="h-1 w-full bg-zinc-900 rounded-full overflow-hidden">
-                                        <div
-                                            className={`h-full transition-all duration-1000 ${token.riskScore > 70 ? 'bg-emerald-500' : token.riskScore > 40 ? 'bg-amber-500' : 'bg-red-500'
-                                                }`}
-                                            style={{ width: `${token.riskScore}%` }}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Layer 6: Meta Status */}
-                                <div className="flex items-center justify-between pt-2">
-                                    <span className={`text-[8px] font-black uppercase tracking-[0.2em] ${token.flow.includes('Mega') ? 'text-emerald-400' : 'text-zinc-700'
-                                        }`}>
-                                        {token.flow}
-                                    </span>
-                                    <span className="text-[8px] font-mono text-zinc-800">
-                                        {formatCompact(token.mcap)} MCAP
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Selection Glow */}
-                            {selectedMint === token.mint && (
-                                <motion.div
-                                    layoutId="glow"
-                                    className="absolute inset-0 bg-white/5 pointer-events-none"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                />
-                            )}
-                        </motion.button>
-                    )
-                })}
+                {filteredTokens.map((token, i) => (
+                    <HotTokenCard
+                        key={token.mint}
+                        token={token}
+                        index={i}
+                        isSelected={selectedMint === token.mint}
+                        onSelect={onSelect}
+                    />
+                ))}
             </div>
         </div>
     );
