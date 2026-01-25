@@ -103,8 +103,7 @@ export default function ArgusPage() {
                     <HotTokens
                         selectedMint={selectedToken?.mint}
                         onSelect={(token) => {
-                            setSelectedToken(token);
-                            setError(null);
+                            handleSearch(token.mint);
                         }}
                     />
                 </div>
