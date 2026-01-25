@@ -14,10 +14,10 @@ export function analyzeTokenIntegrity(
     mintInfo: {
         mintAuthority: string | null;
         freezeAuthority: string | null;
-        supply: number;
+        supplyUi: number; // Human-readable supply (already normalized)
         decimals: number;
     },
-    holders?: { amount: number }[]
+    holders?: { uiAmount: number }[], // Use uiAmount directly
 ): IntegrityReport {
     const flags: string[] = [];
     let riskScore = 0;
@@ -40,54 +40,46 @@ export function analyzeTokenIntegrity(
         riskScore += 3;
     }
 
-    // 2. Supply Distribution Analysis (v2) - Reference Implementation
+    // 2. Supply Distribution Analysis - RECOMMENDED APPROACH (uiAmount)
     let holderRisk: "LOW" | "MEDIUM" | "HIGH" = "LOW";
     let finalTop1Pct = 0;
     let finalTop10Pct = 0;
 
     // DEBUG LOGGING
-    console.log('=== HOLDER % CALCULATION DEBUG ===');
-    console.log('mint.supply (raw):', mintInfo.supply);
-    console.log('mint.decimals:', mintInfo.decimals);
+    console.log('=== HOLDER % CALCULATION (uiAmount Method) ===');
+    console.log('supplyUi:', mintInfo.supplyUi);
     console.log('holders.length:', holders?.length || 0);
 
-    if (holders && holders.length > 0 && mintInfo.supply > 0) {
-        // STEP 1: Explicit sorting (don't trust input order)
-        const sortedHolders = [...holders].sort((a, b) => b.amount - a.amount);
+    if (holders && holders.length > 0 && mintInfo.supplyUi > 0) {
+        // STEP 1: Explicit sorting by uiAmount
+        const sortedHolders = [...holders].sort((a, b) => b.uiAmount - a.uiAmount);
 
-        console.log('topHolder.amount (raw):', sortedHolders[0]?.amount);
+        console.log('topHolder.uiAmount:', sortedHolders[0]?.uiAmount);
 
-        // STEP 2: Normalize to same units (human tokens, not raw)
-        const divisor = Math.pow(10, mintInfo.decimals);
-        const supplyTokens = mintInfo.supply / divisor;
-        const topHolderTokens = sortedHolders[0].amount / divisor;
+        // STEP 2: Calculate percentage (both already in human tokens)
+        const topHolderAmount = sortedHolders[0].uiAmount;
+        finalTop1Pct = (topHolderAmount / mintInfo.supplyUi) * 100;
 
-        console.log('divisor:', divisor);
-        console.log('normalizedSupply:', supplyTokens);
-        console.log('normalizedTopHolder:', topHolderTokens);
+        console.log('FINAL Top1%:', finalTop1Pct);
 
-        // STEP 3: Calculate percentage (both in same units)
-        if (supplyTokens > 0) {
-            finalTop1Pct = (topHolderTokens / supplyTokens) * 100;
-            console.log('FINAL Top1%:', finalTop1Pct);
-
-            if (finalTop1Pct > 20) {
-                flags.push(`⚠️ Top Holder owns ${finalTop1Pct.toFixed(1)}% (Dev/Cabal Warning)`);
-                holderRisk = "HIGH";
-                riskScore += 3;
-            } else if (finalTop1Pct > 10) {
-                flags.push(`⚠️ Top Holder owns ${finalTop1Pct.toFixed(1)}%`);
-                holderRisk = "MEDIUM";
-                riskScore += 1;
-            }
+        if (finalTop1Pct > 20) {
+            flags.push(`⚠️ Top Holder owns ${finalTop1Pct.toFixed(1)}% (Dev/Cabal Warning)`);
+            holderRisk = "HIGH";
+            riskScore += 3;
+        } else if (finalTop1Pct > 10) {
+            flags.push(`⚠️ Top Holder owns ${finalTop1Pct.toFixed(1)}%`);
+            holderRisk = "MEDIUM";
+            riskScore += 1;
         }
 
-        // STEP 4: Calculate Top 10 concentration
-        const top10Sum = sortedHolders.slice(0, 10).reduce((sum, h) => sum + h.amount, 0);
-        const top10Tokens = top10Sum / divisor;
-        finalTop10Pct = (top10Tokens / supplyTokens) * 100;
+        // STEP 3: Calculate Top 10 concentration
+        const top10Total = sortedHolders
+            .slice(0, 10)
+            .reduce((sum, h) => sum + h.uiAmount, 0);
 
-        console.log('top10Tokens:', top10Tokens);
+        finalTop10Pct = (top10Total / mintInfo.supplyUi) * 100;
+
+        console.log('top10Total:', top10Total);
         console.log('FINAL Top10%:', finalTop10Pct);
 
         if (finalTop10Pct > 50) {
@@ -99,7 +91,7 @@ export function analyzeTokenIntegrity(
         console.warn('⚠️ HOLDER CALCULATION SKIPPED:', {
             hasHolders: !!holders,
             holdersLength: holders?.length || 0,
-            supply: mintInfo.supply
+            supplyUi: mintInfo.supplyUi
         });
     }
     console.log('=== END DEBUG ===');

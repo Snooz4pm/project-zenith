@@ -66,16 +66,15 @@ export async function GET(req: NextRequest) {
             priceChange24h = parseFloat(pair?.priceChange?.h24 || '0');
         }
 
-        // 3. PHASE 4 v2: Fetch Holder Concentration (Hardened RPC)
-        let holders: { amount: number }[] = [];
+        // 3. PHASE 4 v2: Fetch Holder Concentration (Simplified uiAmount approach)
+        let holdersUi: { uiAmount: number }[] = [];
         let onChainSupply = supply; // UI units for display
-        let onChainSupplyRaw = supply * Math.pow(10, decimals); // Base units for calculations
 
         try {
             const conn = new Connection(HELIUS_URL);
             const pubkey = new PublicKey(mint);
 
-            const [largeAccounts, accountInfo] = await Promise.all([
+            const [largestAccounts, accountInfo] = await Promise.all([
                 conn.getTokenLargestAccounts(pubkey),
                 conn.getParsedAccountInfo(pubkey)
             ]);
@@ -83,29 +82,25 @@ export async function GET(req: NextRequest) {
             const mintData = (accountInfo.value?.data as any)?.parsed?.info;
             if (mintData?.supply) {
                 const rawSupply = parseFloat(mintData.supply);
-                onChainSupplyRaw = rawSupply; // Keep in base units
-                onChainSupply = rawSupply / Math.pow(10, decimals); // Convert to UI units for display
+                onChainSupply = rawSupply / Math.pow(10, decimals);
             }
 
-            holders = (largestAccounts.value || []).map(h => ({
-                // Convert to base units for percentage calculation
-                // uiAmount is human-readable, so we need to multiply back to base units
-                amount: h.uiAmount !== undefined && h.uiAmount !== null
-                    ? h.uiAmount * Math.pow(10, decimals)
-                    : parseFloat(h.amount)
-            }));
+            // Use uiAmount directly (already normalized by RPC)
+            holdersUi = (largestAccounts.value || [])
+                .filter(h => h.uiAmount != null)
+                .map(h => ({ uiAmount: h.uiAmount! }));
 
         } catch (e) {
             console.warn(`[Integrity] RPC Hard-Check failed for ${mint}:`, e);
         }
 
-        // 4. PHASE 4: Integrity Engine Scan (pass base units for calculation)
+        // 4. PHASE 4: Integrity Engine Scan (pass UI amounts)
         const integrity = analyzeTokenIntegrity({
             mintAuthority: info?.mint_authority || null,
             freezeAuthority: info?.freeze_authority || null,
-            supply: onChainSupplyRaw, // Pass base units for accurate % calculations
+            supplyUi: onChainSupply, // Pass human-readable supply
             decimals
-        }, holders);
+        }, holdersUi);
 
         // 5. PHASE 4 v3: Behavioral Engine (Human Signature)
         const deployerAddress = asset.authorities?.[0]?.authority || asset.creators?.[0]?.address || 'Unknown';
