@@ -157,6 +157,12 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
         );
     }
 
+    const targets = [
+        { label: "10x", value: currentPrice * 10 },
+        { label: "$1.00", value: 1.00 },
+        { label: "$10.00", value: 10.00 },
+    ];
+
     const style = TIER_STYLING[metrics.feasibility];
 
     return (
