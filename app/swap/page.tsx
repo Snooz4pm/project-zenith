@@ -5,15 +5,15 @@
 import { useState } from 'react';
 
 
-import SwapPanel from "@/components/swap/SwapPanel";
 
+import type { Token } from "@/types/token";
+import SwapPanel from "@/components/swap/SwapPanel";
 import SwapTokenGrid from "@/components/swap/SwapTokenGrid";
 
 export const dynamic = "force-dynamic";
 
 
-export default function SwapPage() {
-  const [selectedToken, setSelectedToken] = useState<any | null>(null);
+  const [selectedToken, setSelectedToken] = useState<Token | null>(null);
 
   return (
     <div className="min-h-screen bg-black relative">
@@ -24,7 +24,7 @@ export default function SwapPage() {
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           {/* LEFT: Fixed Swap Panel */}
           <div className="w-full lg:w-[380px] xl:w-[420px] shrink-0 lg:sticky lg:top-24 z-20">
-            <SwapPanel />
+            <SwapPanel selectedToken={selectedToken} />
 
             {/* Helper Text */}
             <div className="mt-6 p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 backdrop-blur-sm">
@@ -39,7 +39,7 @@ export default function SwapPage() {
 
           {/* RIGHT: Token Grid (cards) */}
           <div className="flex-1 min-w-0 w-full">
-            <SwapTokenGrid onSelectToken={setSelectedToken} />
+            <SwapTokenGrid onSelect={setSelectedToken} />
           </div>
         </div>
       </div>

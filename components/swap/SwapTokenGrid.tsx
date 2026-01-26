@@ -1,15 +1,14 @@
 "use client";
+
 import { useState, useEffect } from 'react';
 import { SimpleTokenGrid } from '@/components/swap/SimpleTokenGrid';
+import type { Token } from '@/types/token';
 
-type Token = {
-  symbol: string;
-  name: string;
-  mint: string;
-  logoURI?: string;
+type Props = {
+  onSelect: (token: Token) => void;
 };
 
-export default function SwapTokenGrid({ onSelectToken }: { onSelectToken: (token: any) => void }) {
+export default function SwapTokenGrid({ onSelect }: Props) {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +82,7 @@ export default function SwapTokenGrid({ onSelectToken }: { onSelectToken: (token
       ) : !tokens.length ? (
         <div className="text-center py-20 text-zinc-500">No tokens found</div>
       ) : (
-        <SimpleTokenGrid tokens={tokens} onSelect={onSelectToken} />
+        <SimpleTokenGrid tokens={tokens} onSelect={onSelect} />
       )}
     </div>
   );

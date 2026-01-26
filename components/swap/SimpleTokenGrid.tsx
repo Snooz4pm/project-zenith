@@ -1,9 +1,11 @@
 "use client";
 'use client'
 
+
+import type { Token } from '@/types/token';
 type Props = {
-  tokens: any[];
-  onSelect: (token: any) => void;
+  tokens: Token[];
+  onSelect: (token: Token) => void;
 };
 
 export function SimpleTokenGrid({ tokens, onSelect }: Props) {

@@ -1,7 +1,7 @@
 "use client";
 'use client';
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import type { Token } from '@/types/token';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { VersionedTransaction, PublicKey } from '@solana/web3.js';
 import { useTradeSelection } from '@/lib/store/useTradeSelection';
@@ -51,7 +51,11 @@ interface ArrivingToken {
 // ============================================================================
 // COMPONENT
 // ============================================================================
-export default function SwapPanel() {
+type Props = {
+    selectedToken: Token | null;
+};
+
+export default function SwapPanel({ selectedToken }: Props) {
     // Hooks
     const { connection } = useConnection();
     const { publicKey, sendTransaction, connected: walletAdapterConnected, connect: walletAdapterConnect, select, wallets } = useWallet();
@@ -67,9 +71,7 @@ export default function SwapPanel() {
         return null;
     }, [publicKey, directPublicKey]);
 
-    // Store (for TO token from grid) - use individual selectors
-    const selectedToken = useTradeSelection(s => s.selectedToken);
-    const intent = useSwapStore(s => s.intent);
+    // Remove store selectedToken, use prop
 
     // State
     const [tokenUniverse, setTokenUniverse] = useState<ZenithToken[]>([]);
