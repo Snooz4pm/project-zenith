@@ -1,7 +1,8 @@
 
 'use client';
 
-import { useState, useEffect } from "react";
+
+import SwapPanel from "@/components/swap/SwapPanel";
 
 export const dynamic = "force-dynamic";
 
