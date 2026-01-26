@@ -3,8 +3,6 @@
 export const dynamic = "force-dynamic";
 
 import Link from 'next/link';
-
-import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 
 export default function Home() {
@@ -126,7 +124,5 @@ export default function Home() {
         }
       `}</style>
     </div>
-  );
-}
   );
 }
