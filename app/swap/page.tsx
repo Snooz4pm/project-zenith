@@ -10,9 +10,8 @@ import type { Token } from "@/types/token";
 import SwapPanel from "@/components/swap/SwapPanel";
 import SwapTokenGrid from "@/components/swap/SwapTokenGrid";
 
-export const dynamic = "force-dynamic";
 
-
+export default function SwapPage() {
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
 
   return (
