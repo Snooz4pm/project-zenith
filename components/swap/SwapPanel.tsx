@@ -413,14 +413,6 @@ export default function SwapPanel({ selectedToken }: Props) {
         }
     }, [selectedToken, tokenUniverse, handleSelectToToken]);
 
-    // Sync from intent store
-    useEffect(() => {
-        if (!intent?.toToken || tokenUniverse.length === 0) return;
-        const zenithToken = tokenUniverse.find(t => t.mint === intent.toToken.address);
-        if (zenithToken) {
-            handleSelectToToken(zenithToken);
-        }
-    }, [intent, tokenUniverse, handleSelectToToken]);
 
     // Auto-select TO token (only once on mount)
     useEffect(() => {
