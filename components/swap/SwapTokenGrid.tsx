@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { SimpleTokenGrid } from '@/components/swap/SimpleTokenGrid';
 import type { Token } from '@/types/token';
 
