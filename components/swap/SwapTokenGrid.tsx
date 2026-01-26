@@ -58,7 +58,7 @@ export default function SwapTokenGrid({ onSelect }: Props) {
     useEffect(() => {
         const loadFeatured = async () => {
             try {
-                const res = await fetch(`${API_BASE}/api/token/featured`);
+                const res = await fetch(`${API_BASE}/api/tokens/featured`);
                 const data = await res.json();
                 if (data.tokens && Array.isArray(data.tokens)) {
                     // Map to Token type
@@ -93,8 +93,8 @@ export default function SwapTokenGrid({ onSelect }: Props) {
         setIsSearching(true);
 
         try {
-            // Search API - get first 100 matches
-            const res = await fetch(`${API_BASE}/tokens?search=${encodeURIComponent(query)}&limit=100`);
+            // Search API - uses /api/tokens/search?q=
+            const res = await fetch(`${API_BASE}/api/tokens/search?q=${encodeURIComponent(query)}`);
             const data = await res.json();
 
             if (data.tokens && Array.isArray(data.tokens)) {
