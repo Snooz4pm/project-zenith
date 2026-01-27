@@ -113,24 +113,37 @@ export default function SwapTokenGrid({ onSelect }: Props) {
             return;
         }
 
-        // Quick local filter from featured (instant)
         const q = query.toLowerCase().trim();
-        const localMatches = featuredTokens.filter(t =>
-            t.symbol?.toLowerCase().includes(q) ||
-            t.name?.toLowerCase().includes(q) ||
-            t.address?.toLowerCase() === q
-        );
+
+        // Check if it's a contract address (Solana addresses are 32-44 chars, base58)
+        const isContractAddress = q.length >= 32 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(q);
+
+        // Quick local filter from featured (instant)
+        const localMatches = featuredTokens.filter(t => {
+            // For contract addresses, check exact or partial match
+            if (isContractAddress) {
+                return t.address?.toLowerCase() === q ||
+                       t.mint?.toLowerCase() === q ||
+                       t.address?.toLowerCase().includes(q) ||
+                       t.mint?.toLowerCase().includes(q);
+            }
+            // For regular search, check symbol and name
+            return t.symbol?.toLowerCase().includes(q) ||
+                   t.name?.toLowerCase().includes(q) ||
+                   t.address?.toLowerCase().includes(q);
+        });
 
         // Show local matches immediately
         if (localMatches.length > 0) {
             setSearchResults(localMatches);
         }
 
-        // Always call API for full universe search
-        if (query.length >= 2) {
+        // Always call API for full universe search (even for 1 char if it's an address)
+        const minLength = isContractAddress ? 1 : 2;
+        if (query.length >= minLength) {
             setSearchLoading(true);
             try {
-                console.log('[SwapTokenGrid] Searching API for:', query);
+                console.log('[SwapTokenGrid] Searching API for:', isContractAddress ? 'address' : 'query', query);
                 const res = await fetch(`${API_BASE}/api/tokens/search?q=${encodeURIComponent(query)}`);
                 const data = await res.json();
                 console.log('[SwapTokenGrid] Search results:', data.count);
@@ -235,7 +248,7 @@ export default function SwapTokenGrid({ onSelect }: Props) {
                     <input
                         ref={searchInputRef}
                         type="text"
-                        placeholder="Search 287K+ tokens by name, symbol, or address..."
+                        placeholder="Search by name, symbol, or paste contract address..."
                         value={searchQuery}
                         onChange={(e) => handleSearchChange(e.target.value)}
                         onFocus={() => searchQuery && setShowSuggestions(true)}
