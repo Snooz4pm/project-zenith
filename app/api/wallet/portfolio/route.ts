@@ -40,7 +40,13 @@ export async function GET(req: Request) {
                         limit: 1000,
                         displayOptions: {
                             showFungible: true,
-                            showNativeBalance: false // We fetch SOL separately for precision
+                            showNativeBalance: true,
+                            showCollectionMetadata: false,
+                            showUnverifiedCollections: false
+                        },
+                        sortBy: {
+                            sortBy: 'recent_action',
+                            sortDirection: 'desc'
                         }
                     }
                 })
@@ -53,7 +59,9 @@ export async function GET(req: Request) {
 
         const rawAssets = dasResponse.result?.items || [];
 
-        // 2. Map Assets to Token List for Pricing
+        // 2. Map Assets to Token List - Extract Helius DAS Prices
+        console.log(`[Portfolio] Found ${rawAssets.length} raw assets`);
+
         const tokens = rawAssets
             .filter((asset: any) => {
                 const isFungible = asset.interface === 'FungibleToken' || asset.interface === 'FungibleAsset';
@@ -66,15 +74,23 @@ export async function GET(req: Request) {
                 const balanceRaw = Number(info.balance) || 0;
                 const decimals = Number(info.decimals) || 0;
 
+                // Extract Helius DAS price info if available
+                const heliusPrice = info.price_info?.price_per_token || 0;
+                const heliusTotalPrice = info.price_info?.total_price || 0;
+
                 return {
                     mint: asset.id,
                     balance: balanceRaw / Math.pow(10, decimals),
                     decimals: decimals,
                     symbol: metadata?.symbol || info.symbol || '?',
                     name: metadata?.name || '',
-                    logoURI: asset.content?.links?.image || asset.content?.files?.[0]?.uri || ''
+                    logoURI: asset.content?.links?.image || asset.content?.files?.[0]?.uri || '',
+                    heliusPrice: heliusPrice,         // Price from Helius DAS
+                    heliusTotalPrice: heliusTotalPrice // Total value from Helius
                 };
             });
+
+        console.log(`[Portfolio] Filtered to ${tokens.length} fungible tokens`);
 
         // Add Native SOL as a token
         tokens.unshift({
@@ -83,7 +99,9 @@ export async function GET(req: Request) {
             decimals: 9,
             symbol: 'SOL',
             name: 'Solana',
-            logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'
+            logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
+            heliusPrice: 0,      // Will be fetched from Jupiter
+            heliusTotalPrice: 0
         });
 
         // 3. Batched Price Fetching
@@ -120,6 +138,8 @@ export async function GET(req: Request) {
             }
         }));
 
+        console.log(`[Portfolio] Fetched prices for ${priceMap.size} tokens from Jupiter`);
+
         // Force SOL Fallback if Jupiter fails
         if (!priceMap.has(SOL_MINT) || priceMap.get(SOL_MINT)?.price === 0) {
             try {
@@ -132,19 +152,33 @@ export async function GET(req: Request) {
             } catch (e) { }
         }
 
-        // 4. Assemble Final Portfolio
+        // 4. Assemble Final Portfolio - Use Jupiter price, fallback to Helius DAS price
         const holdings = tokens.map(t => {
-            const priceInfo = priceMap.get(t.mint);
-            const priceUsd = priceInfo?.price || 0;
-            const priceChange24h = priceInfo?.change24h || 0;
-            const valueUsd = t.balance * priceUsd;
+            const jupiterInfo = priceMap.get(t.mint);
+
+            // Priority: Jupiter price > Helius DAS price > 0
+            let priceUsd = jupiterInfo?.price || 0;
+            if (priceUsd === 0 && t.heliusPrice > 0) {
+                priceUsd = t.heliusPrice;
+            }
+
+            const priceChange24h = jupiterInfo?.change24h || 0;
+
+            // Value: Use Helius total if Jupiter has no price, else calculate
+            let valueUsd = t.balance * priceUsd;
+            if (valueUsd === 0 && t.heliusTotalPrice > 0) {
+                valueUsd = t.heliusTotalPrice;
+            }
 
             // 7d Projection (conservative 0.7 momentum factor)
             const projection7d = valueUsd * (1 + (priceChange24h / 100) * 0.7);
             const projectionChange = valueUsd > 0 ? ((projection7d - valueUsd) / valueUsd) * 100 : 0;
 
+            // Clean up internal fields
+            const { heliusPrice, heliusTotalPrice, ...cleanToken } = t;
+
             return {
-                ...t,
+                ...cleanToken,
                 priceUsd,
                 valueUsd,
                 priceChange24h,
@@ -161,6 +195,8 @@ export async function GET(req: Request) {
             ? holdings.reduce((sum, h) => sum + (h.priceChange24h * h.valueUsd), 0) / totalValueUsd
             : 0;
         const totalProjection7d = holdings.reduce((sum, h) => sum + h.projection7d, 0);
+
+        console.log(`[Portfolio] Final: ${holdings.length} holdings, total value: $${totalValueUsd.toFixed(2)}`);
 
         return NextResponse.json({
             holdings,
