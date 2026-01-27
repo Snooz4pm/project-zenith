@@ -144,7 +144,7 @@ export default function SwapTokenGrid({ onSelect }: Props) {
             setSearchLoading(true);
             try {
                 console.log('[SwapTokenGrid] Searching API for:', isContractAddress ? 'address' : 'query', query);
-                const res = await fetch(`${API_BASE}/api/tokens/search?q=${encodeURIComponent(query)}`);
+                const res = await fetch(`${API_BASE}/api/tokens/search?q=${encodeURIComponent(query)}&limit=100`);
                 const data = await res.json();
                 console.log('[SwapTokenGrid] Search results:', data.count);
 
@@ -161,7 +161,7 @@ export default function SwapTokenGrid({ onSelect }: Props) {
                     // Merge: local matches first, then API results (deduped)
                     const localAddresses = new Set(localMatches.map(t => t.address));
                     const apiOnly = mapped.filter(t => !localAddresses.has(t.address));
-                    setSearchResults([...localMatches, ...apiOnly].slice(0, 50));
+                    setSearchResults([...localMatches, ...apiOnly].slice(0, 100));
                 }
             } catch (err) {
                 console.error('[SwapTokenGrid] API search failed:', err);
