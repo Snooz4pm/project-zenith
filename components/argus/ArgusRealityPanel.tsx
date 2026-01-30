@@ -568,6 +568,15 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                             timing?.velocity === 'EXHAUSTED' ? 'OVERHEATED' :
                                 'STAGNANT'
                     }
+                    orderBook={orderBook}
+                />
+            </div>
+
+            <div className="px-8 py-6 bg-black border-b border-zinc-900">
+                <OrderBookVisualizer
+                    orderBook={orderBook}
+                    targetPrice={targetPrice}
+                    symbol={symbol}
                 />
             </div>
 
