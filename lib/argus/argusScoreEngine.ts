@@ -291,6 +291,22 @@ export function netInflowPerHour(
 }
 
 /**
+ * Calculates hourly flow rate based on actual transaction timestamps
+ */
+export function calculateLiveInflowRate(txs: SwapTx[]): number {
+    if (txs.length < 2) return 0;
+    const sorted = [...txs].sort((a, b) => a.timestamp - b.timestamp);
+    const durationMs = sorted[sorted.length - 1].timestamp - sorted[0].timestamp;
+
+    // Safety: ignore if data span is too short ( < 30s)
+    if (durationMs < 30000) return 0;
+
+    const netBuy = sorted.reduce((s, tx) => s + (tx.side === "BUY" ? tx.usdValue : -tx.usdValue), 0);
+    const durationHours = durationMs / (3600 * 1000);
+    return netBuy / durationHours;
+}
+
+/**
  * Time-to-Target (hours)
  */
 export function timeToTargetHours(
@@ -349,7 +365,7 @@ export function computeMomentumETA({
         washPenalty: number;
     };
 }): { eta: Date; hours: number } | null {
-    const inflow = netInflowPerHour(txs, windowHours);
+    const inflow = calculateLiveInflowRate(txs);
 
     if (
         !canShowMomentumETA({
@@ -361,7 +377,7 @@ export function computeMomentumETA({
     }
 
     const hours = timeToTargetHours(capitalRequiredUSD, inflow);
-    if (!hours || !isFinite(hours)) return null;
+    if (!hours || !isFinite(hours) || hours > 24 * 30) return null; // Cap at 30 days
 
     return { eta: etaDateFromNow(hours), hours };
 }

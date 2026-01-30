@@ -35,6 +35,7 @@ import {
     computeMCASv31,
     simulateWhatMustChange,
     computeMomentumETA,
+    calculateLiveInflowRate,
     netInflowPerHour,
     inflowSlope,
     directionalityErosion,
@@ -161,23 +162,28 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
     const trendState = useMemo(() => {
         if (!reality || !reality.recentTxs) return { state: "DECAYING", score: 0 };
 
-        // 1. Directionality Erosion
-        const dirScore = directionalityErosion(reality.metrics.netBuyUSD, reality.metrics.volume24hUSD);
+        // 1. Directionality Erosion (Live snapshot)
+        const txs = reality.recentTxs.map(tx => ({
+            timestamp: tx.time, side: tx.side as "BUY" | "SELL", usdValue: tx.usdValue, price: currentPrice, wallet: tx.wallet
+        }));
 
-        // 2. Slope (Mock trend as we only have 1 window from API usually, but we can simulate from metrics)
-        // In a real scenario, reality.metrics would be a rolling history.
-        // For now, we use a simple heuristic: if netBuy is > 20% of volume, slope is positive.
-        const slope = reality.metrics.netBuyUSD / (reality.metrics.volume24hUSD || 1) > 0.2 ? 1 : -1;
+        const liveInflow = calculateLiveInflowRate(txs);
+        const liveVol = txs.reduce((s, tx) => s + tx.usdValue, 0);
+        const directionality = liveVol > 0 ? Math.abs(liveInflow) / (liveVol * 2) : 0; // Simplified ratio
+
+        // 2. Slope (Is current live flow accelerating vs 24h average?)
+        const avg24hInflow = reality.metrics.netBuyUSD / 24;
+        const slope = liveInflow > avg24hInflow ? 1 : 0;
 
         // 3. Slippage Deterioration (AMM Consistency is a good proxy)
         const slippageScore = reality.ammConsistency;
 
-        const score = trendHealthScore({ slope, directionality: dirScore, slippageScore });
+        const score = trendHealthScore({ slope, directionality, slippageScore });
         return {
             state: trendStateFromHealth(score),
             score
         };
-    }, [reality]);
+    }, [reality, currentPrice]);
 
     const momentumETA = useMemo(() => {
         if (!reality || !mcasModel || !reality.recentTxs || trendState.state === "DECAYING") return null;
@@ -185,7 +191,7 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
         // Convert recentTxs to SwapTx format for computeMomentumETA
         const txs = reality.recentTxs.map(tx => ({
             timestamp: tx.time,
-            side: tx.side,
+            side: tx.side as "BUY" | "SELL",
             usdValue: tx.usdValue,
             price: currentPrice, // Approximate
             wallet: tx.wallet
@@ -194,7 +200,7 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
         return computeMomentumETA({
             capitalRequiredUSD: mcasModel.capitalRequiredUSD,
             txs,
-            windowHours: 1, // Assume 1h window for recentTxs depth
+            windowHours: 1, // Parameter now ignored by internal call to calculateLiveInflowRate
             gates: {
                 mcas: mcasModel.mcas,
                 txConfidence: reality.txConfidence,
