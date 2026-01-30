@@ -12,7 +12,8 @@ import { WalletExposure } from '@/lib/argus/correlationEngine';
 import { ProjectionInsight } from './ProjectionInsight';
 import { OrderBookVisualizer } from './OrderBookVisualizer';
 import { OrderBookSnapshot, AMMVirtualDepth, TxDerivedMetrics } from '@/lib/argus/liquidityEngine';
-import { computeMCASv31, MCASResult } from '@/lib/argus/argusScoreEngine';
+import { computeMCASv31, MCASResult, buildBondCurveFromTxs } from '@/lib/argus/argusScoreEngine';
+import { BondCurveVisualizer } from './BondCurveVisualizer';
 
 export interface ArgusRealityPanelProps {
     currentPrice: number;
@@ -204,6 +205,48 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
     const metrics = useMemo(() => {
         return calculateReality(currentPrice, circulatingSupply, targetPrice);
     }, [currentPrice, circulatingSupply, targetPrice]);
+
+    const bondCurveData = useMemo(() => {
+        if (!reality || !reality.recentTxs || !liquidity) return [];
+
+        const pool = {
+            reserveUSD: liquidity / 2,
+            reserveToken: (liquidity / 2) / (currentPrice || 0.000001)
+        };
+
+        const txsForReplay = [...reality.recentTxs]
+            .sort((a, b) => a.time - b.time)
+            .map(tx => ({
+                timestamp: tx.time,
+                side: tx.side,
+                usdValue: tx.usdValue,
+                price: currentPrice,
+                wallet: tx.wallet
+            }));
+
+        const historyCurve = buildBondCurveFromTxs(pool, txsForReplay);
+
+        // Project future curve toward target
+        const lastPoint = historyCurve[historyCurve.length - 1];
+        if (targetPrice > lastPoint.price) {
+            const k = pool.reserveUSD * pool.reserveToken;
+            const finalUSDRequired = Math.sqrt(targetPrice * k);
+            const deltaUSD = finalUSDRequired - pool.reserveUSD;
+
+            // Add 20 points for smooth curve projection
+            for (let i = 1; i <= 20; i++) {
+                const stepUSD = (deltaUSD / 20) * i;
+                const projectedUSD = pool.reserveUSD + stepUSD;
+                const projectedPrice = projectedUSD / (k / projectedUSD);
+                historyCurve.push({
+                    cumulativeUSD: lastPoint.cumulativeUSD + stepUSD,
+                    price: projectedPrice
+                });
+            }
+        }
+
+        return historyCurve;
+    }, [reality, liquidity, currentPrice, targetPrice]);
 
     if (!metrics) {
         return (
@@ -616,7 +659,15 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
                 />
             </div>
 
-            {/* Global Safety Index */}
+            <div className="px-8 py-6 bg-black border-b border-zinc-900">
+                <BondCurveVisualizer
+                    curveData={bondCurveData}
+                    targetPrice={targetPrice}
+                    currentPrice={currentPrice}
+                    symbol={symbol}
+                />
+            </div>
+
             <div className="px-8 py-4 bg-zinc-900/30 border-b border-zinc-900 flex items-center justify-between">
                 <div className="text-[9px] text-zinc-500 uppercase tracking-[0.4em] font-black italic">
                     Protocol Safety Index

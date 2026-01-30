@@ -15,6 +15,16 @@ export type SwapTx = {
     wallet: string;
 };
 
+export type PoolState = {
+    reserveToken: number;
+    reserveUSD: number;
+};
+
+export type CurvePoint = {
+    cumulativeUSD: number;
+    price: number;
+};
+
 export type HolderMetrics = {
     holderPenalty: number; // 0–1
 };
@@ -260,4 +270,248 @@ export function simulateWhatMustChange({
         washTradingReductionRequired:
             multiplierNeeded > 1 ? "Significant" : "Minor"
     };
+}
+
+// --- PART 6: MOMENTUM & TREND DECAY (PHASE 10) ---
+
+export type TrendState = "STRONG" | "WEAKENING" | "DECAYING";
+
+/**
+ * Live net inflow rate (from transactions)
+ */
+export function netInflowPerHour(
+    txs: SwapTx[],
+    windowHours: number
+): number {
+    const netBuy = txs.reduce(
+        (s, tx) => s + (tx.side === "BUY" ? tx.usdValue : -tx.usdValue),
+        0
+    );
+    return netBuy / Math.max(windowHours, 1);
+}
+
+/**
+ * Time-to-Target (hours)
+ */
+export function timeToTargetHours(
+    capitalRequiredUSD: number,
+    netInflowPerHourUSD: number
+): number | null {
+    if (netInflowPerHourUSD <= 0) return null;
+    return capitalRequiredUSD / netInflowPerHourUSD;
+}
+
+export function etaDateFromNow(hours: number): Date {
+    return new Date(Date.now() + hours * 3600 * 1000);
+}
+
+/**
+ * Gatekeeper (when we're allowed to show an ETA)
+ */
+export function canShowMomentumETA({
+    netInflowPerHourUSD,
+    mcas,
+    txConfidence,
+    ammConsistency,
+    washPenalty
+}: {
+    netInflowPerHourUSD: number;
+    mcas: number;
+    txConfidence: number;
+    ammConsistency: number;
+    washPenalty: number;
+}): boolean {
+    return (
+        netInflowPerHourUSD > 0 &&
+        mcas >= 0.4 &&
+        txConfidence >= 0.6 &&
+        ammConsistency >= 0.6 &&
+        washPenalty >= 0.6
+    );
+}
+
+/**
+ * Compute the specific momentum ETA
+ */
+export function computeMomentumETA({
+    capitalRequiredUSD,
+    txs,
+    windowHours,
+    gates
+}: {
+    capitalRequiredUSD: number;
+    txs: SwapTx[];
+    windowHours: number;
+    gates: {
+        mcas: number;
+        txConfidence: number;
+        ammConsistency: number;
+        washPenalty: number;
+    };
+}): { eta: Date; hours: number } | null {
+    const inflow = netInflowPerHour(txs, windowHours);
+
+    if (
+        !canShowMomentumETA({
+            netInflowPerHourUSD: inflow,
+            ...gates
+        })
+    ) {
+        return null;
+    }
+
+    const hours = timeToTargetHours(capitalRequiredUSD, inflow);
+    if (!hours || !isFinite(hours)) return null;
+
+    return { eta: etaDateFromNow(hours), hours };
+}
+
+// --- TREND DECAY SIGNALS ---
+
+/**
+ * Inflow slope (is net buying slowing?)
+ */
+export function inflowSlope(
+    inflows: number[] // net inflow per bucket, ordered old→new
+): number {
+    if (inflows.length < 2) return 0;
+    const deltas = inflows.slice(1).map((v, i) => v - inflows[i]);
+    return deltas.reduce((a, b) => a + b, 0) / deltas.length;
+}
+
+/**
+ * Buy/Sell balance erosion
+ */
+export function directionalityErosion(
+    netBuyUSD: number,
+    totalVolumeUSD: number
+): number {
+    if (totalVolumeUSD <= 0) return 1;
+    const ratio = Math.abs(netBuyUSD) / totalVolumeUSD;
+    return ratio;
+}
+
+/**
+ * AMM slippage deterioration (buyers paying more for less)
+ */
+export function slippageDeterioration(
+    recentImpactPct: number,
+    baselineImpactPct: number
+): number {
+    if (baselineImpactPct <= 0) return 1;
+    const ratio = recentImpactPct / baselineImpactPct;
+    if (ratio <= 1) return 1;
+    if (ratio <= 1.5) return 0.7;
+    if (ratio <= 2.0) return 0.4;
+    return 0.2;
+}
+
+/**
+ * Composite Trend Health (0–1)
+ */
+export function trendHealthScore({
+    slope,
+    directionality,
+    slippageScore
+}: {
+    slope: number;
+    directionality: number;
+    slippageScore: number;
+}): number {
+    const slopeScore =
+        slope > 0 ? 1 : slope === 0 ? 0.6 : 0.3;
+
+    const dirScore =
+        directionality > 0.4 ? 1 :
+            directionality > 0.25 ? 0.6 : 0.3;
+
+    return 0.4 * slopeScore + 0.3 * dirScore + 0.3 * slippageScore;
+}
+
+export function trendStateFromHealth(h: number): TrendState {
+    if (h >= 0.7) return "STRONG";
+    if (h >= 0.45) return "WEAKENING";
+    return "DECAYING";
+}
+
+// --- PART 7: BOND CURVE MECHANICS (PHASE 11) ---
+
+/**
+ * Calculates price after a USD buy injection
+ */
+export function priceAfterBuy(
+    pool: PoolState,
+    usdIn: number
+): number {
+    const k = pool.reserveToken * pool.reserveUSD;
+    const newUSD = pool.reserveUSD + usdIn;
+    const newToken = k / newUSD;
+    return newUSD / newToken;
+}
+
+/**
+ * Calculates price after tokens are sold back to pool
+ */
+export function priceAfterSell(
+    pool: PoolState,
+    tokenIn: number
+): number {
+    const k = pool.reserveToken * pool.reserveUSD;
+    const newToken = pool.reserveToken + tokenIn;
+    const newUSD = k / newToken;
+    return newUSD / newToken;
+}
+
+/**
+ * Replays real transactions on a constant-product AMM curve
+ */
+export function buildBondCurveFromTxs(
+    pool: PoolState,
+    txs: SwapTx[]
+): CurvePoint[] {
+    let state = { ...pool };
+    let cumulativeUSD = 0;
+    const curve: CurvePoint[] = [];
+
+    // Add baseline
+    curve.push({
+        cumulativeUSD: 0,
+        price: state.reserveUSD / state.reserveToken
+    });
+
+    for (const tx of txs) {
+        if (tx.side === "BUY") {
+            cumulativeUSD += tx.usdValue;
+            state.reserveUSD += tx.usdValue;
+            state.reserveToken =
+                (pool.reserveToken * pool.reserveUSD) /
+                state.reserveUSD;
+        } else {
+            // Estimate tokens from USD value at current state price
+            const tokenOut = (tx.usdValue / (state.reserveUSD / state.reserveToken));
+            cumulativeUSD -= tx.usdValue;
+            state.reserveToken += tokenOut;
+            state.reserveUSD =
+                (pool.reserveToken * pool.reserveUSD) /
+                state.reserveToken;
+        }
+
+        curve.push({
+            cumulativeUSD,
+            price: state.reserveUSD / state.reserveToken
+        });
+    }
+
+    return curve.sort((a, b) => a.cumulativeUSD - b.cumulativeUSD);
+}
+
+/**
+ * Capital required to reach target price on the curve
+ */
+export function getCapitalAtTarget(
+    curve: CurvePoint[],
+    targetPrice: number
+): number | null {
+    const match = curve.find(p => p.price >= targetPrice);
+    return match ? match.cumulativeUSD : null;
 }

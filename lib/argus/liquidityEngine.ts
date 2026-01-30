@@ -91,6 +91,8 @@ export type SimulationResult = {
     washTradingReductionRequired: string;
 };
 
+export type TrendState = "STRONG" | "WEAKENING" | "DECAYING";
+
 // --- LP ANALYSIS FUNCTIONS ---
 
 export async function analyzeLiquidityControl(
