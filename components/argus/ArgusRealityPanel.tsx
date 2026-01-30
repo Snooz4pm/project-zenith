@@ -9,6 +9,7 @@ import {
 import { calculateReality, RealityFeasibility } from '@/lib/argus/realityEngine';
 import { NetworkIntelligencePanel } from './NetworkIntelligencePanel';
 import { WalletExposure } from '@/lib/argus/correlationEngine';
+import { ProjectionInsight } from './ProjectionInsight';
 
 export interface ArgusRealityPanelProps {
     currentPrice: number;
@@ -528,6 +529,23 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
                     </div>
                 </div>
             )}
+
+            <div className="px-8 py-6 border-b border-zinc-900 bg-zinc-950/50">
+                <ProjectionInsight
+                    currentPrice={currentPrice}
+                    circulatingSupply={circulatingSupply}
+                    targetPrice={targetPrice}
+                    symbol={symbol}
+                    liquidity={liquidity || 0}
+                    volume24h={volume24h || 0}
+                    holders={holders || []}
+                    marketPulse={
+                        timing?.velocity === 'ACCELERATING' ? 'ACCELERATING' :
+                            timing?.velocity === 'EXHAUSTED' ? 'OVERHEATED' :
+                                'STAGNANT'
+                    }
+                />
+            </div>
 
             {/* Global Safety Index */}
             <div className="px-8 py-4 bg-zinc-900/30 border-b border-zinc-900 flex items-center justify-between">
