@@ -17,6 +17,7 @@ export interface ArgusRealityPanelProps {
     currentPrice: number;
     circulatingSupply: number;
     symbol: string;
+    mint: string;
     liquidity?: number;
     volume24h?: number;
     integrity?: {
@@ -85,7 +86,7 @@ function formatCompact(val: number) {
     return `$${val.toFixed(2)}`;
 }
 
-export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, integrity, behavior, timing, primaryRisk, holders, liquidity, volume24h, walletExposures }: ArgusRealityPanelProps) {
+export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, mint, integrity, behavior, timing, primaryRisk, holders, liquidity, volume24h, walletExposures }: ArgusRealityPanelProps) {
 
 
     const [targetPrice, setTargetPrice] = useState(currentPrice * 10);
@@ -122,14 +123,12 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
 
     // Fetch Live Order Book Depth
     useEffect(() => {
-        if (!symbol) return;
+        if (!mint) return;
 
         const fetchDepth = async () => {
             try {
-                // In production, this would use the mint address
-                // For the skeleton, we can attempt to fetch via symbol if mapped, 
-                // but discovery result usually handles the mint.
-                const res = await fetch(`/api/orderbook/${symbol}`);
+                // Using the dedicated Railway proxy endpoint
+                const res = await fetch(`https://jupiter-proxy-production.up.railway.app/api/orderbook/${mint}`);
                 if (res.ok) {
                     const data = await res.json();
                     setOrderBook(data);

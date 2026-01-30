@@ -209,6 +209,7 @@ export default function ArgusPage() {
                                     currentPrice={selectedToken.price}
                                     circulatingSupply={selectedToken.supply}
                                     symbol={selectedToken.symbol}
+                                    mint={selectedToken.mint}
                                     integrity={selectedToken.integrity}
                                     behavior={selectedToken.behavior}
                                     timing={selectedToken.timing}

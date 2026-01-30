@@ -199,75 +199,80 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                                     </li>
                                 ))}
                             </ul>
-                            {/* Live Market Convergence (Order Book) */}
-                            {obModel && (
-                                <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
-                                    <div className="p-6 border-b border-zinc-900 bg-emerald-500/5">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <BarChart3 className="w-5 h-5 text-emerald-400" />
-                                                <div className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black">
-                                                    Live Market Convergence
-                                                </div>
-                                            </div>
-                                            <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${obModel.status === 'CLOSE' ? 'bg-emerald-500 text-black' :
-                                                    obModel.status === 'APPROACHING' ? 'bg-amber-500 text-black' :
-                                                        'bg-zinc-800 text-zinc-500'
-                                                }`}>
-                                                {obModel.status}
-                                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Live Market Convergence (Order Book) */}
+            {obModel && (
+                <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
+                    <div className="p-6 border-b border-zinc-900 bg-emerald-500/5">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <BarChart3 className="w-5 h-5 text-emerald-400" />
+                                <div className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black">
+                                    Live Market Convergence
+                                </div>
+                            </div>
+                            <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${obModel.status === 'CLOSE' ? 'bg-emerald-500 text-black' :
+                                    obModel.status === 'APPROACHING' ? 'bg-amber-500 text-black' :
+                                        'bg-zinc-800 text-zinc-500'
+                                }`}>
+                                {obModel.status}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-6 space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">OBAR Absorption</div>
+                                        <div className={`text-xl font-black italic ${obModel.obar > 1 ? 'text-emerald-400' : 'text-zinc-300'}`}>
+                                            {obModel.obar.toFixed(2)}x
                                         </div>
                                     </div>
-
-                                    <div className="p-6 space-y-6">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                            <div className="space-y-4">
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">OBAR Absorption</div>
-                                                        <div className={`text-xl font-black italic ${obModel.obar > 1 ? 'text-emerald-400' : 'text-zinc-300'}`}>
-                                                            {obModel.obar.toFixed(2)}x
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Capital Progress</div>
-                                                        <div className="text-xl font-black italic text-white">
-                                                            {(obModel.progressPct * 100).toFixed(1)}%
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="space-y-2">
-                                                    <div className="flex items-center justify-between text-[8px] text-zinc-600 font-bold uppercase">
-                                                        <span>Conversion Velocity</span>
-                                                        <span>{obModel.status}</span>
-                                                    </div>
-                                                    <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
-                                                        <motion.div
-                                                            initial={{ width: 0 }}
-                                                            animate={{ width: `${obModel.progressPct * 100}%` }}
-                                                            className={`h-full ${obModel.status === 'CLOSE' ? 'bg-emerald-500' :
-                                                                    obModel.status === 'APPROACHING' ? 'bg-amber-500' :
-                                                                        'bg-zinc-700'
-                                                                }`}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-black/40 p-4 rounded-xl border border-zinc-900 border-l-emerald-500/30">
-                                                <div className="flex items-center gap-2 mb-3">
-                                                    <Zap size={14} className="text-emerald-400" />
-                                                    <div className="text-[10px] text-zinc-600 font-black uppercase tracking-widest">Convergence Insight</div>
-                                                </div>
-                                                <p className="text-[10px] text-zinc-400 leading-relaxed italic">
-                                                    {obModel.insight}
-                                                </p>
-                                            </div>
+                                    <div>
+                                        <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Capital Progress</div>
+                                        <div className="text-xl font-black italic text-white">
+                                            {(obModel.progressPct * 100).toFixed(1)}%
                                         </div>
                                     </div>
                                 </div>
-                            )}
+
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-[8px] text-zinc-600 font-bold uppercase">
+                                        <span>Conversion Velocity</span>
+                                        <span>{obModel.status}</span>
+                                    </div>
+                                    <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${obModel.progressPct * 100}%` }}
+                                            className={`h-full ${obModel.status === 'CLOSE' ? 'bg-emerald-500' :
+                                                    obModel.status === 'APPROACHING' ? 'bg-amber-500' :
+                                                        'bg-zinc-700'
+                                                }`}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-black/40 p-4 rounded-xl border border-zinc-900 border-l-emerald-500/30">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Zap size={14} className="text-emerald-400" />
+                                    <div className="text-[10px] text-zinc-600 font-black uppercase tracking-widest">Convergence Insight</div>
+                                </div>
+                                <p className="text-[10px] text-zinc-400 leading-relaxed italic">
+                                    {obModel.insight}
+                                </p>
+                            </div>
                         </div>
-                        );
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
