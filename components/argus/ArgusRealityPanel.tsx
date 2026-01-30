@@ -610,6 +610,7 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
                 <OrderBookVisualizer
                     orderBook={orderBook}
                     ammDepth={ammDepth}
+                    reality={reality}
                     targetPrice={targetPrice}
                     symbol={symbol}
                 />
