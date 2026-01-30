@@ -5,7 +5,7 @@
  * transaction-derived capital reqs, and confidence scoring.
  */
 
-// --- TYPES ---
+import { TxDerivedMetrics, MCASResult, SimulationResult } from './liquidityEngine';
 
 export type SwapTx = {
     timestamp: number;
@@ -23,27 +23,6 @@ export type MarketMetrics = {
     liquidityUSD: number;
     volume24hUSD: number;
     effectiveDailyFlowUSD: number;
-};
-
-export type TxDerivedMetrics = {
-    capitalPer1Pct: number | null;
-    txConfidence: number;
-    ammConsistency: number;
-    washPenalty: number;
-};
-
-export type MCASResult = {
-    mcas: number;
-    capitalRequiredUSD: number;
-    confidence: number;
-    verdict: string;
-};
-
-export type SimulationResult = {
-    liquidityIncreaseRequired: number;
-    volumeIncreaseRequired: number;
-    holderImprovementRequired: number;
-    washTradingReductionRequired: string;
 };
 
 // --- CORE UTILS ---

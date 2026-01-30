@@ -57,6 +57,33 @@ export type AMMVirtualDepth = {
     buySideUSD: number; // 1% depth
 };
 
+export type TxDerivedMetrics = {
+    capitalPer1Pct: number | null;
+    txConfidence: number;
+    ammConsistency: number;
+    washPenalty: number;
+    metrics: {
+        volume24hUSD: number;
+        liquidityUSD: number;
+        netBuyUSD: number;
+        tradeCount: number;
+    };
+};
+
+export type MCASResult = {
+    mcas: number;
+    capitalRequiredUSD: number;
+    confidence: number;
+    verdict: string;
+};
+
+export type SimulationResult = {
+    liquidityIncreaseRequired: number;
+    volumeIncreaseRequired: number;
+    holderImprovementRequired: number;
+    washTradingReductionRequired: string;
+};
+
 // --- LP ANALYSIS FUNCTIONS ---
 
 export async function analyzeLiquidityControl(

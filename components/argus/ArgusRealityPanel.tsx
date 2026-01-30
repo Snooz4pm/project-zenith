@@ -11,7 +11,7 @@ import { NetworkIntelligencePanel } from './NetworkIntelligencePanel';
 import { WalletExposure } from '@/lib/argus/correlationEngine';
 import { ProjectionInsight } from './ProjectionInsight';
 import { OrderBookVisualizer } from './OrderBookVisualizer';
-import { OrderBookSnapshot, AMMVirtualDepth, TxDerivedMetrics } from '@/lib/argus/orderBookEngine';
+import { OrderBookSnapshot, AMMVirtualDepth, TxDerivedMetrics } from '@/lib/argus/liquidityEngine';
 import { computeMCASv31, MCASResult } from '@/lib/argus/argusScoreEngine';
 
 export interface ArgusRealityPanelProps {

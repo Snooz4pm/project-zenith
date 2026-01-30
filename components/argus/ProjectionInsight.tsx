@@ -24,12 +24,14 @@ import {
     targetProximityStatus,
     AMMVirtualDepth,
     estimateAMMCapital,
-    TxDerivedMetrics
-} from '@/lib/argus/orderBookEngine';
+    TxDerivedMetrics,
+    OrderBookSnapshot,
+    MCASResult,
+    SimulationResult
+} from '@/lib/argus/liquidityEngine';
 import {
     computeMCASv31,
-    simulateWhatMustChange,
-    MCASResult
+    simulateWhatMustChange
 } from '@/lib/argus/argusScoreEngine';
 
 interface ProjectionInsightProps {
@@ -67,7 +69,8 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
     holders,
     marketPulse,
     orderBook,
-    ammDepth
+    ammDepth,
+    reality
 }) => {
     const marketSnapshot: MarketSnapshot = {
         marketCap: currentPrice * circulatingSupply,
