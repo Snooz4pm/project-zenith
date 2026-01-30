@@ -20,12 +20,17 @@ export const OrderBookVisualizer: React.FC<OrderBookVisualizerProps> = ({
     targetPrice,
     symbol
 }) => {
-    if (!orderBook) {
+    if (!orderBook || orderBook.orderBookAvailable === false) {
         return (
-            <div className="h-64 flex items-center justify-center border border-dashed border-zinc-800 rounded-xl bg-zinc-950/20">
+            <div className="h-64 flex flex-col items-center justify-center border border-dashed border-zinc-800 rounded-xl bg-zinc-950/20 space-y-4">
                 <div className="text-zinc-500 font-black text-[10px] uppercase tracking-widest animate-pulse">
-                    Waiting for Depth Stream...
+                    {orderBook?.orderBookAvailable === false ? 'No Jupiter Limit Market' : 'Awaiting Depth Stream...'}
                 </div>
+                {orderBook?.orderBookAvailable === false && (
+                    <div className="text-zinc-700 text-[8px] uppercase tracking-widest font-black max-w-[200px] text-center">
+                        Synthesizing Liquidity via Volume-Based Flow Analysis
+                    </div>
+                )}
             </div>
         );
     }

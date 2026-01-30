@@ -141,7 +141,7 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
         fetchDepth();
         const interval = setInterval(fetchDepth, 15000); // 15s refresh to avoid spam
         return () => clearInterval(interval);
-    }, [symbol]);
+    }, [mint]);
 
     const intelligence = useMemo(() => {
         let t1 = integrity?.top1Pct || 0;

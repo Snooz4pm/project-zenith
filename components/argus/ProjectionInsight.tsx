@@ -90,7 +90,7 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
 
     // Order Book Logic
     const obModel = useMemo(() => {
-        if (!orderBook) return null;
+        if (!orderBook || orderBook.orderBookAvailable === false) return null;
 
         const priceIncreasePct = (targetPrice / currentPrice) - 1;
         const wallUSD = liquidityWall(orderBook.asks, currentPrice, priceIncreasePct);
@@ -205,7 +205,19 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
             </div>
 
             {/* Live Market Convergence (Order Book) */}
-            {obModel && (
+            {orderBook && orderBook.orderBookAvailable === false ? (
+                <div className="bg-zinc-950/20 rounded-2xl border border-dashed border-zinc-900 overflow-hidden p-6 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                        <Info className="w-5 h-5 text-zinc-600" />
+                        <div className="text-[10px] text-zinc-600 uppercase tracking-[0.2em] font-black">
+                            Limit Market Unavailable
+                        </div>
+                        <p className="text-[10px] text-zinc-700 italic max-w-xs mx-auto">
+                            No active Jupiter Limit orders for this pair. Argus is utilizing volume-based liquidity depth and MCAS for projection modeling.
+                        </p>
+                    </div>
+                </div>
+            ) : obModel && (
                 <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
                     <div className="p-6 border-b border-zinc-900 bg-emerald-500/5">
                         <div className="flex items-center justify-between">
@@ -216,8 +228,8 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                                 </div>
                             </div>
                             <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${obModel.status === 'CLOSE' ? 'bg-emerald-500 text-black' :
-                                    obModel.status === 'APPROACHING' ? 'bg-amber-500 text-black' :
-                                        'bg-zinc-800 text-zinc-500'
+                                obModel.status === 'APPROACHING' ? 'bg-amber-500 text-black' :
+                                    'bg-zinc-800 text-zinc-500'
                                 }`}>
                                 {obModel.status}
                             </div>
@@ -252,8 +264,8 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                                             initial={{ width: 0 }}
                                             animate={{ width: `${obModel.progressPct * 100}%` }}
                                             className={`h-full ${obModel.status === 'CLOSE' ? 'bg-emerald-500' :
-                                                    obModel.status === 'APPROACHING' ? 'bg-amber-500' :
-                                                        'bg-zinc-700'
+                                                obModel.status === 'APPROACHING' ? 'bg-amber-500' :
+                                                    'bg-zinc-700'
                                                 }`}
                                         />
                                     </div>

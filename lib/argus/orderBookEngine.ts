@@ -16,6 +16,7 @@ export type OrderBookSnapshot = {
     bids: OrderBookLevel[]; // sorted desc
     asks: OrderBookLevel[]; // sorted asc
     lastPrice: number;
+    orderBookAvailable?: boolean;
 };
 
 // STEP 2 — Immediate Liquidity Wall (ILW)
