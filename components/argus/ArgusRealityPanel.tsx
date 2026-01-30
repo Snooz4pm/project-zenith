@@ -11,7 +11,8 @@ import { NetworkIntelligencePanel } from './NetworkIntelligencePanel';
 import { WalletExposure } from '@/lib/argus/correlationEngine';
 import { ProjectionInsight } from './ProjectionInsight';
 import { OrderBookVisualizer } from './OrderBookVisualizer';
-import { OrderBookSnapshot, AMMVirtualDepth } from '@/lib/argus/orderBookEngine';
+import { OrderBookSnapshot, AMMVirtualDepth, TxDerivedMetrics } from '@/lib/argus/orderBookEngine';
+import { computeMCASv31, MCASResult } from '@/lib/argus/argusScoreEngine';
 
 export interface ArgusRealityPanelProps {
     currentPrice: number;
@@ -94,6 +95,7 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
     const [showNetworkPanel, setShowNetworkPanel] = useState(false);
     const [orderBook, setOrderBook] = useState<OrderBookSnapshot | undefined>();
     const [ammDepth, setAmmDepth] = useState<AMMVirtualDepth | undefined>();
+    const [reality, setReality] = useState<TxDerivedMetrics | undefined>();
 
     // Scanner State
     const [scanStats, setScanStats] = useState<any>(null);
@@ -151,12 +153,26 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
             }
         };
 
+        const fetchReality = async () => {
+            try {
+                const res = await fetch(`https://jupiter-proxy-production.up.railway.app/api/argus/reality/${mint}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setReality(data);
+                }
+            } catch (err) {
+                console.error('Failed to fetch reality metrics:', err);
+            }
+        };
+
         fetchDepth();
         fetchLiquidity();
+        fetchReality();
         const interval = setInterval(() => {
             fetchDepth();
             fetchLiquidity();
-        }, 30000); // 30s refresh for AMM depth is fine
+            fetchReality();
+        }, 30000);
         return () => clearInterval(interval);
     }, [mint]);
 
@@ -586,6 +602,7 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
                     }
                     orderBook={orderBook}
                     ammDepth={ammDepth}
+                    reality={reality}
                 />
             </div>
 

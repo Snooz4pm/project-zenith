@@ -22,10 +22,15 @@ import {
     buyPressure,
     orderBookAbsorptionRatio,
     targetProximityStatus,
-    OrderBookSnapshot,
     AMMVirtualDepth,
-    estimateAMMCapital
+    estimateAMMCapital,
+    TxDerivedMetrics
 } from '@/lib/argus/orderBookEngine';
+import {
+    computeMCASv31,
+    simulateWhatMustChange,
+    MCASResult
+} from '@/lib/argus/argusScoreEngine';
 
 interface ProjectionInsightProps {
     currentPrice: number;
@@ -42,6 +47,7 @@ interface ProjectionInsightProps {
     marketPulse: "STAGNANT" | "ACCELERATING" | "OVERHEATED";
     orderBook?: OrderBookSnapshot;
     ammDepth?: AMMVirtualDepth;
+    reality?: TxDerivedMetrics;
 }
 
 const formatUSD = (val: number) => {
@@ -91,6 +97,43 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
         return getSupplyAwareModel(circulatingSupply, targetMC, top10Pct);
     }, [circulatingSupply, targetMC, projectionHolders]);
 
+    // PART 1: Enhanced MCAS v3.1 Logic
+    const mcasModel = useMemo(() => {
+        if (!reality || !reality.capitalPer1Pct) return null;
+
+        const holderPenalty = 0.8; // Hook up to distributionScorer in future
+
+        return computeMCASv31({
+            market: {
+                liquidityUSD: reality.metrics.liquidityUSD,
+                volume24hUSD: reality.metrics.volume24hUSD,
+                effectiveDailyFlowUSD: reality.metrics.volume24hUSD * 0.15 // 15% flow heuristic
+            },
+            tx: reality,
+            holders: { holderPenalty },
+            currentPrice,
+            targetMarketCap: targetPrice * circulatingSupply,
+            totalSupply: circulatingSupply
+        });
+    }, [reality, currentPrice, targetPrice, circulatingSupply]);
+
+    // PART 2: Simulator (What Must Change)
+    const simulation = useMemo(() => {
+        if (!mcasModel || !reality) return null;
+
+        return simulateWhatMustChange({
+            base: {
+                effectiveDailyFlowUSD: reality.metrics.volume24hUSD * 0.15,
+                holderPenalty: 0.8,
+                txConfidence: reality.txConfidence,
+                ammConsistency: reality.ammConsistency,
+                washPenalty: reality.washPenalty,
+                capitalRequiredUSD: mcasModel.capitalRequiredUSD
+            },
+            targetMCAS: 0.4 // Goal threshold
+        });
+    }, [mcasModel, reality]);
+
     // Order Book Logic
     const obModel = useMemo(() => {
         if (!orderBook || orderBook.orderBookAvailable === false) return null;
@@ -116,27 +159,32 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
 
     return (
         <div className="space-y-6">
-            {/* Market Cap Attainability Score */}
-            <div className={`p-6 rounded-2xl border transition-all duration-500 ${getScoreBg(mcas)}`}>
+            {/* Market Cap Attainability Score (Truth-Based v3.1) */}
+            <div className={`p-6 rounded-2xl border transition-all duration-500 ${mcasModel ? getScoreBg(mcasModel.mcas) : getScoreBg(mcas)}`}>
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <Target className={`w-6 h-6 ${getScoreColor(mcas)}`} />
+                        <Target className={`w-6 h-6 ${mcasModel ? getScoreColor(mcasModel.mcas) : getScoreColor(mcas)}`} />
                         <div>
                             <div className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black">
-                                MCAS (Market Cap Attainability Score)
+                                MCAS v3.1 {mcasModel ? '(Transaction Verified)' : '(Liquidity Estimated)'}
                             </div>
-                            <div className={`text-3xl font-black italic tracking-tighter ${getScoreColor(mcas)}`}>
-                                {(mcas * 100).toFixed(0)}%
+                            <div className={`text-3xl font-black italic tracking-tighter ${mcasModel ? getScoreColor(mcasModel.mcas) : getScoreColor(mcas)}`}>
+                                {mcasModel ? (mcasModel.mcas * 100).toFixed(0) : (mcas * 100).toFixed(0)}%
                             </div>
                         </div>
                     </div>
+                    {mcasModel && (
+                        <div className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-tighter ${mcasModel.confidence > 0.6 ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-500'}`}>
+                            Confidence: {mcasModel.confidence > 0.6 ? 'High' : 'Medium'}
+                        </div>
+                    )}
                 </div>
 
                 <div className="bg-zinc-950/40 rounded-xl p-4 border border-zinc-900/50">
                     <div className="flex items-start gap-4">
                         <Info className="w-5 h-5 text-zinc-500 shrink-0 mt-0.5" />
                         <p className="text-sm text-zinc-300 italic leading-relaxed">
-                            {verdict}
+                            {mcasModel ? mcasModel.verdict : verdict}
                         </p>
                     </div>
                 </div>
@@ -148,7 +196,7 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                     <div className="flex items-center gap-3">
                         <Coins className="w-5 h-5 text-cyan-400" />
                         <div className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black">
-                            Supply-Aware Capital Injection Model
+                            Empirical Capital & AMM Depth
                         </div>
                     </div>
                 </div>
@@ -160,14 +208,12 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Target Price</div>
-                                    <div className="text-xl font-black italic text-white">
-                                        ${targetPrice.toLocaleString()}
-                                    </div>
+                                    <div className="text-xl font-black italic text-white">${targetPrice.toLocaleString()}</div>
                                 </div>
                                 <div>
-                                    <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Active Float</div>
-                                    <div className="text-xl font-black italic text-cyan-400">
-                                        {(supplyModel.availableSupply / 1e6).toFixed(1)}M <span className="text-[10px] text-zinc-500">TOKENS</span>
+                                    <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Capital Required</div>
+                                    <div className="text-xl font-black italic text-emerald-400">
+                                        {mcasModel ? formatUSD(mcasModel.capitalRequiredUSD) : formatUSD(supplyModel.capitalRequired.base)}
                                     </div>
                                 </div>
                             </div>
@@ -195,20 +241,7 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                                             </div>
                                         </>
                                     ) : (
-                                        <>
-                                            <div className="bg-zinc-900/50 p-2 rounded border border-zinc-800">
-                                                <div className="text-[7px] text-zinc-500 uppercase font-black">Low (10%)</div>
-                                                <div className="text-xs font-black italic text-zinc-300">{formatUSD(supplyModel.capitalRequired.low)}</div>
-                                            </div>
-                                            <div className="bg-zinc-900/50 p-2 rounded border border-cyan-500/20">
-                                                <div className="text-[7px] text-cyan-400 uppercase font-black">Base (20%)</div>
-                                                <div className="text-xs font-black italic text-white">{formatUSD(supplyModel.capitalRequired.base)}</div>
-                                            </div>
-                                            <div className="bg-zinc-900/50 p-2 rounded border border-zinc-800">
-                                                <div className="text-[7px] text-zinc-500 uppercase font-black">High (30%)</div>
-                                                <div className="text-xs font-black italic text-zinc-300">{formatUSD(supplyModel.capitalRequired.high)}</div>
-                                            </div>
-                                        </>
+                                        <div className="col-span-3 text-[10px] text-zinc-700 italic">Probing AMM depth...</div>
                                     )}
                                 </div>
                             </div>
@@ -230,82 +263,82 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                 </div>
             </div>
 
-            {/* Live Market Convergence (Order Book) */}
-            {orderBook && orderBook.orderBookAvailable === false ? (
-                <div className="bg-zinc-950/20 rounded-2xl border border-dashed border-zinc-900 overflow-hidden p-6 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                        <Info className="w-5 h-5 text-zinc-600" />
-                        <div className="text-[10px] text-zinc-600 uppercase tracking-[0.2em] font-black">
-                            Limit Market Unavailable
-                        </div>
-                        <p className="text-[10px] text-zinc-700 italic max-w-xs mx-auto">
-                            No active Jupiter Limit orders for this pair. Argus is utilizing volume-based liquidity depth and MCAS for projection modeling.
-                        </p>
+            {/* REALITY SIMULATOR BLOCK */}
+            <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
+                <div className="p-6 border-b border-zinc-900 bg-cyan-500/5">
+                    <div className="flex items-center gap-2">
+                        <Zap className="w-5 h-5 text-cyan-400" />
+                        <div className="text-[11px] text-white font-black uppercase tracking-widest italic">Reality Simulator: Required for MCAS 0.4</div>
                     </div>
                 </div>
-            ) : obModel && (
+                <div className="p-6">
+                    {simulation ? (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
+                                <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Volume Growth</div>
+                                <div className="text-lg font-black italic text-white">+{((simulation.volumeIncreaseRequired - 1) * 100).toFixed(0)}%</div>
+                            </div>
+                            <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
+                                <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Liquidity Boost</div>
+                                <div className="text-lg font-black italic text-white">{simulation.liquidityIncreaseRequired.toFixed(1)}x</div>
+                            </div>
+                            <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50 border-emerald-500/10">
+                                <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Holder Stability</div>
+                                <div className="text-lg font-black italic text-emerald-400">+{((simulation.holderImprovementRequired) * 100).toFixed(0)}%</div>
+                            </div>
+                            <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
+                                <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Wash Reduction</div>
+                                <div className="text-lg font-black italic text-cyan-400">{simulation.washTradingReductionRequired}</div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-[10px] text-zinc-700 italic p-4">Insuffient empirical data to run reality simulation.</div>
+                    )}
+                </div>
+            </div>
+
+            {/* Live Market Convergence (Order Book) */}
+            {orderBook && orderBook.orderBookAvailable === true && obModel && (
                 <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
                     <div className="p-6 border-b border-zinc-900 bg-emerald-500/5">
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <BarChart3 className="w-5 h-5 text-emerald-400" />
-                                <div className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black">
-                                    Live Market Convergence
-                                </div>
+                            <div className="flex items-center gap-2">
+                                <BarChart3 className={`w-5 h-5 ${obModel.status === 'CLOSE' ? 'text-emerald-400' : 'text-zinc-500'}`} />
+                                <div className="text-xs font-black uppercase italic tracking-widest text-white">Live Market Convergence</div>
                             </div>
-                            <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${obModel.status === 'CLOSE' ? 'bg-emerald-500 text-black' :
-                                obModel.status === 'APPROACHING' ? 'bg-amber-500 text-black' :
-                                    'bg-zinc-800 text-zinc-500'
+                            <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-tighter ${obModel.status === 'CLOSE' ? 'bg-emerald-500 text-black' :
+                                obModel.status === 'APPROACHING' ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-400'
                                 }`}>
                                 {obModel.status}
                             </div>
                         </div>
+                        <p className="mt-3 text-[11px] text-zinc-500 font-medium leading-relaxed italic pr-12">
+                            {obModel.insight}
+                        </p>
                     </div>
 
-                    <div className="p-6 space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">OBAR Absorption</div>
-                                        <div className={`text-xl font-black italic ${obModel.obar > 1 ? 'text-emerald-400' : 'text-zinc-300'}`}>
-                                            {obModel.obar.toFixed(2)}x
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Capital Progress</div>
-                                        <div className="text-xl font-black italic text-white">
-                                            {(obModel.progressPct * 100).toFixed(1)}%
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-[8px] text-zinc-600 font-bold uppercase">
-                                        <span>Conversion Velocity</span>
-                                        <span>{obModel.status}</span>
-                                    </div>
-                                    <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${obModel.progressPct * 100}%` }}
-                                            className={`h-full ${obModel.status === 'CLOSE' ? 'bg-emerald-500' :
-                                                obModel.status === 'APPROACHING' ? 'bg-amber-500' :
-                                                    'bg-zinc-700'
-                                                }`}
-                                        />
-                                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-zinc-900">
+                        <div className="p-6 space-y-4">
+                            <div className="space-y-1">
+                                <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Buy Pressure (1%)</div>
+                                <div className="text-lg font-black italic text-emerald-400">
+                                    {formatUSD(buyPressure(orderBook?.bids || [], currentPrice, 0.01))}
                                 </div>
                             </div>
-
-                            <div className="bg-black/40 p-4 rounded-xl border border-zinc-900 border-l-emerald-500/30">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Zap size={14} className="text-emerald-400" />
-                                    <div className="text-[10px] text-zinc-600 font-black uppercase tracking-widest">Convergence Insight</div>
+                        </div>
+                        <div className="p-6 space-y-6">
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest">
+                                    <span className="text-zinc-600">Absorption</span>
+                                    <span className="text-white">{Math.round(obModel.progressPct * 100)}%</span>
                                 </div>
-                                <p className="text-[10px] text-zinc-400 leading-relaxed italic">
-                                    {obModel.insight}
-                                </p>
+                                <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${obModel.progressPct * 100}%` }}
+                                        className="h-full bg-emerald-500"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
