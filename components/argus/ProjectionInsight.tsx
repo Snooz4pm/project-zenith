@@ -17,6 +17,14 @@ import {
     MarketSnapshot,
     Holder
 } from '@/lib/argus/projectionEngine';
+import {
+    liquidityWall,
+    buyPressure,
+    orderBookAbsorptionRatio,
+    calculateOrderBookProgress,
+    targetProximityStatus,
+    OrderBookSnapshot
+} from '@/lib/argus/orderBookEngine';
 
 interface ProjectionInsightProps {
     currentPrice: number;
@@ -49,7 +57,8 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
     liquidity,
     volume24h,
     holders,
-    marketPulse
+    marketPulse,
+    orderBook
 }) => {
     const marketSnapshot: MarketSnapshot = {
         marketCap: currentPrice * circulatingSupply,
