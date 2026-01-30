@@ -1,9 +1,13 @@
 /**
- * Argus Liquidity Control Engine - Phase 5.1
- * Critical rug detection via LP ownership analysis
+ * Argus Liquidity Control & Depth Engine
+ * 
+ * Logic for analyzing LP ownership, rug risk, real-time order book depth,
+ * and AMM virtual depth (price impact modeling).
  */
 
 import { Connection, PublicKey } from '@solana/web3.js';
+
+// --- LP CONTROL MODELS ---
 
 export interface LiquidityReport {
     lpOwnership: 'DEPLOYER_CONTROLLED' | 'LOCKED' | 'BURNED' | 'DISTRIBUTED' | 'UNKNOWN';
@@ -27,6 +31,34 @@ const BURN_ADDRESSES = [
     'So11111111111111111111111111111111111111112', // Wrapped SOL (common burn)
 ];
 
+// --- ORDER BOOK & AMM MODELS ---
+
+export type OrderBookLevel = {
+    price: number;
+    sizeUSD: number;
+};
+
+export type OrderBookSnapshot = {
+    bids: OrderBookLevel[];
+    asks: OrderBookLevel[];
+    lastPrice: number;
+    orderBookAvailable?: boolean;
+};
+
+export type AMMLiquidityTier = {
+    impactPct: number; // 1, 5, 10
+    totalUSD: number;  // Cumulative USD needed to reach this impact
+    targetPrice: number;
+};
+
+export type AMMVirtualDepth = {
+    currentPrice: number;
+    tiers: AMMLiquidityTier[];
+    buySideUSD: number; // 1% depth
+};
+
+// --- LP ANALYSIS FUNCTIONS ---
+
 export async function analyzeLiquidityControl(
     connection: Connection,
     mintAddress: string,
@@ -40,39 +72,10 @@ export async function analyzeLiquidityControl(
     let lpLockedPct = 0;
 
     try {
-        // 1. Detect common Raydium/Orca LP pairs for this token
-        // For MVP, we'll use a heuristic approach:
-        // Query token accounts and look for LP-like structures
-
         const mintPubkey = new PublicKey(mintAddress);
-
-        // 2. For Raydium, LP tokens are minted when liquidity is added
-        // We need to find the LP token mint associated with this base token
-        // This is a simplified heuristic - in production, query Raydium program directly
-
-        // For now, we'll implement a basic check:
-        // - Check if deployer holds large % of a related token (likely LP)
-        // - Check for known lock programs
-        // - Check for burn transactions
-
-        // Placeholder implementation - will be enhanced with actual LP detection
-        // In production, this would:
-        // 1. Query Raydium/Orca pool accounts for this mint
-        // 2. Get the LP token mint address
-        // 3. Query LP token holders
-        // 4. Analyze distribution
-
-        // For MVP, flag as UNKNOWN with conservative scoring
         lpOwnership = 'UNKNOWN';
         flags.push('⚠️ LP control analysis pending (requires pool detection)');
-        riskScore = -5; // Small penalty for unknown status
-
-        // Future enhancement points:
-        // - Integrate with Raydium SDK to detect LP pools
-        // - Query LP token mint and holder distribution
-        // - Detect lock program PDAs
-        // - Track LP burn events via transaction history
-
+        riskScore = -5;
     } catch (err) {
         console.error('[Liquidity] Analysis failed:', err);
         flags.push('⚠️ LP analysis unavailable');
@@ -92,6 +95,137 @@ export async function analyzeLiquidityControl(
         flags,
         score: riskScore
     };
+}
+
+// --- ORDER BOOK & DEPTH FUNCTIONS ---
+
+/**
+ * Immediate Liquidity Wall (ILW)
+ * Calculates the total capital (USD) required to move the price up 
+ * to a specific target based on the ask-side depth.
+ */
+export function liquidityWall(
+    asks: OrderBookLevel[],
+    lastPrice: number,
+    priceIncreasePct: number
+): number {
+    const targetPrice = lastPrice * (1 + priceIncreasePct);
+    return asks
+        .filter(ask => ask.price <= targetPrice)
+        .reduce((sum, ask) => sum + ask.sizeUSD, 0);
+}
+
+/**
+ * Buy Pressure Estimation
+ */
+export function buyPressure(
+    bids: OrderBookLevel[],
+    lastPrice: number,
+    bandPct: number
+): number {
+    const minPrice = lastPrice * (1 - bandPct);
+    return bids
+        .filter(bid => bid.price >= minPrice)
+        .reduce((sum, bid) => sum + bid.sizeUSD, 0);
+}
+
+/**
+ * Order Book Absorption Ratio (OBAR)
+ */
+export function orderBookAbsorptionRatio(
+    buyPressureUSD: number,
+    sellLiquidityUSD: number
+): number {
+    if (sellLiquidityUSD <= 0) return buyPressureUSD > 0 ? 100 : 1;
+    return buyPressureUSD / sellLiquidityUSD;
+}
+
+/**
+ * Capital Progress Toward Target
+ */
+export function calculateOrderBookProgress(
+    buyPressureUSD: number,
+    capitalRequiredToTarget: number
+): number {
+    if (capitalRequiredToTarget <= 0) return 1.0;
+    const progress = buyPressureUSD / capitalRequiredToTarget;
+    return Math.max(0, Math.min(1, progress));
+}
+
+export type ProximityStatus = {
+    progressPct: number;
+    obar: number;
+    status: "FAR" | "APPROACHING" | "CLOSE";
+    insight: string;
+};
+
+/**
+ * Target Proximity Status
+ */
+export function targetProximityStatus(
+    buyPressureUSD: number,
+    sellLiquidityUSD: number,
+    capitalRequiredToTarget: number
+): ProximityStatus {
+    const obar = orderBookAbsorptionRatio(buyPressureUSD, sellLiquidityUSD);
+    const progressPct = calculateOrderBookProgress(buyPressureUSD, capitalRequiredToTarget);
+
+    let status: "FAR" | "APPROACHING" | "CLOSE" = "FAR";
+    let insight = "Sell-side liquidity dominates. Target unlikely without increased demand.";
+
+    if (progressPct > 0.1 || obar > 1.2) {
+        status = "APPROACHING";
+        insight = "Buy pressure absorbing resistance. Target approaching.";
+    }
+
+    if (progressPct > 0.4 && obar > 1.5) {
+        status = "CLOSE";
+        insight = "Order book thinning rapidly. Target within reach.";
+    }
+
+    if (obar < 0.5) {
+        insight = "Significant sell-side wall detected. Progress stalled.";
+    }
+
+    return {
+        progressPct,
+        obar,
+        status,
+        insight
+    };
+}
+
+/**
+ * Estimates capital required to push price to target using AMM tiers.
+ */
+export function estimateAMMCapital(
+    tiers: AMMLiquidityTier[],
+    targetPrice: number,
+    currentPrice: number
+): number {
+    if (tiers.length === 0) return 0;
+    const sortedTiers = [...tiers].sort((a, b) => a.impactPct - b.impactPct);
+
+    let lowerTier = { impactPct: 0, totalUSD: 0, targetPrice: currentPrice };
+    let upperTier = sortedTiers[sortedTiers.length - 1];
+
+    for (const tier of sortedTiers) {
+        if (tier.targetPrice >= targetPrice) {
+            upperTier = tier;
+            break;
+        }
+        lowerTier = tier;
+    }
+
+    if (targetPrice <= lowerTier.targetPrice) return lowerTier.totalUSD;
+    if (targetPrice >= upperTier.targetPrice) return upperTier.totalUSD;
+
+    const priceRange = upperTier.targetPrice - lowerTier.targetPrice;
+    const priceOffset = targetPrice - lowerTier.targetPrice;
+    const progress = priceOffset / priceRange;
+
+    const usdRange = upperTier.totalUSD - lowerTier.totalUSD;
+    return lowerTier.totalUSD + (usdRange * progress);
 }
 
 /**

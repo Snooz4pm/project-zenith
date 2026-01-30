@@ -1,11 +1,4 @@
-/**
- * Argus Order Book Engine
- * 
- * Logic for analyzing real-time order book depth, buy/sell pressure,
- * and progress toward market cap targets based on live liquidity.
- */
-
-// STEP 1 — Define Order Book Models (TypeScript)
+// STEP 1 — Define Liquidity & AMM Models
 
 export type OrderBookLevel = {
     price: number;
@@ -13,10 +6,22 @@ export type OrderBookLevel = {
 };
 
 export type OrderBookSnapshot = {
-    bids: OrderBookLevel[]; // sorted desc
-    asks: OrderBookLevel[]; // sorted asc
+    bids: OrderBookLevel[];
+    asks: OrderBookLevel[];
     lastPrice: number;
     orderBookAvailable?: boolean;
+};
+
+export type AMMLiquidityTier = {
+    impactPct: number; // 1, 5, 10
+    totalUSD: number;  // Cumulative USD needed to reach this impact
+    targetPrice: number;
+};
+
+export type AMMVirtualDepth = {
+    currentPrice: number;
+    tiers: AMMLiquidityTier[];
+    buySideUSD: number; // 1% depth
 };
 
 // STEP 2 — Immediate Liquidity Wall (ILW)
@@ -137,4 +142,44 @@ export function targetProximityStatus(
         status,
         insight
     };
+}
+
+// STEP 7 — AMM Virtual Depth Modeling
+
+/**
+ * Estimates capital required to push price to target using AMM tiers.
+ * Uses linear interpolation between tiers if target is in between.
+ */
+export function estimateAMMCapital(
+    tiers: AMMLiquidityTier[],
+    targetPrice: number,
+    currentPrice: number
+): number {
+    if (tiers.length === 0) return 0;
+
+    // Sort tiers by impact
+    const sortedTiers = [...tiers].sort((a, b) => a.impactPct - b.impactPct);
+
+    // Find flanking tiers
+    let lowerTier = { impactPct: 0, totalUSD: 0, targetPrice: currentPrice };
+    let upperTier = sortedTiers[sortedTiers.length - 1];
+
+    for (const tier of sortedTiers) {
+        if (tier.targetPrice >= targetPrice) {
+            upperTier = tier;
+            break;
+        }
+        lowerTier = tier;
+    }
+
+    if (targetPrice <= lowerTier.targetPrice) return lowerTier.totalUSD;
+    if (targetPrice >= upperTier.targetPrice) return upperTier.totalUSD;
+
+    // Linear interpolation
+    const priceRange = upperTier.targetPrice - lowerTier.targetPrice;
+    const priceOffset = targetPrice - lowerTier.targetPrice;
+    const progress = priceOffset / priceRange;
+
+    const usdRange = upperTier.totalUSD - lowerTier.totalUSD;
+    return lowerTier.totalUSD + (usdRange * progress);
 }

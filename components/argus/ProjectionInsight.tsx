@@ -21,9 +21,10 @@ import {
     liquidityWall,
     buyPressure,
     orderBookAbsorptionRatio,
-    calculateOrderBookProgress,
     targetProximityStatus,
-    OrderBookSnapshot
+    OrderBookSnapshot,
+    AMMVirtualDepth,
+    estimateAMMCapital
 } from '@/lib/argus/orderBookEngine';
 
 interface ProjectionInsightProps {
@@ -40,6 +41,7 @@ interface ProjectionInsightProps {
     }[];
     marketPulse: "STAGNANT" | "ACCELERATING" | "OVERHEATED";
     orderBook?: OrderBookSnapshot;
+    ammDepth?: AMMVirtualDepth;
 }
 
 const formatUSD = (val: number) => {
@@ -58,7 +60,8 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
     volume24h,
     holders,
     marketPulse,
-    orderBook
+    orderBook,
+    ammDepth
 }) => {
     const marketSnapshot: MarketSnapshot = {
         marketCap: currentPrice * circulatingSupply,
@@ -170,20 +173,43 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                             </div>
 
                             <div className="pt-4 border-t border-zinc-900">
-                                <div className="text-[8px] text-zinc-600 font-bold uppercase mb-3">Capital Required for Discovery</div>
+                                <div className="text-[8px] text-zinc-600 font-bold uppercase mb-3 text-emerald-400">
+                                    AMM Verified Capital Required (Impact-Aware)
+                                </div>
                                 <div className="grid grid-cols-3 gap-2">
-                                    <div className="bg-zinc-900/50 p-2 rounded border border-zinc-800">
-                                        <div className="text-[7px] text-zinc-500 uppercase font-black">Low (10%)</div>
-                                        <div className="text-xs font-black italic text-zinc-300">{formatUSD(supplyModel.capitalRequired.low)}</div>
-                                    </div>
-                                    <div className="bg-zinc-900/50 p-2 rounded border border-cyan-500/20">
-                                        <div className="text-[7px] text-cyan-400 uppercase font-black">Base (20%)</div>
-                                        <div className="text-xs font-black italic text-white">{formatUSD(supplyModel.capitalRequired.base)}</div>
-                                    </div>
-                                    <div className="bg-zinc-900/50 p-2 rounded border border-zinc-800">
-                                        <div className="text-[7px] text-zinc-500 uppercase font-black">High (30%)</div>
-                                        <div className="text-xs font-black italic text-zinc-300">{formatUSD(supplyModel.capitalRequired.high)}</div>
-                                    </div>
+                                    {ammDepth ? (
+                                        <>
+                                            <div className="bg-zinc-900/50 p-2 rounded border border-zinc-800">
+                                                <div className="text-[7px] text-zinc-500 uppercase font-black">To 1% Impact</div>
+                                                <div className="text-xs font-black italic text-zinc-300">{formatUSD(ammDepth.tiers[0]?.totalUSD || 0)}</div>
+                                            </div>
+                                            <div className="bg-zinc-900/50 p-2 rounded border border-emerald-500/20">
+                                                <div className="text-[7px] text-cyan-400 uppercase font-black">To 5% Impact</div>
+                                                <div className="text-xs font-black italic text-white">{formatUSD(ammDepth.tiers[1]?.totalUSD || 0)}</div>
+                                            </div>
+                                            <div className="bg-zinc-900/50 p-2 rounded border border-zinc-800">
+                                                <div className="text-[7px] text-zinc-500 uppercase font-black">Discovery Injection</div>
+                                                <div className="text-xs font-black italic text-emerald-400">
+                                                    {formatUSD(estimateAMMCapital(ammDepth.tiers, targetPrice, currentPrice))}
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="bg-zinc-900/50 p-2 rounded border border-zinc-800">
+                                                <div className="text-[7px] text-zinc-500 uppercase font-black">Low (10%)</div>
+                                                <div className="text-xs font-black italic text-zinc-300">{formatUSD(supplyModel.capitalRequired.low)}</div>
+                                            </div>
+                                            <div className="bg-zinc-900/50 p-2 rounded border border-cyan-500/20">
+                                                <div className="text-[7px] text-cyan-400 uppercase font-black">Base (20%)</div>
+                                                <div className="text-xs font-black italic text-white">{formatUSD(supplyModel.capitalRequired.base)}</div>
+                                            </div>
+                                            <div className="bg-zinc-900/50 p-2 rounded border border-zinc-800">
+                                                <div className="text-[7px] text-zinc-500 uppercase font-black">High (30%)</div>
+                                                <div className="text-xs font-black italic text-zinc-300">{formatUSD(supplyModel.capitalRequired.high)}</div>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>

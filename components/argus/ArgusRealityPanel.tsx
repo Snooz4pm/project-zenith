@@ -11,7 +11,7 @@ import { NetworkIntelligencePanel } from './NetworkIntelligencePanel';
 import { WalletExposure } from '@/lib/argus/correlationEngine';
 import { ProjectionInsight } from './ProjectionInsight';
 import { OrderBookVisualizer } from './OrderBookVisualizer';
-import { OrderBookSnapshot } from '@/lib/argus/orderBookEngine';
+import { OrderBookSnapshot, AMMVirtualDepth } from '@/lib/argus/orderBookEngine';
 
 export interface ArgusRealityPanelProps {
     currentPrice: number;
@@ -93,6 +93,7 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
     const [isCustom, setIsCustom] = useState(false);
     const [showNetworkPanel, setShowNetworkPanel] = useState(false);
     const [orderBook, setOrderBook] = useState<OrderBookSnapshot | undefined>();
+    const [ammDepth, setAmmDepth] = useState<AMMVirtualDepth | undefined>();
 
     // Scanner State
     const [scanStats, setScanStats] = useState<any>(null);
@@ -138,8 +139,24 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
             }
         };
 
+        const fetchLiquidity = async () => {
+            try {
+                const res = await fetch(`https://jupiter-proxy-production.up.railway.app/api/liquidity/depth/${mint}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setAmmDepth(data);
+                }
+            } catch (err) {
+                console.error('Failed to fetch AMM depth:', err);
+            }
+        };
+
         fetchDepth();
-        const interval = setInterval(fetchDepth, 15000); // 15s refresh to avoid spam
+        fetchLiquidity();
+        const interval = setInterval(() => {
+            fetchDepth();
+            fetchLiquidity();
+        }, 30000); // 30s refresh for AMM depth is fine
         return () => clearInterval(interval);
     }, [mint]);
 
@@ -568,12 +585,14 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
                                 'STAGNANT'
                     }
                     orderBook={orderBook}
+                    ammDepth={ammDepth}
                 />
             </div>
 
             <div className="px-8 py-6 bg-black border-b border-zinc-900">
                 <OrderBookVisualizer
                     orderBook={orderBook}
+                    ammDepth={ammDepth}
                     targetPrice={targetPrice}
                     symbol={symbol}
                 />
