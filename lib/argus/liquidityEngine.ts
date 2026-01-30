@@ -68,6 +68,13 @@ export type TxDerivedMetrics = {
         netBuyUSD: number;
         tradeCount: number;
     };
+    recentTxs?: Array<{
+        signature: string;
+        time: number;
+        side: 'BUY' | 'SELL';
+        usdValue: number;
+        wallet: string;
+    }>;
 };
 
 export type MCASResult = {

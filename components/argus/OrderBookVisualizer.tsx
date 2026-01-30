@@ -2,11 +2,12 @@
 
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { OrderBookSnapshot, OrderBookLevel, AMMVirtualDepth } from '@/lib/argus/orderBookEngine';
+import { OrderBookSnapshot, OrderBookLevel, AMMVirtualDepth, TxDerivedMetrics } from '@/lib/argus/liquidityEngine';
 
 interface LiquidityVisualizerProps {
     orderBook?: OrderBookSnapshot;
     ammDepth?: AMMVirtualDepth;
+    reality?: TxDerivedMetrics;
     targetPrice?: number;
     symbol: string;
 }
@@ -19,20 +20,63 @@ const formatUSD = (val: number) => {
 export const OrderBookVisualizer: React.FC<LiquidityVisualizerProps> = ({
     orderBook,
     ammDepth,
+    reality,
     targetPrice,
     symbol
 }) => {
     if (!orderBook || orderBook.orderBookAvailable === false) {
         return (
-            <div className="h-64 flex flex-col items-center justify-center border border-dashed border-zinc-800 rounded-xl bg-zinc-950/20 space-y-4">
-                <div className="text-zinc-500 font-black text-[10px] uppercase tracking-widest animate-pulse">
-                    {orderBook?.orderBookAvailable === false ? 'No Jupiter Limit Market' : 'Awaiting Depth Stream...'}
-                </div>
-                {orderBook?.orderBookAvailable === false && (
-                    <div className="text-zinc-700 text-[8px] uppercase tracking-widest font-black max-w-[200px] text-center">
-                        Synthesizing Liquidity via Volume-Based Flow Analysis
+            <div className="flex flex-col border border-dashed border-zinc-800 rounded-xl bg-zinc-950/20 overflow-hidden">
+                <div className="p-4 border-b border-dashed border-zinc-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <div className="text-zinc-500 font-black text-[10px] uppercase tracking-widest">
+                            {orderBook?.orderBookAvailable === false ? 'No Jupiter Limit Market — Using Live Feed' : 'Awaiting Depth Stream...'}
+                        </div>
                     </div>
-                )}
+                </div>
+
+                <div className="p-2 space-y-1 min-h-[200px]">
+                    {reality?.recentTxs ? (
+                        reality.recentTxs.map((tx, i) => (
+                            <motion.div
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.1 }}
+                                key={tx.signature}
+                                className="flex items-center justify-between p-2 rounded-lg bg-zinc-900/40 border border-zinc-800/50 hover:bg-zinc-800/60 transition-colors"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className={`text-[8px] font-black px-1.5 py-0.5 rounded ${tx.side === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                                        {tx.side}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <div className="text-[10px] font-black text-zinc-300 italic">${tx.usdValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                                        <div className="text-[7px] text-zinc-600 font-mono uppercase">{tx.signature.slice(0, 8)}...</div>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-[9px] text-zinc-500 font-black italic">{tx.wallet}</div>
+                                    <div className="text-[7px] text-zinc-700 font-mono uppercase">
+                                        {new Date(tx.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))
+                    ) : (
+                        <div className="h-48 flex items-center justify-center">
+                            <div className="text-zinc-700 text-[8px] uppercase tracking-widest font-black text-center animate-pulse">
+                                Synthesizing Liquidity via Volume-Based Flow Analysis
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-3 bg-zinc-900/30 border-t border-dashed border-zinc-800 text-center">
+                    <div className="text-[8px] text-zinc-600 font-black uppercase tracking-[0.2em]">
+                        Live Transaction Interceptor — Phase 9 Active
+                    </div>
+                </div>
             </div>
         );
     }
