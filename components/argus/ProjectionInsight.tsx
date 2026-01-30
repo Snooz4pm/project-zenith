@@ -31,6 +31,7 @@ interface ProjectionInsightProps {
         pct: number;
     }[];
     marketPulse: "STAGNANT" | "ACCELERATING" | "OVERHEATED";
+    orderBook?: OrderBookSnapshot;
 }
 
 const formatUSD = (val: number) => {
@@ -77,6 +78,17 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
         const top10Pct = projectionHolders.slice(0, 10).reduce((acc, h) => acc + h.supplyPct, 0);
         return getSupplyAwareModel(circulatingSupply, targetMC, top10Pct);
     }, [circulatingSupply, targetMC, projectionHolders]);
+
+    // Order Book Logic
+    const obModel = useMemo(() => {
+        if (!orderBook) return null;
+
+        const priceIncreasePct = (targetPrice / currentPrice) - 1;
+        const wallUSD = liquidityWall(orderBook.asks, currentPrice, priceIncreasePct);
+        const buyUSD = buyPressure(orderBook.bids, currentPrice, 0.01); // 1% band
+
+        return targetProximityStatus(buyUSD, wallUSD, supplyModel.capitalRequired.base);
+    }, [orderBook, currentPrice, targetPrice, supplyModel.capitalRequired.base]);
 
     const getScoreColor = (score: number) => {
         if (score >= 0.8) return 'text-emerald-400';
