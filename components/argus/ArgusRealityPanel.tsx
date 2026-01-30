@@ -10,6 +10,8 @@ import { calculateReality, RealityFeasibility } from '@/lib/argus/realityEngine'
 import { NetworkIntelligencePanel } from './NetworkIntelligencePanel';
 import { WalletExposure } from '@/lib/argus/correlationEngine';
 import { ProjectionInsight } from './ProjectionInsight';
+import { OrderBookVisualizer } from './OrderBookVisualizer';
+import { OrderBookSnapshot } from '@/lib/argus/orderBookEngine';
 
 export interface ArgusRealityPanelProps {
     currentPrice: number;
@@ -89,36 +91,58 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, int
     const [targetPrice, setTargetPrice] = useState(currentPrice * 10);
     const [isCustom, setIsCustom] = useState(false);
     const [showNetworkPanel, setShowNetworkPanel] = useState(false);
+    const [orderBook, setOrderBook] = useState<OrderBookSnapshot | undefined>();
 
     // Scanner State
     const [scanStats, setScanStats] = useState<any>(null);
     const [scanning, setScanning] = useState(false);
 
-    useEffect(() => {
+    const fetchScan = async () => {
         if (!behavior?.deployerAddress || behavior.deployerAddress === 'Unknown') return;
 
-        // Reset
-        setScanStats(null);
-        setScanning(true);
+        try {
+            setScanStats(null);
+            setScanning(true);
+            // Using production Railway proxy as requested
+            const res = await fetch(`https://jupiter-proxy-production.up.railway.app/api/scan/wallet/${behavior.deployerAddress}`);
+            if (res.ok) {
+                const data = await res.json();
+                setScanStats(data);
+            }
+        } catch (e) {
+            console.error("Scanner failed", e);
+        } finally {
+            setScanning(false);
+        }
+    };
 
-        const fetchScan = async () => {
+    useEffect(() => {
+        fetchScan();
+    }, [behavior?.deployerAddress]);
+
+    // Fetch Live Order Book Depth
+    useEffect(() => {
+        if (!symbol) return;
+
+        const fetchDepth = async () => {
             try {
-                // Using production Railway proxy as requested
-                // Note: The backend changes must be deployed for this to work
-                const res = await fetch(`https://jupiter-proxy-production.up.railway.app/api/scan/wallet/${behavior.deployerAddress}`);
+                // In production, this would use the mint address
+                // For the skeleton, we can attempt to fetch via symbol if mapped, 
+                // but discovery result usually handles the mint.
+                const res = await fetch(`/api/orderbook/${symbol}`);
                 if (res.ok) {
                     const data = await res.json();
-                    setScanStats(data);
+                    setOrderBook(data);
                 }
-            } catch (e) {
-                console.error("Scanner failed", e);
-            } finally {
-                setScanning(false);
+            } catch (err) {
+                console.error('Failed to fetch order book depth:', err);
             }
         };
 
-        fetchScan();
-    }, [behavior?.deployerAddress]);
+        fetchDepth();
+        const interval = setInterval(fetchDepth, 15000); // 15s refresh to avoid spam
+        return () => clearInterval(interval);
+    }, [symbol]);
 
     const intelligence = useMemo(() => {
         let t1 = integrity?.top1Pct || 0;
