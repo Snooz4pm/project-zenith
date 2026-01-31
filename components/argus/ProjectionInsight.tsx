@@ -471,28 +471,28 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                             </div>
 
                             <div className="h-4 w-full bg-zinc-900 rounded-full overflow-hidden relative">
-                                <div className="absolute inset-0 flex">
-                                    <div className="w-1/2 h-full border-r border-zinc-800/50" />
-                                </div>
                                 <motion.div
-                                    initial={{ width: "0%", left: "50%" }}
+                                    initial={{ width: "50%" }}
                                     animate={{
-                                        width: `${Math.abs((reality?.nrd || 0) * 50)}%`,
-                                        left: (reality?.nrd || 0) >= 0 ? "50%" : `${50 - Math.abs((reality?.nrd || 0) * 50)}%`
+                                        width: `${((reality?.nrd || 0) + 1) / 2 * 100}%`
                                     }}
-                                    className={`absolute h-full ${(reality?.nrd || 0) >= 0 ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]'}`}
+                                    className={`h-full ${(reality?.nrd || 0) >= 0.1 ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' :
+                                        (reality?.nrd || 0) <= -0.1 ? 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]' :
+                                            'bg-zinc-700'}`}
                                 />
+                                {/* Center tick */}
+                                <div className="absolute top-0 bottom-0 left-1/2 w-px bg-white/20 z-10" />
                             </div>
 
                             <div className="flex justify-between text-[8px] text-zinc-600 font-bold uppercase tracking-widest px-1">
-                                <span>Seller Dominant</span>
+                                <span>Absolute Sell Control</span>
                                 <span>Neutral</span>
-                                <span>Buyer Dominant</span>
+                                <span>Absolute Buy Control</span>
                             </div>
                         </div>
 
                         {/* conviction stats */}
-                        <div className="bg-black/40 p-6 rounded-xl border border-zinc-900 grid grid-cols-2 gap-6">
+                        <div className="bg-black/40 p-6 rounded-xl border border-zinc-900 grid grid-cols-2 gap-6 relative group/tooltip">
                             <div className="space-y-4">
                                 <div>
                                     <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1 tracking-widest">Buy Conviction</div>
@@ -523,6 +523,12 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                                             ? "Aggressive repeat distribution. Significant overhead resistance."
                                             : "Fragmented market participation. No clear institutional bias."}
                                 </p>
+                            </div>
+
+                            {/* Conceptual Tooltip */}
+                            <div className="absolute -top-12 left-0 right-0 bg-zinc-900 border border-zinc-800 p-2 rounded text-[9px] text-zinc-400 italic opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-20 shadow-xl">
+                                Net Recurrent Dominance measures whether the same wallets are consistently buying or selling over time.
+                                <span className="text-zinc-200"> Persistent repetition indicates control</span>, while scattered activity suggests balance.
                             </div>
                         </div>
                     </div>

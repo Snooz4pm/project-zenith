@@ -111,6 +111,10 @@ export function capitalForPrice(
 export type RecurrentDominanceResult = {
     recurrentBuyStrength: number;
     recurrentSellStrength: number;
+    totalBuyUSD: number;
+    totalSellUSD: number;
+    recurrentBuyUSD: number;
+    recurrentSellUSD: number;
     dominance: number; // NRD
     status: "RECURRENT_BUYERS_DOMINANT" | "RECURRENT_SELLERS_DOMINANT" | "BALANCED_PARTICIPATION";
 };
@@ -156,6 +160,10 @@ export function calculateRecurrentDominance(
     return {
         recurrentBuyStrength: B ? Br / B : 0,
         recurrentSellStrength: S ? Sr / S : 0,
+        totalBuyUSD: B,
+        totalSellUSD: S,
+        recurrentBuyUSD: Br,
+        recurrentSellUSD: Sr,
         dominance: nrd,
         status
     };

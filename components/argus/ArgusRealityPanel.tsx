@@ -309,7 +309,22 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
         const bearParams = fitTrajectoryCoefficients(maxSellC, maxSellP);
 
         // 4. Recurrent Flow Dominance (RFD) - Phase 19
-        const nrdResult = calculateRecurrentDominance(txsForLogic);
+        // Step 1: 1-hour rolling window
+        const WINDOW_MS = 60 * 60 * 1000;
+        const now = Date.now();
+        const windowTxs = txsForLogic.filter(tx => (now - tx.timestamp) <= WINDOW_MS);
+
+        const nrdResult = calculateRecurrentDominance(windowTxs);
+
+        // Step 4/5 Sanity Check
+        console.log("NRD Component Flux:", {
+            windowTxs: windowTxs.length,
+            totalBuyUSD: nrdResult.totalBuyUSD,
+            totalSellUSD: nrdResult.totalSellUSD,
+            recurrentBuyUSD: nrdResult.recurrentBuyUSD,
+            recurrentSellUSD: nrdResult.recurrentSellUSD,
+            dominance: nrdResult.dominance
+        });
 
         const bullCurve = [];
         const bearCurve = [];
