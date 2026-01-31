@@ -37,6 +37,7 @@ import {
     simulateWhatMustChange,
     computeMomentumETA,
     calculateLiveInflowRate,
+    netInflowPerHour,
     trendHealthScore,
     trendStateFromHealth,
     buildCapitalTrajectory,
