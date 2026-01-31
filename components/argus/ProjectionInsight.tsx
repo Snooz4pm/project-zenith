@@ -492,10 +492,38 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                         </div>
 
                         {/* conviction stats */}
-                        <div className="bg-black/40 p-4 rounded-xl border border-zinc-900 flex items-center justify-center">
-                            <p className="text-[10px] text-zinc-500 leading-relaxed italic text-center">
-                                RFD measures persistent structural behavior. A score > 25% suggests strong recurrent accumulation, providing a high-confidence floor for mcap expansion.
-                            </p>
+                        <div className="bg-black/40 p-6 rounded-xl border border-zinc-900 grid grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                                <div>
+                                    <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1 tracking-widest">Buy Conviction</div>
+                                    <div className="text-xl font-black italic text-emerald-400">
+                                        {((reality?.recurrentBuyStrength || 0) * 100).toFixed(0)}%
+                                    </div>
+                                    <div className="text-[7px] text-zinc-500 uppercase mt-1">Recurrent Absorption</div>
+                                </div>
+                                <div>
+                                    <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1 tracking-widest">Sell Conviction</div>
+                                    <div className="text-xl font-black italic text-rose-400">
+                                        {((reality?.recurrentSellStrength || 0) * 100).toFixed(0)}%
+                                    </div>
+                                    <div className="text-[7px] text-zinc-500 uppercase mt-1">Persistent Distribution</div>
+                                </div>
+                            </div>
+                            <div className="flex flex-col justify-center border-l border-zinc-900 pl-6">
+                                <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1 tracking-widest">Control Ratio</div>
+                                <div className={`text-2xl font-black italic tracking-tighter ${(reality?.nrd || 0) > 0.1 ? 'text-emerald-400' :
+                                        (reality?.nrd || 0) < -0.1 ? 'text-rose-400' : 'text-zinc-500'
+                                    }`}>
+                                    {Math.abs((reality?.recurrentBuyStrength || 0) / Math.max(reality?.recurrentSellStrength || 0.001, 0.001)).toFixed(2)}x
+                                </div>
+                                <p className="text-[9px] text-zinc-500 leading-relaxed italic mt-2">
+                                    {reality?.nrd && reality.nrd > 0.25
+                                        ? "Strong structural accumulation detected. High floor conviction."
+                                        : reality?.nrd && reality.nrd < -0.25
+                                            ? "Aggressive repeat distribution. Significant overhead resistance."
+                                            : "Fragmented market participation. No clear institutional bias."}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

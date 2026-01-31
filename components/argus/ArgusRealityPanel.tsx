@@ -744,7 +744,9 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
                     reality={reality ? {
                         ...reality,
                         nrd: trajectoryData.nrd?.dominance,
-                        dominanceStatus: trajectoryData.nrd?.status.replace(/_/g, ' ')
+                        dominanceStatus: trajectoryData.nrd?.status.replace(/_/g, ' '),
+                        recurrentBuyStrength: trajectoryData.nrd?.recurrentBuyStrength,
+                        recurrentSellStrength: trajectoryData.nrd?.recurrentSellStrength
                     } : undefined}
                 />
             </div>

@@ -64,6 +64,8 @@ export type TxDerivedMetrics = {
     washPenalty: number;
     nrd?: number;
     dominanceStatus?: string;
+    recurrentBuyStrength?: number;
+    recurrentSellStrength?: number;
     metrics: {
         volume24hUSD: number;
         liquidityUSD: number;
