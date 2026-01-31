@@ -20,7 +20,8 @@ import { TrendingUp, Info, AlertTriangle, CheckCircle2, FlaskConical } from 'luc
 interface BondCurveVisualizerProps {
     ammCurveData: { cumulativeUSD: number; price: number }[];
     trajectoryPoints: { cumulativeUSD: number; price: number; timestamp: number }[];
-    fittedCurve: { cumulativeUSD: number; price: number }[];
+    bullCurve: { cumulativeUSD: number; price: number }[];
+    bearCurve: { cumulativeUSD: number; price: number }[];
     targetPrice: number;
     currentPrice: number;
     symbol: string;
@@ -35,7 +36,8 @@ const formatUSD = (val: number) => {
 export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
     ammCurveData,
     trajectoryPoints,
-    fittedCurve,
+    bullCurve,
+    bearCurve,
     targetPrice,
     currentPrice,
     symbol
@@ -43,8 +45,8 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
     const maxObservedPrice = Math.max(...trajectoryPoints.map(p => p.price), currentPrice);
     const targetReachable = maxObservedPrice >= targetPrice;
 
-    // We use the fitted curve to find capital required for truth-based reachability
-    const capitalAtTarget = fittedCurve.find(p => p.price >= targetPrice)?.cumulativeUSD ?? null;
+    // Capital for truth-based reachability (Bull Case)
+    const capitalAtTarget = bullCurve.find(p => p.price >= targetPrice)?.cumulativeUSD ?? null;
 
     return (
         <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
@@ -52,11 +54,11 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <FlaskConical className="w-5 h-5 text-indigo-400" />
-                        <div className="text-[11px] text-white font-black uppercase tracking-widest italic">Empirical Capital Trajectory</div>
+                        <div className="text-[11px] text-white font-black uppercase tracking-widest italic">Market Trajectory Envelope</div>
                     </div>
                     <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-tighter ${targetReachable ? 'bg-emerald-500 text-black' : 'bg-amber-500/20 text-amber-500'
                         }`}>
-                        {targetReachable ? 'Target Reachable on Trajectory' : 'Trajectory Resistance Detected'}
+                        {targetReachable ? 'Target Reachable on Bull Curve' : 'Skew Resistance Detected'}
                     </div>
                 </div>
             </div>
@@ -66,9 +68,13 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
                     <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                             <defs>
-                                <linearGradient id="ammGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#27272a" stopOpacity={0.2} />
-                                    <stop offset="95%" stopColor="#27272a" stopOpacity={0} />
+                                <linearGradient id="bullGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
+                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                </linearGradient>
+                                <linearGradient id="bearGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.1} />
+                                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="#18181b" vertical={false} />
@@ -95,30 +101,32 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
                                 labelFormatter={(label) => `Net Capital: ${formatUSD(Number(label))}`}
                             />
 
-                            {/* AMM Baseline Area */}
+                            {/* Bear Envelope (Red Area) */}
                             <Area
-                                data={ammCurveData}
+                                data={bearCurve}
                                 type="monotone"
                                 dataKey="price"
-                                stroke="#27272a"
-                                strokeWidth={1}
-                                strokeDasharray="5 5"
+                                stroke="#f43f5e"
+                                strokeWidth={2}
+                                strokeOpacity={0.5}
                                 fillOpacity={1}
-                                fill="url(#ammGradient)"
+                                fill="url(#bearGradient)"
                                 animationDuration={1000}
-                                name="AMM Baseline"
+                                name="Bear Trajectory"
                             />
 
-                            {/* Fitted Logarithmic Trajectory */}
-                            <Line
-                                data={fittedCurve}
+                            {/* Bull Envelope (Green Area) */}
+                            <Area
+                                data={bullCurve}
                                 type="monotone"
                                 dataKey="price"
-                                stroke="#6366f1"
+                                stroke="#10b981"
                                 strokeWidth={3}
-                                dot={false}
+                                strokeOpacity={0.8}
+                                fillOpacity={1}
+                                fill="url(#bullGradient)"
                                 animationDuration={2000}
-                                name="Fitted Trajectory"
+                                name="Bull Trajectory"
                             />
 
                             {/* Real Transaction Points */}
@@ -137,6 +145,7 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
                             </Scatter>
 
                             <ReferenceLine y={targetPrice} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'right', value: 'Target', fill: '#ef4444', fontSize: 8, fontWeight: 'black' }} />
+                            <ReferenceLine y={currentPrice} stroke="#525252" strokeDasharray="2 2" />
                             <ReferenceLine x={0} stroke="#525252" strokeWidth={1} />
                         </ComposedChart>
                     </ResponsiveContainer>
@@ -151,20 +160,20 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
                                 <AlertTriangle className="w-4 h-4 text-amber-500" />
                             )}
                             <div className="text-[10px] text-zinc-100 font-black uppercase tracking-wider">
-                                Trajectory Verdict
+                                Trajectory Skew Verdict
                             </div>
                         </div>
                         <p className="text-[11px] text-zinc-400 leading-relaxed italic">
                             {targetReachable
-                                ? `Based on empirical price response, reaching the target price would require approximately ${formatUSD(capitalAtTarget || 0)} in net buying logic.`
-                                : `The price-to-capital ceiling derived from historical swaps suggests the curve flattens before reaching $${targetPrice.toFixed(4)}. Current behavior indicates structural resistance.`}
+                                ? `The bull trajectory already intersects the target. Historical buy-power intensity suggests a clear path to $${targetPrice.toFixed(4)}.`
+                                : `The market is bounded by opposing force fields. While the bull curve targets $${targetPrice.toFixed(4)}, the bear curve reveals the realistic downside response intensity.`}
                         </p>
                     </div>
 
                     <div className="bg-black/40 p-4 rounded-xl border border-zinc-900">
-                        <div className="text-[9px] text-zinc-600 font-black uppercase tracking-widest mb-3">Model Logic</div>
+                        <div className="text-[9px] text-zinc-600 font-black uppercase tracking-widest mb-3">Envelope Logic</div>
                         <p className="text-[10px] text-zinc-500 leading-relaxed italic">
-                            Unlike pure AMM models, this **Empirical Trajectory** uses logarithmic regression ($P(C) = P_0 + a \cdot \ln(1 + b \cdot C)$) fitted to your specific coin's trade history to reveal its true capital response.
+                            Professionals analyze **Force Fields**, not single lines. Argus maps symmetric logarithmic responses to both net buying and net selling to reveal the price corridor your coin is currently trapped in.
                         </p>
                     </div>
                 </div>
@@ -174,10 +183,12 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
                 <div className="flex items-center gap-2">
                     <Info className="w-3 h-3 text-zinc-600" />
                     <p className="text-[9px] text-zinc-600 font-black uppercase tracking-tighter">
-                        Model: Empirical Logarithmic Regression • Phase 12 Trajectory
+                        Model: Dual Logarithmic Force Fields • Phase 16 Envelope
                     </p>
                 </div>
             </div>
         </div>
+    );
+};
     );
 };

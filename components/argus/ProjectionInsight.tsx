@@ -450,14 +450,14 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                 </div>
             </div>
 
-            {/* Trajectory Diagnostics - IDEAL UX (PHASE 15) */}
+            {/* Market Trajectory Envelope (PHASE 16) */}
             <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
                 <div className="p-6 border-b border-zinc-900 bg-indigo-500/5">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <FlaskConical className="w-5 h-5 text-indigo-400" />
                             <div className="text-xs font-black uppercase italic tracking-widest text-white">
-                                Trajectory (Derived from Buy & Sell Activity)
+                                Market Trajectory Envelope
                             </div>
                         </div>
                         <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter flex items-center gap-1.5 ${trajectory.source === 'EMPIRICAL' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
@@ -468,51 +468,80 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                     </div>
                 </div>
 
-                <div className="p-6 space-y-6">
-                    {/* Observed Reality */}
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                            <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Net Capital Injected</div>
-                            <div className={`text-lg font-black italic ${trajectory.netCapitalInjected && trajectory.netCapitalInjected > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                {trajectory.netCapitalInjected ? (trajectory.netCapitalInjected >= 0 ? '+' : '') + formatUSD(trajectory.netCapitalInjected) : '$0.00'}
+                <div className="p-6 space-y-8">
+                    {/* Dual Case Analysis */}
+                    <div className="grid grid-cols-2 gap-8 divide-x divide-zinc-900">
+                        {/* Bull Case (Upper Envelope) */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                <div className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">Bull Case (Buy-Driven)</div>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="space-y-1">
+                                    <div className="text-[8px] text-zinc-600 font-bold uppercase tracking-tighter">Upside Sensitivity (a)</div>
+                                    <div className="text-sm font-black italic text-zinc-100">
+                                        {trajectory.bull?.a.toFixed(6) || '0.000000'}
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-[8px] text-zinc-600 font-bold uppercase tracking-tighter">Capital for Target</div>
+                                    <div className="text-sm font-black italic text-emerald-400">
+                                        ~{formatUSD(trajectory.bull?.capitalRequired || 0)}
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div className="space-y-1">
-                            <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Observed Price Response</div>
-                            <div className={`text-lg font-black italic ${trajectory.observedPriceResponse && trajectory.observedPriceResponse > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                {trajectory.observedPriceResponse ? (trajectory.observedPriceResponse >= 0 ? '+' : '') + trajectory.observedPriceResponse.toFixed(2) + '%' : '0.00%'}
+
+                        {/* Bear Case (Lower Envelope) */}
+                        <div className="pl-8 space-y-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-rose-500" />
+                                <div className="text-[10px] text-rose-500 font-black uppercase tracking-widest">Bear Case (Sell-Driven)</div>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="space-y-1">
+                                    <div className="text-[8px] text-zinc-600 font-bold uppercase tracking-tighter">Downside Sensitivity (a)</div>
+                                    <div className="text-sm font-black italic text-zinc-100">
+                                        {trajectory.bear?.a.toFixed(6) || '0.000000'}
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-[8px] text-zinc-600 font-bold uppercase tracking-tighter">Capital for Correction</div>
+                                    <div className="text-sm font-black italic text-rose-400">
+                                        ~{formatUSD(trajectory.bear?.capitalRequired || 0)}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="h-px bg-zinc-900/50" />
-
-                    {/* Projections */}
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                            <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Target Price</div>
-                            <div className="text-lg font-black italic text-zinc-100">
-                                {formatUSD(targetPrice)}
+                    {/* Skew & Observed Truth */}
+                    <div className="pt-6 border-t border-zinc-900 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="text-[9px] text-zinc-500 font-black uppercase tracking-widest">Skew Analysis</div>
+                            <div className={`px-2 py-0.5 rounded text-[10px] font-black italic ${(trajectory.bull?.capitalRequired || 0) > (trajectory.bear?.capitalRequired || 0) * 2 ? 'text-rose-400 bg-rose-400/10' : 'text-emerald-400 bg-emerald-400/10'
+                                }`}>
+                                {(trajectory.bull?.capitalRequired || 1) / (trajectory.bear?.capitalRequired || 1) > 2 ? 'BEARISH SKEW' : 'BALANCED SKEW'}
                             </div>
                         </div>
-                        <div className="space-y-1">
-                            <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Capital Required (Curve)</div>
-                            <div className="text-lg font-black italic text-indigo-400">
-                                ~{formatUSD(Math.max(trajectory.capitalRequiredUSD || 0, 0))}
-                            </div>
-                        </div>
+                        <p className="text-[11px] font-medium italic text-zinc-400 leading-relaxed">
+                            {trajectory.bull?.capitalRequired && trajectory.bear?.capitalRequired ? (
+                                `Reaching the target requires ${formatUSD(trajectory.bull.capitalRequired)} in net buying, while a comparable move downward needs only ${formatUSD(trajectory.bear.capitalRequired)} in selling.`
+                            ) : (
+                                "Calculating market skew based on opposing force fields."
+                            )}
+                        </p>
                     </div>
 
                     {/* Mechanistic Status */}
-                    <div className="mt-4 pt-4 border-t border-zinc-900/50">
+                    <div className="pt-4 border-t border-zinc-900/50">
                         <div className="flex items-center gap-2 mb-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${trajectory.statusMessage?.includes("not supported") || trajectory.statusMessage?.includes("Negative") ? 'bg-rose-500' : 'bg-emerald-500'
-                                }`} />
+                            <div className={`w-1.5 h-1.5 rounded-full ${trajectory.statusMessage?.includes("not supported") || trajectory.statusMessage?.includes("Negative") ? 'bg-rose-500' : 'bg-emerald-500'}`} />
                             <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Status Verdict</div>
                         </div>
-                        <p className={`text-xs font-black italic leading-relaxed ${trajectory.statusMessage?.includes("not supported") || trajectory.statusMessage?.includes("Negative") ? 'text-rose-400' : 'text-zinc-300'
-                            }`}>
-                            {trajectory.statusMessage || "Calculating status..."}
+                        <p className={`text-xs font-black italic leading-relaxed ${trajectory.statusMessage?.includes("not supported") || trajectory.statusMessage?.includes("Negative") ? 'text-rose-400' : 'text-zinc-300'}`}>
+                            {trajectory.statusMessage}
                         </p>
                     </div>
                 </div>

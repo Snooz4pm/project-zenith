@@ -226,8 +226,10 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
         const base = {
             ammCurve: baselineAMM,
             trajectoryPoints: [],
-            fittedCurve: baselineAMM.map(p => ({ ...p, source: 'BASELINE' })),
-            source: 'BASELINE' as const
+            bullCurve: baselineAMM,
+            bearCurve: baselineAMM,
+            source: 'BASELINE' as const,
+            statusMessage: "Structural baseline active; awaiting trade response patterns."
         };
 
         if (!reality || !reality.recentTxs || !liquidity) return base;
@@ -268,28 +270,42 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
         // 2. Real Trajectory Points
         const trajectoryPoints = buildCapitalTrajectory(txsForLogic);
 
-        // 3. Fitted Logarithmic Curve
-        const params = fitLogTrajectory(trajectoryPoints);
-        const fittedCurve = [];
+        // 3. Dual Fitted Curves (PHASE 16)
+        const buyTxs = txsForLogic.filter(tx => tx.side === "BUY");
+        const sellTxs = txsForLogic.filter(tx => tx.side === "SELL");
 
-        // Use the same X-axis range as AMM for comparison
-        const minX = Math.min(...trajectoryPoints.map(p => p.cumulativeUSD), 0);
-        const maxX = Math.max(...ammCurve.map(p => p.cumulativeUSD));
+        const bullParams = fitLogTrajectory(buildCapitalTrajectory(buyTxs));
+        const bearParams = fitLogTrajectory(buildCapitalTrajectory(sellTxs.map(tx => ({ ...tx, side: "BUY" }))));
+
+        const bullCurve = [];
+        const bearCurve = [];
+
+        const minX = 0;
+        const maxX = Math.max(...ammCurve.map(p => p.cumulativeUSD), 10000);
 
         for (let i = 0; i <= 30; i++) {
             const capital = minX + ((maxX - minX) / 30) * i;
-            fittedCurve.push({
+
+            // Bull uses bull math (up)
+            bullCurve.push({
                 cumulativeUSD: capital,
-                price: trajectoryPrice(capital, params)
+                price: currentPrice + bullParams.a * Math.log(1 + bullParams.b * capital)
+            });
+
+            // Bear uses bear math (down)
+            bearCurve.push({
+                cumulativeUSD: capital,
+                price: Math.max(currentPrice - bearParams.a * Math.log(1 + bearParams.b * capital), 0)
             });
         }
 
         return {
             ammCurve,
             trajectoryPoints,
-            fittedCurve,
+            bullCurve,
+            bearCurve,
             source: 'EMPIRICAL' as const,
-            statusMessage: params.a < 1e-12 ? "Target not supported under current response pressure." : "Trajectory active."
+            statusMessage: bullParams.a < 1e-12 ? "Target not supported under current response pressure." : "Market Trajectory Envelope Active."
         };
     }, [reality, liquidity, currentPrice, targetPrice]);
 
@@ -708,7 +724,8 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
                 <BondCurveVisualizer
                     ammCurveData={trajectoryData.ammCurve}
                     trajectoryPoints={trajectoryData.trajectoryPoints}
-                    fittedCurve={trajectoryData.fittedCurve}
+                    bullCurve={trajectoryData.bullCurve}
+                    bearCurve={trajectoryData.bearCurve}
                     targetPrice={targetPrice}
                     currentPrice={currentPrice}
                     symbol={symbol}

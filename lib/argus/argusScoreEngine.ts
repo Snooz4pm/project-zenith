@@ -40,14 +40,26 @@ export type TrajectoryParams = {
 export type TrajectorySource = "AMM_BASELINE" | "EMPIRICAL";
 
 export type TrajectoryModel = {
-    priceSensitivity: number;   // A
-    capitalRequiredUSD: number;
+    priceSensitivity: number;   // Blended A
+    capitalRequiredUSD: number; // Blended capital
     etaHours: number | null;
     source: TrajectorySource;
     confidence: number;         // 0–1
     netCapitalInjected?: number;
     observedPriceResponse?: number; // percentage
     statusMessage?: string;
+
+    // Phase 16: Dual Envelope Metrics
+    bull?: {
+        a: number;
+        capitalRequired: number;
+        eta: number | null;
+    };
+    bear?: {
+        a: number;
+        capitalRequired: number;
+        eta: number | null;
+    };
 };
 
 export type HolderMetrics = {
@@ -695,7 +707,9 @@ export function ammBaselineTrajectory({
         etaHours: eta,
         source: "AMM_BASELINE",
         confidence: 0.3,
-        statusMessage: "Structural baseline active; awaiting trade response patterns."
+        statusMessage: "Structural baseline active; awaiting trade response patterns.",
+        bull: { a: A, capitalRequired: capital, eta },
+        bear: { a: A, capitalRequired: capital, eta } // symmetric baseline
     };
 }
 
@@ -726,7 +740,33 @@ export function empiricalTrajectory({
     // behavioral capital: capitalPer1Pct is USD for 1% move
     const capital = capitalPer1Pct * (pctMove * 100);
     const sensitivity = (targetPrice - currentPrice) / Math.max(capital, 0.001);
-    const eta = inflowPerHour > 0 ? capital / inflowPerHour : null;
+
+    // Phase 16: Separate Bull/Bear txs
+    const buyTxs = (recentTxs || []).filter(tx => tx.side === "BUY");
+    const sellTxs = (recentTxs || []).filter(tx => tx.side === "SELL");
+
+    // Fit Bull Case (Buy Only)
+    let bullA = sensitivity;
+    if (buyTxs.length >= 2) {
+        const buyPoints = buildCapitalTrajectory(buyTxs);
+        const bullParams = fitLogTrajectory(buyPoints);
+        bullA = Math.max(bullParams.a, 1e-12);
+    }
+    const bullCapital = Math.max((targetPrice - currentPrice) / bullA, 0);
+    const bullEta = inflowPerHour > 0 ? bullCapital / inflowPerHour : null;
+
+    // Fit Bear Case (Sell Only - symmetric move down)
+    let bearA = sensitivity;
+    if (sellTxs.length >= 2) {
+        // Build a "positive" capital trajectory for sells to fit the absolute response intensity
+        const sellPoints = buildCapitalTrajectory(sellTxs.map(tx => ({ ...tx, side: "BUY" })));
+        const bearParams = fitLogTrajectory(sellPoints);
+        bearA = Math.max(bearParams.a, 1e-12);
+    }
+    // Bear target is symmetric down move
+    const priceDelta = targetPrice - currentPrice;
+    const bearCapital = Math.max(Math.abs(priceDelta) / bearA, 0);
+    const bearEta = inflowPerHour < 0 ? bearCapital / Math.abs(inflowPerHour) : null;
 
     // Calculate Observed Metrics from recentTxs
     let netCapitalInjected = 0;
@@ -753,6 +793,8 @@ export function empiricalTrajectory({
         statusMessage = "Negative net inflow; trajectory diverging from target.";
     }
 
+    const eta = inflowPerHour > 0 ? capital / inflowPerHour : null; // This was previously defined, now it's defined here.
+
     return {
         priceSensitivity: sensitivity,
         capitalRequiredUSD: capital,
@@ -761,7 +803,9 @@ export function empiricalTrajectory({
         confidence: txConfidence,
         netCapitalInjected,
         observedPriceResponse,
-        statusMessage
+        statusMessage,
+        bull: { a: bullA, capitalRequired: bullCapital, eta: bullEta },
+        bear: { a: bearA, capitalRequired: bearCapital, eta: bearEta }
     };
 }
 
@@ -796,6 +840,8 @@ export function blendTrajectory(
         confidence: Math.max(amm.confidence, empirical.confidence),
         netCapitalInjected: empirical.netCapitalInjected,
         observedPriceResponse: empirical.observedPriceResponse,
-        statusMessage: empirical.statusMessage
+        statusMessage: empirical.statusMessage,
+        bull: empirical.bull,
+        bear: empirical.bear
     };
 }
