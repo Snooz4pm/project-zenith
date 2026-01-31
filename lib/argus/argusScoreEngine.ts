@@ -666,7 +666,9 @@ export function instantCapitalRequired({
 // --- PART 9: BLENDED TRAJECTORY LOGIC (PHASE 14) ---
 
 /**
- * AMM Baseline Trajectory (ALWAYS AVAILABLE / SYNC)
+ * AMM Baseline Trajectory (PHASE 1 - SYNC)
+ * EMPIRICAL DATA REFINES TRAJECTORIES.
+ * IT MUST NEVER BE REQUIRED TO CREATE THEM.
  */
 export function ammBaselineTrajectory({
     currentPrice,
@@ -679,8 +681,8 @@ export function ammBaselineTrajectory({
     liquidityUSD: number;
     inflowPerHour: number;
 }): TrajectoryModel {
-    // Hard floor for A to prevent division by zero or infinity
-    const A = Math.max(currentPrice / Math.max(liquidityUSD, 0.001), 1e-12);
+    // Step 2: Ensure sync baseline using strict math
+    const A = Math.max(currentPrice / (2 * Math.max(liquidityUSD, 1)), 1e-12);
     const capital = Math.max((targetPrice - currentPrice) / A, 0);
     const eta = inflowPerHour > 0 ? capital / inflowPerHour : null;
 
@@ -694,7 +696,7 @@ export function ammBaselineTrajectory({
 }
 
 /**
- * Empirical Trajectory (ASYNC / OPTIONAL)
+ * Empirical Trajectory (PHASE 2 - ASYNC/OPTIONAL)
  */
 export function empiricalTrajectory({
     capitalPer1Pct,
@@ -709,12 +711,14 @@ export function empiricalTrajectory({
     inflowPerHour: number;
     txConfidence: number;
 }): TrajectoryModel | null {
-    if (!capitalPer1Pct || capitalPer1Pct <= 0) return null;
+    // Step 3: Empirical data is optional and must not block
+    if (!capitalPer1Pct || capitalPer1Pct <= 0 || txConfidence < 0.4) return null;
 
     const pctMove = (targetPrice - currentPrice) / (currentPrice || 0.000001);
     if (pctMove <= 0) return null;
 
-    const capital = capitalPer1Pct * (pctMove * 100); // capitalPer1Pct is per 1%, so multiply by points
+    // behavioral capital: capitalPer1Pct is USD for 1% move
+    const capital = capitalPer1Pct * (pctMove * 100);
     const sensitivity = (targetPrice - currentPrice) / Math.max(capital, 0.001);
     const eta = inflowPerHour > 0 ? capital / inflowPerHour : null;
 

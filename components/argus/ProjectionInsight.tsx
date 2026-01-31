@@ -216,6 +216,8 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
         });
     }, [reality, mcasModel, trendState, currentPrice]);
 
+    // PART 4: Blended Trajectory Logic (GPS-Style)
+    // DESIGN PRINCIPLE: Empirical data refines trajectories. It must never be required to create them.
     const trajectory = useMemo(() => {
         const txsForInflow = reality?.recentTxs?.map(tx => ({
             timestamp: tx.time, side: tx.side as "BUY" | "SELL", usdValue: tx.usdValue, price: tx.price || currentPrice, wallet: tx.wallet
@@ -454,7 +456,7 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                         <div className="flex items-center gap-2">
                             <FlaskConical className="w-5 h-5 text-indigo-400" />
                             <div className="text-xs font-black uppercase italic tracking-widest text-white">
-                                {trajectory.source === 'EMPIRICAL' ? 'Empirical Trajectory Diagnostics' : 'Baseline Trajectory (AMM)'}
+                                {trajectory.source === 'EMPIRICAL' ? 'Empirical estimate (transaction-derived)' : 'Baseline estimate (AMM-derived)'}
                             </div>
                         </div>
                         <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter flex items-center gap-1.5 ${trajectory.source === 'EMPIRICAL' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
@@ -471,13 +473,13 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                                 Behavioral Capital Floor
                             </div>
                             <div className="text-lg font-black italic text-zinc-100">
-                                {formatUSD(trajectory.capitalRequiredUSD || 0)}
+                                {formatUSD(Math.max(trajectory.capitalRequiredUSD || 0, 0))}
                             </div>
                         </div>
                         <div className="space-y-1">
                             <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Price Sensitivity (a)</div>
                             <div className="text-lg font-black italic text-indigo-400">
-                                {trajectory.priceSensitivity.toFixed(6)}
+                                {Math.max(trajectory.priceSensitivity, 1e-12).toFixed(6)}
                             </div>
                         </div>
                     </div>
