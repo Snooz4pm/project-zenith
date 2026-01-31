@@ -64,6 +64,7 @@ const TIER_STYLING = {
 };
 
 function formatCompact(val: number) {
+    if (val === undefined || val === null || isNaN(val)) return '$0.00';
     if (val >= 1e9) return `$${(val / 1e9).toFixed(1)}B`;
     if (val >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
     if (val >= 1e3) return `$${(val / 1e3).toFixed(0)}K`;
@@ -169,17 +170,17 @@ function HotTokenCard({ token, isSelected, onSelect, index }: { token: HotToken,
                                         Dollar-Feasible
                                     </div>
                                     <div className="text-[7px] text-zinc-500">
-                                        Req. MCAP: {dollarFeasibility.requiredMcap >= 1e6
-                                            ? `$${(dollarFeasibility.requiredMcap / 1e6).toFixed(2)}M`
-                                            : `$${(dollarFeasibility.requiredMcap / 1000).toFixed(0)}K`}
+                                        Req. MCAP: {(dollarFeasibility.requiredMcap || 0) >= 1e6
+                                            ? `$${((dollarFeasibility.requiredMcap || 0) / 1e6).toFixed(2)}M`
+                                            : `$${((dollarFeasibility.requiredMcap || 0) / 1000).toFixed(0)}K`}
                                     </div>
                                 </div>
                             </div>
                             <div className="text-right">
                                 <div className="text-[10px] font-black text-emerald-400">
-                                    {dollarFeasibility.growthNeeded >= 1000
-                                        ? `${(dollarFeasibility.growthNeeded / 1000).toFixed(1)}K×`
-                                        : `${dollarFeasibility.growthNeeded.toFixed(0)}×`}
+                                    {(dollarFeasibility.growthNeeded || 0) >= 1000
+                                        ? `${((dollarFeasibility.growthNeeded || 0) / 1000).toFixed(1)}K×`
+                                        : `${(dollarFeasibility.growthNeeded || 0).toFixed(0)}×`}
                                 </div>
                                 <div className="text-[7px] text-zinc-600">to $1</div>
                             </div>
@@ -213,14 +214,14 @@ function HotTokenCard({ token, isSelected, onSelect, index }: { token: HotToken,
                 <div className="grid grid-cols-2 gap-4 pt-1">
                     <div>
                         <div className="text-[7px] text-zinc-600 font-bold uppercase mb-1">Top Holder</div>
-                        <div className={`text-sm font-black italic ${t1 > 20 ? 'text-red-400' : 'text-zinc-300'}`}>
-                            {t1.toFixed(1)}%
+                        <div className={`text-sm font-black italic ${(t1 || 0) > 20 ? 'text-red-400' : 'text-zinc-300'}`}>
+                            {(t1 || 0).toFixed(1)}%
                         </div>
                     </div>
                     <div>
                         <div className="text-[7px] text-zinc-600 font-bold uppercase mb-1">Top 10 Pool</div>
-                        <div className={`text-sm font-black italic ${t10 > 50 ? 'text-red-400' : 'text-zinc-300'}`}>
-                            {t10.toFixed(1)}%
+                        <div className={`text-sm font-black italic ${(t10 || 0) > 50 ? 'text-red-400' : 'text-zinc-300'}`}>
+                            {(t10 || 0).toFixed(1)}%
                         </div>
                     </div>
                 </div>
@@ -255,8 +256,8 @@ function HotTokenCard({ token, isSelected, onSelect, index }: { token: HotToken,
                     <div>
                         <div className="flex items-center justify-between mb-1.5">
                             <div className="text-[7px] text-zinc-600 font-black uppercase tracking-widest italic">Safety Index</div>
-                            <div className={`text-[9px] font-black italic ${token.riskScore > 70 ? 'text-emerald-400' : token.riskScore > 40 ? 'text-amber-400' : 'text-red-400'}`}>
-                                {token.riskScore.toFixed(0)}/100
+                            <div className={`text-[9px] font-black italic ${(token?.riskScore || 0) > 70 ? 'text-emerald-400' : (token?.riskScore || 0) > 40 ? 'text-amber-400' : 'text-red-400'}`}>
+                                {(token?.riskScore || 0).toFixed(0)}/100
                             </div>
                         </div>
                         <div className="h-1 w-full bg-zinc-900 rounded-full overflow-hidden">
@@ -415,13 +416,12 @@ export function HotTokens({ onSelect, selectedMint, hydratedToken, onHydratedTok
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
-                            className={`px-3 py-1 rounded-md text-[8px] font-black uppercase tracking-tighter transition-all flex items-center gap-1 ${
-                                filter === f
+                            className={`px-3 py-1 rounded-md text-[8px] font-black uppercase tracking-tighter transition-all flex items-center gap-1 ${filter === f
                                     ? f === 'DOLLAR'
                                         ? 'bg-emerald-500 text-black'
                                         : 'bg-white text-black'
                                     : 'text-zinc-500 hover:text-white hover:bg-zinc-900'
-                            }`}
+                                }`}
                         >
                             {f === 'DOLLAR' && <DollarSign size={10} />}
                             {f === 'DOLLAR' ? '$1' : f}

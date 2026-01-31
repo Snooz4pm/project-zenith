@@ -13,6 +13,7 @@ interface LiquidityVisualizerProps {
 }
 
 const formatUSD = (val: number) => {
+    if (val === undefined || val === null || isNaN(val)) return '$0';
     if (val >= 1000) return `$${(val / 1000).toFixed(1)}k`;
     return `$${val.toFixed(0)}`;
 };
@@ -117,7 +118,7 @@ export const OrderBookVisualizer: React.FC<LiquidityVisualizerProps> = ({
                                     {formatUSD(tier.totalUSD)}
                                 </div>
                                 <div className="text-[9px] text-zinc-600 font-mono">
-                                    Target: ${tier.targetPrice.toFixed(6)}
+                                    Target: ${(tier.targetPrice || 0).toFixed(6)}
                                 </div>
                                 <div className="absolute bottom-0 left-0 h-1 bg-emerald-500/30 transition-all group-hover:bg-emerald-500" style={{ width: `${(tier.impactPct / 10) * 100}%` }} />
                             </div>
@@ -142,7 +143,7 @@ export const OrderBookVisualizer: React.FC<LiquidityVisualizerProps> = ({
                                     style={{ width: `${(bid.sizeUSD / maxSideSize) * 100}%` }}
                                 />
                                 <span className="text-[10px] text-emerald-400/80 font-mono z-10">
-                                    ${bid.price.toFixed(6)}
+                                    ${(bid.price || 0).toFixed(6)}
                                 </span>
                                 <span className="text-[10px] text-zinc-400 font-black italic z-10 group-hover:text-white transition-colors">
                                     {formatUSD(bid.sizeUSD)}
@@ -177,7 +178,7 @@ export const OrderBookVisualizer: React.FC<LiquidityVisualizerProps> = ({
                                         {formatUSD(ask.sizeUSD)}
                                     </span>
                                     <span className={`text-[10px] font-mono z-10 ${isTarget ? 'text-cyan-400 font-bold' : 'text-red-400/80'}`}>
-                                        ${ask.price.toFixed(6)}
+                                        ${(ask.price || 0).toFixed(6)}
                                     </span>
                                 </div>
                             );
@@ -196,7 +197,7 @@ export const OrderBookVisualizer: React.FC<LiquidityVisualizerProps> = ({
                     AMM Spread: <span className="text-zinc-300 ml-1">{ammDepth ? 'Dynamic' : 'Unknown'}</span>
                 </div>
                 <div className="text-[9px] text-zinc-600 font-black uppercase tracking-tighter">
-                    Market Price: <span className="text-white ml-1">${(orderBook?.lastPrice || ammDepth?.currentPrice || 0).toFixed(6)}</span>
+                    Market Price: <span className="text-white ml-1">${((orderBook?.lastPrice || ammDepth?.currentPrice || 0)).toFixed(6)}</span>
                 </div>
                 <div className="text-[9px] text-emerald-500/50 font-black uppercase tracking-widest animate-pulse">
                     Modeling Verified via Jupiter Quote API

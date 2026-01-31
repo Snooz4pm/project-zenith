@@ -28,6 +28,7 @@ interface BondCurveVisualizerProps {
 }
 
 const formatUSD = (val: number) => {
+    if (val === undefined || val === null || isNaN(val)) return '$0.00';
     if (Math.abs(val) >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
     if (Math.abs(val) >= 1e3) return `$${(val / 1e3).toFixed(1)}K`;
     return `$${val.toFixed(2)}`;
@@ -165,8 +166,8 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
                         </div>
                         <p className="text-[11px] text-zinc-400 leading-relaxed italic">
                             {targetReachable
-                                ? `The bull trajectory already intersects the target. Historical buy-power intensity suggests a clear path to $${targetPrice.toFixed(4)}.`
-                                : `The market is bounded by opposing force fields. While the bull curve targets $${targetPrice.toFixed(4)}, the bear curve reveals the realistic downside response intensity.`}
+                                ? `The bull trajectory already intersects the target. Historical buy-power intensity suggests a clear path to $${(targetPrice || 0).toFixed(4)}.`
+                                : `The market is bounded by opposing force fields. While the bull curve targets $${(targetPrice || 0).toFixed(4)}, the bear curve reveals the realistic downside response intensity.`}
                         </p>
                     </div>
 

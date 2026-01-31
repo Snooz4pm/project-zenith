@@ -94,7 +94,7 @@ const TIER_STYLING: Record<RealityFeasibility, { color: string, icon: any, bg: s
 };
 
 function formatCompact(val: number) {
-    if (val >= 1e12) return `$${(val / 1e12).toFixed(2)}T`;
+    if (val === undefined || val === null || isNaN(val)) return '$0.00';
     if (val >= 1e12) return `$${(val / 1e12).toFixed(2)}T`;
     if (val >= 1e9) return `$${(val / 1e9).toFixed(2)}B`;
     if (val >= 1e6) return `$${(val / 1e6).toFixed(2)}M`;
@@ -455,14 +455,14 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
                         <div className="grid grid-cols-2 gap-4 border-l border-zinc-900 pl-8">
                             <div>
                                 <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Top Holder</div>
-                                <div className={`text-lg font-black italic ${intelligence.t1 > 20 ? 'text-red-400' : 'text-white'}`}>
-                                    {intelligence.t1.toFixed(1)}%
+                                <div className={`text-lg font-black italic ${(intelligence?.t1 || 0) > 20 ? 'text-red-400' : 'text-white'}`}>
+                                    {(intelligence?.t1 || 0).toFixed(1)}%
                                 </div>
                             </div>
                             <div>
                                 <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Top 10 Pool</div>
-                                <div className={`text-lg font-black italic ${intelligence.t10 > 50 ? 'text-red-400' : 'text-white'}`}>
-                                    {intelligence.t10.toFixed(1)}%
+                                <div className={`text-lg font-black italic ${(intelligence?.t10 || 0) > 50 ? 'text-red-400' : 'text-white'}`}>
+                                    {(intelligence?.t10 || 0).toFixed(1)}%
                                 </div>
                             </div>
                         </div>
@@ -482,8 +482,8 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
                                         </div>
                                         <div className="flex items-center gap-4">
                                             <span className="text-zinc-500">{formatCompact(h.amount)}</span>
-                                            <span className={`font-bold w-12 text-right ${h.pct > 5 ? 'text-amber-400' : 'text-zinc-300'}`}>
-                                                {h.pct.toFixed(2)}%
+                                            <span className={`font-bold w-12 text-right ${(h.pct || 0) > 5 ? 'text-amber-400' : 'text-zinc-300'}`}>
+                                                {(h.pct || 0).toFixed(2)}%
                                             </span>
                                         </div>
                                     </div>
@@ -676,8 +676,8 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
                                 </div>
                                 <div>
                                     <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Velocity</div>
-                                    <div className={`text-sm font-black italic ${(timing.volumeChange24h || 0) > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                        {(timing.volumeChange24h || 0) > 0 ? '🚀' : '🧊'} {(timing.volumeChange24h || 0) > 0 ? '+' : ''}{(timing.volumeChange24h || 0).toFixed(0)}%
+                                    <div className={`text-sm font-black italic ${(timing?.volumeChange24h || 0) > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {(timing?.volumeChange24h || 0) > 0 ? '🚀' : '🧊'} {(timing?.volumeChange24h || 0) > 0 ? '+' : ''}{(timing?.volumeChange24h || 0).toFixed(0)}%
                                     </div>
                                 </div>
                             </div>
@@ -782,8 +782,8 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
                     <div className="text-xl font-black text-white italic">{formatCompact(metrics.requiredMarketCap)}</div>
                     <div className="flex items-center gap-2 md:justify-end">
                         <TrendingUp size={14} className={style.color} />
-                        <span className={`text-sm font-black ${style.color}`}>+{metrics.growthMultiplier.toFixed(0)}x</span>
-                        <span className="text-[10px] text-zinc-600">(+{metrics.growthPercent.toLocaleString()}% )</span>
+                        <span className={`text-sm font-black ${style.color}`}>+{(metrics?.growthMultiplier || 0).toFixed(0)}x</span>
+                        <span className="text-[10px] text-zinc-600">(+{(metrics?.growthPercent || 0).toLocaleString()}% )</span>
                     </div>
                 </div>
             </div>

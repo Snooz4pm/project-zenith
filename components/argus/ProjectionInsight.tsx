@@ -70,6 +70,7 @@ interface ProjectionInsightProps {
 }
 
 const formatUSD = (val: number) => {
+    if (val === undefined || val === null || isNaN(val)) return '$0.00';
     if (val >= 1e9) return `$${(val / 1e9).toFixed(2)}B`;
     if (val >= 1e6) return `$${(val / 1e6).toFixed(2)}M`;
     if (val >= 1e3) return `$${(val / 1e3).toFixed(2)}K`;
@@ -272,7 +273,7 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                                 MCAS v3.1 {mcasModel ? '(Transaction Verified)' : '(Liquidity Estimated)'}
                             </div>
                             <div className={`text-3xl font-black italic tracking-tighter ${mcasModel ? getScoreColor(mcasModel.mcas) : getScoreColor(mcas)}`}>
-                                {mcasModel ? (mcasModel.mcas * 100).toFixed(0) : (mcas * 100).toFixed(0)}%
+                                {mcasModel ? ((mcasModel.mcas || 0) * 100).toFixed(0) : ((mcas || 0) * 100).toFixed(0)}%
                             </div>
                         </div>
                     </div>
@@ -565,19 +566,19 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
                                 <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Volume Growth</div>
-                                <div className="text-lg font-black italic text-white">+{((simulation.volumeIncreaseRequired - 1) * 100).toFixed(0)}%</div>
+                                <div className="text-lg font-black italic text-white">+{((simulation.volumeIncreaseRequired || 1) - 1 * 100).toFixed(0)}%</div>
                             </div>
                             <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
                                 <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Liquidity Boost</div>
-                                <div className="text-lg font-black italic text-white">{simulation.liquidityIncreaseRequired.toFixed(1)}x</div>
+                                <div className="text-lg font-black italic text-white">{(simulation.liquidityIncreaseRequired || 0).toFixed(1)}x</div>
                             </div>
                             <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50 border-emerald-500/10">
                                 <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Holder Stability</div>
-                                <div className="text-lg font-black italic text-emerald-400">+{((simulation.holderImprovementRequired) * 100).toFixed(0)}%</div>
+                                <div className="text-lg font-black italic text-emerald-400">+{((simulation.holderImprovementRequired || 0) * 100).toFixed(0)}%</div>
                             </div>
                             <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
                                 <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Wash Reduction</div>
-                                <div className="text-lg font-black italic text-cyan-400">{simulation.washTradingReductionRequired}</div>
+                                <div className="text-lg font-black italic text-cyan-400">{simulation.washTradingReductionRequired || 'N/A'}</div>
                             </div>
                         </div>
                     ) : (
