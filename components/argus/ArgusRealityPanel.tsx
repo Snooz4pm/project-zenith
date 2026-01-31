@@ -284,7 +284,13 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
             });
         }
 
-        return { ammCurve, trajectoryPoints, fittedCurve, source: 'EMPIRICAL' as const };
+        return {
+            ammCurve,
+            trajectoryPoints,
+            fittedCurve,
+            source: 'EMPIRICAL' as const,
+            statusMessage: params.a < 1e-12 ? "Target not supported under current response pressure." : "Trajectory active."
+        };
     }, [reality, liquidity, currentPrice, targetPrice]);
 
     if (!metrics) {

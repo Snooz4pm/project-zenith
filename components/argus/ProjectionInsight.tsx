@@ -239,7 +239,8 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
             currentPrice,
             targetPrice,
             inflowPerHour: inflow,
-            txConfidence: reality?.txConfidence ?? 0
+            txConfidence: reality?.txConfidence ?? 0,
+            recentTxs: txsForInflow
         });
 
         // 3. Blended Truth
@@ -449,14 +450,14 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                 </div>
             </div>
 
-            {/* Empirical Trajectory Diagnostics */}
+            {/* Trajectory Diagnostics - IDEAL UX (PHASE 15) */}
             <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
                 <div className="p-6 border-b border-zinc-900 bg-indigo-500/5">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <FlaskConical className="w-5 h-5 text-indigo-400" />
                             <div className="text-xs font-black uppercase italic tracking-widest text-white">
-                                {trajectory.source === 'EMPIRICAL' ? 'Empirical estimate (transaction-derived)' : 'Baseline estimate (AMM-derived)'}
+                                Trajectory (Derived from Buy & Sell Activity)
                             </div>
                         </div>
                         <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter flex items-center gap-1.5 ${trajectory.source === 'EMPIRICAL' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
@@ -466,28 +467,52 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                         </div>
                     </div>
                 </div>
-                <div className="p-6">
+
+                <div className="p-6 space-y-6">
+                    {/* Observed Reality */}
                     <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-1">
-                            <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">
-                                Behavioral Capital Floor
-                            </div>
-                            <div className="text-lg font-black italic text-zinc-100">
-                                {formatUSD(Math.max(trajectory.capitalRequiredUSD || 0, 0))}
+                            <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Net Capital Injected</div>
+                            <div className={`text-lg font-black italic ${trajectory.netCapitalInjected && trajectory.netCapitalInjected > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                {trajectory.netCapitalInjected ? (trajectory.netCapitalInjected >= 0 ? '+' : '') + formatUSD(trajectory.netCapitalInjected) : '$0.00'}
                             </div>
                         </div>
                         <div className="space-y-1">
-                            <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Price Sensitivity (a)</div>
-                            <div className="text-lg font-black italic text-indigo-400">
-                                {Math.max(trajectory.priceSensitivity, 1e-12).toFixed(6)}
+                            <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Observed Price Response</div>
+                            <div className={`text-lg font-black italic ${trajectory.observedPriceResponse && trajectory.observedPriceResponse > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                {trajectory.observedPriceResponse ? (trajectory.observedPriceResponse >= 0 ? '+' : '') + trajectory.observedPriceResponse.toFixed(2) + '%' : '0.00%'}
                             </div>
                         </div>
                     </div>
+
+                    <div className="h-px bg-zinc-900/50" />
+
+                    {/* Projections */}
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                            <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Target Price</div>
+                            <div className="text-lg font-black italic text-zinc-100">
+                                {formatUSD(targetPrice)}
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Capital Required (Curve)</div>
+                            <div className="text-lg font-black italic text-indigo-400">
+                                ~{formatUSD(Math.max(trajectory.capitalRequiredUSD || 0, 0))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Mechanistic Status */}
                     <div className="mt-4 pt-4 border-t border-zinc-900/50">
-                        <p className="text-[10px] text-zinc-500 italic leading-relaxed">
-                            {trajectory.source === 'EMPIRICAL'
-                                ? `GPS Convergence applied at **${(trajectory.confidence * 100).toFixed(0)}%** confidence. Refined target requires **${formatUSD(trajectory.capitalRequiredUSD || 0)}** net USD injection.`
-                                : `Baseline estimate derived from AMM math. Structural behavioral patterns will apply as trade confidence builds.`}
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className={`w-1.5 h-1.5 rounded-full ${trajectory.statusMessage?.includes("not supported") || trajectory.statusMessage?.includes("Negative") ? 'bg-rose-500' : 'bg-emerald-500'
+                                }`} />
+                            <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Status Verdict</div>
+                        </div>
+                        <p className={`text-xs font-black italic leading-relaxed ${trajectory.statusMessage?.includes("not supported") || trajectory.statusMessage?.includes("Negative") ? 'text-rose-400' : 'text-zinc-300'
+                            }`}>
+                            {trajectory.statusMessage || "Calculating status..."}
                         </p>
                     </div>
                 </div>

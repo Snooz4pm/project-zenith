@@ -45,6 +45,9 @@ export type TrajectoryModel = {
     etaHours: number | null;
     source: TrajectorySource;
     confidence: number;         // 0–1
+    netCapitalInjected?: number;
+    observedPriceResponse?: number; // percentage
+    statusMessage?: string;
 };
 
 export type HolderMetrics = {
@@ -691,7 +694,8 @@ export function ammBaselineTrajectory({
         capitalRequiredUSD: capital,
         etaHours: eta,
         source: "AMM_BASELINE",
-        confidence: 0.3
+        confidence: 0.3,
+        statusMessage: "Structural baseline active; awaiting trade response patterns."
     };
 }
 
@@ -703,13 +707,15 @@ export function empiricalTrajectory({
     currentPrice,
     targetPrice,
     inflowPerHour,
-    txConfidence
+    txConfidence,
+    recentTxs
 }: {
     capitalPer1Pct: number | null;
     currentPrice: number;
     targetPrice: number;
     inflowPerHour: number;
     txConfidence: number;
+    recentTxs?: SwapTx[];
 }): TrajectoryModel | null {
     // Step 3: Empirical data is optional and must not block
     if (!capitalPer1Pct || capitalPer1Pct <= 0 || txConfidence < 0.4) return null;
@@ -722,12 +728,40 @@ export function empiricalTrajectory({
     const sensitivity = (targetPrice - currentPrice) / Math.max(capital, 0.001);
     const eta = inflowPerHour > 0 ? capital / inflowPerHour : null;
 
+    // Calculate Observed Metrics from recentTxs
+    let netCapitalInjected = 0;
+    let observedPriceResponse = 0;
+    if (recentTxs && recentTxs.length >= 2) {
+        const sorted = [...recentTxs].sort((a, b) => a.timestamp - b.timestamp);
+        const pStart = sorted[0].price;
+        const pEnd = sorted[sorted.length - 1].price;
+
+        for (const tx of sorted) {
+            netCapitalInjected += tx.side === "BUY" ? tx.usdValue : -tx.usdValue;
+        }
+
+        if (pStart > 0) {
+            observedPriceResponse = ((pEnd - pStart) / pStart) * 100;
+        }
+    }
+
+    // Mechanistic Status
+    let statusMessage = "Target reachable via observed intensity.";
+    if (sensitivity < 1e-12 || capital > 1000000000) { // arbitrary cap
+        statusMessage = "Target not supported under current response pressure.";
+    } else if (inflowPerHour < 0) {
+        statusMessage = "Negative net inflow; trajectory diverging from target.";
+    }
+
     return {
         priceSensitivity: sensitivity,
         capitalRequiredUSD: capital,
         etaHours: eta,
         source: "EMPIRICAL",
-        confidence: txConfidence
+        confidence: txConfidence,
+        netCapitalInjected,
+        observedPriceResponse,
+        statusMessage
     };
 }
 
@@ -759,6 +793,9 @@ export function blendTrajectory(
                 : amm.etaHours ?? empirical.etaHours,
 
         source: "EMPIRICAL",
-        confidence: Math.max(amm.confidence, empirical.confidence)
+        confidence: Math.max(amm.confidence, empirical.confidence),
+        netCapitalInjected: empirical.netCapitalInjected,
+        observedPriceResponse: empirical.observedPriceResponse,
+        statusMessage: empirical.statusMessage
     };
 }
