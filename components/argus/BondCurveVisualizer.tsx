@@ -190,5 +190,3 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
         </div>
     );
 };
-    );
-};
