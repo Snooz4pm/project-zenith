@@ -183,7 +183,7 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
                 <div className="flex items-center gap-2">
                     <Info className="w-3 h-3 text-zinc-600" />
                     <p className="text-[9px] text-zinc-600 font-black uppercase tracking-tighter">
-                        Model: Dual Logarithmic Force Fields • Phase 16 Envelope
+                        Model: Combined Logarithmic Force Fields • Phase 17 Truth Foundation
                     </p>
                 </div>
             </div>
