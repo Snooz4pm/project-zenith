@@ -37,6 +37,16 @@ export type TrajectoryParams = {
     b: number;
 };
 
+export type TrajectorySource = "AMM_BASELINE" | "EMPIRICAL";
+
+export type TrajectoryModel = {
+    priceSensitivity: number;   // A
+    capitalRequiredUSD: number;
+    etaHours: number | null;
+    source: TrajectorySource;
+    confidence: number;         // 0–1
+};
+
 export type HolderMetrics = {
     holderPenalty: number; // 0–1
 };
@@ -651,4 +661,100 @@ export function instantCapitalRequired({
     const deltaP = targetPrice - currentPrice;
     if (deltaP <= 0 || priceSensitivity <= 0) return 0;
     return deltaP / priceSensitivity;
+}
+
+// --- PART 9: BLENDED TRAJECTORY LOGIC (PHASE 14) ---
+
+/**
+ * AMM Baseline Trajectory (ALWAYS AVAILABLE / SYNC)
+ */
+export function ammBaselineTrajectory({
+    currentPrice,
+    targetPrice,
+    liquidityUSD,
+    inflowPerHour
+}: {
+    currentPrice: number;
+    targetPrice: number;
+    liquidityUSD: number;
+    inflowPerHour: number;
+}): TrajectoryModel {
+    // Hard floor for A to prevent division by zero or infinity
+    const A = Math.max(currentPrice / Math.max(liquidityUSD, 0.001), 1e-12);
+    const capital = Math.max((targetPrice - currentPrice) / A, 0);
+    const eta = inflowPerHour > 0 ? capital / inflowPerHour : null;
+
+    return {
+        priceSensitivity: A,
+        capitalRequiredUSD: capital,
+        etaHours: eta,
+        source: "AMM_BASELINE",
+        confidence: 0.3
+    };
+}
+
+/**
+ * Empirical Trajectory (ASYNC / OPTIONAL)
+ */
+export function empiricalTrajectory({
+    capitalPer1Pct,
+    currentPrice,
+    targetPrice,
+    inflowPerHour,
+    txConfidence
+}: {
+    capitalPer1Pct: number | null;
+    currentPrice: number;
+    targetPrice: number;
+    inflowPerHour: number;
+    txConfidence: number;
+}): TrajectoryModel | null {
+    if (!capitalPer1Pct || capitalPer1Pct <= 0) return null;
+
+    const pctMove = (targetPrice - currentPrice) / (currentPrice || 0.000001);
+    if (pctMove <= 0) return null;
+
+    const capital = capitalPer1Pct * (pctMove * 100); // capitalPer1Pct is per 1%, so multiply by points
+    const sensitivity = (targetPrice - currentPrice) / Math.max(capital, 0.001);
+    const eta = inflowPerHour > 0 ? capital / inflowPerHour : null;
+
+    return {
+        priceSensitivity: sensitivity,
+        capitalRequiredUSD: capital,
+        etaHours: eta,
+        source: "EMPIRICAL",
+        confidence: txConfidence
+    };
+}
+
+/**
+ * GPS-Style Blending
+ */
+export function blendTrajectory(
+    amm: TrajectoryModel,
+    empirical: TrajectoryModel | null
+): TrajectoryModel {
+    if (!empirical) return amm;
+
+    // Weighting rule: Empirical grows with confidence
+    const w = Math.min(Math.max(empirical.confidence, 0.2), 0.9);
+    const inv = 1 - w;
+
+    return {
+        priceSensitivity:
+            amm.priceSensitivity * inv +
+            empirical.priceSensitivity * w,
+
+        capitalRequiredUSD:
+            amm.capitalRequiredUSD * inv +
+            empirical.capitalRequiredUSD * w,
+
+        etaHours:
+            amm.etaHours && empirical.etaHours
+                ? amm.etaHours * inv + empirical.etaHours * w
+                : amm.etaHours ?? empirical.etaHours,
+
+        source: "EMPIRICAL",
+        confidence: Math.max(amm.confidence, empirical.confidence)
+    };
 }

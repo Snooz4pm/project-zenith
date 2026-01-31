@@ -44,7 +44,10 @@ import {
     fitLogTrajectory,
     capitalNeededForPrice,
     instantPriceSensitivity,
-    instantCapitalRequired
+    instantCapitalRequired,
+    ammBaselineTrajectory,
+    empiricalTrajectory,
+    blendTrajectory
 } from '@/lib/argus/argusScoreEngine';
 
 interface ProjectionInsightProps {
@@ -214,47 +217,31 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
     }, [reality, mcasModel, trendState, currentPrice]);
 
     const trajectory = useMemo(() => {
-        // Phase 1: Instant Baseline (AMM-derived)
-        const baselineSensitivity = Math.max(instantPriceSensitivity(currentPrice, liquidity), 1e-12);
-        const baselineCapital = Math.max(instantCapitalRequired({
+        const txsForInflow = reality?.recentTxs?.map(tx => ({
+            timestamp: tx.time, side: tx.side as "BUY" | "SELL", usdValue: tx.usdValue, price: tx.price || currentPrice, wallet: tx.wallet
+        })) || [];
+
+        const inflow = calculateLiveInflowRate(txsForInflow);
+
+        // 1. Sync AMM Baseline (GPS Phase 1)
+        const amm = ammBaselineTrajectory({
             currentPrice,
             targetPrice,
-            priceSensitivity: baselineSensitivity
-        }), 0);
+            liquidityUSD: liquidity,
+            inflowPerHour: inflow
+        });
 
-        const base = {
-            params: { p0: currentPrice, a: baselineSensitivity, b: 1 / Math.max(liquidity, 1) },
-            capitalRequired: baselineCapital,
-            source: 'BASELINE' as const
-        };
+        // 2. Async Empirical Refinement (GPS Phase 2)
+        const empirical = empiricalTrajectory({
+            capitalPer1Pct: reality?.capitalPer1Pct ?? null,
+            currentPrice,
+            targetPrice,
+            inflowPerHour: inflow,
+            txConfidence: reality?.txConfidence ?? 0
+        });
 
-        // Phase 2: Empirical Refinement (Transaction-derived)
-        if (!reality || !reality.recentTxs || reality.recentTxs.length < 2) {
-            return base;
-        }
-
-        const txs = reality.recentTxs.map(tx => ({
-            timestamp: tx.time,
-            side: tx.side as "BUY" | "SELL",
-            usdValue: tx.usdValue,
-            price: tx.price || currentPrice,
-            wallet: tx.wallet
-        }));
-
-        const trajectoryPoints = buildCapitalTrajectory(txs);
-        const params = fitLogTrajectory(trajectoryPoints);
-
-        // Ensure empirical A is not zero/garbage
-        if (params.a <= 0) return base;
-
-        const capitalRequired = capitalNeededForPrice(targetPrice, params);
-
-        return {
-            params,
-            capitalRequired: capitalRequired !== null ? Math.max(capitalRequired, 0) : baselineCapital,
-            trajectoryPoints,
-            source: 'EMPIRICAL' as const
-        };
+        // 3. Blended Truth
+        return blendTrajectory(amm, empirical);
     }, [reality, targetPrice, currentPrice, liquidity]);
 
     const getScoreColor = (score: number) => {
@@ -470,9 +457,10 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                                 {trajectory.source === 'EMPIRICAL' ? 'Empirical Trajectory Diagnostics' : 'Baseline Trajectory (AMM)'}
                             </div>
                         </div>
-                        <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter ${trajectory.source === 'EMPIRICAL' ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-500'
+                        <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter flex items-center gap-1.5 ${trajectory.source === 'EMPIRICAL' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
                             }`}>
-                            {trajectory.source}
+                            <div className={`w-1 h-1 rounded-full ${trajectory.source === 'EMPIRICAL' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                            {trajectory.source === 'EMPIRICAL' ? 'Empirical (Blended)' : 'Baseline'}
                         </div>
                     </div>
                 </div>
@@ -480,24 +468,24 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                     <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-1">
                             <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">
-                                {trajectory.source === 'EMPIRICAL' ? 'Behavioral Capital Floor' : 'Theoretical Injection'}
+                                Behavioral Capital Floor
                             </div>
                             <div className="text-lg font-black italic text-zinc-100">
-                                {formatUSD(trajectory.capitalRequired || 0)}
+                                {formatUSD(trajectory.capitalRequiredUSD || 0)}
                             </div>
                         </div>
                         <div className="space-y-1">
                             <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Price Sensitivity (a)</div>
                             <div className="text-lg font-black italic text-indigo-400">
-                                {trajectory.params.a.toFixed(6)}
+                                {trajectory.priceSensitivity.toFixed(6)}
                             </div>
                         </div>
                     </div>
                     <div className="mt-4 pt-4 border-t border-zinc-900/50">
                         <p className="text-[10px] text-zinc-500 italic leading-relaxed">
                             {trajectory.source === 'EMPIRICAL'
-                                ? `Refined via transaction response intensity of **${trajectory.params.a.toFixed(4)}**. Target requires **${formatUSD(trajectory.capitalRequired || 0)}** net USD.`
-                                : `Baseline derived from current liquidity aggregates. Empirical refit will apply as market data streams in.`}
+                                ? `GPS Convergence applied at **${(trajectory.confidence * 100).toFixed(0)}%** confidence. Refined target requires **${formatUSD(trajectory.capitalRequiredUSD || 0)}** net USD injection.`
+                                : `Baseline estimate derived from AMM math. Structural behavioral patterns will apply as trade confidence builds.`}
                         </p>
                     </div>
                 </div>
