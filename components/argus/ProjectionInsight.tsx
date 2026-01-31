@@ -372,15 +372,19 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                 <div className={`p-6 border-b border-zinc-900 ${trendState.state === 'STRONG' ? 'bg-emerald-500/5' :
                     trendState.state === 'WEAKENING' ? 'bg-amber-500/5' : 'bg-red-500/5'
                     }`}>
-                    <Timer className="w-5 h-5 text-amber-400" />
-                    <div className="text-xs font-black uppercase italic tracking-widest text-white">
-                        Momentum Projection (Conditional)
-                    </div>
-                    <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-tighter ${trendState.state === 'STRONG' ? 'bg-emerald-500 text-black' :
-                        trendState.state === 'WEAKENING' ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-500'
-                        }`}>
-                        {trendState.state === 'STRONG' ? 'Momentum Strong' :
-                            trendState.state === 'WEAKENING' ? 'Momentum Weakening' : 'Momentum Decayed'}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Timer className="w-5 h-5 text-amber-400" />
+                            <div className="text-xs font-black uppercase italic tracking-widest text-white">
+                                Momentum Projection
+                            </div>
+                        </div>
+                        <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-tighter ${trendState.state === 'STRONG' ? 'bg-emerald-500 text-black' :
+                            trendState.state === 'WEAKENING' ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-500'
+                            }`}>
+                            {trendState.state === 'STRONG' ? 'Momentum Strong' :
+                                trendState.state === 'WEAKENING' ? 'Momentum Weakening' : 'Momentum Decayed'}
+                        </div>
                     </div>
                 </div>
 
@@ -429,15 +433,6 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                         </div>
                     )}
                 </div>
-
-                <div className="px-6 py-3 bg-zinc-900/30 border-t border-zinc-900">
-                    <div className="flex items-center gap-2">
-                        <Info className="w-3 h-3 text-zinc-600" />
-                        <p className="text-[9px] text-zinc-600 font-black uppercase tracking-tighter">
-                            This model does not predict price. It estimates timeline based on current capital velocity.
-                        </p>
-                    </div>
-                </div>
             </div>
 
             {/* Market Control & Dominance (RFD) - Phase 19 */}
@@ -450,10 +445,10 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                                 Market Control & Dominance
                             </div>
                         </div>
-                        {reality?.nrd && (
+                        {reality?.nrd !== undefined && (
                             <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-tighter ${reality.nrd > 0.25 ? 'bg-emerald-500 text-black' :
-                                    reality.nrd < -0.25 ? 'bg-rose-500 text-black' :
-                                        'bg-zinc-800 text-zinc-400'
+                                reality.nrd < -0.25 ? 'bg-rose-500 text-black' :
+                                    'bg-zinc-800 text-zinc-400'
                                 }`}>
                                 {reality.dominanceStatus || 'Balanced Participation'}
                             </div>
@@ -467,118 +462,126 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                         <div className="space-y-6">
                             <div className="flex items-center justify-between mb-2">
                                 <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">Net Recurrent Dominance (NRD)</div>
-                                <div className={`text-sm font-black italic ${(reality?.nrd || 0) > 0 ? 'text-emerald-400' :
-                                        (reality?.nrd || 0) < 0 ? 'text-rose-400' :
-                                            'text-zinc-500'
+                                <div className={`text-sm font-black italic ${(reality?.nrd || 0) > 0.1 ? 'text-emerald-400' :
+                                    (reality?.nrd || 0) < -0.1 ? 'text-rose-400' :
+                                        'text-zinc-500'
                                     }`}>
-                                    "Insufficient historical response to model a reliable trajectory skew."
-                            )}
-                                </p>
-                            </div>
-
-                            {/* Mechanistic Status */}
-                            <div className="pt-4 border-t border-zinc-900/50">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className={`w-1.5 h-1.5 rounded-full ${trajectory.statusMessage?.includes("not supported") || trajectory.statusMessage?.includes("Negative") ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-                                    <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Status Verdict</div>
+                                    {((reality?.nrd || 0) * 100).toFixed(1)}%
                                 </div>
-                                <p className={`text-xs font-black italic leading-relaxed ${trajectory.statusMessage?.includes("not supported") || trajectory.statusMessage?.includes("Negative") ? 'text-rose-400' : 'text-zinc-300'}`}>
-                                    {trajectory.statusMessage}
-                                </p>
                             </div>
 
-                            {/* Institutional Disclaimer */}
-                            <div className="pt-4 border-t border-zinc-900/30 text-center">
-                                <p className="text-[10px] text-zinc-600 italic">
-                                    This model does not predict price. It visualizes how price has historically responded to capital entering or exiting the market.
-                                </p>
+                            <div className="h-4 w-full bg-zinc-900 rounded-full overflow-hidden relative">
+                                <div className="absolute inset-0 flex">
+                                    <div className="w-1/2 h-full border-r border-zinc-800/50" />
+                                </div>
+                                <motion.div
+                                    initial={{ width: "0%", left: "50%" }}
+                                    animate={{
+                                        width: `${Math.abs((reality?.nrd || 0) * 50)}%`,
+                                        left: (reality?.nrd || 0) >= 0 ? "50%" : `${50 - Math.abs((reality?.nrd || 0) * 50)}%`
+                                    }}
+                                    className={`absolute h-full ${(reality?.nrd || 0) >= 0 ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]'}`}
+                                />
+                            </div>
+
+                            <div className="flex justify-between text-[8px] text-zinc-600 font-bold uppercase tracking-widest px-1">
+                                <span>Seller Dominant</span>
+                                <span>Neutral</span>
+                                <span>Buyer Dominant</span>
                             </div>
                         </div>
-                    </div>
 
-                    {/* REALITY SIMULATOR BLOCK */}
-                    <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
-                        <div className="p-6 border-b border-zinc-900 bg-cyan-500/5">
+                        {/* conviction stats */}
+                        <div className="bg-black/40 p-4 rounded-xl border border-zinc-900 flex items-center justify-center">
+                            <p className="text-[10px] text-zinc-500 leading-relaxed italic text-center">
+                                RFD measures persistent structural behavior. A score > 25% suggests strong recurrent accumulation, providing a high-confidence floor for mcap expansion.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* REALITY SIMULATOR BLOCK */}
+            <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
+                <div className="p-6 border-b border-zinc-900 bg-cyan-500/5">
+                    <div className="flex items-center gap-2">
+                        <Zap className="w-5 h-5 text-cyan-400" />
+                        <div className="text-[11px] text-white font-black uppercase tracking-widest italic">Reality Simulator: Required for MCAS 0.4</div>
+                    </div>
+                </div>
+                <div className="p-6">
+                    {simulation ? (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
+                                <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Volume Growth</div>
+                                <div className="text-lg font-black italic text-white">+{((simulation.volumeIncreaseRequired || 1) - 1 * 100).toFixed(0)}%</div>
+                            </div>
+                            <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
+                                <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Liquidity Boost</div>
+                                <div className="text-lg font-black italic text-white">{(simulation.liquidityIncreaseRequired || 0).toFixed(1)}x</div>
+                            </div>
+                            <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50 border-emerald-500/10">
+                                <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Holder Stability</div>
+                                <div className="text-lg font-black italic text-emerald-400">+{((simulation.holderImprovementRequired || 0) * 100).toFixed(0)}%</div>
+                            </div>
+                            <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
+                                <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Wash Reduction</div>
+                                <div className="text-lg font-black italic text-cyan-400">{simulation.washTradingReductionRequired || 'N/A'}</div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-[10px] text-zinc-700 italic p-4">Insuffient empirical data to run reality simulation.</div>
+                    )}
+                </div>
+            </div>
+
+            {/* Live Market Convergence (Order Book) */}
+            {orderBook && orderBook.orderBookAvailable === true && obModel && (
+                <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
+                    <div className="p-6 border-b border-zinc-900 bg-emerald-500/5">
+                        <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <Zap className="w-5 h-5 text-cyan-400" />
-                                <div className="text-[11px] text-white font-black uppercase tracking-widest italic">Reality Simulator: Required for MCAS 0.4</div>
+                                <BarChart3 className={`w-5 h-5 ${obModel.status === 'CLOSE' ? 'text-emerald-400' : 'text-zinc-500'}`} />
+                                <div className="text-xs font-black uppercase italic tracking-widest text-white">Live Market Convergence</div>
+                            </div>
+                            <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-tighter ${obModel.status === 'CLOSE' ? 'bg-emerald-500 text-black' :
+                                obModel.status === 'APPROACHING' ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-400'
+                                }`}>
+                                {obModel.status}
                             </div>
                         </div>
-                        <div className="p-6">
-                            {simulation ? (
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
-                                        <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Volume Growth</div>
-                                        <div className="text-lg font-black italic text-white">+{((simulation.volumeIncreaseRequired || 1) - 1 * 100).toFixed(0)}%</div>
-                                    </div>
-                                    <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
-                                        <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Liquidity Boost</div>
-                                        <div className="text-lg font-black italic text-white">{(simulation.liquidityIncreaseRequired || 0).toFixed(1)}x</div>
-                                    </div>
-                                    <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50 border-emerald-500/10">
-                                        <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Holder Stability</div>
-                                        <div className="text-lg font-black italic text-emerald-400">+{((simulation.holderImprovementRequired || 0) * 100).toFixed(0)}%</div>
-                                    </div>
-                                    <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
-                                        <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Wash Reduction</div>
-                                        <div className="text-lg font-black italic text-cyan-400">{simulation.washTradingReductionRequired || 'N/A'}</div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="text-[10px] text-zinc-700 italic p-4">Insuffient empirical data to run reality simulation.</div>
-                            )}
-                        </div>
+                        <p className="mt-3 text-[11px] text-zinc-500 font-medium leading-relaxed italic pr-12">
+                            {obModel.insight}
+                        </p>
                     </div>
 
-                    {/* Live Market Convergence (Order Book) */}
-                    {
-                        orderBook && orderBook.orderBookAvailable === true && obModel && (
-                            <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
-                                <div className="p-6 border-b border-zinc-900 bg-emerald-500/5">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <BarChart3 className={`w-5 h-5 ${obModel.status === 'CLOSE' ? 'text-emerald-400' : 'text-zinc-500'}`} />
-                                            <div className="text-xs font-black uppercase italic tracking-widest text-white">Live Market Convergence</div>
-                                        </div>
-                                        <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-tighter ${obModel.status === 'CLOSE' ? 'bg-emerald-500 text-black' :
-                                            obModel.status === 'APPROACHING' ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-400'
-                                            }`}>
-                                            {obModel.status}
-                                        </div>
-                                    </div>
-                                    <p className="mt-3 text-[11px] text-zinc-500 font-medium leading-relaxed italic pr-12">
-                                        {obModel.insight}
-                                    </p>
-                                </div>
-
-                                <div className="grid grid-cols-2 divide-x divide-zinc-900">
-                                    <div className="p-6 space-y-4">
-                                        <div className="space-y-1">
-                                            <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Buy Pressure (1%)</div>
-                                            <div className="text-lg font-black italic text-emerald-400">
-                                                {formatUSD(buyPressure(orderBook?.bids || [], currentPrice, 0.01))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="p-6 space-y-6">
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest">
-                                                <span className="text-zinc-600">Absorption</span>
-                                                <span className="text-white">{Math.round(obModel.progressPct * 100)}%</span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
-                                                <motion.div
-                                                    initial={{ width: 0 }}
-                                                    animate={{ width: `${obModel.progressPct * 100}%` }}
-                                                    className="h-full bg-emerald-500"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-zinc-900">
+                        <div className="p-6 space-y-4">
+                            <div className="space-y-1">
+                                <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Buy Pressure (1%)</div>
+                                <div className="text-lg font-black italic text-emerald-400">
+                                    {formatUSD(buyPressure(orderBook?.bids || [], currentPrice, 0.01))}
                                 </div>
                             </div>
-                        )
-                    }
-                </div >
-                );
+                        </div>
+                        <div className="p-6 space-y-6">
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest">
+                                    <span className="text-zinc-600">Absorption</span>
+                                    <span className="text-white">{Math.round(obModel.progressPct * 100)}%</span>
+                                </div>
+                                <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${obModel.progressPct * 100}%` }}
+                                        className="h-full bg-emerald-500"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
