@@ -41,7 +41,10 @@ import {
     directionalityErosion,
     slippageDeterioration,
     trendHealthScore,
-    trendStateFromHealth
+    trendStateFromHealth,
+    buildCapitalTrajectory,
+    fitLogTrajectory,
+    capitalNeededForPrice
 } from '@/lib/argus/argusScoreEngine';
 
 interface ProjectionInsightProps {
@@ -209,6 +212,28 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
             }
         });
     }, [reality, mcasModel, trendState, currentPrice]);
+
+    const empiricalTrajectory = useMemo(() => {
+        if (!reality || !reality.recentTxs) return null;
+
+        const txs = reality.recentTxs.map(tx => ({
+            timestamp: tx.time,
+            side: tx.side as "BUY" | "SELL",
+            usdValue: tx.usdValue,
+            price: tx.price || currentPrice,
+            wallet: tx.wallet
+        }));
+
+        const trajectoryPoints = buildCapitalTrajectory(txs);
+        const params = fitLogTrajectory(trajectoryPoints);
+        const capitalRequired = capitalNeededForPrice(targetPrice, params);
+
+        return {
+            params,
+            capitalRequired,
+            trajectoryPoints
+        };
+    }, [reality, targetPrice, currentPrice]);
 
     const getScoreColor = (score: number) => {
         if (score >= 0.8) return 'text-emerald-400';
@@ -412,6 +437,39 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                     </div>
                 </div>
             </div>
+
+            {/* Empirical Trajectory Diagnostics */}
+            {empiricalTrajectory && (
+                <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
+                    <div className="p-6 border-b border-zinc-900 bg-indigo-500/5">
+                        <div className="flex items-center gap-2">
+                            <FlaskConical className="w-5 h-5 text-indigo-400" />
+                            <div className="text-xs font-black uppercase italic tracking-widest text-white">Empirical Trajectory Diagnostics</div>
+                        </div>
+                    </div>
+                    <div className="p-6">
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-1">
+                                <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Behavioral Capital Floor</div>
+                                <div className="text-lg font-black italic text-zinc-100">
+                                    {formatUSD(empiricalTrajectory.capitalRequired || 0)}
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Price Sensitivity (a)</div>
+                                <div className="text-lg font-black italic text-indigo-400">
+                                    {empiricalTrajectory.params.a.toFixed(6)}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-zinc-900/50">
+                            <p className="text-[10px] text-zinc-500 italic leading-relaxed">
+                                Deriving required injection of **{formatUSD(empiricalTrajectory.capitalRequired || 0)}** net USD to reach target, based on historical response intensity of **{empiricalTrajectory.params.a.toFixed(4)}**.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* REALITY SIMULATOR BLOCK */}
             <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">

@@ -12,7 +12,15 @@ import { WalletExposure } from '@/lib/argus/correlationEngine';
 import { ProjectionInsight } from './ProjectionInsight';
 import { OrderBookVisualizer } from './OrderBookVisualizer';
 import { OrderBookSnapshot, AMMVirtualDepth, TxDerivedMetrics } from '@/lib/argus/liquidityEngine';
-import { computeMCASv31, MCASResult, buildBondCurveFromTxs } from '@/lib/argus/argusScoreEngine';
+import {
+    computeMCASv31,
+    MCASResult,
+    buildBondCurveFromTxs,
+    buildCapitalTrajectory,
+    fitLogTrajectory,
+    trajectoryPrice,
+    TrajectoryPoint
+} from '@/lib/argus/argusScoreEngine';
 import { BondCurveVisualizer } from './BondCurveVisualizer';
 
 export interface ArgusRealityPanelProps {
@@ -206,46 +214,62 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
         return calculateReality(currentPrice, circulatingSupply, targetPrice);
     }, [currentPrice, circulatingSupply, targetPrice]);
 
-    const bondCurveData = useMemo(() => {
-        if (!reality || !reality.recentTxs || !liquidity) return [];
+    const trajectoryData = useMemo(() => {
+        if (!reality || !reality.recentTxs || !liquidity) return { ammCurve: [], trajectoryPoints: [], fittedCurve: [] };
 
         const pool = {
             reserveUSD: liquidity / 2,
             reserveToken: (liquidity / 2) / (currentPrice || 0.000001)
         };
 
-        const txsForReplay = [...reality.recentTxs]
+        const txsForLogic = [...reality.recentTxs]
             .sort((a, b) => a.time - b.time)
             .map(tx => ({
                 timestamp: tx.time,
                 side: tx.side,
                 usdValue: tx.usdValue,
-                price: currentPrice,
+                price: tx.price || currentPrice,
                 wallet: tx.wallet
             }));
 
-        const historyCurve = buildBondCurveFromTxs(pool, txsForReplay);
+        // 1. AMM Baseline
+        const ammCurve = buildBondCurveFromTxs(pool, txsForLogic);
 
-        // Project future curve toward target
-        const lastPoint = historyCurve[historyCurve.length - 1];
-        if (targetPrice > lastPoint.price) {
+        // Project AMM future
+        const lastAmm = ammCurve[ammCurve.length - 1];
+        if (targetPrice > lastAmm.price) {
             const k = pool.reserveUSD * pool.reserveToken;
             const finalUSDRequired = Math.sqrt(targetPrice * k);
             const deltaUSD = finalUSDRequired - pool.reserveUSD;
-
-            // Add 20 points for smooth curve projection
-            for (let i = 1; i <= 20; i++) {
-                const stepUSD = (deltaUSD / 20) * i;
-                const projectedUSD = pool.reserveUSD + stepUSD;
-                const projectedPrice = projectedUSD / (k / projectedUSD);
-                historyCurve.push({
-                    cumulativeUSD: lastPoint.cumulativeUSD + stepUSD,
-                    price: projectedPrice
+            for (let i = 1; i <= 15; i++) {
+                const step = (deltaUSD / 15) * i;
+                ammCurve.push({
+                    cumulativeUSD: lastAmm.cumulativeUSD + step,
+                    price: (pool.reserveUSD + step) / (k / (pool.reserveUSD + step))
                 });
             }
         }
 
-        return historyCurve;
+        // 2. Real Trajectory Points
+        const trajectoryPoints = buildCapitalTrajectory(txsForLogic);
+
+        // 3. Fitted Logarithmic Curve
+        const params = fitLogTrajectory(trajectoryPoints);
+        const fittedCurve = [];
+
+        // Use the same X-axis range as AMM for comparison
+        const minX = Math.min(...trajectoryPoints.map(p => p.cumulativeUSD), 0);
+        const maxX = Math.max(...ammCurve.map(p => p.cumulativeUSD));
+
+        for (let i = 0; i <= 30; i++) {
+            const capital = minX + ((maxX - minX) / 30) * i;
+            fittedCurve.push({
+                cumulativeUSD: capital,
+                price: trajectoryPrice(capital, params)
+            });
+        }
+
+        return { ammCurve, trajectoryPoints, fittedCurve };
     }, [reality, liquidity, currentPrice, targetPrice]);
 
     if (!metrics) {
@@ -661,7 +685,9 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
 
             <div className="px-8 py-6 bg-black border-b border-zinc-900">
                 <BondCurveVisualizer
-                    curveData={bondCurveData}
+                    ammCurveData={trajectoryData.ammCurve}
+                    trajectoryPoints={trajectoryData.trajectoryPoints}
+                    fittedCurve={trajectoryData.fittedCurve}
                     targetPrice={targetPrice}
                     currentPrice={currentPrice}
                     symbol={symbol}

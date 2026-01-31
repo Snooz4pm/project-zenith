@@ -25,6 +25,18 @@ export type CurvePoint = {
     price: number;
 };
 
+export type TrajectoryPoint = {
+    cumulativeUSD: number;
+    price: number;
+    timestamp: number;
+};
+
+export type TrajectoryParams = {
+    p0: number;
+    a: number;
+    b: number;
+};
+
 export type HolderMetrics = {
     holderPenalty: number; // 0–1
 };
@@ -530,4 +542,82 @@ export function getCapitalAtTarget(
 ): number | null {
     const match = curve.find(p => p.price >= targetPrice);
     return match ? match.cumulativeUSD : null;
+}
+
+// --- PART 8: EMPIRICAL CAPITAL TRAJECTORY (PHASE 12) ---
+
+/**
+ * Converts transactions into cumulative capital trajectory points
+ */
+export function buildCapitalTrajectory(txs: SwapTx[]): TrajectoryPoint[] {
+    if (txs.length === 0) return [];
+
+    // Sort by timestamp
+    const sorted = [...txs].sort((a, b) => a.timestamp - b.timestamp);
+
+    let cumulativeUSD = 0;
+    const trajectory: TrajectoryPoint[] = [];
+
+    for (const tx of sorted) {
+        cumulativeUSD += tx.side === "BUY" ? tx.usdValue : -tx.usdValue;
+
+        trajectory.push({
+            cumulativeUSD,
+            price: tx.price,
+            timestamp: tx.timestamp
+        });
+    }
+
+    return trajectory;
+}
+
+/**
+ * Fits a logarithmic trajectory to empirical transaction data:
+ * P(C) = P0 + a * ln(1 + b * C)
+ */
+export function fitLogTrajectory(points: TrajectoryPoint[]): TrajectoryParams {
+    if (points.length === 0) return { p0: 0, a: 0, b: 0 };
+
+    const p0 = points[0].price;
+
+    // Simple heuristic fit for Phase 12
+    // We look at the total growth and total net capital
+    const maxC = Math.max(...points.map(p => Math.abs(p.cumulativeUSD)), 1);
+    const maxP = Math.max(...points.map(p => p.price));
+
+    // a = (deltaP) / ln(1 + b * maxC)
+    // We assume b is related to current liquidity depth
+    const b = 1 / maxC;
+    const a = (maxP - p0) / Math.log(1 + b * maxC || 1.000001);
+
+    return { p0, a, b };
+}
+
+/**
+ * Predicts price for a given net capital injection using the logarithmic model
+ */
+export function trajectoryPrice(
+    capitalUSD: number,
+    params: TrajectoryParams
+): number {
+    const { p0, a, b } = params;
+    // Log model only handles positive/growth capital for prediction
+    return p0 + a * Math.log(1 + b * Math.max(capitalUSD, 0));
+}
+
+/**
+ * Calculates capital required to reach a target price based on behavioral history
+ */
+export function capitalNeededForPrice(
+    targetPrice: number,
+    params: TrajectoryParams
+): number | null {
+    const { p0, a, b } = params;
+    if (targetPrice <= p0 || a <= 0) return 0;
+
+    // Solve P = p0 + a * ln(1 + b*C) for C
+    // (P - p0)/a = ln(1 + b*C)
+    // exp((P - p0)/a) - 1 = b*C
+    // C = (exp((P - p0)/a) - 1) / b
+    return (Math.exp((targetPrice - p0) / a) - 1) / b;
 }
