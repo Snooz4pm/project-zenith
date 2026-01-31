@@ -65,7 +65,7 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
 
             <div className="p-6">
                 <div className="h-72 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                         <ComposedChart margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                             <defs>
                                 <linearGradient id="bullGradient" x1="0" y1="0" x2="0" y2="1">
@@ -91,7 +91,7 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
                                 type="number"
                                 stroke="#3f3f46"
                                 fontSize={10}
-                                tickFormatter={(val) => `$${val.toFixed(4)}`}
+                                tickFormatter={(val) => `$${(val || 0).toFixed(4)}`}
                                 domain={['auto', 'auto']}
                             />
                             <Tooltip

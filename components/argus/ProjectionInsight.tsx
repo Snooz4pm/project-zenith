@@ -473,7 +473,7 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                                 <div className="space-y-1">
                                     <div className="text-[8px] text-zinc-600 font-bold uppercase tracking-tighter">Upside Sensitivity (a)</div>
                                     <div className="text-sm font-black italic text-zinc-100">
-                                        {trajectory.bull?.a.toFixed(6) || '0.000000'}
+                                        {trajectory.bull?.a?.toFixed(6) || '0.000000'}
                                     </div>
                                 </div>
                                 <div className="space-y-1">
@@ -498,7 +498,7 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                                 <div className="space-y-1">
                                     <div className="text-[8px] text-zinc-600 font-bold uppercase tracking-tighter">Downside Sensitivity (a)</div>
                                     <div className="text-sm font-black italic text-zinc-100">
-                                        {trajectory.bear?.a.toFixed(6) || '0.000000'}
+                                        {trajectory.bear?.a?.toFixed(6) || '0.000000'}
                                     </div>
                                 </div>
                                 <div className="space-y-1">
