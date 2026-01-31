@@ -56,9 +56,9 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
                         <FlaskConical className="w-5 h-5 text-indigo-400" />
                         <div className="text-[11px] text-white font-black uppercase tracking-widest italic">Market Trajectory Envelope</div>
                     </div>
-                    <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-tighter ${targetReachable ? 'bg-emerald-500 text-black' : 'bg-amber-500/20 text-amber-500'
+                    <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-tighter ${targetReachable ? 'bg-emerald-500 text-black' : 'bg-rose-500/10 text-rose-400'
                         }`}>
-                        {targetReachable ? 'Target Reachable on Bull Curve' : 'Skew Resistance Detected'}
+                        {targetReachable ? 'Target Within Bull Envelope' : 'Target Beyond Current Trajectory'}
                     </div>
                 </div>
             </div>

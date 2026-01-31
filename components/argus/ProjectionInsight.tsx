@@ -370,264 +370,281 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                 <div className={`p-6 border-b border-zinc-900 ${trendState.state === 'STRONG' ? 'bg-emerald-500/5' :
                     trendState.state === 'WEAKENING' ? 'bg-amber-500/5' : 'bg-red-500/5'
                     }`}>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <TrendingUp className={`w-5 h-5 ${trendState.state === 'STRONG' ? 'text-emerald-400' :
-                                trendState.state === 'WEAKENING' ? 'text-amber-400' : 'text-zinc-600'
-                                }`} />
-                            <div className="text-[11px] text-white font-black uppercase tracking-widest italic">Momentum Projection</div>
-                        </div>
-                        <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-tighter ${trendState.state === 'STRONG' ? 'bg-emerald-500 text-black' :
-                            trendState.state === 'WEAKENING' ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-500'
-                            }`}>
-                            {trendState.state === 'STRONG' ? 'Momentum Strong' :
-                                trendState.state === 'WEAKENING' ? 'Momentum Weakening' : 'Momentum Decayed'}
-                        </div>
+                    <Timer className="w-5 h-5 text-amber-400" />
+                    <div className="text-xs font-black uppercase italic tracking-widest text-white">
+                        Momentum Projection (Conditional)
+                    </div>
+                    <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-tighter ${trendState.state === 'STRONG' ? 'bg-emerald-500 text-black' :
+                        trendState.state === 'WEAKENING' ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-500'
+                        }`}>
+                        {trendState.state === 'STRONG' ? 'Momentum Strong' :
+                            trendState.state === 'WEAKENING' ? 'Momentum Weakening' : 'Momentum Decayed'}
                     </div>
                 </div>
+            </div>
 
-                <div className="p-6">
-                    {trendState.state === 'DECAYING' ? (
-                        <div className="flex flex-col items-center justify-center py-4 space-y-3">
-                            <ShieldAlert className="w-8 h-8 text-zinc-800" />
-                            <p className="text-[11px] text-zinc-500 font-medium leading-relaxed italic text-center max-w-[280px]">
-                                Momentum projection unavailable. Recent trading activity is no longer strong or consistent enough to estimate a reliable timeline.
+            <div className="p-6">
+                {trendState.state === 'DECAYING' ? (
+                    <div className="flex flex-col items-center justify-center py-4 space-y-3">
+                        <ShieldAlert className="w-8 h-8 text-zinc-800" />
+                        <p className="text-[11px] text-zinc-500 font-medium leading-relaxed italic text-center max-w-[280px]">
+                            Momentum projection unavailable. Recent trading activity is no longer strong or consistent enough to estimate a reliable timeline.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        <div className="flex flex-col space-y-2">
+                            <p className="text-[11px] text-zinc-400 font-medium leading-relaxed italic">
+                                Estimates when the target price could be reached <span className="text-zinc-400 font-black underline decoration-amber-500/30">if current net buying continues</span>.
                             </p>
-                        </div>
-                    ) : (
-                        <div className="space-y-6">
-                            <div className="flex flex-col space-y-2">
-                                <p className="text-[11px] text-zinc-400 font-medium leading-relaxed italic">
-                                    {trendState.state === 'STRONG'
-                                        ? "If current net buying continues, the target price could be reached around:"
-                                        : "Momentum is weakening. The projected date may shift if buying activity slows further."}
-                                </p>
 
-                                {momentumETA ? (
-                                    <div className="text-2xl font-black italic tracking-tighter text-white flex items-center gap-3">
-                                        <span className="text-emerald-400">📅</span>
-                                        {momentumETA.eta.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                        <span className="text-zinc-600 text-xs font-mono not-italic tracking-normal ml-2">
-                                            ({Math.ceil(momentumETA.hours)}h left)
-                                        </span>
-                                    </div>
-                                ) : (
-                                    <div className="text-sm font-black italic text-zinc-600">Calculating trajectory...</div>
-                                )}
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-zinc-900">
-                                <div>
-                                    <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Inflow Velocity</div>
-                                    <div className="text-xs font-black italic text-zinc-300">
-                                        {formatUSD(netInflowPerHour(reality?.recentTxs?.map(tx => ({
-                                            timestamp: tx.time,
-                                            side: tx.side,
-                                            usdValue: tx.usdValue,
-                                            price: currentPrice,
-                                            wallet: tx.wallet
-                                        })) || [], 1))}/hr
-                                    </div>
+                            {momentumETA ? (
+                                <div className="text-2xl font-black italic tracking-tighter text-white flex items-center gap-3">
+                                    <span className="text-emerald-400">📅</span>
+                                    {momentumETA.eta.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    <span className="text-zinc-600 text-xs font-mono not-italic tracking-normal ml-2">
+                                        ({Math.ceil(momentumETA.hours)}h left)
+                                    </span>
                                 </div>
-                                <div>
-                                    <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Trend Health</div>
-                                    <div className="text-xs font-black italic text-white">
-                                        {Math.round(trendState.score * 100)}%
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="px-6 py-3 bg-zinc-900/30 border-t border-zinc-900 group cursor-help">
-                    <div className="flex items-center gap-2">
-                        <Info className="w-3 h-3 text-zinc-600" />
-                        <p className="text-[9px] text-zinc-600 font-black uppercase tracking-tighter">
-                            This projection is conditional. It updates live and disappears when market behavior changes.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Market Trajectory Envelope (PHASE 16) */}
-            <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
-                <div className="p-6 border-b border-zinc-900 bg-indigo-500/5">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <FlaskConical className="w-5 h-5 text-indigo-400" />
-                            <div className="text-xs font-black uppercase italic tracking-widest text-white">
-                                Market Trajectory Envelope
-                            </div>
-                        </div>
-                        <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter flex items-center gap-1.5 ${trajectory.source === 'EMPIRICAL' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                            }`}>
-                            <div className={`w-1 h-1 rounded-full ${trajectory.source === 'EMPIRICAL' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                            {trajectory.source === 'EMPIRICAL' ? 'Empirical (Blended)' : 'Baseline'}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="p-6 space-y-8">
-                    {/* Dual Case Analysis */}
-                    <div className="grid grid-cols-2 gap-8 divide-x divide-zinc-900">
-                        {/* Bull Case (Upper Envelope) */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                <div className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">Bull Case (Buy-Driven)</div>
-                            </div>
-                            <div className="space-y-3">
-                                <div className="space-y-1">
-                                    <div className="text-[8px] text-zinc-600 font-bold uppercase tracking-tighter">Upside Sensitivity (a)</div>
-                                    <div className="text-sm font-black italic text-zinc-100">
-                                        {trajectory.bull?.a.toFixed(6) || '0.000000'}
-                                    </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <div className="text-[8px] text-zinc-600 font-bold uppercase tracking-tighter">Capital for Target</div>
-                                    <div className="text-sm font-black italic text-emerald-400">
-                                        ~{formatUSD(trajectory.bull?.capitalRequired || 0)}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Bear Case (Lower Envelope) */}
-                        <div className="pl-8 space-y-4">
-                            <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-rose-500" />
-                                <div className="text-[10px] text-rose-500 font-black uppercase tracking-widest">Bear Case (Sell-Driven)</div>
-                            </div>
-                            <div className="space-y-3">
-                                <div className="space-y-1">
-                                    <div className="text-[8px] text-zinc-600 font-bold uppercase tracking-tighter">Downside Sensitivity (a)</div>
-                                    <div className="text-sm font-black italic text-zinc-100">
-                                        {trajectory.bear?.a.toFixed(6) || '0.000000'}
-                                    </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <div className="text-[8px] text-zinc-600 font-bold uppercase tracking-tighter">Capital for Correction</div>
-                                    <div className="text-sm font-black italic text-rose-400">
-                                        ~{formatUSD(trajectory.bear?.capitalRequired || 0)}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Skew & Observed Truth */}
-                    <div className="pt-6 border-t border-zinc-900 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div className="text-[9px] text-zinc-500 font-black uppercase tracking-widest">Skew Analysis</div>
-                            <div className={`px-2 py-0.5 rounded text-[10px] font-black italic ${(trajectory.bull?.capitalRequired || 0) > (trajectory.bear?.capitalRequired || 0) * 2 ? 'text-rose-400 bg-rose-400/10' : 'text-emerald-400 bg-emerald-400/10'
-                                }`}>
-                                {(trajectory.bull?.capitalRequired || 1) / (trajectory.bear?.capitalRequired || 1) > 2 ? 'BEARISH SKEW' : 'BALANCED SKEW'}
-                            </div>
-                        </div>
-                        <p className="text-[11px] font-medium italic text-zinc-400 leading-relaxed">
-                            {trajectory.bull?.capitalRequired && trajectory.bear?.capitalRequired ? (
-                                `Reaching the target requires ${formatUSD(trajectory.bull.capitalRequired)} in net buying, while a comparable move downward needs only ${formatUSD(trajectory.bear.capitalRequired)} in selling.`
                             ) : (
-                                "Calculating market skew based on opposing force fields."
+                                <div className="text-sm font-black italic text-rose-400">Net selling pressure dominates. A time estimate is not available under current conditions.</div>
                             )}
-                        </p>
-                    </div>
-
-                    {/* Mechanistic Status */}
-                    <div className="pt-4 border-t border-zinc-900/50">
-                        <div className="flex items-center gap-2 mb-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${trajectory.statusMessage?.includes("not supported") || trajectory.statusMessage?.includes("Negative") ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-                            <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Status Verdict</div>
                         </div>
-                        <p className={`text-xs font-black italic leading-relaxed ${trajectory.statusMessage?.includes("not supported") || trajectory.statusMessage?.includes("Negative") ? 'text-rose-400' : 'text-zinc-300'}`}>
-                            {trajectory.statusMessage}
-                        </p>
-                    </div>
-                </div>
-            </div>
 
-            {/* REALITY SIMULATOR BLOCK */}
-            <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
-                <div className="p-6 border-b border-zinc-900 bg-cyan-500/5">
-                    <div className="flex items-center gap-2">
-                        <Zap className="w-5 h-5 text-cyan-400" />
-                        <div className="text-[11px] text-white font-black uppercase tracking-widest italic">Reality Simulator: Required for MCAS 0.4</div>
-                    </div>
-                </div>
-                <div className="p-6">
-                    {simulation ? (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
-                                <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Volume Growth</div>
-                                <div className="text-lg font-black italic text-white">+{((simulation.volumeIncreaseRequired - 1) * 100).toFixed(0)}%</div>
+                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-zinc-900">
+                            <div>
+                                <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Net Inflow Rate</div>
+                                <div className={`text-xs font-black italic ${trendState.inflowRate > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                    {trendState.inflowRate > 0 ? '+' : ''}{formatUSD(trendState.inflowRate)}/hr
+                                </div>
                             </div>
-                            <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
-                                <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Liquidity Boost</div>
-                                <div className="text-lg font-black italic text-white">{simulation.liquidityIncreaseRequired.toFixed(1)}x</div>
-                            </div>
-                            <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50 border-emerald-500/10">
-                                <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Holder Stability</div>
-                                <div className="text-lg font-black italic text-emerald-400">+{((simulation.holderImprovementRequired) * 100).toFixed(0)}%</div>
-                            </div>
-                            <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
-                                <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Wash Reduction</div>
-                                <div className="text-lg font-black italic text-cyan-400">{simulation.washTradingReductionRequired}</div>
+                            <div>
+                                <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1">Mathematical Confidence</div>
+                                <div className="text-xs font-black italic text-zinc-300">
+                                    {Math.round(trendState.score * 100)}%
+                                </div>
                             </div>
                         </div>
-                    ) : (
-                        <div className="text-[10px] text-zinc-700 italic p-4">Insuffient empirical data to run reality simulation.</div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
 
-            {/* Live Market Convergence (Order Book) */}
-            {orderBook && orderBook.orderBookAvailable === true && obModel && (
+            <div className="px-6 py-3 bg-zinc-900/30 border-t border-zinc-900">
+                <div className="flex items-center gap-2">
+                    <Info className="w-3 h-3 text-zinc-600" />
+                    <p className="text-[9px] text-zinc-600 font-black uppercase tracking-tighter">
+                        This model does not predict price. It estimates timeline based on current capital velocity.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+            {/* Market Trajectory Envelope (PHASE 16) */ }
+    <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
+        <div className="p-6 border-b border-zinc-900 bg-indigo-500/5">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <FlaskConical className="w-5 h-5 text-indigo-400" />
+                    <div className="text-xs font-black uppercase italic tracking-widest text-white">
+                        Market Trajectory Envelope
+                    </div>
+                </div>
+                {/* Market Trajectory Envelope (PHASE 16) */}
                 <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
-                    <div className="p-6 border-b border-zinc-900 bg-emerald-500/5">
+                    <div className="p-6 border-b border-zinc-900 bg-indigo-500/5">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <BarChart3 className={`w-5 h-5 ${obModel.status === 'CLOSE' ? 'text-emerald-400' : 'text-zinc-500'}`} />
-                                <div className="text-xs font-black uppercase italic tracking-widest text-white">Live Market Convergence</div>
+                                <FlaskConical className="w-5 h-5 text-indigo-400" />
+                                <div className="text-xs font-black uppercase italic tracking-widest text-white">
+                                    Market Trajectory Envelope
+                                </div>
                             </div>
-                            <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-tighter ${obModel.status === 'CLOSE' ? 'bg-emerald-500 text-black' :
-                                obModel.status === 'APPROACHING' ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-400'
+                            <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter flex items-center gap-1.5 ${trajectory.source === 'EMPIRICAL' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
                                 }`}>
-                                {obModel.status}
+                                <div className={`w-1 h-1 rounded-full ${trajectory.source === 'EMPIRICAL' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                                {trajectory.source === 'EMPIRICAL' ? 'Empirical (Blended)' : 'Baseline'}
                             </div>
                         </div>
                         <p className="mt-3 text-[11px] text-zinc-500 font-medium leading-relaxed italic pr-12">
-                            {obModel.insight}
+                            Shows how price has historically responded to buy-side and sell-side pressure.
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 divide-x divide-zinc-900">
-                        <div className="p-6 space-y-4">
-                            <div className="space-y-1">
-                                <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Buy Pressure (1%)</div>
-                                <div className="text-lg font-black italic text-emerald-400">
-                                    {formatUSD(buyPressure(orderBook?.bids || [], currentPrice, 0.01))}
+                    <div className="p-6 space-y-8">
+                        {/* Dual Case Analysis */}
+                        <div className="grid grid-cols-2 gap-8 divide-x divide-zinc-900">
+                            {/* Bull Case (Upper Envelope) */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                    <div className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">Bull Case (Buy-Driven)</div>
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="space-y-1">
+                                        <div className="text-[8px] text-zinc-600 font-bold uppercase tracking-tighter">Upside Sensitivity (a)</div>
+                                        <div className="text-sm font-black italic text-zinc-100">
+                                            {trajectory.bull?.a.toFixed(6) || '0.000000'}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="text-[8px] text-zinc-600 font-bold uppercase tracking-tighter">Capital for Target</div>
+                                        <div className="text-sm font-black italic text-emerald-400">
+                                            {trajectory.bull?.capitalRequired ? `~${formatUSD(trajectory.bull.capitalRequired)}` : "Unavailable"}
+                                        </div>
+                                        <div className="text-[8px] text-zinc-700 italic">
+                                            Estimated capital required to reach the target price if buyers dominate.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Bear Case (Lower Envelope) */}
+                            <div className="pl-8 space-y-4">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-rose-500" />
+                                    <div className="text-[10px] text-rose-500 font-black uppercase tracking-widest">Bear Case (Sell-Driven)</div>
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="space-y-1">
+                                        <div className="text-[8px] text-zinc-600 font-bold uppercase tracking-tighter">Downside Sensitivity (a)</div>
+                                        <div className="text-sm font-black italic text-zinc-100">
+                                            {trajectory.bear?.a.toFixed(6) || '0.000000'}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="text-[8px] text-zinc-600 font-bold uppercase tracking-tighter">Capital for Correction</div>
+                                        <div className="text-sm font-black italic text-rose-400">
+                                            {trajectory.bear?.capitalRequired ? `~${formatUSD(trajectory.bear.capitalRequired)}` : "Unavailable"}
+                                        </div>
+                                        <div className="text-[8px] text-zinc-700 italic">
+                                            Estimated capital required for a comparable downside move if sellers dominate.
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div className="p-6 space-y-6">
-                            <div className="space-y-2">
-                                <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest">
-                                    <span className="text-zinc-600">Absorption</span>
-                                    <span className="text-white">{Math.round(obModel.progressPct * 100)}%</span>
-                                </div>
-                                <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
-                                    <motion.div
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${obModel.progressPct * 100}%` }}
-                                        className="h-full bg-emerald-500"
-                                    />
+
+                        {/* Skew & Observed Truth */}
+                        <div className="pt-6 border-t border-zinc-900 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div className="text-[9px] text-zinc-500 font-black uppercase tracking-widest">Skew Analysis</div>
+                                <div className={`px-2 py-0.5 rounded text-[10px] font-black italic ${(trajectory.bull?.capitalRequired || 0) > (trajectory.bear?.capitalRequired || 0) * 2 ? 'text-rose-400 bg-rose-400/10' : 'text-emerald-400 bg-emerald-400/10'
+                                    }`}>
+                                    {(trajectory.bull?.capitalRequired || 1) / (trajectory.bear?.capitalRequired || 1) > 2 ? 'BEARISH SKEW' : 'BALANCED SKEW'}
                                 </div>
                             </div>
+                            <p className="text-[11px] font-medium italic text-zinc-400 leading-relaxed">
+                                {trajectory.bull?.capitalRequired && trajectory.bear?.capitalRequired ? (
+                                    `Reaching the target requires ${formatUSD(trajectory.bull.capitalRequired)} in net buying, while a comparable move downward needs only ${formatUSD(trajectory.bear.capitalRequired)} in selling.`
+                                ) : (
+                                    "Insufficient historical response to model a reliable trajectory skew."
+                                )}
+                            </p>
+                        </div>
+
+                        {/* Mechanistic Status */}
+                        <div className="pt-4 border-t border-zinc-900/50">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className={`w-1.5 h-1.5 rounded-full ${trajectory.statusMessage?.includes("not supported") || trajectory.statusMessage?.includes("Negative") ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+                                <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Status Verdict</div>
+                            </div>
+                            <p className={`text-xs font-black italic leading-relaxed ${trajectory.statusMessage?.includes("not supported") || trajectory.statusMessage?.includes("Negative") ? 'text-rose-400' : 'text-zinc-300'}`}>
+                                {trajectory.statusMessage}
+                            </p>
+                        </div>
+
+                        {/* Institutional Disclaimer */}
+                        <div className="pt-4 border-t border-zinc-900/30 text-center">
+                            <p className="text-[10px] text-zinc-600 italic">
+                                This model does not predict price. It visualizes how price has historically responded to capital entering or exiting the market.
+                            </p>
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
-    );
+
+                {/* REALITY SIMULATOR BLOCK */}
+                <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
+                    <div className="p-6 border-b border-zinc-900 bg-cyan-500/5">
+                        <div className="flex items-center gap-2">
+                            <Zap className="w-5 h-5 text-cyan-400" />
+                            <div className="text-[11px] text-white font-black uppercase tracking-widest italic">Reality Simulator: Required for MCAS 0.4</div>
+                        </div>
+                    </div>
+                    <div className="p-6">
+                        {simulation ? (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
+                                    <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Volume Growth</div>
+                                    <div className="text-lg font-black italic text-white">+{((simulation.volumeIncreaseRequired - 1) * 100).toFixed(0)}%</div>
+                                </div>
+                                <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
+                                    <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Liquidity Boost</div>
+                                    <div className="text-lg font-black italic text-white">{simulation.liquidityIncreaseRequired.toFixed(1)}x</div>
+                                </div>
+                                <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50 border-emerald-500/10">
+                                    <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Holder Stability</div>
+                                    <div className="text-lg font-black italic text-emerald-400">+{((simulation.holderImprovementRequired) * 100).toFixed(0)}%</div>
+                                </div>
+                                <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800/50">
+                                    <div className="text-[8px] text-zinc-600 uppercase font-black mb-1">Wash Reduction</div>
+                                    <div className="text-lg font-black italic text-cyan-400">{simulation.washTradingReductionRequired}</div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-[10px] text-zinc-700 italic p-4">Insuffient empirical data to run reality simulation.</div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Live Market Convergence (Order Book) */}
+                {
+                    orderBook && orderBook.orderBookAvailable === true && obModel && (
+                        <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
+                            <div className="p-6 border-b border-zinc-900 bg-emerald-500/5">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <BarChart3 className={`w-5 h-5 ${obModel.status === 'CLOSE' ? 'text-emerald-400' : 'text-zinc-500'}`} />
+                                        <div className="text-xs font-black uppercase italic tracking-widest text-white">Live Market Convergence</div>
+                                    </div>
+                                    <div className={`px-2 py-1 rounded text-[10px] font-black italic tracking-tighter ${obModel.status === 'CLOSE' ? 'bg-emerald-500 text-black' :
+                                        obModel.status === 'APPROACHING' ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-400'
+                                        }`}>
+                                        {obModel.status}
+                                    </div>
+                                </div>
+                                <p className="mt-3 text-[11px] text-zinc-500 font-medium leading-relaxed italic pr-12">
+                                    {obModel.insight}
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 divide-x divide-zinc-900">
+                                <div className="p-6 space-y-4">
+                                    <div className="space-y-1">
+                                        <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Buy Pressure (1%)</div>
+                                        <div className="text-lg font-black italic text-emerald-400">
+                                            {formatUSD(buyPressure(orderBook?.bids || [], currentPrice, 0.01))}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="p-6 space-y-6">
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest">
+                                            <span className="text-zinc-600">Absorption</span>
+                                            <span className="text-white">{Math.round(obModel.progressPct * 100)}%</span>
+                                        </div>
+                                        <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${obModel.progressPct * 100}%` }}
+                                                className="h-full bg-emerald-500"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
+            </div >
+            );
 };

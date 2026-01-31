@@ -6,6 +6,15 @@
  */
 
 import { TxDerivedMetrics, MCASResult, SimulationResult } from './liquidityEngine';
+import {
+    ammPriceSensitivity,
+    capitalRequiredForTarget,
+    momentumETA,
+    fitTrajectoryCoefficients,
+    bullPrice,
+    bearPrice,
+    capitalForPrice
+} from './trajectoryEngine';
 
 export type SwapTx = {
     timestamp: number;
@@ -696,10 +705,10 @@ export function ammBaselineTrajectory({
     liquidityUSD: number;
     inflowPerHour: number;
 }): TrajectoryModel {
-    // Step 2: Ensure sync baseline using strict math
-    const A = Math.max(currentPrice / (2 * Math.max(liquidityUSD, 1)), 1e-12);
-    const capital = Math.max((targetPrice - currentPrice) / A, 0);
-    const eta = inflowPerHour > 0 ? capital / inflowPerHour : null;
+    // Step 2: Ensure sync baseline using centralized math
+    const A = ammPriceSensitivity(currentPrice, liquidityUSD);
+    const capital = capitalRequiredForTarget(currentPrice, targetPrice, A);
+    const eta = momentumETA(capital, inflowPerHour);
 
     return {
         priceSensitivity: A,
@@ -739,7 +748,7 @@ export function empiricalTrajectory({
 
     // behavioral capital: capitalPer1Pct is USD for 1% move
     const capital = capitalPer1Pct * (pctMove * 100);
-    const sensitivity = (targetPrice - currentPrice) / Math.max(capital, 0.001);
+    const sensitivity = capital > 0 ? (targetPrice - currentPrice) / capital : ammPriceSensitivity(currentPrice, (targetPrice - currentPrice) * 100);
 
     // Phase 16: Separate Bull/Bear txs
     const buyTxs = (recentTxs || []).filter(tx => tx.side === "BUY");
@@ -749,24 +758,25 @@ export function empiricalTrajectory({
     let bullA = sensitivity;
     if (buyTxs.length >= 2) {
         const buyPoints = buildCapitalTrajectory(buyTxs);
-        const bullParams = fitLogTrajectory(buyPoints);
-        bullA = Math.max(bullParams.a, 1e-12);
+        const maxC = Math.max(...buyPoints.map(p => p.cumulativeUSD), 0);
+        const maxPDelta = Math.max(...buyPoints.map(p => p.price - currentPrice), 0);
+        const { alpha, beta } = fitTrajectoryCoefficients(maxC, maxPDelta);
+        bullA = alpha > 0 ? (targetPrice - currentPrice) / capitalForPrice(targetPrice - currentPrice, alpha, beta) : sensitivity;
     }
-    const bullCapital = Math.max((targetPrice - currentPrice) / bullA, 0);
-    const bullEta = inflowPerHour > 0 ? bullCapital / inflowPerHour : null;
+    const bullCapital = capitalForPrice(targetPrice - currentPrice, bullA, 1); // fallback to linear if alpha is 0
+    const bullEta = momentumETA(bullCapital, inflowPerHour);
 
     // Fit Bear Case (Sell Only - symmetric move down)
     let bearA = sensitivity;
     if (sellTxs.length >= 2) {
-        // Build a "positive" capital trajectory for sells to fit the absolute response intensity
         const sellPoints = buildCapitalTrajectory(sellTxs.map(tx => ({ ...tx, side: "BUY" })));
-        const bearParams = fitLogTrajectory(sellPoints);
-        bearA = Math.max(bearParams.a, 1e-12);
+        const maxC = Math.max(...sellPoints.map(p => p.cumulativeUSD), 0);
+        const maxPDelta = Math.max(...sellPoints.map(p => Math.abs(p.price - currentPrice)), 0);
+        const { alpha, beta } = fitTrajectoryCoefficients(maxC, maxPDelta);
+        bearA = alpha > 0 ? Math.abs(targetPrice - currentPrice) / capitalForPrice(Math.abs(targetPrice - currentPrice), alpha, beta) : sensitivity;
     }
-    // Bear target is symmetric down move
-    const priceDelta = targetPrice - currentPrice;
-    const bearCapital = Math.max(Math.abs(priceDelta) / bearA, 0);
-    const bearEta = inflowPerHour < 0 ? bearCapital / Math.abs(inflowPerHour) : null;
+    const bearCapital = capitalForPrice(Math.abs(targetPrice - currentPrice), bearA, 1);
+    const bearEta = momentumETA(bearCapital, -Math.abs(inflowPerHour)); // Force negative for bear
 
     // Calculate Observed Metrics from recentTxs
     let netCapitalInjected = 0;

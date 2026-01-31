@@ -13,6 +13,11 @@ import { ProjectionInsight } from './ProjectionInsight';
 import { OrderBookVisualizer } from './OrderBookVisualizer';
 import { OrderBookSnapshot, AMMVirtualDepth, TxDerivedMetrics } from '@/lib/argus/liquidityEngine';
 import {
+    fitTrajectoryCoefficients,
+    bullPrice,
+    bearPrice
+} from '@/lib/argus/trajectoryEngine';
+import {
     computeMCASv31,
     MCASResult,
     buildBondCurveFromTxs,
@@ -270,12 +275,21 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
         // 2. Real Trajectory Points
         const trajectoryPoints = buildCapitalTrajectory(txsForLogic);
 
-        // 3. Dual Fitted Curves (PHASE 16)
+        // 3. Dual Fitted Curves (PHASE 17 - SYNCED)
         const buyTxs = txsForLogic.filter(tx => tx.side === "BUY");
         const sellTxs = txsForLogic.filter(tx => tx.side === "SELL");
 
-        const bullParams = fitLogTrajectory(buildCapitalTrajectory(buyTxs));
-        const bearParams = fitLogTrajectory(buildCapitalTrajectory(sellTxs.map(tx => ({ ...tx, side: "BUY" }))));
+        // Bull fitting
+        const buyPoints = buildCapitalTrajectory(buyTxs);
+        const maxBuyC = Math.max(...buyPoints.map(p => p.cumulativeUSD), 0);
+        const maxBuyP = Math.max(...buyPoints.map(p => p.price - currentPrice), 0);
+        const bullParams = fitTrajectoryCoefficients(maxBuyC, maxBuyP);
+
+        // Bear fitting
+        const sellPoints = buildCapitalTrajectory(sellTxs.map(tx => ({ ...tx, side: "BUY" })));
+        const maxSellC = Math.max(...sellPoints.map(p => p.cumulativeUSD), 0);
+        const maxSellP = Math.max(...sellPoints.map(p => Math.abs(p.price - currentPrice)), 0);
+        const bearParams = fitTrajectoryCoefficients(maxSellC, maxSellP);
 
         const bullCurve = [];
         const bearCurve = [];
@@ -286,16 +300,16 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
         for (let i = 0; i <= 30; i++) {
             const capital = minX + ((maxX - minX) / 30) * i;
 
-            // Bull uses bull math (up)
+            // Bull Case (Upper Envelope)
             bullCurve.push({
                 cumulativeUSD: capital,
-                price: currentPrice + bullParams.a * Math.log(1 + bullParams.b * capital)
+                price: bullPrice(currentPrice, capital, bullParams.alpha, bullParams.beta)
             });
 
-            // Bear uses bear math (down)
+            // Bear Case (Lower Envelope)
             bearCurve.push({
                 cumulativeUSD: capital,
-                price: Math.max(currentPrice - bearParams.a * Math.log(1 + bearParams.b * capital), 0)
+                price: Math.max(bearPrice(currentPrice, capital, bearParams.alpha, bearParams.beta), 0)
             });
         }
 
