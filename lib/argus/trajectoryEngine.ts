@@ -107,3 +107,56 @@ export function capitalForPrice(
     if (alpha <= 0 || beta <= 0) return Infinity;
     return (Math.exp(Math.abs(priceDelta) / alpha) - 1) / beta;
 }
+
+export type RecurrentDominanceResult = {
+    recurrentBuyStrength: number;
+    recurrentSellStrength: number;
+    dominance: number; // NRD
+    status: "RECURRENT_BUYERS_DOMINANT" | "RECURRENT_SELLERS_DOMINANT" | "BALANCED_PARTICIPATION";
+};
+
+/**
+ * Step 4 — Recurrent Flow Dominance (RFD)
+ * Measures persistent behavior vs fragmented flow.
+ */
+export function calculateRecurrentDominance(
+    txs: Array<{ wallet: string; side: 'BUY' | 'SELL'; usdValue: number }>,
+    minRepeats = 2
+): RecurrentDominanceResult {
+    const buyMap = new Map<string, { total: number; count: number }>();
+    const sellMap = new Map<string, { total: number; count: number }>();
+
+    for (const tx of txs) {
+        const map = tx.side === "BUY" ? buyMap : sellMap;
+        const current = map.get(tx.wallet) || { total: 0, count: 0 };
+        map.set(tx.wallet, {
+            total: current.total + tx.usdValue,
+            count: current.count + 1
+        });
+    }
+
+    const B = [...buyMap.values()].reduce((a, b) => a + b.total, 0);
+    const S = [...sellMap.values()].reduce((a, b) => a + b.total, 0);
+
+    const Br = [...buyMap.values()]
+        .filter(v => v.count >= minRepeats)
+        .reduce((a, b) => a + b.total, 0);
+
+    const Sr = [...sellMap.values()]
+        .filter(v => v.count >= minRepeats)
+        .reduce((a, b) => a + b.total, 0);
+
+    const totalVolume = Math.max(B + S, 1);
+    const nrd = (Br - Sr) / totalVolume;
+
+    let status: RecurrentDominanceResult['status'] = "BALANCED_PARTICIPATION";
+    if (nrd > 0.25) status = "RECURRENT_BUYERS_DOMINANT";
+    else if (nrd < -0.25) status = "RECURRENT_SELLERS_DOMINANT";
+
+    return {
+        recurrentBuyStrength: B ? Br / B : 0,
+        recurrentSellStrength: S ? Sr / S : 0,
+        dominance: nrd,
+        status
+    };
+}

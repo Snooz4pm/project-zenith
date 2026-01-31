@@ -62,6 +62,8 @@ export type TxDerivedMetrics = {
     txConfidence: number;
     ammConsistency: number;
     washPenalty: number;
+    nrd?: number;
+    dominanceStatus?: string;
     metrics: {
         volume24hUSD: number;
         liquidityUSD: number;

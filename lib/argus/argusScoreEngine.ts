@@ -13,7 +13,9 @@ import {
     fitTrajectoryCoefficients,
     bullPrice,
     bearPrice,
-    capitalForPrice
+    capitalForPrice,
+    calculateRecurrentDominance,
+    RecurrentDominanceResult
 } from './trajectoryEngine';
 
 export type SwapTx = {
@@ -57,6 +59,7 @@ export type TrajectoryModel = {
     netCapitalInjected?: number;
     observedPriceResponse?: number; // percentage
     statusMessage?: string;
+    nrd?: RecurrentDominanceResult;
 
     // Phase 16: Dual Envelope Metrics
     bull?: {
@@ -245,12 +248,15 @@ export function computeMCASv31({
         (market.effectiveDailyFlowUSD * 30) /
         Math.max(capitalRequiredUSD, 1);
 
-    const mcas =
+    const mcasRaw =
         feasibility *
         holders.holderPenalty *
         tx.txConfidence *
         tx.ammConsistency *
         tx.washPenalty;
+
+    // Apply Recurrent Flow Dominance (NRD) Adjustment
+    const mcas = clamp(mcasRaw * (1 + (tx.nrd || 0)), 0, 1.5);
 
     const confidence =
         tx.txConfidence * tx.ammConsistency * tx.washPenalty;

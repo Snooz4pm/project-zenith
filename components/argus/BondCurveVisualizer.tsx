@@ -25,6 +25,8 @@ interface BondCurveVisualizerProps {
     targetPrice: number;
     currentPrice: number;
     symbol: string;
+    nrd?: number;
+    dominanceStatus?: string;
 }
 
 const formatUSD = (val: number) => {
@@ -41,7 +43,9 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
     bearCurve,
     targetPrice,
     currentPrice,
-    symbol
+    symbol,
+    nrd,
+    dominanceStatus
 }) => {
     const maxObservedPrice = Math.max(...trajectoryPoints.map(p => p.price), currentPrice);
     const targetReachable = maxObservedPrice >= targetPrice;
@@ -155,26 +159,28 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
                 <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="bg-black/40 p-4 rounded-xl border border-zinc-900 space-y-3">
                         <div className="flex items-center gap-2">
-                            {targetReachable ? (
+                            {(nrd || 0) > 0 ? (
                                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                             ) : (
                                 <AlertTriangle className="w-4 h-4 text-amber-500" />
                             )}
                             <div className="text-[10px] text-zinc-100 font-black uppercase tracking-wider">
-                                Trajectory Skew Verdict
+                                Market Control Verdict
                             </div>
                         </div>
                         <p className="text-[11px] text-zinc-400 leading-relaxed italic">
-                            {targetReachable
-                                ? `The bull trajectory already intersects the target. Historical buy-power intensity suggests a clear path to $${(targetPrice || 0).toFixed(4)}.`
-                                : `The market is bounded by opposing force fields. While the bull curve targets $${(targetPrice || 0).toFixed(4)}, the bear curve reveals the realistic downside response intensity.`}
+                            {(nrd || 0) > 0.25
+                                ? `Recurrent buyers are in control. The tape shows persistent accumulation, making the path to $${(targetPrice || 0).toFixed(4)} structurally supported.`
+                                : (nrd || 0) < -0.25
+                                    ? `Recurrent sellers dominate the flow. The market faces persistent structural resistance from repeat exits.`
+                                    : `Balanced market participation. Neither buyers nor sellers have established persistent dominance at this level.`}
                         </p>
                     </div>
 
                     <div className="bg-black/40 p-4 rounded-xl border border-zinc-900">
-                        <div className="text-[9px] text-zinc-600 font-black uppercase tracking-widest mb-3">Envelope Logic</div>
+                        <div className="text-[9px] text-zinc-600 font-black uppercase tracking-widest mb-3">Dominance Logic</div>
                         <p className="text-[10px] text-zinc-500 leading-relaxed italic">
-                            Professionals analyze **Force Fields**, not single lines. Argus maps symmetric logarithmic responses to both net buying and net selling to reveal the price corridor your coin is currently trapped in.
+                            Argus analyzes **Recurrent Flow Dominance (RFD)**. Markets move when the same actors repeatedly apply pressure. This ensures we measure structural conviction rather than fragmented noise.
                         </p>
                     </div>
                 </div>
@@ -184,7 +190,7 @@ export const BondCurveVisualizer: React.FC<BondCurveVisualizerProps> = ({
                 <div className="flex items-center gap-2">
                     <Info className="w-3 h-3 text-zinc-600" />
                     <p className="text-[9px] text-zinc-600 font-black uppercase tracking-tighter">
-                        Model: Combined Logarithmic Force Fields • Phase 17 Truth Foundation
+                        Model: Recurrent Flow Dominance (RFD) • Phase 19 Dominance Engine
                     </p>
                 </div>
             </div>

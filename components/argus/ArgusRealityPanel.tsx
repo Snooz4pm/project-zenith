@@ -9,13 +9,20 @@ import {
 import { calculateReality, RealityFeasibility } from '@/lib/argus/realityEngine';
 import { NetworkIntelligencePanel } from './NetworkIntelligencePanel';
 import { WalletExposure } from '@/lib/argus/correlationEngine';
+import {
+    buildBondCurveFromTxs,
+    buildCapitalTrajectory,
+    formatCompact,
+    formatUSD
+} from '@/lib/argus/orderBookEngine';
 import { ProjectionInsight } from './ProjectionInsight';
 import { OrderBookVisualizer } from './OrderBookVisualizer';
 import { OrderBookSnapshot, AMMVirtualDepth, TxDerivedMetrics } from '@/lib/argus/liquidityEngine';
 import {
     fitTrajectoryCoefficients,
     bullPrice,
-    bearPrice
+    bearPrice,
+    calculateRecurrentDominance
 } from '@/lib/argus/trajectoryEngine';
 import {
     computeMCASv31,
@@ -291,6 +298,9 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
         const maxSellP = Math.max(...sellPoints.map(p => Math.abs(p.price - currentPrice)), 0);
         const bearParams = fitTrajectoryCoefficients(maxSellC, maxSellP);
 
+        // 4. Recurrent Flow Dominance (RFD) - Phase 19
+        const nrdResult = calculateRecurrentDominance(txsForLogic);
+
         const bullCurve = [];
         const bearCurve = [];
 
@@ -318,8 +328,9 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
             trajectoryPoints,
             bullCurve,
             bearCurve,
+            nrd: nrdResult,
             source: 'EMPIRICAL' as const,
-            statusMessage: bullParams.a < 1e-12 ? "Target not supported under current response pressure." : "Market Trajectory Envelope Active."
+            statusMessage: nrdResult.status.replace(/_/g, ' ')
         };
     }, [reality, liquidity, currentPrice, targetPrice]);
 
@@ -720,7 +731,11 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
                     }
                     orderBook={orderBook}
                     ammDepth={ammDepth}
-                    reality={reality}
+                    reality={reality ? {
+                        ...reality,
+                        nrd: trajectoryData.nrd?.dominance,
+                        dominanceStatus: trajectoryData.nrd?.status.replace(/_/g, ' ')
+                    } : undefined}
                 />
             </div>
 
@@ -743,6 +758,8 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
                     targetPrice={targetPrice}
                     currentPrice={currentPrice}
                     symbol={symbol}
+                    nrd={trajectoryData.nrd?.dominance}
+                    dominanceStatus={trajectoryData.nrd?.status.replace(/_/g, ' ')}
                 />
             </div>
 
