@@ -19,7 +19,8 @@ import {
     buildCapitalTrajectory,
     fitLogTrajectory,
     trajectoryPrice,
-    TrajectoryPoint
+    TrajectoryPoint,
+    instantPriceSensitivity
 } from '@/lib/argus/argusScoreEngine';
 import { BondCurveVisualizer } from './BondCurveVisualizer';
 
@@ -215,7 +216,21 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
     }, [currentPrice, circulatingSupply, targetPrice]);
 
     const trajectoryData = useMemo(() => {
-        if (!reality || !reality.recentTxs || !liquidity) return { ammCurve: [], trajectoryPoints: [], fittedCurve: [] };
+        // Phase 1: Baseline setup
+        const baselineAMM = liquidity ? [
+            { cumulativeUSD: 0, price: currentPrice },
+            { cumulativeUSD: liquidity / 4, price: currentPrice * 1.5 },
+            { cumulativeUSD: liquidity / 2, price: currentPrice * 2.5 }
+        ] : [];
+
+        const base = {
+            ammCurve: baselineAMM,
+            trajectoryPoints: [],
+            fittedCurve: baselineAMM.map(p => ({ ...p, source: 'BASELINE' })),
+            source: 'BASELINE' as const
+        };
+
+        if (!reality || !reality.recentTxs || !liquidity) return base;
 
         const pool = {
             reserveUSD: liquidity / 2,
@@ -226,7 +241,7 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
             .sort((a, b) => a.time - b.time)
             .map(tx => ({
                 timestamp: tx.time,
-                side: tx.side,
+                side: tx.side as "BUY" | "SELL",
                 usdValue: tx.usdValue,
                 price: tx.price || currentPrice,
                 wallet: tx.wallet
@@ -269,7 +284,7 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
             });
         }
 
-        return { ammCurve, trajectoryPoints, fittedCurve };
+        return { ammCurve, trajectoryPoints, fittedCurve, source: 'EMPIRICAL' as const };
     }, [reality, liquidity, currentPrice, targetPrice]);
 
     if (!metrics) {

@@ -621,3 +621,34 @@ export function capitalNeededForPrice(
     // C = (exp((P - p0)/a) - 1) / b
     return (Math.exp((targetPrice - p0) / a) - 1) / b;
 }
+
+/**
+ * CALCULATES INSTANT PRICE SENSITIVITY (A) FROM LIQUIDITY
+ * A ~= P / (2 * L)
+ */
+export function instantPriceSensitivity(
+    currentPrice: number,
+    liquidityUSD: number
+): number {
+    if (liquidityUSD <= 0) return 0;
+    // In an AMM, dP/dD = P / (2 * reserveUSD)
+    // where reserveUSD = liquidity / 2
+    return currentPrice / liquidityUSD; // This is a safe baseline sensitivity
+}
+
+/**
+ * CALCULATES INSTANT REQUIRED CAPITAL (BASELINE)
+ */
+export function instantCapitalRequired({
+    currentPrice,
+    targetPrice,
+    priceSensitivity
+}: {
+    currentPrice: number;
+    targetPrice: number;
+    priceSensitivity: number;
+}): number {
+    const deltaP = targetPrice - currentPrice;
+    if (deltaP <= 0 || priceSensitivity <= 0) return 0;
+    return deltaP / priceSensitivity;
+}

@@ -37,15 +37,12 @@ import {
     simulateWhatMustChange,
     computeMomentumETA,
     calculateLiveInflowRate,
-    netInflowPerHour,
-    inflowSlope,
-    directionalityErosion,
-    slippageDeterioration,
-    trendHealthScore,
     trendStateFromHealth,
     buildCapitalTrajectory,
     fitLogTrajectory,
-    capitalNeededForPrice
+    capitalNeededForPrice,
+    instantPriceSensitivity,
+    instantCapitalRequired
 } from '@/lib/argus/argusScoreEngine';
 
 interface ProjectionInsightProps {
@@ -214,8 +211,25 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
         });
     }, [reality, mcasModel, trendState, currentPrice]);
 
-    const empiricalTrajectory = useMemo(() => {
-        if (!reality || !reality.recentTxs) return null;
+    const trajectory = useMemo(() => {
+        // Phase 1: Instant Baseline (AMM-derived)
+        const baselineSensitivity = Math.max(instantPriceSensitivity(currentPrice, liquidity), 1e-12);
+        const baselineCapital = Math.max(instantCapitalRequired({
+            currentPrice,
+            targetPrice,
+            priceSensitivity: baselineSensitivity
+        }), 0);
+
+        const base = {
+            params: { p0: currentPrice, a: baselineSensitivity, b: 1 / Math.max(liquidity, 1) },
+            capitalRequired: baselineCapital,
+            source: 'BASELINE' as const
+        };
+
+        // Phase 2: Empirical Refinement (Transaction-derived)
+        if (!reality || !reality.recentTxs || reality.recentTxs.length < 2) {
+            return base;
+        }
 
         const txs = reality.recentTxs.map(tx => ({
             timestamp: tx.time,
@@ -227,14 +241,19 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
 
         const trajectoryPoints = buildCapitalTrajectory(txs);
         const params = fitLogTrajectory(trajectoryPoints);
+
+        // Ensure empirical A is not zero/garbage
+        if (params.a <= 0) return base;
+
         const capitalRequired = capitalNeededForPrice(targetPrice, params);
 
         return {
             params,
-            capitalRequired,
-            trajectoryPoints
+            capitalRequired: capitalRequired !== null ? Math.max(capitalRequired, 0) : baselineCapital,
+            trajectoryPoints,
+            source: 'EMPIRICAL' as const
         };
-    }, [reality, targetPrice, currentPrice]);
+    }, [reality, targetPrice, currentPrice, liquidity]);
 
     const getScoreColor = (score: number) => {
         if (score >= 0.8) return 'text-emerald-400';
@@ -440,37 +459,47 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
             </div>
 
             {/* Empirical Trajectory Diagnostics */}
-            {empiricalTrajectory && (
-                <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
-                    <div className="p-6 border-b border-zinc-900 bg-indigo-500/5">
+            <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
+                <div className="p-6 border-b border-zinc-900 bg-indigo-500/5">
+                    <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <FlaskConical className="w-5 h-5 text-indigo-400" />
-                            <div className="text-xs font-black uppercase italic tracking-widest text-white">Empirical Trajectory Diagnostics</div>
-                        </div>
-                    </div>
-                    <div className="p-6">
-                        <div className="grid grid-cols-2 gap-6">
-                            <div className="space-y-1">
-                                <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Behavioral Capital Floor</div>
-                                <div className="text-lg font-black italic text-zinc-100">
-                                    {formatUSD(empiricalTrajectory.capitalRequired || 0)}
-                                </div>
-                            </div>
-                            <div className="space-y-1">
-                                <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Price Sensitivity (a)</div>
-                                <div className="text-lg font-black italic text-indigo-400">
-                                    {empiricalTrajectory.params.a.toFixed(6)}
-                                </div>
+                            <div className="text-xs font-black uppercase italic tracking-widest text-white">
+                                {trajectory.source === 'EMPIRICAL' ? 'Empirical Trajectory Diagnostics' : 'Baseline Trajectory (AMM)'}
                             </div>
                         </div>
-                        <div className="mt-4 pt-4 border-t border-zinc-900/50">
-                            <p className="text-[10px] text-zinc-500 italic leading-relaxed">
-                                Deriving required injection of **{formatUSD(empiricalTrajectory.capitalRequired || 0)}** net USD to reach target, based on historical response intensity of **{empiricalTrajectory.params.a.toFixed(4)}**.
-                            </p>
+                        <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter ${trajectory.source === 'EMPIRICAL' ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-500'
+                            }`}>
+                            {trajectory.source}
                         </div>
                     </div>
                 </div>
-            )}
+                <div className="p-6">
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                            <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">
+                                {trajectory.source === 'EMPIRICAL' ? 'Behavioral Capital Floor' : 'Theoretical Injection'}
+                            </div>
+                            <div className="text-lg font-black italic text-zinc-100">
+                                {formatUSD(trajectory.capitalRequired || 0)}
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Price Sensitivity (a)</div>
+                            <div className="text-lg font-black italic text-indigo-400">
+                                {trajectory.params.a.toFixed(6)}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-zinc-900/50">
+                        <p className="text-[10px] text-zinc-500 italic leading-relaxed">
+                            {trajectory.source === 'EMPIRICAL'
+                                ? `Refined via transaction response intensity of **${trajectory.params.a.toFixed(4)}**. Target requires **${formatUSD(trajectory.capitalRequired || 0)}** net USD.`
+                                : `Baseline derived from current liquidity aggregates. Empirical refit will apply as market data streams in.`}
+                        </p>
+                    </div>
+                </div>
+            </div>
 
             {/* REALITY SIMULATOR BLOCK */}
             <div className="bg-zinc-950/20 rounded-2xl border border-zinc-900 overflow-hidden">
