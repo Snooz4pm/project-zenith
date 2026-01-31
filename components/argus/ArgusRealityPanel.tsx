@@ -10,10 +10,11 @@ import { calculateReality, RealityFeasibility } from '@/lib/argus/realityEngine'
 import { NetworkIntelligencePanel } from './NetworkIntelligencePanel';
 import { WalletExposure } from '@/lib/argus/correlationEngine';
 import {
-    buildBondCurveFromTxs,
-    buildCapitalTrajectory,
-    formatCompact,
-    formatUSD
+    liquidityWall,
+    buyPressure,
+    orderBookAbsorptionRatio,
+    targetProximityStatus,
+    estimateAMMCapital
 } from '@/lib/argus/orderBookEngine';
 import { ProjectionInsight } from './ProjectionInsight';
 import { OrderBookVisualizer } from './OrderBookVisualizer';
@@ -108,6 +109,15 @@ function formatCompact(val: number) {
     if (val >= 1e3) return `$${(val / 1e3).toFixed(1)}K`;
     return `$${val.toFixed(2)}`;
 }
+
+function formatUSD(val: number) {
+    if (val === undefined || val === null || isNaN(val)) return '$0.00';
+    if (val >= 1e9) return `$${(val / 1e9).toFixed(2)}B`;
+    if (val >= 1e6) return `$${(val / 1e6).toFixed(2)}M`;
+    if (val >= 1e3) return `$${(val / 1e3).toFixed(2)}K`;
+    return `$${val.toFixed(2)}`;
+}
+
 
 export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, mint, integrity, behavior, timing, primaryRisk, holders, liquidity, volume24h, walletExposures }: ArgusRealityPanelProps) {
 
