@@ -9,7 +9,8 @@ import {
     Info,
     Target,
     Zap,
-    TrendingUp
+    TrendingUp,
+    FlaskConical
 } from 'lucide-react';
 import {
     calculateFinalMCAS,
