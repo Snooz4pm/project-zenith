@@ -117,54 +117,125 @@ export type RecurrentDominanceResult = {
     recurrentSellUSD: number;
     dominance: number; // NRD
     status: "RECURRENT_BUYERS_DOMINANT" | "RECURRENT_SELLERS_DOMINANT" | "BALANCED_PARTICIPATION";
+    recentTxs: Array<{
+        signature: string;
+        time: number;
+        side: 'BUY' | 'SELL';
+        usdValue: number;
+        wallet: string;
+    }>;
 };
 
 /**
  * Step 4 — Recurrent Flow Dominance (RFD)
  * Measures persistent behavior vs fragmented flow.
+ * LOCK-IN: Updated Feb 1 2026 as per user specification.
  */
 export function calculateRecurrentDominance(
-    txs: Array<{ wallet: string; side: 'BUY' | 'SELL'; usdValue: number }>,
+    allTxs: Array<{ wallet: string; side: 'BUY' | 'SELL'; usdValue: number, timestamp: number, signature?: string }>,
     minRepeats = 2
 ): RecurrentDominanceResult {
-    const buyMap = new Map<string, { total: number; count: number }>();
-    const sellMap = new Map<string, { total: number; count: number }>();
+    // STEP 1 — HARD WINDOW (NON-NEGOTIABLE)
+    const WINDOW_MS = 60 * 60 * 1000; // 1 hour
+    const now = Date.now();
+    const txs = allTxs.filter(tx => (now - tx.timestamp) <= WINDOW_MS);
 
-    for (const tx of txs) {
-        const map = tx.side === "BUY" ? buyMap : sellMap;
-        const current = map.get(tx.wallet) || { total: 0, count: 0 };
-        map.set(tx.wallet, {
-            total: current.total + tx.usdValue,
-            count: current.count + 1
-        });
+    if (txs.length === 0) {
+        return {
+            recurrentBuyStrength: 0,
+            recurrentSellStrength: 0,
+            totalBuyUSD: 0,
+            totalSellUSD: 0,
+            recurrentBuyUSD: 0,
+            recurrentSellUSD: 0,
+            dominance: 0,
+            status: "BALANCED_PARTICIPATION",
+            recentTxs: []
+        };
     }
 
-    const B = [...buyMap.values()].reduce((a, b) => a + b.total, 0);
-    const S = [...sellMap.values()].reduce((a, b) => a + b.total, 0);
+    // STEP 2 — AGGREGATE BY WALLET + SIDE
+    type Agg = {
+        buyCount: number;
+        sellCount: number;
+        buyUSD: number;
+        sellUSD: number;
+    };
 
-    const Br = [...buyMap.values()]
-        .filter(v => v.count >= minRepeats)
-        .reduce((a, b) => a + b.total, 0);
+    const map = new Map<string, Agg>();
 
-    const Sr = [...sellMap.values()]
-        .filter(v => v.count >= minRepeats)
-        .reduce((a, b) => a + b.total, 0);
+    for (const tx of txs) {
+        if (!map.has(tx.wallet)) {
+            map.set(tx.wallet, {
+                buyCount: 0,
+                sellCount: 0,
+                buyUSD: 0,
+                sellUSD: 0
+            });
+        }
 
-    const totalVolume = Math.max(B + S, 1);
-    const nrd = (Br - Sr) / totalVolume;
+        const a = map.get(tx.wallet)!;
+        if (tx.side === "BUY") {
+            a.buyCount++;
+            a.buyUSD += tx.usdValue;
+        } else {
+            a.sellCount++;
+            a.sellUSD += tx.usdValue;
+        }
+    }
+
+    // STEP 4 — COMPUTE CAPITAL (NOT COUNTS)
+    let totalBuyUSD = 0;
+    let totalSellUSD = 0;
+    let recurrentBuyUSD = 0;
+    let recurrentSellUSD = 0;
+
+    for (const a of map.values()) {
+        totalBuyUSD += a.buyUSD;
+        totalSellUSD += a.sellUSD;
+
+        if (a.buyCount >= minRepeats) {
+            recurrentBuyUSD += a.buyUSD;
+        }
+
+        if (a.sellCount >= minRepeats) {
+            recurrentSellUSD += a.sellUSD;
+        }
+    }
+
+    // STEP 5 — FINAL NRD (THIS IS WHAT FILLS THE BAR)
+    const denom = totalBuyUSD + totalSellUSD;
+    const nrd = denom > 0 ? (recurrentBuyUSD - recurrentSellUSD) / denom : 0;
+    const nrdClamped = Math.max(-1, Math.min(1, nrd));
+
+    // STEP 6 — VERIFY (DO THIS ONCE)
+    console.log({
+        totalBuyUSD,
+        totalSellUSD,
+        recurrentBuyUSD,
+        recurrentSellUSD,
+        NRD: nrdClamped
+    });
 
     let status: RecurrentDominanceResult['status'] = "BALANCED_PARTICIPATION";
-    if (nrd > 0.25) status = "RECURRENT_BUYERS_DOMINANT";
-    else if (nrd < -0.25) status = "RECURRENT_SELLERS_DOMINANT";
+    if (nrdClamped > 0.25) status = "RECURRENT_BUYERS_DOMINANT";
+    else if (nrdClamped < -0.25) status = "RECURRENT_SELLERS_DOMINANT";
 
     return {
-        recurrentBuyStrength: B ? Br / B : 0,
-        recurrentSellStrength: S ? Sr / S : 0,
-        totalBuyUSD: B,
-        totalSellUSD: S,
-        recurrentBuyUSD: Br,
-        recurrentSellUSD: Sr,
-        dominance: nrd,
-        status
+        recurrentBuyStrength: totalBuyUSD ? recurrentBuyUSD / totalBuyUSD : 0,
+        recurrentSellStrength: totalSellUSD ? recurrentSellUSD / totalSellUSD : 0,
+        totalBuyUSD,
+        totalSellUSD,
+        recurrentBuyUSD,
+        recurrentSellUSD,
+        dominance: nrdClamped,
+        status,
+        recentTxs: txs.map(tx => ({
+            signature: tx.signature || 'manual-' + Math.random(),
+            time: tx.timestamp,
+            side: tx.side,
+            usdValue: tx.usdValue,
+            wallet: tx.wallet
+        }))
     };
 }

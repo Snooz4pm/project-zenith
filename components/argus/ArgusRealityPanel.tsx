@@ -308,23 +308,9 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
         const maxSellP = Math.max(...sellPoints.map(p => Math.abs(p.price - currentPrice)), 0);
         const bearParams = fitTrajectoryCoefficients(maxSellC, maxSellP);
 
-        // 4. Recurrent Flow Dominance (RFD) - Phase 19
-        // Step 1: 1-hour rolling window
-        const WINDOW_MS = 60 * 60 * 1000;
-        const now = Date.now();
-        const windowTxs = txsForLogic.filter(tx => (now - tx.timestamp) <= WINDOW_MS);
-
-        const nrdResult = calculateRecurrentDominance(windowTxs);
-
-        // Step 4/5 Sanity Check
-        console.log("NRD Component Flux:", {
-            windowTxs: windowTxs.length,
-            totalBuyUSD: nrdResult.totalBuyUSD,
-            totalSellUSD: nrdResult.totalSellUSD,
-            recurrentBuyUSD: nrdResult.recurrentBuyUSD,
-            recurrentSellUSD: nrdResult.recurrentSellUSD,
-            dominance: nrdResult.dominance
-        });
+        // 4. Recurrent Flow Dominance (RFD) - Phase 19/21
+        // LOCK-IN: Using hardened engine with 1-hour rolling window
+        const nrdResult = calculateRecurrentDominance(txsForLogic);
 
         const bullCurve = [];
         const bearCurve = [];
@@ -353,16 +339,7 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
             trajectoryPoints,
             bullCurve,
             bearCurve,
-            nrd: {
-                ...nrdResult,
-                recentTxs: windowTxs.map(tx => ({
-                    signature: tx.signature,
-                    time: tx.timestamp,
-                    side: tx.side as 'BUY' | 'SELL',
-                    usdValue: tx.usdValue,
-                    wallet: tx.wallet
-                }))
-            },
+            nrd: nrdResult,
             source: 'EMPIRICAL' as const,
             statusMessage: nrdResult.status.replace(/_/g, ' ')
         };
