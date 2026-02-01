@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
     BarChart3,
+    Activity,
     Coins,
     ShieldAlert,
     Info,
