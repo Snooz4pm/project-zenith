@@ -512,7 +512,7 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                             <div className="flex flex-col justify-center border-l border-zinc-900 pl-6">
                                 <div className="text-[8px] text-zinc-600 font-bold uppercase mb-1 tracking-widest">Control Ratio</div>
                                 <div className={`text-2xl font-black italic tracking-tighter ${(reality?.nrd || 0) > 0.1 ? 'text-emerald-400' :
-                                        (reality?.nrd || 0) < -0.1 ? 'text-rose-400' : 'text-zinc-500'
+                                    (reality?.nrd || 0) < -0.1 ? 'text-rose-400' : 'text-zinc-500'
                                     }`}>
                                     {Math.abs((reality?.recurrentBuyStrength || 0) / Math.max(reality?.recurrentSellStrength || 0.001, 0.001)).toFixed(2)}x
                                 </div>
@@ -529,6 +529,63 @@ export const ProjectionInsight: React.FC<ProjectionInsightProps> = ({
                             <div className="absolute -top-12 left-0 right-0 bg-zinc-900 border border-zinc-800 p-2 rounded text-[9px] text-zinc-400 italic opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-20 shadow-xl">
                                 Net Recurrent Dominance measures whether the same wallets are consistently buying or selling over time.
                                 <span className="text-zinc-200"> Persistent repetition indicates control</span>, while scattered activity suggests balance.
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* LIVE FLOW INTERCEPT (THE HONEST PROOF) */}
+                    <div className="mt-8 pt-8 border-t border-zinc-900">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-2">
+                                <Activity className="w-4 h-4 text-cyan-400 animate-pulse" />
+                                <div className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black">Live Flow Intercept</div>
+                            </div>
+                            <div className="text-[8px] text-zinc-700 font-mono uppercase">Streaming telemetry...</div>
+                        </div>
+
+                        <div className="bg-black/60 rounded-xl border border-zinc-900 overflow-hidden">
+                            <div className="grid grid-cols-4 px-4 py-2 border-b border-zinc-900 bg-zinc-950 text-[7px] text-zinc-600 font-black uppercase tracking-widest">
+                                <div>Wallet</div>
+                                <div>Side</div>
+                                <div className="text-right">Value</div>
+                                <div className="text-right">Signal</div>
+                            </div>
+                            <div className="max-h-[220px] overflow-y-auto scrollbar-hide divide-y divide-zinc-900/50">
+                                {reality?.recentTxs && reality.recentTxs.length > 0 ? (
+                                    [...reality.recentTxs].reverse().slice(0, 15).map((tx, idx) => {
+                                        const occurrences = reality.recentTxs?.filter(t => t.wallet === tx.wallet).length || 0;
+                                        const isRecurrent = occurrences >= 2;
+
+                                        return (
+                                            <div key={tx.signature + idx} className="grid grid-cols-4 px-4 py-2.5 items-center hover:bg-zinc-900/40 transition-colors">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-1 h-1 rounded-full ${isRecurrent ? 'bg-cyan-400 shadow-[0_0_5px_rgba(34,211,238,0.5)]' : 'bg-zinc-700'}`} />
+                                                    <span className="text-[10px] text-zinc-400 font-mono">{tx.wallet.slice(0, 4)}...{tx.wallet.slice(-4)}</span>
+                                                </div>
+                                                <div>
+                                                    <span className={`px-1.5 py-0.5 rounded-[3px] text-[8px] font-black italic tracking-tighter ${tx.side === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                                                        }`}>
+                                                        {tx.side}
+                                                    </span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-[10px] font-black italic text-zinc-300">{formatUSD(tx.usdValue)}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    {isRecurrent ? (
+                                                        <span className="text-[8px] text-cyan-400 font-black uppercase tracking-tighter animate-pulse">Recurrent</span>
+                                                    ) : (
+                                                        <span className="text-[8px] text-zinc-800 font-black uppercase tracking-tighter">Fragmented</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="py-12 text-center text-[10px] text-zinc-700 italic">
+                                        Intercepting transaction stream...
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

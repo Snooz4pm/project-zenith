@@ -353,7 +353,16 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
             trajectoryPoints,
             bullCurve,
             bearCurve,
-            nrd: nrdResult,
+            nrd: {
+                ...nrdResult,
+                recentTxs: windowTxs.map(tx => ({
+                    signature: tx.signature,
+                    time: tx.timestamp,
+                    side: tx.side as 'BUY' | 'SELL',
+                    usdValue: tx.usdValue,
+                    wallet: tx.wallet
+                }))
+            },
             source: 'EMPIRICAL' as const,
             statusMessage: nrdResult.status.replace(/_/g, ' ')
         };
@@ -761,7 +770,8 @@ export function ArgusRealityPanel({ currentPrice, circulatingSupply, symbol, min
                         nrd: trajectoryData.nrd?.dominance,
                         dominanceStatus: trajectoryData.nrd?.status.replace(/_/g, ' '),
                         recurrentBuyStrength: trajectoryData.nrd?.recurrentBuyStrength,
-                        recurrentSellStrength: trajectoryData.nrd?.recurrentSellStrength
+                        recurrentSellStrength: trajectoryData.nrd?.recurrentSellStrength,
+                        recentTxs: trajectoryData.nrd?.recentTxs || reality.recentTxs
                     } : undefined}
                 />
             </div>
